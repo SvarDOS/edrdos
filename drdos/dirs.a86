@@ -147,16 +147,25 @@ fill_dirbuf:	;get 32 byte directory entry
 	mov	dirbcb_dcnt,bx		;  and dir entry we want
 	test	ax,ax			; are we in the root ?
 ;	 jz	fill_dirbuf10
-	 jnz	fill_dirbuf09
+	 jnz	fill_dirbuf05
 	test	dx,dx
-	 jnz	fill_dirbuf09
+	 jnz	fill_dirbuf05
 	cmp	dirinroot,0		; is this a FAT32 file system?
 	 jne	fill_dirbuf10		; no, proceed with FAT16/12 routine
 	mov	ax,word ptr fsroot	; low word of root dir cluster
 	mov	dx,word ptr fsroot+2
-fill_dirbuf09:
-	mov	cl,FCBSHF
-	shl	bx,cl			; BX = byte offset in cluster
+fill_dirbuf05:
+;	mov	cl,FCBSHF
+;	shl	bx,cl			; BX = byte offset in cluster
+	mov	cx,FCBSHF
+	push	ax
+	xor	ax,ax
+fill_dirbuf07:
+	shl	bx,1			; BX = byte offset in cluster
+	rcl	ax,1
+	loop	fill_dirbuf07
+	mov	cx,ax
+	pop	ax
 	call	clus2sec		; DX:AX -> sector
 	jmps	fill_dirbuf20		; BX = offset in sector
 fill_dirbuf10:

@@ -417,7 +417,11 @@ func32:
 	call	set_retry_RF		; Valid to RETRY or FAIL
 	mov	dh,80h			; set top bit - free space not needed
 	call	fdos_DISKINFO		; and make the function call
-	 jnc	f1B1C1F32_common	; exit using common code
+;	 jnc	f1B1C1F32_common	; exit using common code
+	 jc	fdos_DI_error		; check if error
+	cmp	dosfat,FAT32		; attempt to use on FAT32 drive?
+	 jne	f1B1C1F32_common	; exit using common code
+	mov	ax,0ffh
 fdos_DI_error:
 	jmp	fcberror_exit		; exit thru FCB error
 
@@ -474,7 +478,7 @@ endif
 f36_OK30:
 	cmp	dx,0			; more than fits into 16-bit register?
 	 je	f36_OK50			; no, the value is exact
-	cmp	al,128			; cluster size already 64K?
+	cmp	al,64			; cluster size already 64K?
 	 jae	f36_OK40
 	shl	al,1			; cluster size * 2
 	shr	dx,1			; free clusters / 2
@@ -495,6 +499,7 @@ f36_OK50:
 f36_exit:
 	jmp	return_AX_CLC
 
+	public	fdos_DISKINFO
 fdos_DISKINFO:
 ;-------------
 ; Called by func1B, func1C, func1F, func32, func36
@@ -503,8 +508,13 @@ fdos_DISKINFO:
 ; 
 	mov	ax,FD_DISKINFO		; get information about drive
 	xchg	ax,FD_FUNC		; while getting orginal function #
-	test	al,1			; is it func1B/func1F ?
-	 jz	fdos_DI10		; if so these use the default
+;	test	al,1			; is it func1B/func1F ?
+	cmp	al,1bh			; is it func1B/func1F ?
+;	 jz	fdos_DI10		; if so these use the default
+	 je	fdos_DI05		; if so these use the default
+	cmp	al,1fh
+	 jne	fdos_DI10
+fdos_DI05:
 	xor	dl,dl			;  drive so zero DL
 fdos_DI10:
 	mov	FD_DRIVE,dx		; drive in DX

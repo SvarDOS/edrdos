@@ -223,6 +223,7 @@ include mserror.equ
 include char.def
 .list
 
+MAX_FILELEN	equ	140
 
 ; This is the offset in segment FFFF to which we will relocate.
 ; It is set to E0 to allow for a PCNFS bug
@@ -249,8 +250,7 @@ C_HEAP_SIZE	equ	1200h		; C routine Heap Size - TMP has
 else					;  extra to save ENV in
 ;C_HEAP_SIZE	equ	0800h		; C routine Heap Size
 ;endif					; (observed sizes 500h-600h - IJ)
-;C_HEAP_SIZE	equ	0860h		; C routine Heap Size
-C_HEAP_SIZE	equ	08A0h		; C routine Heap Size
+C_HEAP_SIZE	equ	0860h		; C routine Heap Size
 ; For safety increased that value as UNC filenames require 128 byte buffers
 ; allocated dynamically on tha stack. With respect to the observed sizes
 ; above it might be dangerous to leave that value at 0800h. I would have
@@ -402,6 +402,10 @@ STACK		ENDS
 ED_TEXT		SEGMENT para public 'CDATA'
 	Public	ed_text_start
 ed_text_start	label byte
+	Public	_loadfile
+_loadfile	db	MAX_FILELEN dup(?)
+	Public	_argv0
+_argv0		db	MAX_FILELEN dup(?)
 ED_TEXT		ENDS
 DYNAMIC		SEGMENT para public 'DDATA'
 DYNAMIC		ENDS

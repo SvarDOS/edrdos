@@ -383,6 +383,7 @@ eject
 	public	toupper			; upper case a character
 	Public	unparse
 	public	update_dir_fat		; flush DIR then FAT to disk
+	public	get_path_drive		; get drive number for given path
 
 	public	fdos_getdpb	; 0-disk information
 	public	fdos_mkdir	; 1-make directory

@@ -196,7 +196,7 @@ else
 	dw	offset CGROUP:INITDATA	; compresses from INITDATA onwards
 endif					; this word set to 0 when compressed
 
-	orgabs	06h
+	org	06h
     db  'COMPAQCompatible'  
 
 	dw	offset CGROUP:RCODE	; lets find offset of RCODE
@@ -531,14 +531,14 @@ diskaddrpack:				; disk address packet structure for LBA access
 
 ;	List of BPBs that we usually support
 
-bpb160		BPB	<512,1,1,2, 64, 40*1*8,0FEh,1, 8,1,0,0>
-bpb180		BPB	<512,1,1,2, 64, 40*1*9,0FCh,2, 9,1,0,0>
-bpb320		BPB	<512,2,1,2,112, 40*2*8,0FFh,1, 8,2,0,0>
-bpb360		BPB	<512,2,1,2,112, 40*2*9,0FDh,2, 9,2,0,0>
-bpb1200		BPB	<512,1,1,2,224,80*2*15,0F9h,7,15,2,0,0>
-bpb720		BPB	<512,2,1,2,112, 80*2*9,0F9h,3, 9,2,0,0>
-bpb1440		BPB	<512,1,1,2,224,80*2*18,0F0h,9,18,2,0,0>
-bpb2880		BPB	<512,2,1,2,240,80*2*36,0F0h,9,36,2,0,0>
+bpb160		OLDBPB	<512,1,1,2, 64, 40*1*8,0FEh,1, 8,1,0,0>
+bpb180		OLDBPB	<512,1,1,2, 64, 40*1*9,0FCh,2, 9,1,0,0>
+bpb320		OLDBPB	<512,2,1,2,112, 40*2*8,0FFh,1, 8,2,0,0>
+bpb360		OLDBPB	<512,2,1,2,112, 40*2*9,0FDh,2, 9,2,0,0>
+bpb1200		OLDBPB	<512,1,1,2,224,80*2*15,0F9h,7,15,2,0,0>
+bpb720		OLDBPB	<512,2,1,2,112, 80*2*9,0F9h,3, 9,2,0,0>
+bpb1440		OLDBPB	<512,1,1,2,224,80*2*18,0F0h,9,18,2,0,0>
+bpb2880		OLDBPB	<512,2,1,2,240,80*2*36,0F0h,9,36,2,0,0>
 NBPBS		equ	8
 
 ;	The following is a template, that gets overwritten
@@ -621,6 +621,8 @@ init0	proc	near
 	sti
 	cld
 
+	push	ds:1eh[bp]
+	push	ds:1ch[bp]
 	push	cx			; save entry registers
 	push	di			; (important in ROM systems)
 

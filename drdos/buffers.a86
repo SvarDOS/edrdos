@@ -1479,6 +1479,7 @@ flush_buf9:				; all done, CY = 0 if O.K.
 zeroblk:				; DX:AX = blk
 ;-------
 	xor	bx,bx			; Start at begining of cluster
+	xor	cx,cx
 	call	clus2sec		; translate to sector address
 	xchg	ax,dx			; AX:DX = 32 bit sector address
 ;	mov	ah,al			; AH:DX = 24 bit sector address
@@ -1645,14 +1646,14 @@ read_fsinfo:
 read_fsinfo05:
 	push	es
 	push	ds
-	push	es
-	pop	ds
-	mov	dx,ds:DDSC_FSINFO[bx]	; sector number of FS info block
+	mov	dx,es:DDSC_FSINFO[bx]	; sector number of FS info block
 	xor	ax,ax
 	mov	cx,0FF00h+BF_ISDAT	; data buffer with preread
+	push	es
 	push	bx
 	call	locate_buffer		; read FS info block
 	pop	bx
+	pop	ds
 	mov	ax,es:word ptr BCB_DATA+FS_BFREE[si]	; free cluster count in FS info block
 	mov	dx,es:word ptr BCB_DATA+FS_BFREE+2[si]
 	mov	ds:word ptr DDSC_BFREE[bx],ax	; use this as new free cluster count
@@ -1669,14 +1670,14 @@ write_fsinfo:
 	 jne	write_fsinfo10		; no, then there is no fs info block
 	push	es
 	push	ds
-	push	es
-	pop	ds
-	mov	dx,ds:DDSC_FSINFO[bx]	; sector number of FS info block
+	mov	dx,es:DDSC_FSINFO[bx]	; sector number of FS info block
 	xor	ax,ax
 	mov	cx,0FF00h+BF_ISDAT	; data buffer with preread
+	push	es
 	push	bx
 	call	locate_buffer		; read FS info block
 	pop	bx
+	pop	ds
 	mov	ax,ds:word ptr DDSC_BFREE[bx]	; update buffer
 	mov	dx,ds:word ptr DDSC_BFREE+2[bx]
 	mov	es:word ptr BCB_DATA+FS_BFREE[si],ax
@@ -1686,8 +1687,8 @@ write_fsinfo:
 	mov	es:word ptr BCB_DATA+FS_BBLOCK[si],ax
 	mov	es:word ptr BCB_DATA+FS_BBLOCK+2[si],dx
 	or	es:BCB_FLAGS[si],BF_DIRTY	; mark buffer as modified
-	call	flush_buffer		; and write it back to disk
 	pop	ds
+	call	flush_buffer		; and write it back to disk
 	pop	es
 write_fsinfo10:
 	ret

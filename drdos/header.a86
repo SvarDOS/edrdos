@@ -106,7 +106,8 @@ code_start:
 	dw	pcmode_init-PADDING-3
 ;	jmp	pcmode_reinit	; PCMODE Re Init Entry
 	db	0E9h
-	dw	pcmode_reinit-PADDING-6
+;	dw	pcmode_reinit-PADDING-6
+	dw	pcmode_init2-PADDING-6
 
 	Public	pcmode_dseg, os_version, patch_version
 
@@ -286,11 +287,11 @@ dmd_upper_root	dw	0FFFFh		; 0066 dmd_upper_root
 
 msdos_file_tbl	dw	-1		; 00A6 1st HDB entries
 		dw	-1		; Pointer to next Entry (None)
-		dw	5		; Number of Entries
+		dw	4		; Number of Entries
 
-		rb	5*DHNDL_LEN	; Reserve 5 Internal Handles
+		rb	4*DHNDL_LEN	; Reserve 5 Internal Handles
 
-;	rb	1fbh - (offset $ - offset dos_data)
+	rb	1fbh - (offset $ - offset dos_data)
 
 	Public	savbuf
 ;savbuf		rb	128		; cmdline editing temp buffer
@@ -667,10 +668,10 @@ DBCS_tbl:
 	db	 000h, 000h, 000h, 000h, 000h, 000h, 000h, 000h
 info7_len	equ	word ptr (offset $ - offset DBCS_tbl)
 
+;    org 0d12h - FIXED_DATA_START    
+    org 0d10h - FIXED_DATA_START    
 
-
-    org 0d12h - FIXED_DATA_START    
-
+true_version	dw	107h			; true DOS version
 dos_version	dw	6			; our DOS version number
 
 ; Don't know what these are for.....
@@ -1367,8 +1368,10 @@ PCM_ICODE	cseg
 ;			BX	First Available Paragraph	
 ;			DL	Initial Drive
 ;			DS	PCM Dseg
+;			ES	Interrupt Stubs Seg
 ;
 pcmode_init:
+	mov	cs:int_stubs_seg,es
 	and	cs:patch_version,not DOSINROM
 					; won't clear if we are in ROM...
 	mov	cs:pcmode_dseg,ds	; save PCM Dseg
@@ -1420,22 +1423,50 @@ share_loop:
 
 	mov	cx,40h-2Ah		; 2A-3F point at IRET in DOS Data Seg
 	mov	di,INT2A_OFFSET
+	mov	bp,cs:int_stubs_seg
+	xor	bx,bx
 dummy_vecs_loop:
+	cmp	cx,40h-31h
+	 je	dummy_vecs_skip
+	push	es
+	mov	es,bp
+	mov	es:byte ptr [bx],0eah	; jmp far instruction
 	mov	ax,offset DummyIRET	; point at an IRET
-	stosw				; do the offset
-	mov	ax,ds
-	stosw				; then the segment
+;	stosw				; do the offset
+	mov	es:1[bx],ax
+;	mov	ax,ds
+;	stosw				; then the segment
+	mov	es:3[bx],ds
+	pop	es
+	mov	es:[di],bx
+	mov	es:2[di],bp
+	add	bx,5
+dummy_vecs_skip:
+	add	di,4
 	loop	dummy_vecs_loop
 
 
 	mov	si,offset def_data_vecs	; the following vector point to
 	mov	cx,no_def_data_vecs	; pcmode DATA seg
 def_data_vecs_loop:
+	push	es
+	mov	es,bp
 	lods cs:ax ! mov di,ax		; Get the Vector Offset (from CS)
-	db	2Eh			; CS:
-	movsw				; copy service routine offset
+;	db	2Eh			; CS:
+;	movsw				; copy service routine offset
+	mov	es:byte ptr [bx],0eah	; jmp far
+	mov	ax,cs:[si]
+	add	si,2
+	mov	es:1[bx],ax
 	mov	ax,ds			; finally fixup the segment too
+;	stosw
+	mov	es:3[bx],ax
+	pop	es
+	mov	ax,bx
 	stosw
+	mov	ax,bp
+	stosw
+	add	bx,5
 	loop	def_data_vecs_loop
 
 	mov	es:byte ptr .INT30_OFFSET,0EAh
@@ -1472,6 +1503,136 @@ pcmode_init10:
 	mov	es:word ptr DMD_NAME,'S'+256*'D'
 	mov	es:DMD_NAME+2,0
 	mov	ds:dmd_root,es		; Save the DMD address in root
+	retf
+
+;	Entry:		DS	PCM Dseg
+;			ES	Interrupt Stubs Seg
+
+pcmode_init2:
+	mov	cs:int_stubs_seg,es
+;	and	cs:patch_version,not DOSINROM
+					; won't clear if we are in ROM...
+	mov	cs:pcmode_dseg,ds	; save PCM Dseg
+	mov	ds:instanceSeg,ds	; fixup pointer to instance items
+
+; removed this as VxD no longer required   BAP
+;	mov	ds:vxdNameSeg,ds	;  and vxdName
+
+;	add	ds:vxdName,dl		; fixup drive letter
+	mov	ds:word ptr buf_ptr+2,ds
+	mov	ds:word ptr file_ptr+2,ds
+	mov	ds:word ptr fcb_ptr+2,ds
+	mov	ax,word ptr fcb_ptr
+	mov	cl,4
+	shr	ax,cl
+	and	word ptr fcb_ptr,15
+	add	word ptr fcb_ptr+2,ax
+;	push	ax			; Save the memory size
+;	push	bx			; First Free Paragraph
+;	mov	ds:current_dsk,dl	; save initial drive
+;	inc	dl			; make drive one based
+;	mov	ds:bootDrv,dl		;  and save for func 3305
+	mov	ax,ds			; AX = PCMode Data
+	mov	ds:word ptr fdos_stub+WORD,ax
+	add	ds:dummy_sysdat,ax	; point dummy "sysdat" at a zero word
+					;  ie. dummy "secure path" segment
+	mov	si,offset countryTable
+countryFixupLoop2:
+	mov	ds:word ptr 3[si],ds	; fixup the segment
+	add	si,5			; onto the next entry
+	cmp	ds:word ptr 3[si],0	; done the lot yet ?
+	 je	countryFixupLoop2
+	mov	es,ax			; ES -> PCMode Data
+	mov	di,offset stub_entries	; ES:DI -> stub segs
+	mov	cx,NUM_STUB_ENTRIES	; entries to initialise
+stubs_loop2:
+	add	di,WORD			; skip the offset
+	stosw				; fixup segment
+	loop	stubs_loop2		; do the next one
+	mov	di,offset share_stub	; fixup the SHARE entries
+	mov	cx,NUM_SHARE_STUB_ENTRIES
+share_loop2:
+	add	di,WORD			; skip the offset
+	stosw				; fixup segment
+	loop	share_loop2
+;	mov	cx,0
+	mov	es,cx			; Initialize the DOS vectors
+
+;	mov	ax,es:.INT2F_OFFSET	; remember address of BIOS Int 2F
+;	mov	ds:int2FBiosHandler,ax
+;	mov	ax,es:.INT2F_SEGMENT
+;	mov	ds:int2FBiosHandler+2,ax
+	mov	ds:int2FNext+2,ds	; fixup seg of out stub
+
+	mov	cx,40h-2Ah		; 2A-3F point at IRET in DOS Data Seg
+	mov	di,INT2A_OFFSET
+	mov	bp,cs:int_stubs_seg
+	xor	bx,bx
+	push	es
+	mov	es,bp
+dummy_vecs_loop2:
+	cmp	cx,40h-31h
+	 je	dummy_vecs_skip2
+;	mov	ax,offset DummyIRET	; point at an IRET
+;	stosw				; do the offset
+;	mov	ax,ds
+	mov	es:3[bx],ds
+;	stosw				; then the segment
+	add	bx,5
+dummy_vecs_skip2:
+	loop	dummy_vecs_loop2
+	pop	es
+
+;	mov	si,offset def_data_vecs	; the following vector point to
+	mov	cx,no_def_data_vecs	; pcmode DATA seg
+	push	es
+	mov	es,bp
+def_data_vecs_loop2:
+;	lods cs:ax ! mov di,ax		; Get the Vector Offset (from CS)
+;	mov	ax,cs:[si]
+;	db	2Eh			; CS:
+;	movsw				; copy service routine offset
+;	mov	ax,ds			; finally fixup the segment too
+;	stosw
+	mov	es:3[bx],ds
+	add	bx,5
+	loop	def_data_vecs_loop2
+	pop	es
+
+;	mov	es:byte ptr .INT30_OFFSET,0EAh
+					; fixup CALL 5 JMPF
+
+	mov	si,offset bdosInstanceFixups
+InstanceFixupLoop2:
+	mov	ds:2[si],ds		; fixup data segment
+	add	si,6			; onto next item
+	mov	ax,ds:[si]		; still BDOS ?
+	or	ax,ds:2[si]
+	 jnz	InstanceFixupLoop2	; yep, do another one
+
+	push	cs			; we will have a RETF
+	call	pcmode_reinit		; to return from this call
+
+;	pop	ax			; First Free Paragraph
+;	pop	dx			; Restore the BIOS memory size
+;	sub	dx,ax			; convert to TPA size
+;	dec	dx			; Decrement the Size by DMD Size
+;	push	ax	
+;	add	ax,dx			; AX = possible next DMD
+;	mov	es,ax
+;	mov	al,IDZ			; assume no extra DMD's
+;	cmp	al,es:DMD_ID		; have we extra one ?
+;	 jne	pcmode_init2_10
+;	mov	al,IDM			; yes, no longer end of chain
+;	dec	dx			; decrement by size of existing DMD
+;pcmode_init2_10:	
+;	pop	es
+;	mov	es:DMD_ID,al		; Last DMD in list
+;	mov	es:DMD_PSP,0000h	; This is Free Memory Owning PSP == 0
+;	mov	es:DMD_LEN,dx		; Save Memory Length
+;	mov	es:word ptr DMD_NAME,'S'+256*'D'
+;	mov	es:DMD_NAME+2,0
+;	mov	ds:dmd_root,es		; Save the DMD address in root
 	retf
 
 eject
@@ -1571,6 +1732,7 @@ def_data_vecs	rw	0
 
 no_def_data_vecs	equ	(offset $ - offset def_data_vecs)/4
 
+int_stubs_seg	dw	0
 
 end
 

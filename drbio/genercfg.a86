@@ -161,6 +161,7 @@ preload_stacker:
 	mov	preload_file,offset dblspace_file
 	call	preload_device		; STACKER failed, try DBLSPACE from C:
 
+	Public	preload_done
 preload_done:
 	mov	ax,(MS_X_OPEN*256)+80h	; Open the configuration file
 	mov	dx,offset cfg_file	; Try Opening the file DCONFIG.SYS
@@ -229,6 +230,18 @@ cfg_query:
 ;
 	push	si
 	push	di
+	cmp	configpass,2
+	 jb	cfg_query05
+	test	CFG_FLAGS[di],CF_LAST
+	stc
+	 jnz	cfg_query06
+	jmp	cfg_query90
+cfg_query05:
+	test	CFG_FLAGS[di],CF_LAST
+	stc
+	 jz	cfg_query06
+	jmp	cfg_query90
+cfg_query06:
 	test	CFG_FLAGS[di],CF_NOF	; are Function Keys allowed ?
 ;	clc				; if not process the command
 	 jz $+5 ! jmp cfg_query90
@@ -913,6 +926,9 @@ shell_error:
 	mov	dx,offset bad_shell
 	jmp	config_error
 
+func_hilastdrive:	; HILASTDRIVE=d:
+	or	lastdrvIn,LASTDRV_IN_HMA+LASTDRV_IN_UMB
+					; enable HMA and UMB usage for LDT
 
 func_lastdrive:		; LASTDRIVE=d:
 	call	atoi			; are we supplying a decimal number?
@@ -976,7 +992,8 @@ numlock20:
 
 
 func_hibuffers:		; HIBUFFERS=nn[,nn]
-	or	buffersIn,BUFFERS_IN_HMA
+	or	buffersIn,BUFFERS_IN_HMA+BUFFERS_IN_UMB
+					; enable HMA and UMB usage for disk buffers
 ;	jmp	func_buffers
 
 func_buffers:		; BUFFERS=nn[,nn]
@@ -1008,6 +1025,9 @@ buffer_error:
 	mov	dx, offset bad_buffers
 	jmp	config_error
 
+func_hifiles:		; HIFILES=nn
+	or	filesIn,FILES_IN_HMA+FILES_IN_UMB
+					; enable HMA and UMB usage for file handles
 
 func_files:		; FILES=nn
 	call	atoi			; AX = # of files
@@ -1028,7 +1048,9 @@ files_error:
 	mov	dx, offset bad_files
 	jmp	config_error
 
-
+func_hifcbs:		; HIFCBS=nn
+	or	filesIn,FILES_IN_HMA+FILES_IN_UMB
+					; enable HMA and UMB usage for file handles
 
 func_fcbs:		; FCBS=nn
 	call	atoi			; AX = # of files
@@ -1073,6 +1095,10 @@ func_switches:		; SWITCHES=...
 	mov	boot_options,0		; disable boot options
 func_switches10:
 	ret
+
+func_histacks:		; HISTACKS=number,size
+	or	stacksIn,STACKS_IN_HMA+STACKS_IN_UMB
+					; enable HMA and UMB usage for stacks
 
 func_stacks:		; STACKS=number,size
 ;-----------
@@ -1456,7 +1482,8 @@ func_i10:
 	int	21h			; ax:0 -> exec memory
 	push	bx			; we have allocated BX para's
 	mov	es,ax			; ES -> exec memory
-	mov	bx,init_dseg		; we want to protect BX:0 and above
+;	mov	bx,init_dseg		; we want to protect BX:0 and above
+	mov	bx,res_ddsc_seg		; we want to protect BX:0 and above
 	dec	bx			; allow for DMD
 	sub	bx,ax			; we can spare this many paras
 	mov	ah,MS_M_SETBLOCK	;  for the exec so grow the 
@@ -1545,6 +1572,63 @@ func_hidos:		; HIDOS ON/OFF
 f_hidos10:
 	ret
 
+func_dosdata:		; DOSDATA=UMB - relocate DOS data segment to upper memory
+	call	separator
+	mov	di,offset low_opt
+	call	compare
+	 jc	func_dosdata10
+	mov	hidosdata,0
+	jmps	func_dosdata
+func_dosdata10:
+	mov	di,offset umb_opt
+	call	compare
+	 jc	func_dosdata20
+	or	hidosdata,DOSDATA_IN_UMB
+	jmps	func_dosdata
+func_dosdata20:
+	ret
+
+func_ddscs:		; DDSCS=HIGH,UMB - relocate DDSCs to high or upper memory
+	call	separator
+	mov	di,offset low_opt
+	call	compare
+	 jc	func_ddscs10
+	mov	hiddscs,0
+	jmps	func_ddscs
+func_ddscs10:
+	call	separator
+	mov	di,offset high_opt
+	call	compare
+	 jc	func_ddscs20
+	or	hiddscs,DDSCS_IN_HMA
+	jmps	func_ddscs
+func_ddscs20:
+	call	separator
+	mov	di,offset umb_opt
+	call	compare
+	 jc	func_ddscs30
+	or	hiddscs,DDSCS_IN_UMB
+	jmps	func_ddscs
+func_ddscs30:
+	ret
+
+func_xbda:		; XBDA=LOW,UMB
+	call	separator
+	mov	di,offset low_opt
+	call	compare
+	 jc	func_xbda10
+	or	hixbda,MOVE_XBDA_LOW
+	jmps	func_xbda
+func_xbda10:
+	call	separator
+	mov	di,offset umb_opt
+	call	compare
+	 jc	func_xbda20
+	or	hixbda,MOVE_XBDA_HIGH
+	jmps	func_xbda
+func_xbda20:
+	ret
+
 
 func_dos:		; DOS=HIGH - relocate BIOS/BDOS/Buffer etc to FFFF
 	call	separator		; Deblank Command
@@ -1590,6 +1674,7 @@ func_dos_high:
 	mov	bios_target_seg,0FFFFh
 	mov	hidos,TRUE		; update hidos flag to be ON
 	or	buffersIn,BUFFERS_IN_HMA; buffers at seg FFFF too
+;	or	filesIn,FILES_IN_HMA	; and also files
 	ret
 
 func_dos_low:
@@ -1600,6 +1685,9 @@ func_dos_low:
 	mov	bios_target_seg,0
 	mov	hidos,FALSE		; system allocation from low memory
 	mov	buffersIn,0		; buffers from low memory
+	mov	filesIn,0		; also files
+	mov	stacksIn,0		; and stacks
+	mov	lastdrvIn,0		; and LDT
 	ret
 
 func_dos_umb:
@@ -1607,6 +1695,10 @@ func_dos_umb:
 ; allocate Upper Memory Blocks and link them to the DMD chain
 ;
 	mov	hidos,TRUE		; update hidos flag to be ON
+	or	buffersIn,BUFFERS_IN_UMB; enable UMB usage for buffers
+	or	filesIn,FILES_IN_UMB	; and files
+	or	stacksIn,STACKS_IN_UMB	; and stacks
+	or	lastdrvIn,LASTDRV_IN_UMB; and LDT
 	call	initialise_dmd_upper	; build initial upper memory DMD
 	 jc	func_dos_umb30
 func_dos_umb10:
@@ -2250,7 +2342,53 @@ func_getkey:				; GETKEY
 func_getkey10:
 	mov	error_level,ax
 	ret
-	
+
+func_version:				; VERSION=x.xx,x.xx
+	call	comma			; check for leading ','
+	 jnc	func_version20		; if yes, then skip to true version
+	xor	dx,dx
+	call	atoi			; get major version number
+	 jc	func_version40		; no numerical value
+	cmp	ax,0
+	 jz	func_version40
+	mov	dl,al
+	call	dot			; check for '.'
+	 jc	func_version10
+	call	atoi			; get minor version number
+	 jc	func_version40
+	mov	dh,al
+func_version10:
+	push	es
+	push	bx
+	mov	es,dos_dseg
+	mov	bx,0d12h		; use as new DOS version
+	mov	es:[bx],dx
+	pop	bx
+	pop	es
+	call	separator		; check for ','
+	 jc	func_version40
+func_version20:
+	xor	dx,dx
+	call	atoi			; get major version number
+	 jc	func_version40		; no numerical value
+	cmp	ax,0
+	 jz	func_version40
+	mov	dl,al
+	call	dot			; check for '.'
+	 jc	func_version30
+	call	atoi			; get minor version number
+	 jc	func_version40
+	mov	dh,al
+func_version30:
+	push	es
+	push	bx
+	mov	es,dos_dseg
+	mov	bx,0d10h		; use as new DOS version
+	mov	es:[bx],dx
+	pop	bx
+	pop	es
+func_version40:
+	ret
 	
 ;	CONFIG_ERROR is the global error handler for the CONFIG.SYS
 ;	commands. It is called with SI pointing to the CR/LF terminated string
@@ -2419,6 +2557,41 @@ separator20:
 	clc					; not end of line
 	ret
 
+dot:
+;---------
+; On Entry:
+;	DS:SI -> string
+; On Exit:
+;	DS:SI -> next option
+;	CY set if '.' not found
+;
+; Strips off all whitespace, and the optional '.'
+	call	whitespace			; deblank string and
+	lodsb					;  check for '.' separator
+	cmp	al,'.'				;  discarding if found
+	 je	dot10
+	dec	si
+	stc					; else set carry
+dot10:
+	ret
+
+comma:
+;---------
+; On Entry:
+;	DS:SI -> string
+; On Exit:
+;	DS:SI -> next option
+;	CY set if ',' not found
+;
+; Strips off all whitespace, and the optional ','
+	call	whitespace			; deblank string and
+	lodsb					;  check for ',' separator
+	cmp	al,','				;  discarding if found
+	 je	comma10
+	dec	si
+	stc					; else set carry
+comma10:
+	ret
 
 strupr:
 ;------
@@ -3232,7 +3405,7 @@ endif
 	extrn	mem_size:word		; Real top of Memory
 
 	extrn	init_dseg:word		; Current Init Data Segment
-
+	extrn	res_ddsc_seg:word
 
 include	initmsgs.def				; Include TFT Header File
 
@@ -3296,6 +3469,13 @@ endif
 	extrn	history_size:word	;
 	extrn	num_stacks:word
 	extrn	stack_size:word
+	extrn	filesIn:byte
+	extrn	stacksIn:byte
+	extrn	lastdrvIn:byte
+	extrn	hidosdata:byte
+	extrn	hiddscs:byte
+	extrn	hixbda:byte
+	extrn	configpass:byte
 
 if not ADDDRV
 	extrn	hidos:byte
@@ -3306,7 +3486,7 @@ endif
 
 	extrn	dbcs_tbl:dword
 	extrn	ctry_info:byte
-
+	extrn	dos_dseg:word
 
 
 	Public	cfg_file, cfg_file_end
@@ -3339,6 +3519,7 @@ cfg_file_end	rb	0
 cfg_seeklo	dw	0		; offset we have reached in CONFIG file
 cfg_seekhi	dw	0		; in case Richards CONFIG file > 64k
 
+	Public	cfg_head
 cfg_head	dw	0		; offset we are at in CONFIG_BUF
 cfg_tail	dw	0		; # bytes currently in CONFIG_BUF
 
@@ -3447,25 +3628,35 @@ CFG_SIZE	equ	6			; Size of each Entry
 CF_NOF		equ	0001h		; set if F5/F8 should be ignored
 CF_LC		equ	0002h		; set if case should be preserved
 CF_QUERY	equ	0004h		; set at run time eg. "DEVICE?"
+CF_LAST		equ	0020h		; execute in last config pass
 
 cfg_table	rw	0
 if not ADDDRV
 	dw	cmd_country,	func_country,	0	; COUNTRY=nnn,nnn,country
 	dw	cmd_shell,	func_shell,	0	; SHELL=filename
 	dw	cmd_lastdrive,	func_lastdrive,	0	; LASTDRIVE=d:
+	dw	cmd_hilastdrive,func_hilastdrive,0	; HILASTDRIVE=d:
 	dw	cmd_break,	func_break,	0	; BREAK=ON/OFF
 	dw	cmd_buffers,	func_buffers,	0	; BUFFERS=nn
 	dw	cmd_hibuffers,	func_hibuffers,	0	; HIBUFFERS=nn
 	dw	cmd_fcbs,	func_fcbs,	0	; FCBS=nn
+	dw	cmd_hifcbs,	func_hifcbs,	0	; HIFCBS=nn
 	dw	cmd_files,	func_files,	0	; FILES=nn
+	dw	cmd_hifiles,	func_hifiles,	0	; HIFILES=nn
 	dw	cmd_stacks,	func_stacks,	0	; STACKS=nn
+	dw	cmd_histacks,	func_histacks,	0	; HISTACKS=nn
 	dw	cmd_fastopen,	func_fastopen,	0	; FASTOPEN=nnn
 	dw	cmd_drivparm,	func_drivparm,	0	; DRIVPARM=/d:nn ...
 	dw	cmd_history,	func_history,	0	; HISTORY=ON|OFF,NNN
+	dw	cmd_hiinstalllast,func_hiinstall,CF_LAST; HIINSTALLLAST=cmdstring
 	dw	cmd_hiinstall,	func_hiinstall,	0	; HIINSTALL=cmdstring
 	dw	cmd_installhigh, func_hiinstall, 0	; INSTALLHIGH=cmdstring
+	dw	cmd_installlast,func_install,	CF_LAST	; INSTALLLAST=cmdstring
 	dw	cmd_install,	func_install,	0	; INSTALL=cmdstring
 	dw	cmd_hidos,	func_hidos,	0	; HIDOS=ON/OFF
+	dw	cmd_dosdata,	func_dosdata,	0	; DOSDATA=UMB
+	dw	cmd_ddscs,	func_ddscs,	0	; DDSCS=HIGH,UMB
+	dw	cmd_xbda,	func_xbda,	0	; XBDA=LOW,UMB
 	dw	cmd_dos,	func_dos,	0	; DOS=HIGH
 	dw	cmd_set,	func_set,	CF_LC	; SET envar=string
 	dw	cmd_switches,	func_switches,	CF_NOF	; SWITCHES=...
@@ -3493,6 +3684,7 @@ endif
 	dw	cmd_yeschar,	func_yeschar,	0	; YESCHAR=
 	dw	cmd_deblock,	func_deblock,	0	; DEBLOCK=xxxx
 	dw	cmd_numlock,	func_numlock,	0	; NUMLOCK=ON/OFF
+	dw	cmd_version,	func_version,	0	; VERSION=x.xx
 	dw	cmd_common,	func_common,	0	; [COMMON]
  	dw	0				; end of table
 
@@ -3500,19 +3692,28 @@ if not ADDDRV
 cmd_country	db	'COUNTRY',0
 cmd_shell	db	'SHELL',0
 cmd_lastdrive	db	'LASTDRIVE',0
+cmd_hilastdrive	db	'HILASTDRIVE',0
 cmd_break	db	'BREAK',0
 cmd_buffers	db	'BUFFERS',0
 cmd_hibuffers	db	'HIBUFFERS',0
 cmd_fcbs	db	'FCBS',0
+cmd_hifcbs	db	'HIFCBS',0
 cmd_files	db	'FILES',0
+cmd_hifiles	db	'HIFILES',0
 cmd_stacks	db	'STACKS',0
+cmd_histacks	db	'HISTACKS',0
 cmd_fastopen	db	'FASTOPEN',0
 cmd_drivparm	db	'DRIVPARM', 0
 cmd_history	db	'HISTORY', 0
 cmd_install	db	'INSTALL', 0
+cmd_installlast	db	'INSTALLLAST', 0
 cmd_hiinstall	db	'HIINSTALL', 0
+cmd_hiinstalllast	db	'HIINSTALLLAST', 0
 cmd_installhigh	db	'INSTALLHIGH', 0
 cmd_hidos	db	'HIDOS',0
+cmd_dosdata	db	'DOSDATA',0
+cmd_ddscs	db	'DDSCS',0
+cmd_xbda	db	'XBDA',0
 cmd_dos		db	'DOS',0
 cmd_set		db	'SET',0
 cmd_switches	db	'SWITCHES',0
@@ -3540,6 +3741,7 @@ cmd_getkey	db	'GETKEY',0
 cmd_yeschar	db	'YESCHAR',0
 cmd_deblock	db	'DEBLOCK',0
 cmd_numlock	db	'NUMLOCK',0
+cmd_version	db	'VERSION',0
 cmd_common	db	'[COMMON]',0
 
 cmd_on		db	'ON',0

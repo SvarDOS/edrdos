@@ -58,6 +58,8 @@
 #include	"toupper.h"
 #include	"support.h"		/* Support routines		 */
 #include	"global.h"
+#include	"dos7.h"
+#include	<limits.h>
 
 /*RG-00-*/
 #if !defined(NOXBATCH)
@@ -811,13 +813,16 @@ GLOBAL VOID CDECL cmd_dir (cmd)
 REG BYTE *cmd;
 {
 	WORD	 nfiles, system, others, i;
-	LONG	 nfree = 0L;
+	ULONG	 nfree = 0UL;
 	DTA	 search;
 	BYTE	 path[MAX_FILELEN];
 	BYTE	 s[MAX_PATHLEN], temp[3];
 	BYTE	 *ext, *memory;
 	UWORD	 free, secsiz, nclust;
 	UWORD	 flags;
+	FREED	freespace;
+	BYTE	FAR *dpath="A:\\";
+	BYTE	sbase=0;
 
 	if(f_check (cmd, "dsawlprcn2", &flags, NO))	/* if any bad flags */
 	    return;					/*    don't do it   */
@@ -1029,20 +1034,40 @@ REG BYTE *cmd;
 	    e_check(ED_FILE);		/* after displaying File Not Found */
 	}
 
-	if(ddrive != -1 && (ret = ms_drv_space(ddrive+1, &free, &secsiz, &nclust)) < 0) {
+	dpath[0]=ddrive+'A';
+	freespace.size=sizeof(freespace);
+	freespace.ver=0;
+	ret=ms_edrv_space(&dpath,(BYTE *)&freespace,sizeof(freespace));
+	if (ret==0) {
+	  nfree=freespace.freecl*freespace.secpclus;
+	  if (ULONG_MAX/freespace.bytepsec>=nfree)
+	    nfree*=freespace.bytepsec;
+	  else {
+	    sbase=1;
+	    if (freespace.bytepsec<1024)
+	      nfree/=(1024UL/freespace.bytepsec);
+	    else
+	      nfree*=(freespace.bytepsec/1024UL);
+	  }
+	}
+	else {
+	  if(ddrive != -1 && (ret = ms_drv_space(ddrive+1, &free, &secsiz, &nclust)) < 0) {
 	    /*e_check(ED_PATH);*/
 	    /*return;*/
 	    ret = 0; /* This prevents 'Invalid directory...' when looking */
 		     /* at a PNW login drive. */
+	  }
+	nfree = (ULONG)ret * (ULONG)free * (ULONG)secsiz;
 	}
 
 	show_crlf(OPT(DIR_PAGE));
-	nfree = (LONG)ret * (LONG)free * (LONG)secsiz;
 	if (ddrive != -1) {
 /*	    printf ("%9d %s%10ld %s", nfiles, MSG_FILES, nfree, MSG_FREE);*/
 /*	    printf ("%9s %s%15ls %s", thousands(nfiles), MSG_FILES, thousands(nfree), MSG_FREE);*/
 	    printf ("%9s %s", thousands(nfiles), MSG_FILES);
-	    printf ("%15ls %s", thousands(nfree), MSG_FREE);
+	    printf ("%15ls ", thousands(nfree));
+	    if (sbase==1) printf("K");
+	    printf("%s",MSG_FREE);
 	}
 	else
 /*	    printf ("%9d %s", nfiles, MSG_FILES);*/
@@ -1347,7 +1372,8 @@ GLOBAL VOID CDECL cmd_ren(s)
 REG BYTE *s;
 {
 	BYTE	 srcfile[MAX_FILELEN], dstfile[MAX_FILELEN];
-	BYTE	 pattern[MAX_FILELEN-MAX_PATHLEN];  
+/*	BYTE	 pattern[MAX_FILELEN-MAX_PATHLEN];  */
+	BYTE	 pattern[12];
 	BYTE	 *enddir;
 #if defined(PASSWORD)
 	BYTE	*password;

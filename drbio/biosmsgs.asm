@@ -31,7 +31,7 @@ _drdosprojects_msg		db	CR, LF, "The DR-DOS/OpenDOS Enhancement Project          
 	public	_starting_dos_msg
 	public	starting_dos_msg
 starting_dos_msg	label	byte
-_starting_dos_msg	db	CR, LF, "Starting DR-DOS 7.01.06", CR, LF, NUL
+_starting_dos_msg	db	CR, LF, "Starting Enhanced DR-DOS 7.01.07 (6.3.2005)", CR, LF, NUL
 	public	_lba_supp_msg
 	public	lba_supp_msg
 lba_supp_msg		label	byte

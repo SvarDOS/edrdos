@@ -38,7 +38,7 @@
 TRUE	   	equ	0FFFFh		; value of TRUE
 FALSE	   	equ	0		; value of FALSE
 
-TRUE_VERSION	equ	6
+;TRUE_VERSION	equ	0107h
 
 IDLE_DETECT	equ	TRUE		; Check for IDLE Process's
 

@@ -122,6 +122,8 @@ MS_X_SETCP	equ	6602h
 MS_X_SETHC	equ	67h
 MS_X_COMMIT	equ	68h
 
+MS_EDRV_SPACE	equ	7303h
+
 DOS_INT     equ 21h ; DOS Entry Point
 ;
 STDIN		equ	0	; Standard Console Input Handle

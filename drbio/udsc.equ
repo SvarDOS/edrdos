@@ -32,8 +32,8 @@
 ;    ENDLOG
 
 
-;UDSC_BPB_LENGTH	equ	25
-UDSC_BPB_LENGTH	equ	41
+OLD_UDSC_BPB_LENGTH	equ	25
+UDSC_BPB_LENGTH		equ	41
 
 UDSC		struc
 UDSC_NEXT	dd	?		; link to next UDSC_

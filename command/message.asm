@@ -17,7 +17,7 @@ _msg_ver111	db	NUL , NUL
 	public	_msg_version
 	public	msg_version
 msg_version	label	byte
-_msg_version	db	LF, "DR-DOS 7.01.06 ", "based on Caldera OpenDOS 7.01", LF, NUL
+_msg_version	db	LF, "Enhanced DR-DOS 7.01.07 (6.3.2005) ", "based on Caldera OpenDOS 7.01", LF, NUL
 	public	_msg_lbl
 	public	msg_lbl
 msg_lbl	label	byte
@@ -206,7 +206,7 @@ _msg_netassign	db	"Cannot ASSIGN a Networked Drive", LF, NUL
 	public	msg_cpyright
 msg_cpyright	label	byte
 _msg_cpyright	db	"Copyright (c) 1976, 1997 Caldera, Inc. ", "All rights reserved.", LF
-		db	"Patches to original OpenDOS source code ", "Copyright (c) 2002-2003 Udo Kuhnt", LF, NUL
+		db	"Patches to original OpenDOS source code ", "Copyright (c) 2002-2005 Udo Kuhnt", LF, NUL
 	public	_msg_serialno
 	public	msg_serialno
 msg_serialno	label	byte

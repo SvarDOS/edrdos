@@ -35,7 +35,10 @@
 ;    Add header to system allocations
 ;    ENDLOG
 
-CGROUP	group	INITCODE, STACKS
+STACKS_IN_HMA	equ	00000001b
+STACKS_IN_UMB	equ	00000010b
+
+CGROUP	group	INITCODE, STACKS, INITDATA
 
 STACKS		segment	public para 'STACKS'
 
@@ -172,20 +175,27 @@ SwapStack proc near
 	cli				; just in case
 	push	bp
 	push	si			; save work registers
-	mov	si,cs:NextStack		; start looking here for a stack
+	push	di
+	call	SwapStack05		; get offset of our code in segment
+SwapStack05:
+	pop	di
+	sub	di,(SwapStack05-StackCode)	; to locate the stack variables
+;	mov	si,cs:[NextStack-StackCode]	; start looking here for a stack
+	mov	si,cs:(NextStack-StackCode)[di]	; start looking here for a stack
 SwapStack10:
 	cmp	cs:STACK_CB_FLAGS[si],STACK_FREE
 	 jne	SwapStack20		; use this stack if possible
 	mov	bp,cs:STACK_CB_TOP[si]	; get the top of this stack
 	cmp	si,cs:word ptr [bp]	; does the check match ?
 	 jne	SwapStack20		; no, try the next one
-	mov	cs:NextStack,si		; remember where we are
+;	mov	cs:[NextStack-StackCode],si	; remember where we are
+	mov	cs:(NextStack-StackCode)[di],si	; remember where we are
 	mov	cs:STACK_CB_FLAGS[si],STACK_INUSE
 	mov	cs:STACK_CB_SS[si],ss	; save old stack
 	mov	cs:STACK_CB_SP[si],sp
 
 	mov	bp,sp
-	xchg	bx,ss:word ptr 4[bp]	; BX = return address, BX saved
+	xchg	bx,ss:word ptr 6[bp]	; BX = return address, BX saved
 
 	mov	bp,cs
 	mov	ss,bp
@@ -195,7 +205,9 @@ SwapStack10:
 	mov	ss,cs:STACK_CB_SS[si]
 	mov	sp,cs:STACK_CB_SP[si]	; swap back to the original stack
 	mov	cs:STACK_CB_FLAGS[si],STACK_FREE
-	mov	cs:NextStack,si		; update in case we were nested
+;	mov	cs:[NextStack-StackCode],si	; update in case we were nested
+	mov	cs:(NextStack-StackCode)[di],si	; update in case we were nested
+	pop	di
 	pop	si			; restore registers
 	pop	bp
 	pop	bx			; (was return address, now saved BX)
@@ -203,8 +215,10 @@ SwapStack10:
 
 SwapStack20:
 	sub	si,STACK_CB_SIZE	; it's not, so try the next
-	cmp	si,cs:FirstStack	;  if there is one
+;	cmp	si,cs:[FirstStack-StackCode]	;  if there is one
+	cmp	si,cs:(FirstStack-StackCode)[di]	;  if there is one
 	 jae	SwapStack10
+	pop	di
 	pop	si			; restore registers
 	pop	bp
 	ret				; back to JMPF as we can't swap stacks
@@ -262,6 +276,10 @@ INITCODE	segment public para 'INITCODE'
 	Assume	CS:CGROUP, DS:CGROUP, ES:Nothing, SS:Nothing
 
 	extrn	alloc_hiseg:near
+	extrn	alloc_upper:near
+	extrn	alloc_seg:near
+	extrn	SetupHMA:near
+	extrn	AllocHMA:near
 
 	Public	InitStacks
 ;==========
@@ -290,19 +308,42 @@ InitStacks:
 	mul	StackSize		; AX bytes are required for stacks
 	add	ax,StackOff		; add to start of stacks
 	push	ax			; save length in bytes
+
+	test	stacksIn,STACKS_IN_HMA	; HMA usage enables for stacks?
+	 jz	InitStacks04
+	call	SetupHMA		; make sure HMA chain is established
+	pop cx				; CX = bytes wanted
+	push cx
+	mov	dx,0FFFFh		; anywhere is OK
+	call	AllocHMA		; ES:DI -> allocated data
+	pop	ax
+	push	ax
+	 jc	InitStacks04		; if high mem allocation failed, try upper
+	mov	ax,es			; AX = segment
+	jmp	InitStacks07
+InitStacks04:
 	add	ax,15			; allow for rounding
 	mov	cl,4
 	shr	ax,cl			; convert it to para's
 	mov	dl,'S'			; allocation signature is Stacks
-	call	alloc_hiseg		; allocate some memory
+	test	stacksIn,STACKS_IN_UMB	; UMB usage enables for stacks?
+	 jz	InitStacks05
+	call	alloc_upper		; yes, try to allocate upper memory
+	 jnc	InitStacks06		; if this fails
+InitStacks05:
+	call	alloc_seg		; try to allocate low mem
+InitStacks06:
+	xor	di,di
+InitStacks07:
 	pop	cx			; CX = length in bytes
+	push	di
 	mov	StackSeg,ax		; remember where
+	mov	StackOff,di
 	mov	es,ax
 			Assume ES:STACKS
-	xor	di,di
 	mov	al,0CCh			; fill stacks with CC for debug
 	rep	stosb
-	xor	di,di
+	pop	di
 	mov	si,offset CGROUP:StackCode
 	mov	cx,RELOCATE_SIZE
 	rep	movsb			; relocate the code
@@ -361,5 +402,11 @@ iTable	dw	offset STACKS:Int02, offset STACKS:i02Off
 	dw	0
 
 INITCODE	ends
+
+INITDATA	segment	'INITDATA'
+
+	extrn	stacksIn:byte
+
+INITDATA	ends
 
 	end

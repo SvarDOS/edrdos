@@ -64,6 +64,7 @@ EXTERN VOID      crlf (VOID);
 EXTERN VOID      putc (BYTE);
 EXTERN VOID      puts(BYTE *);
 EXTERN BOOLEAN   isdigit(BYTE);
+EXTERN BOOLEAN   isletter(BYTE);
 	
 EXTERN BYTE *	strlwr(BYTE *);
 EXTERN BYTE *	strupr(BYTE *);

@@ -175,6 +175,7 @@ EXTERN	VOID	CDECL	get_pstation(BYTE *);
 EXTERN	VOID	CDECL	get_full_name(BYTE *);
 EXTERN	VOID	CDECL	get_hour(BYTE *);
 EXTERN	VOID	CDECL	get_hour24(BYTE *);
+EXTERN	VOID	CDECL	get_hour2(BYTE *);
 EXTERN	VOID	CDECL	get_minute(BYTE *);
 EXTERN	VOID	CDECL	get_second(BYTE *);
 EXTERN	VOID	CDECL	get_am_pm(BYTE *);
@@ -182,31 +183,55 @@ EXTERN	VOID	CDECL	get_greeting(BYTE *);
 EXTERN	VOID	CDECL	get_year(BYTE *);
 EXTERN	VOID	CDECL	get_short_year(BYTE *);
 EXTERN	VOID	CDECL	get_month(BYTE *);
+EXTERN	VOID	CDECL	get_moy(BYTE *);
 EXTERN	VOID	CDECL	get_month_name(BYTE *);
 EXTERN	VOID	CDECL	get_day(BYTE *);
+EXTERN	VOID	CDECL	get_dom(BYTE *);
 EXTERN	VOID	CDECL	get_day_of_week(BYTE *);
 EXTERN	VOID	CDECL	get_nday_of_week(BYTE *);
 EXTERN	VOID	CDECL	get_os_version(BYTE *);
 EXTERN	VOID	CDECL	get_connection(BYTE *);
+EXTERN	VOID	CDECL	get_errorlevel(BYTE *);
+EXTERN	VOID	CDECL	get_errorlvl(BYTE *);
+EXTERN	VOID	CDECL	get_codepage(BYTE *);
+EXTERN	VOID	CDECL	get_country(BYTE *);
+EXTERN	VOID	CDECL	get_rows(BYTE *);
+EXTERN	VOID	CDECL	get_columns(BYTE *);
 
 GLOBAL	N_CMD	novell_ext_list[] = {
 	{ "LOGIN_NAME", get_login_name	},
 	{ "P_STATION",  get_pstation    },
 	{ "FULL_NAME",  get_full_name   },
 	{ "HOUR",	get_hour	},
+	{ "_HOUR",	get_hour2	},
 	{ "HOUR24",	get_hour24	},
 	{ "MINUTE",	get_minute	},
+	{ "_MINUTE",	get_minute	},
 	{ "SECOND",	get_second	},
+	{ "_SECOND",	get_second	},
 	{ "AM_PM",	get_am_pm	},
 	{ "GREETING_TIME", get_greeting },
 	{ "YEAR",	get_year	},
+	{ "_YEAR",	get_year	},
 	{ "SHORT_YEAR", get_short_year  },
 	{ "MONTH",	get_month	},
+	{ "_MONTH",	get_month	},
+	{ "MOY",	get_moy		},
 	{ "MONTH_NAME", get_month_name  },
 	{ "DAY",	get_day		},
+	{ "_DAY",	get_day		},
+	{ "DOM",	get_dom		},
 	{ "DAY_OF_WEEK",get_day_of_week },
+	{ "_DOW",	get_day_of_week },
 	{ "NDAY_OF_WEEK",get_nday_of_week},
+	{ "_DOWI",	get_nday_of_week},
 	{ "OS_VERSION", get_os_version  },
 	{ "STATION",    get_connection  },
+	{ "ERRORLEVEL",	get_errorlevel	},
+	{ "ERRORLVL",	get_errorlvl	},
+	{ "_CODEPAGE",	get_codepage	},
+	{ "_COUNTRY",	get_country	},
+	{ "_ROWS",	get_rows	},
+	{ "_COLUMNS",	get_columns	},
 	{ NULL,		NULL		}
 };

@@ -856,9 +856,9 @@ getdrivegeo:				; get number of heads & sectors
 	xor	dl,dl			; isolate head bits
 	xchg	dh,dl
 	inc	dx
-	mov	max_head,dx		; number of heads on this drive
+	mov	cs:max_head,dx		; number of heads on this drive
 	and	cx,3fh			; isolate sector bits
-	mov	max_sect,cx		; number of sectors per track on this drive
+	mov	cs:max_sect,cx		; number of sectors per track on this drive
 	popx	<di,es,dx,cx>
 	ret
 
@@ -881,16 +881,16 @@ login_CHS2LBA:
 	rol	ah,1
 	mov	bl,dh			; isolate head bits
 	xor	bh,bh
-	mul	max_head		; multiply with number of heads
+	mul	cs:max_head		; multiply with number of heads
 	add	ax,bx			; add head number
 	adc	dx,0
 	push	ax
 	mov	ax,dx			; multiply with sectors per track
-	mul	max_sect
+	mul	cs:max_sect
 	mov	word ptr [si+10],ax
 	mov	word ptr [si+12],dx
 	pop	ax
-	mul	max_sect
+	mul	cs:max_sect
 	and	cx,3fh			; isolate sector bits
 	dec	cx
 	mov	word ptr [si+8],cx	; add products and sector number
@@ -914,14 +914,14 @@ login_LBA2CHS:
 	push	dx			; save unit number
 	mov	dx,0			; divide high word of LBA block number
 	mov	ax,word ptr [si+10]
-	div	max_sect
+	div	cs:max_sect
 	push	ax			; high word of quotient
 	mov	ax,word ptr [si+8]	; divide low word & remainder
-	div	max_sect
+	div	cs:max_sect
 	mov	cx,dx			; remainder = sector number
 	inc	cx			; sector count starts with 1
 	pop	dx			; get high word
-	div	max_head		; divide through number of heads
+	div	cs:max_head		; divide through number of heads
 	ror	ah,1			; convert cylinder and sector number to CHS format
 	ror	ah,1
 	xchg	ah,al
@@ -1469,7 +1469,13 @@ dd_genioctl:	; 19-generic IOCTL
 	call	point_unit		; get unit descriptor
 
 	cmp	ch,8			; is it the right major category?
-	 jne	ioctl20			; no, return an error
+	 je	ioctl5			; yes, proceed
+	cmp	ch,48h			; else check for cat 48h (FAT32)
+	 jne	ioctl20			; neither one, return an error
+ioctl5:
+
+	mov	cs:byte ptr ioctl_cat,ch
+					; save category code for later use
 
 	or	es:UDSC_FLAGS[di],UDF_UNSURE
 					; media unsure after IOCTL
@@ -1506,7 +1512,17 @@ genioctlTable	label	byte
 	dw	offset CGROUP:ioctl_getmedia
 	db	RQ19_SETMEDIA		; set media id
 	dw	offset CGROUP:ioctl_setmedia
+	db	RQ19_LOCKLOG
+	dw	offset CGROUP:ioctl_locklogical
+	db	RQ19_LOCKPHYS
+	dw	offset CGROUP:ioctl_lockphysical
+	db	RQ19_UNLOCKLOG
+	dw	offset CGROUP:ioctl_unlocklogical
+	db	RQ19_UNLOCKPHYS
+	dw	offset CGROUP:ioctl_unlockphysical
 	db	0			; terminate the list
+
+ioctl_cat	db	0		; category code for dd_geniotcl
 
 point_ioctl_packet:
 ;------------------
@@ -1558,8 +1574,14 @@ get1:
 	pop	es
 	lea	di,7[bx]		; ES:DI -> BPB in parameter block
 	pop	ds			; DS:SI -> BPB to copy
-;	mov	cx,UDSC_BPB_LENGTH
-	mov	cx,OLD_BPB_LENGTH
+	cmp	cs:byte ptr ioctl_cat,48h
+					; extended BPB requested?
+	 je	get2			; yes
+	mov	cx,OLDBPB_LENGTH	; no, use old-style BPB
+	jmps	get3
+get2:
+	mov	cx,UDSC_BPB_LENGTH	; else use extended BPB
+get3:
 	rep	movsb			; copy the BPB across to user
 	pop	di
 	pop	es
@@ -1597,14 +1619,20 @@ ioctl_set:	; set device parameters
 set1:
 	lea	si,7[bx]		; DS:SI -> new BPB from user
 	xchg	ax,di			; ES:DI -> BPB in es:UDSC_
-;	mov	cx,UDSC_BPB_LENGTH
-	mov	cx,OLD_BPB_LENGTH
+	cmp	cs:byte ptr ioctl_cat,48h
+					; extended BPB supplied?
+	 je	set1a			; yes
+	mov	cx,OLDBPB_LENGTH	; no, copy old-style BPB
+	jmps	set1b
+set1a:
+	mov	cx,UDSC_BPB_LENGTH	; else copy extended BPB
+set1b:
 	rep	movsb			; copy BPB into UDSC as new default
 	xchg	ax,di			; ES:DI -> UDSC_ again
 
 set2:					; now set track layout
 ;	lea	si,BPB_LENGTH+7[bx]	; DS:SI -> new user layout
-	lea	si,OLD_BPB_LENGTH+7[bx]	; DS:SI -> new user layout
+	lea	si,OLDBPB_LENGTH+7[bx]	; DS:SI -> new user layout
 	mov	es,cs:DataSegment
 	mov	di,CG:layout_table	; ES:DI -> BIOS layout table
 	lodsw				; get sector count
@@ -1664,17 +1692,17 @@ ioctl_rw_common:
 	mov	ax,ds:3[bx]		; get cylinder number
 	mov	P_CYL[bp],ax
 
-	mul	max_head		; multiply with number of heads
+	mul	cs:max_head		; multiply with number of heads
 	xor	ch,ch
 	mov	cl,P_HEAD[bp]
 	add	ax,cx			; add head number
 	adc	dx,0
 	push	ax
 	mov	ax,dx			; multiply with sectors per track
-	mul	max_sect
+	mul	cs:max_sect
 	mov	word ptr P_LBABLOCK[bp+2],ax
 	pop	ax
-	mul	max_sect
+	mul	cs:max_sect
 	xor	ch,ch
 	mov	cl,P_SECTOR[bp]
 	dec	cl
@@ -1986,6 +2014,13 @@ ioctl_setmedia:
 setmedia10:
 	ret
 
+ioctl_locklogical:
+ioctl_lockphysical:
+ioctl_unlocklogical:
+ioctl_unlockphysical:
+	xor	ax,ax			; return success
+	ret
+
 rw_media:
 ;--------
 ; On Entry:
@@ -2006,6 +2041,8 @@ rw_media:
 	xchg	ax,cx			; CX = sectors per cylinder
 	mov	ax,es:word ptr (UDSC_BPB+BPB_HIDDEN)[di]
 	mov	dx,es:word ptr (UDSC_BPB+BPB_HIDDEN+2)[di]
+	mov	word ptr P_LBABLOCK[bp],ax	; Logical Block Address of start sector
+	mov	word ptr P_LBABLOCK+2[bp],dx
 	div	cx			; AX = cylinder #, DX = head/sec offset
 	mov	P_CYL[bp],ax		; save physical cylinder number
 	xor	ax,ax			; make remainder 32 bit so
@@ -2017,7 +2054,13 @@ rw_media:
 	 jc	rw_media20
 	cmp	local_buffer+11+BPB_FATID,0F0h
 	 jb	rw_media10
-	mov	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+11+2
+	cmp	word ptr local_buffer+11+BPB_DIRMAX,0	; FAT32 drive?
+	 jne	rw_media05		; no
+	mov	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+11+14
+	jmps	rw_media07
+rw_media05:
+	mov	si,offset CGROUP:local_buffer+OLD_UDSC_BPB_LENGTH+11+2
+rw_media07:
 	lodsb				; get extended boot
 	sub	al,29h			; do we have an extended boot ?
 	 je	rw_media20		; no, well we can't write a new one
@@ -2214,6 +2257,9 @@ FullScreen10:
 
 driver	endp
 
+
+max_head	dw	0		; maximum number of heads
+max_sect	dw	0		; maximum sectors per track
 
 RCODE	ends				; end of device driver code
 
@@ -2964,7 +3010,8 @@ hd_bpb20:				; cluster size determined
 	sbb	dx,0			; (note: 32 bytes per entry)
 	xor	cx,cx
 	mov	ch,BPB_ALLOCSIZ[bx]	; CX = (256 * # of clusters on drive)
-	dec	cx
+;	dec	cx
+	dec	ch
 	add	ax,cx			; add in for rounding error
 	adc	dx,0
 	inc	cx
@@ -3036,9 +3083,6 @@ nfloppy		db	0		; # of floppy drives
 
 int13ex_ver	dw	0		; version of int 13 extensions
 int13ex_bits	dw	0		; int 13 API support bitmap
-
-max_head	dw	0		; maximum number of heads
-max_sect	dw	0		; maximum sectors per track
 
 ;	Public	diskaddrpack
 ;diskaddrpack:				; disk address packet structure for LBA access

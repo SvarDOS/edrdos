@@ -179,3 +179,5 @@ EXTERN	BOOLEAN CDECL	extended_error(VOID);
 EXTERN	WORD	CDECL	get_lines_page(VOID);
 EXTERN	WORD	CDECL	get_scr_width(VOID);
 EXTERN	WORD	CDECL	novell_copy(WORD,WORD,ULONG);
+
+EXTERN WORD CDECL     ms_edrv_space(BYTE FAR * NEAR *,BYTE *,UWORD);

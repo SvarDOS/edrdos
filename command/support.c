@@ -426,6 +426,12 @@ BYTE b;
 	return (b >= '0' && b <= '9');
 }
 
+GLOBAL BOOLEAN isletter(b)
+BYTE b;
+{
+	return ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z'));
+}
+
 GLOBAL BYTE * skip_char(s)
 REG BYTE *s;
 {

@@ -105,6 +105,7 @@ func49_10:
 	xor	dx,dx			; yes, owner = 0 means free block
 func49_20:
 	mov	DMD_PSP,dx		; free/set new owner
+	call	merge_mem		; merge with adjacent free blocks
 ;	jmps	memory_exit
 
 ; centralised exit point to unlock system tables

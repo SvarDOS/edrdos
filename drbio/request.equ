@@ -175,6 +175,10 @@ RQ19_FORMAT	equ	42h		; format tracks
 RQ19_VERIFY	equ	62h		; verify tracks
 RQ19_SETMEDIA	equ	46h		; set media ID
 RQ19_GETMEDIA	equ	66h		; get media ID
+RQ19_LOCKLOG	equ	4ah
+RQ19_LOCKPHYS	equ	4bh
+RQ19_UNLOCKLOG	equ	6ah
+RQ19_UNLOCKPHYS	equ	6bh
 
 RQ19_PRP_START	equ	4Ch		; start of codepage prepare
 RQ19_PRP_END	equ	4Dh		; end of codepage prepare

@@ -44,6 +44,7 @@ LF		equ	0ah
 DATTS		equ	byte ptr 11
  DA_VOLUME	equ	08h
  DA_DIR		equ	10h
+DBLOCK1H	equ	word ptr 20
 DBLOCK1		equ	word ptr 26
 DSIZE		equ	word ptr 28
 
@@ -89,11 +90,29 @@ login_drive10:
 	mov	intrpt_off,ax
 	mov	intrpt_seg,es		; get interrupt segment
 
+login_drive12:
 	mov	bx,offset req_hdr
 	mov	ds:RH_UNIT,dl		; save logical unit to use
 	mov	ds:RH_CMD,CMD_BUILD_BPB
 	call	device_request		; tell it to build a BPB
-	 jc	dev_fail		; return if can't determine BPB
+;	 jc	dev_fail		; return if can't determine BPB
+	 jnc	login_drive15
+	jmp	dev_fail		; return if can't determine BPB
+login_drive15:
+	les	di,ds:RH2_BPB
+	mov	ax,part_off
+	cmp	es:word ptr BPB_HIDDEN[di],ax
+	 jne	login_drive17
+	mov	ax,part_off+2
+	cmp	es:word ptr BPB_HIDDEN+2[di],ax
+	 je	login_drive18
+login_drive17:
+	inc	boot_drv
+	mov	dl,boot_drv
+	jmps	login_drive12
+login_drive18:
+	mov	dl,boot_drv
+	mov	init_drv,dl
 	push	ds ! push si
 	push	ds ! pop es
 	mov	di,offset local_bpb	; ES:DI -> local BPB copy
@@ -105,7 +124,16 @@ login_drive10:
 ;	Now we have to figure out whether the media uses 12 or 16 bit FATs.
 ;	To that end, we need to compute the # of clusters on the drive:
 
-	mov	fat16,0			; assume 12 bit FAT
+	cmp	BT_dirsize,0		; check for FAT32 file system
+	 jnz	login_drive20		; fixed root dir, FAT12/16
+	mov	fattype,2		; this is probably a FAT32 drive
+	mov	ax,BT_big_fat_size
+	mov	nfatsecs,ax
+	mov	ax,BT_big_fat_size+2
+	mov	nfatsecs+2,ax
+	ret
+login_drive20:
+	mov	fattype,0			; assume 12 bit FAT
 
 	mov	al,BT_nfats		; compute FAT size
 	mov	ah,0			; AX = # of FAT copies (usually 2)
@@ -144,8 +172,12 @@ dev_small:				; AX/DX = disk size in sectors
 	inc	ax			; cluster 0,1 are reserved
 	cmp	ax,0FF6h		; is this too large for 12 bits?
 	 jbe	dev_12bit		; skip if 12 bits will do
-	mov	fat16,-1		; else we use 16 bits
+	mov	fattype,1		; else we use 16 bits
 dev_12bit:
+	mov	ax,BT_fat_size
+	mov	nfatsecs,ax
+	xor	ax,ax
+	mov	nfatsecs+2,ax
 	ret
 
 
@@ -223,23 +255,53 @@ open_file:	; open BDOS system file
 ;---------
 ;	entry:	SI -> 11 byte file name
 
+	cmp	fattype,2		; booting from a FAT32 drive?
+	 je	open_file10		; yes
+	xor	ax,ax
+	push	ax
 	mov	al,BT_nfats
 	cbw
-	mul	BT_fat_size		; DX:AX = # FAT sectors
-
-	mov	cx,ax			; CX = rel_sctr dir start
+	push	ax
+	push	nfatsecs+2
+	push	nfatsecs
+	sub	sp,8			; reserve space on stack
+;	mul	BT_fat_size		; DX:AX = # FAT sectors
+	call	mul32
+	pop	ax
+	pop	dx			; DX:AX = # FAT sectors
+	add	sp,12			; clean up the stack
+	mov	cx,ax			; BP:CX = rel_sctr dir start
+	mov	bp,dx
 	mov	dx,BT_dirsize		; dx = # entries to scan
-
+	jmps	open_f1
+open_file10:
+	mov	bp,BT_fs_root+2		; FAT32 root dir cluster
+	mov	cx,BT_fs_root
+open_file15:
+	mov	start_cluster+2,bp
+	mov	start_cluster,cx
+	call	clus2sec
+	mov	al,BT_sctr_per_cluster
+	cbw
+	mul	BT_bytes_per_sector
+	mov	bx,32
+	div	bx
 open_f1: 				; CX = current dir sector
 					; DX = current dir count
 					; SI -> file name
-	push	cx ! push dx ! push si
+	push	bp
+	push	cx
+	push dx ! push si
 	push	ds ! pop es		; ES:BX -> sector buffer
 	mov	bx,offset sector_buffer
 	mov	dx,1			; read one directory sector
 	call	rd_sector_rel		;     via disk driver
-	pop	si ! pop dx ! pop cx
-	inc	cx			; increment sector for next time
+	pop	si ! pop dx
+	pop	cx
+	pop	bp
+;	inc	cx			; increment sector for next time
+	add	cx,1			; increment sector for next time
+	adc	bp,0
 
 	sub	bx,bx			; start at beginning of sector
 open_f2:
@@ -254,11 +316,20 @@ open_f2:
 	 jz	open_foundit		; skip if matches
 open_f3:
 	dec	dx			; count down root directory entries
-	 jz	open_fail		; skip if root directory done
+;	 jz	open_fail		; skip if root directory done
+	 jz	open_f4			; skip if end of root dir or cluster reached
 	add	bx,32			; next entry in directory sector
 	cmp	bx,BT_bytes_per_sector	; sector complete?
 	 jb	open_f2			; loop back while more
 	jmps	open_f1			; read next directory sector
+open_f4:
+	cmp	fattype,2		; FAT32 root dir?
+	 jne	open_fail		; no, reached end of root dir
+	mov	bp,start_cluster+2	; else look for next dir cluster
+	mov	cx,start_cluster
+	call	next_cluster		; find next cluster in chain
+	 jc	open_fail		; already at last root dir cluster
+	jmps	open_file15
 
 open_fail:				; file not found
 	jmp	dev_fail
@@ -276,6 +347,12 @@ open_found10:
 	mov	ax,DBLOCK1[di]		; get first disk block
 	mov	start_cluster,ax	; save starting cluster
 	xor	ax,ax
+	cmp	fattype,2		; FAT32 drive?
+	 jne	open_found15		; no, then skip high word of cluster
+	mov	ax,DBLOCK1H[di]
+open_found15:
+	mov	start_cluster+2,ax
+	xor	ax,ax
 	ret				; return success
 
 
@@ -288,19 +365,28 @@ read_file:	; read BDOS files into memory at MEM_CURRENT:0000
 rd_file1:
 	mov	cluster_count,1		; we can read at least one cluster
 	mov	cx,start_cluster
+	mov	bp,start_cluster+2
 rd_file2:				; check if next cluster contiguous
+	push	bp
 	push	cx			; save current cluster number
 	call	next_cluster		; get link to next cluster
 	pop	dx			; get previous cluster #
-	inc	dx			; is current cluster contiguous?
-	cmp	cx,dx			; contiguos if CX == DX
+	pop	ax
+;	inc	dx			; is current cluster contiguous?
+	add	dx,1			; is current cluster contiguous?
+	adc	ax,0
+	cmp	cx,dx			; contiguos if BP:CX == AX:DX
 	 jne	rd_file3		; no, need a separate read
+	cmp	bp,ax
+	 jne	rd_file3
 	inc	cluster_count		; else read one more cluster
 	jmps	rd_file2		; try again with next cluster
-rd_file3:				; CX = next chain, multi cluster read
+rd_file3:				; BP:CX = next chain, multi cluster read
+	push	bp
 	push	cx			; save start of next chain
 	les	bx,dta_ptr		; ES:BX -> transfer address
 	mov	cx,start_cluster	; previous contiguous chain starts here
+	mov	bp,start_cluster+2
 	mov	dx,cluster_count	; length of chain in clusters
 	call	rd_cluster		; read DX clusters
 	mov	al,BT_sctr_per_cluster
@@ -308,10 +394,14 @@ rd_file3:				; CX = next chain, multi cluster read
 	mul	cluster_count		; AX = sectors in chain to read
 	mul	BT_bytes_per_sector	; AX = bytes in chain to read
 	add	dta_off,ax
-	pop	cx			; CX = next (noncontiguous) cluster
+	pop	cx			; BP:CX = next (noncontiguous) cluster
+	pop	bp
 	mov	start_cluster,cx	; start of new chain
+	mov	start_cluster+2,bp
 	inc	cx			; was it end of file cluster number?
 	 jnz	rd_file1		; go back for more if not
+	inc	bp
+	 jnz	rd_file1
 					; else all clusters done
 	ret
 
@@ -324,6 +414,7 @@ get_FAT_byte:
 	sub	dx,dx			; AX/DX = 32 bit offset
 	div	BT_bytes_per_sector	; AX = sector, DX = offset in sector
 	push	dx			; save offset in sector
+	xor	dx,dx
 	call	locate_FAT		; read FAT sector AX
 	pop	bx			; BX = offset in FAT sector
 	mov	al,sector_buffer[bx]	; get byte from FAT buffer
@@ -332,14 +423,18 @@ get_FAT_byte:
 
 locate_FAT:
 ;----------
-;	entry:	AX = FAT sector to locate
+;	entry:	DX:AX = FAT sector to locate
 
 	cmp	ax,current_fatsec	; AX = sector offset into FAT
+	 jne	locate_fat10
+	cmp	dx,current_fatsec+2
 	 je	locate_FAT_match	; O.K. if same as last time
-
+locate_fat10:
 	mov	current_fatsec,ax	; set new sector for next time
+	mov	current_fatsec+2,dx
 	push	cx ! push si		; preserve FAT index
-	mov	cx,ax			; CX = sector number
+	mov	bp,dx
+	mov	cx,ax			; BP:CX = sector number
 	mov	bx,offset sector_buffer
 	push	ds ! pop es		; ES:BX -> sector buffer
 	mov	dx,1			; DX = single sector
@@ -355,10 +450,10 @@ eject
 ;	same parameters as rd_sector
 rd_sector_rel:
 ;-------------
-;	entry:	CX = sector address relative to first FAT sector
+;	entry:	BP:CX = sector address relative to first FAT sector (32-bit)
 ;		DX = sector count
 
-	sub	bp,bp				;overflow word = 0
+;	sub	bp,bp				;overflow word = 0
 	add	cx,BT_reserved_sectors
 	adc	bp,0
 ;	jmps	rd_sector
@@ -398,7 +493,7 @@ endif
 
 rd_cluster:
 ;----------
-;	entry:	CX = DOS cluster number.
+;	entry:	BP:CX = DOS cluster number.
 ;		DX = cluster count
 ;		ES:BX -> transfer buffer
 
@@ -415,16 +510,39 @@ rd_cluster10:
 	push	ax			; save the sector count
 
 	sub	cx,2			; cluster 2 is data area start
+	sbb	bp,0
+	xor	ax,ax
+	push	ax
 	mov	al,BT_sctr_per_cluster
 ;	cbw
 	xor	ah,ah
-	mul	cx			; AX,DX = relative sector #
+	push	ax
+	push	bp
+	push	cx
+	sub	sp,8			; reserve space on stack
+;	mul	cx			; AX,DX = relative sector #
+	call	mul32
+	pop	ax
+	pop	dx			; DX:AX = relative sector #
+	add	sp,12			; clean up the stack
 	mov	cx,ax
 	mov	bp,dx			; CX,BP = data area sector #
 
+	push	bp
+	xor	ax,ax
+	push	ax
 	mov	al,BT_nfats		; compute FAT size
 	mov	ah,0			; AX = # of FAT copies (usually 2)
-	mul	BT_fat_size		; AX/DX = size of FAT in sectors
+	push	ax
+	push	nfatsecs+2
+	push	nfatsecs
+	sub	sp,8			; reserve space on stack
+;	mul	BT_fat_size		; AX/DX = size of FAT in sectors
+	call	mul32
+	pop	ax
+	pop	dx			; DX:AX = size of FAT in sectors
+	add	sp,12			; clean up the stack
+	pop	bp
 	add	cx,ax
 	adc	bp,dx			; CX,BP = end of FAT sectors
 
@@ -453,19 +571,60 @@ rd_cluster10:
 next_cluster:
 ;------------
 	push	dx ! push bx		; save some registers
-	cmp	fat16,0			; check if this is 12 bit media
+	cmp	fattype,0		; check if this is 12 bit media
 	 je	next_cluster12		; skip if old fashioned 12 bit
+	xor	ax,ax
+	push	ax
+	cmp	fattype,1		; is this FAT16?
+	 jne	next_cluster5		; no, it must be FAT32
 	mov	ax,2
-	mul	cx			; AX/DX = byte offset in FAT (max. 128K)
-	div	BT_bytes_per_sector	; AX = FAT sector #, DX = byte offset
-	push	dx			; save byte offset within sector
+	jmps	next_cluster6
+next_cluster5:
+	mov	ax,4
+next_cluster6:
+	push	ax
+	push	bp
+	push	cx
+	sub	sp,8			; reserve space on stack
+;	mul	cx			; AX/DX = byte offset in FAT (max. 128K)
+	call	mul32
+	pop	ax
+	pop	dx
+	add	sp,12			; clean up the stack again
+	push	dx
+	push	ax
+	xor	ax,ax
+	push	ax
+	push	BT_bytes_per_sector
+	sub	sp,8			; reserve space on stack
+;	div	BT_bytes_per_sector	; AX = FAT sector #, DX = byte offset
+	call	div32
+	pop	bx
+	add	sp,2
+	pop	ax
+	pop	dx
+	add	sp,8			; clean up the stack
+;	push	dx			; save byte offset within sector
+	push	bx			; save byte offset within sector
 	call	locate_FAT		; get FAT sector AX
 	pop	bx			; BX = offset within sector
 	mov	cx,word ptr sector_buffer[bx]
 					; get 16 bit from FAT
-
+	xor	bp,bp
+	cmp	fattype,2		; is this FAT32?
+	 jne	next_cluster7		; no, skip high word
+	mov	bp,word ptr sector_buffer+2[bx]
+					; get high 16 bit from FAT
+	and	bp,0FFFh		; mask out reserved high nibble
+next_cluster7:
 	cmp	cx,0FFF7h		; check if too large for #
-	 jae	next_cluster_eof	; set carry, EOF
+;	 jae	next_cluster_eof	; set carry, EOF
+	 jb	next_cluster9
+	cmp	fattype,2		; FAT32?
+	 jne	next_cluster_eof	; no, then it is already EOF
+	cmp	bp,0FFFh		; else also check high word
+	 je	next_cluster_eof	; set carry, EOF
+next_cluster9:
 	clc
 	jmps	next_cluster_ret	; good link
 
@@ -491,15 +650,141 @@ next_cluster12:				; DOS 2.x disk
 even_fat:				; even entry, strip off top bits
 	and	ax,0fffh		; bx[0..11] are cluster
 	mov	cx,ax			; CX = cluster number
+	xor	bp,bp
 	cmp	cx,0ff7h		; compare with largest legal 12 bit #
 	 jae	next_cluster_eof	; check for end mark
 	clc
 	jmps	next_cluster_ret	; return value in CX, CY = 0
 next_cluster_eof:
 	mov	cx,-1			; indicate end of chain
+	mov	bp,-1
 	stc				; end of chain
 next_cluster_ret:
 	pop	bx ! pop dx
+	ret
+
+clus2sec:
+;----------
+;	entry:	BP:CX = DOS cluster number
+;	exit:	BP:CX = sector number
+
+	sub	cx,2			; cluster 2 is data area start
+	sbb	bp,0
+	xor	ax,ax
+	push	ax
+	mov	al,BT_sctr_per_cluster
+;	cbw
+	xor	ah,ah
+	push	ax
+	push	bp
+	push	cx
+	sub	sp,8			; reserve space on stack
+;	mul	cx			; AX,DX = relative sector #
+	call	mul32
+	pop	ax
+	pop	dx			; DX:AX = relative sector #
+	add	sp,12			; clean up the stack
+	mov	cx,ax
+	mov	bp,dx			; CX,BP = data area sector #
+
+	push	bp
+	xor	ax,ax
+	push	ax
+	mov	al,BT_nfats		; compute FAT size
+	mov	ah,0			; AX = # of FAT copies (usually 2)
+	push	ax
+	push	nfatsecs+2
+	push	nfatsecs
+	sub	sp,8			; reserve space on stack
+;	mul	BT_fat_size		; AX/DX = size of FAT in sectors
+	call	mul32
+	pop	ax
+	pop	dx			; DX:AX = size of FAT in sectors
+	add	sp,12			; clean up the stack
+	pop	bp
+	add	cx,ax
+	adc	bp,dx			; CX,BP = end of FAT sectors
+	ret
+
+mul32:					; 32-bit multiplication
+;--------
+; On Entry:
+;	32-bit factors on stack
+;	space for 64-bit product reserved on stack
+;	SP-16
+; On Exit:
+;	64-bit product on stack
+;	SP-16
+;	Carry flag set if result does not fit in double word
+; Modified registers:
+;	AX,DX,BP,SP
+	mov	bp,sp			; base address of temporary variables
+	add	bp,2
+	mov	ax,10[bp]		; multiply high word of factors
+	mul	word ptr 14[bp]
+	mov	4[bp],ax		; store result
+	mov	6[bp],dx
+	mov	ax,10[bp]		; multiply high word of first factor with low word of second
+	mul	word ptr 12[bp]
+	mov	2[bp],ax		; add result to previous
+	add	4[bp],dx
+	adc	word ptr 6[bp],0
+	mov	ax,8[bp]		; multiply low word of first factor with high word of second
+	mul	word ptr 14[bp]
+	add	2[bp],ax		; add result to previous
+	adc	4[bp],dx
+	adc	word ptr 6[bp],0
+	mov	ax,8[bp]		; multiply low word of first factor with low word of second
+	mul	word ptr 12[bp]
+	mov	[bp],ax			; add result
+	add	2[bp],dx
+	adc	word ptr 4[bp],0
+	adc	word ptr 6[bp],0
+	cmp	word ptr 4[bp],0	; 64-bit result?
+	 jnz	mul32_1			; yes
+	cmp	word ptr 6[bp],0
+	 jz	mul32_2			; no
+mul32_1:
+	stc				; yes, set carry flag to indicate this
+mul32_2:
+	ret
+
+div32:					; 32-bit division
+;--------
+; On Entry:
+;	32-bit dividend & divisor on stack
+;	space for 32-bit quotient & remainder reserved on stack
+;	SP-16
+; On Exit:
+;	32-bit quotient & remainder on stack
+;	SP-16
+; Modified registers:
+;	AX,CX,DX,BP
+	mov	bp,sp			; base address of temporary variables
+	add	bp,2
+	xor	ax,ax			; clear work registers
+	xor	dx,dx
+	mov	cx,32			; 32 bits
+div32_loop:
+	shl	word ptr 4[bp],1	; multiply quotient with two
+	rcl	word ptr 6[bp],1
+	shl	word ptr 12[bp],1	; shift one bit from dividend
+	rcl	word ptr 14[bp],1
+	rcl	ax,1			; to work registers
+	rcl	dx,1
+	cmp	dx,10[bp]		; compare high word with divisor
+	 jb	div32_2
+	 ja	div32_1
+	cmp	ax,8[bp]		; compare low word
+	 jb	div32_2
+div32_1:
+	or	word ptr 4[bp],1	; divisor fits one time
+	sub	ax,8[bp]		; subtract divisor
+	sbb	dx,10[bp]
+div32_2:
+	loop	div32_loop		; loop back if more bits to shift
+	mov	[bp],ax			; save remainder onto stack
+	mov	2[bp],dx
 	ret
 
 
@@ -513,6 +798,7 @@ INITDATA	dseg	'INITDATA'
 		extrn	current_dos:word	; current BDOS segment
 		extrn	boot_device:dword	; device driver we boot from
 		extrn	boot_drv:byte		; boot drive
+		extrn	init_drv:byte		; init drive
 		extrn	dos_name:byte		; name of BDOS file
 
 strat_ptr	rd	0
@@ -527,12 +813,16 @@ dta_ptr		rd	0
 dta_off		rw	1
 dta_seg		rw	1
 
-start_cluster	rw	1
+start_cluster	rw	2
 cluster_count	rw	1
 dosfile_size	rw	1
 
-current_fatsec	dw	-1			; no FAT sector read yet
-fat16		dw	0			; defaults to 12 bit FAT
+current_fatsec	dw	-1,-1			; no FAT sector read yet
+fattype		dw	0			; defaults to 12 bit FAT
+nfatsecs	dw	0,0			; number of FAT sectors (32-bit)
+
+	Public	part_off
+part_off	dw	0,0			; offset of boot partition
 
 ;	single error message if BDOS can't be loaded:
 
@@ -583,7 +873,14 @@ BT_sectors_per_track 	rw	1
 BT_nheads		rw	1
 BT_hidden_sectors	rw	2
 BT_total_long		rw	2
+BT_big_fat_size		rw	2
+BT_fat_flags		rw	1
+BT_fs_version		rw	1
+BT_fs_root		rw	2
+BT_fs_info		rw	1
+BT_boot_backup		rw	1
 BPB_LENGTH		equ	(offset $-offset local_bpb)
+BPB_HIDDEN		equ	17
 
 	extrn	sector_buffer:byte
 

@@ -351,6 +351,51 @@ _ms_drv_space:
 	pop	bp
 	ret
 
+	Public	_ms_edrv_space
+;------------
+_ms_edrv_space:
+;------------
+;
+;	ret = _ms_edrv_space (&drive,&buffer,buflen);
+;	where:	drive	= drive path
+;		buffer  = buffer for free space structure
+;		ret	= error code
+
+	push	bp
+	mov	bp,sp
+	push	ds
+	push	es
+	push	dx
+	push	di
+	push	bx
+	mov	di,6[bp]		; ES:DI pointer to buffer
+	push	ds
+	pop	es
+	mov	bx,8[bp]		; CX length of buffer
+	mov	cx,[bx]
+	mov	bx,4[bp]		; DS:DX pointer to drive path
+	mov	dx,[bx]
+	mov	ax,2[bx]
+	mov	ds,ax
+	mov	ax,MS_EDRV_SPACE
+	int	DOS_INT
+	 jc	_ms_edrv_space20	; error?
+	cmp	ax,7300h		; function not implemented?
+	 jne	_ms_edrv_space10
+	mov	al,0ffh			; generic error code
+	stc
+	jmp	_ms_edrv_space20
+_ms_edrv_space10:
+	xor	ax,ax
+_ms_edrv_space20:
+	pop	bx
+	pop	di
+	pop	dx
+	pop	es
+	pop	ds
+	pop	bp
+	ret
+
 	Public	_ms_s_country
 ;------------
 _ms_s_country:

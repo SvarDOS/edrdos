@@ -125,16 +125,17 @@ DDSC_FIRST	equ	byte ptr 24		; "drive never accessed" flag
 DDSC_LINK	equ	dword ptr 25		; next drive's DDSC
 DDSC_BLOCK	equ	word ptr 29		; next block to allocate
 DDSC_FREE	equ	word ptr 31		; total free clusters on drive
-DDSC_BDATADDR	equ	word ptr 33		; sector address of cluster #2 (32-bit)
-DDSC_BCLSTRS	equ	dword ptr 37		; # of clusters on disk (32-bit)
-DDSC_BFATRECS	equ	dword ptr 41		; # of sectors per FAT (32-bit)
-DDSC_BBLOCK	equ	dword ptr 45		; next block to allocate (32-bit)
-DDSC_BFREE	equ	dword ptr 49		; total free clusters on drive (32-bit)
-DDSC_FSFLAGS	equ	word ptr 53		; FAT mirroring flags
-DDSC_FSVER	equ	word ptr 55		; version of file system
-DDSC_FSROOT	equ	dword ptr 57		; starting cluster of root directory
-DDSC_FSINFO	equ	word ptr 61		; sector number of file system info block
-DDSC_LEN	equ	63
+DDSC_BFREE	equ	dword ptr 33		; total free clusters on drive (32-bit)
+DDSC_FSFLAGS	equ	word ptr 37		; FAT mirroring flags
+DDSC_FSINFO	equ	word ptr 39		; sector number of file system info block
+DDSC_BOOTBAK	equ	word ptr 41		; sector number of backup boot sector
+DDSC_BDATADDR	equ	dword ptr 43		; sector address of cluster #2 (32-bit)
+DDSC_BCLSTRS	equ	dword ptr 47		; # of clusters on disk (32-bit)
+DDSC_BFATRECS	equ	dword ptr 51		; # of sectors per FAT (32-bit)
+DDSC_FSROOT	equ	dword ptr 55		; starting cluster of root directory
+DDSC_BBLOCK	equ	dword ptr 59		; next block to allocate (32-bit)
+DDSC_FSVER	equ	word ptr 63		; version of file system
+DDSC_LEN	equ	65
 
 
 

@@ -81,14 +81,17 @@ IF ERRORLEVEL 1 GOTO FAILED
 %LOCTOOLS%\rasm_sh %LOCTOOLS%\rasm86.exe . .\cmdline.a86 .\bin\cmdline.obj
 IF ERRORLEVEL 1 GOTO FAILED
 
-copy ibmdos.inp .\BIN
+%LOCTOOLS%\rasm_sh %LOCTOOLS%\rasm86.exe . .\dos7.asm .\bin\dos7.obj
+IF ERRORLEVEL 1 GOTO FAILED
+
+copy drdos.inp .\BIN
 CD .\BIN
-..\%LOCTOOLS%\linkcmd.exe ibmdos[i]
+..\%LOCTOOLS%\linkcmd.exe drdos[i]
 IF ERRORLEVEL 1 GOTO FAILED
 CD ..
-%LOCTOOLS%\bin2asc -ob -s128 .\BIN\ibmdos.tmp .\BIN\ibmdos.com
+%LOCTOOLS%\bin2asc -ob -s128 .\BIN\drdos.tmp .\BIN\drdos.sys
 IF ERRORLEVEL 1 GOTO FAILED
-%LOCTOOLS%\compbdos .\BIN\ibmdos.com
+%LOCTOOLS%\compbdos .\BIN\drdos.sys
 IF ERRORLEVEL 1 GOTO FAILED
 goto exit
 

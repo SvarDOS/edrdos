@@ -282,13 +282,15 @@ GLOBAL VOID inherit_TMP_state(VOID);
 GLOBAL BOOLEAN getcmd(line)		/* read command line */
 BYTE *line;
 {
-	BYTE *s;
+	BYTE *s,*s1;
 	BOOLEAN quote = FALSE;
 	BOOLEAN	cancel_prompt = FALSE;
 #if defined(DOSPLUS)
 	WORD	i;
 	BYTE	cmd_name[16];
 #endif
+	BYTE envvar[128];
+	BYTE varbuf[128];
 
 	back_flag = FALSE;		/* Disable BackGround Processing*/
 
@@ -395,6 +397,36 @@ batch_restart:
 	while(*s) {
 	    if(*s == '"')		/* Check for a " character and  */
 		quote = !quote; 	/* update the flag correctly	*/
+
+	    if (*s=='%')
+	      if (*(s+1)=='%')
+		s++;
+	      else {
+		s1=s+1;
+		i=0;
+		envvar[i]='\0';
+		while (*s1)
+		  if (*s1=='%')
+		    if (*(s1+1)=='%') {
+		      s1++;
+		      envvar[i++]=*s1++;
+		    }
+		    else {
+		      envvar[i]='\0';
+		      strcat(envvar,"=");
+		      s=s1+1;
+		      strupr(envvar);
+		      if (env_scan(envvar,varbuf))
+			if (novell_extension(envvar,varbuf))
+			  break;
+		      s1=varbuf;
+		      while (*s1)
+			*line++=*s1++;
+		    }
+		  else {
+		    envvar[i++]=*s1++;
+		  }
+	      }
 
 #if !defined(DOSPLUS)
 	    if(*s == ESC_CHAR &&	/* If the Escape character has  */
@@ -752,7 +784,7 @@ UWORD FAR *ptr;
 	hp_size = heap() - hp_start;
 
 	i = (sizeof(BCONTROL) + hp_size + 15)/16;
-	mem_alloc(&bc, &i, i, i);	/* allocate new batch structure */
+	mem_alloc((BYTE FAR * NEAR *)&bc, &i, i, i);	/* allocate new batch structure */
 	
 	if (i == 0) {			/* if we can't allocate one	*/
 	    longjmp(break_env, IA_HEAP);/* then pretend heap has run out*/
@@ -810,7 +842,7 @@ UWORD FAR *ptr;
 	forptr = batch->fcontrol;	/* Restore the previous for	*/
 	for_flag = (BOOLEAN) forptr;	/*  control structures 		*/
 	batch = batch->bcontrol;	/* restore ptr to previous batch */
-	mem_free(&bc);			/* free up batch memory */
+	mem_free((BYTE FAR * NEAR *)&bc);			/* free up batch memory */
 #if defined(CDOSTMP)
 	ptr = MK_FP(pd->P_PSP, TmpPspBatchSeg);
 	*ptr = (UWORD)(((ULONG)batch) >> 16);
@@ -1400,6 +1432,7 @@ BYTE	**cptr;
         WORD	attr;
 	UWORD   userid;
 	LONG	val1,val2;
+	BYTE	quoteflag;
 
         cmd=*cptr;
         not = cond = NO;			/* Initialise the Flags     */
@@ -1443,13 +1476,16 @@ BYTE	**cptr;
 		    cmd++;
 		}
 
-		if(!isdigit(*cmd)) {		/* SYNTAX error if the	    */ 
-		    syntax();			/* first character is not a */
+		if(!isdigit(*cmd) && !isletter(*cmd)) {	/* SYNTAX error if the	    */ 
+		    syntax();				/* first character is not a */
 		    return FALSE;			/* digit.		    */
 		}
 
-		while(isdigit(*cmd))
+		if (isdigit(*cmd))
+		  while(isdigit(*cmd))
 		    level = level * 10 + (*cmd++ - '0');
+		else
+		  level=tolower(*cmd++)-'a'+1;
 
 		level = level & 0x00FF;
 
@@ -1580,10 +1616,11 @@ BYTE	**cptr;
 	    default:
 		str1 = cmd;			/* Extract String 1	    */
 
-		while ((!is_blank(cmd)) && (*cmd != '=') &&
+		quoteflag=0;
+		while ((!is_blank(cmd) || quoteflag) && (*cmd != '=') &&
 		       ((*cmd != '!') || (cmd[1]!= '=')) &&
 		       (*cmd != '<') && (*cmd != '>')) {
-
+		    if (*cmd=='"') quoteflag=!quoteflag;
 		    cmd = skip_char(cmd);
 		}
 
@@ -1603,7 +1640,11 @@ BYTE	**cptr;
 
 		cmd = deblank(cmd);
 		str2 = cmd;
-		while (!is_blank(cmd)) cmd = skip_char(cmd);
+		quoteflag=0;
+		while (!is_blank(cmd) || quoteflag) {
+		  if (*cmd=='"') quoteflag=!quoteflag;
+		  cmd = skip_char(cmd);
+		}
 		*cmd++ = 0;
 
 		if (*str1 == '#') {
@@ -2243,7 +2284,8 @@ BYTE	*dst;
 
 	while(n_cmd_p->string) {
 
-	    cpf = cgroupptr(n_cmd_p->string);
+/*	    cpf = cgroupptr(n_cmd_p->string);*/
+	    cpf = (BYTE FAR*)n_cmd_p->string;
 
 	    for(i=0; (cpf[i]==src[i]) && src[i]; i++);
 
@@ -2489,6 +2531,16 @@ BYTE	*dst;
 	sprintf(dst,"%02d",time.hour);
 }
 
+GLOBAL	VOID CDECL get_hour2(dst)
+BYTE	*dst;
+{
+	SYSTIME  time;
+		
+	ms_gettime(&time);
+
+	sprintf(dst,"%d",time.hour);
+}
+
 GLOBAL	VOID CDECL get_minute(dst)
 BYTE	*dst;
 {
@@ -2573,6 +2625,16 @@ BYTE	*dst;
 	sprintf(dst,"%d",date.month);
 }
 
+GLOBAL	VOID CDECL get_moy(dst)
+BYTE	*dst;
+{
+	SYSDATE	date;
+	
+	ms_getdate(&date);
+	
+	sprintf(dst,"%02d",date.month);
+}
+
 GLOBAL	VOID CDECL get_month_name(dst)
 BYTE	*dst;
 {
@@ -2610,6 +2672,16 @@ BYTE	*dst;
 	ms_getdate(&date);
 	
 	sprintf(dst,"%d",date.day);
+}
+
+GLOBAL	VOID CDECL get_dom(dst)
+BYTE	*dst;
+{
+	SYSDATE	date;
+	
+	ms_getdate(&date);
+	
+	sprintf(dst,"%02d",date.day);
 }
 
 GLOBAL	VOID CDECL get_nday_of_week(dst)
@@ -2650,4 +2722,54 @@ BYTE	*dst;
 	}
 	
 	sprintf(dst,"%d",i);
+}
+
+GLOBAL	VOID CDECL get_errorlevel(dst)
+BYTE	*dst;
+{
+	sprintf(dst,"%d",err_ret & 255);
+}
+
+GLOBAL	VOID CDECL get_errorlvl(dst)
+BYTE	*dst;
+{
+	sprintf(dst,"%03d",err_ret & 255);
+}
+
+GLOBAL	VOID CDECL get_codepage(dst)
+BYTE	*dst;
+{
+	UWORD	currentcp,defaultcp;
+
+	ms_x_getcp(&currentcp,&defaultcp);
+
+	sprintf(dst,"%d",currentcp);
+}
+
+GLOBAL	VOID CDECL get_country(dst)
+BYTE	*dst;
+{
+	country.code=ms_s_country(&country);
+
+	sprintf(dst,"%d",country.code);
+}
+
+GLOBAL	VOID CDECL get_rows(dst)
+BYTE	*dst;
+{
+	UWORD	rows;
+
+	rows=get_lines_page();
+
+	sprintf(dst,"%d",rows);
+}
+
+GLOBAL	VOID CDECL get_columns(dst)
+BYTE	*dst;
+{
+	UWORD	columns;
+
+	columns=get_scr_width();
+
+	sprintf(dst,"%d",columns);
 }

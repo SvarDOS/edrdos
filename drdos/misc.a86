@@ -407,6 +407,7 @@ f37_setswitch:
 
 	Public	func30
 func30:
+	mov	cl,al			; save value of AL
 if DOS5
 	mov	es,current_psp		; version is kept in the PSP
 	mov	ax,PSP_VERSION
@@ -414,8 +415,14 @@ else
 	mov	ax,dos_version		; version returned in AX
 endif
 ReturnVersionNumber:
-	xor	bx,bx			; zero BX and CX
-	xor	cx,cx
+	xor	bx,bx			; zero BX
+	cmp	cl,1			; version flag requested?
+	 je	f30_10			; yes, then return 0
+;	cmp	ax,dos_version		; has the version number been faked?
+;	 je	f30_10			; yes, then report OEM code 0 (PC DOS)
+	mov	bh,0eeh			; OEM = EEh (DR DOS)
+f30_10:
+	xor	cx,cx			; zero CX
 	call	return_BX
 	call	return_CX
 	jmp	return_AX_CLC
@@ -456,7 +463,14 @@ f33_40:
 
 if DOS5
 f33_60:
-	mov	reg_BX[bp],TRUE_VERSION	; return version number
+	mov	es,current_psp
+	mov	ax,PSP_VERSION		; reported version for current program
+	cmp	ax,dos_version		; has this been faked with SETVER?
+	mov	reg_BX[bp],ax
+	 jne	f33_61			; yes, then fake the true version, too
+	mov	ax,dos_version-2	; if not, then honestly return true version number
+	mov	reg_BX[bp],ax
+f33_61:
 	mov	ax,patch_version
 	mov	reg_DX[bp],ax		; return revision+HMA
 	ret

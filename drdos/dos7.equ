@@ -1,0 +1,29 @@
+; DOS7.EQU - Definitions for DOS 7 data structures
+;
+; This file is part of
+; The DR-DOS/OpenDOS Enhancement Project - http://www.drdosprojects.de
+; Copyright (c) 2002-2004 Udo Kuhnt
+
+FREED_SIZE	equ	word ptr 00h	; size of structure
+FREED_VER	equ	word ptr 02h	; version of structure
+FREED_SECPCLUS	equ	dword ptr 04h	; sectors per cluster
+FREED_BYTEPSEC	equ	dword ptr 08h	; bytes per sector
+FREED_FREECL	equ	dword ptr 0ch	; available clusters
+FREED_NCLUSTER	equ	dword ptr 10h	; number of clusters on drive
+FREED_FREESEC	equ	dword ptr 14h	; number of physical sectors available on drive
+FREED_NSECS	equ	dword ptr 18h	; number of physical sectors on drive
+FREED_FREEPCL	equ	dword ptr 1ch	; available physical allocation units
+FREED_NPCLUS	equ	dword ptr 20h	; number of physical allocation units
+;FREED_RESERVED	equ	24h	; reserved bytes
+FREED_LEN	equ	24h	; length of data
+
+EDPB_DEVHEAD	equ	dword ptr 13h	; device driver header
+EDPB_DPBFLAGS	equ	byte ptr 18h	; DPB flags (undocumented)
+EDPB_LINK	equ	dword ptr 19h	; link to next DPB
+EDPB_FSINFO	equ	word ptr 25h	; file system info sector
+EDPB_BOOTBAK	equ	word ptr 27h	; backup of boot sector
+EDPB_BDATADDR	equ	dword ptr 29h	; sector address of cluster #2
+EDPB_BCLSTRS	equ	dword ptr 2dh	; highest cluster number
+EDPB_BFATRECS	equ	dword ptr 31h	; number of sectors per FAT
+EDPB_BBLOCK	equ	dword ptr 39h	; next block to allocate
+EDPB_LEN	equ	3dh		; length of Extended DPB structure

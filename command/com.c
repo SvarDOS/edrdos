@@ -438,6 +438,7 @@ BYTE *cmd;
 #else
 	BYTE	buf[MAX_ENVLEN], c;
 	UWORD	envsize = 256;
+	UWORD	oldenvsize = 0;
 #endif
 #if defined(DOSPLUS)
 	BOOLEAN	no_timedate = FALSE;
@@ -469,8 +470,9 @@ BYTE *cmd;
 	batchflg_off = (VOID *) &batchflg;
 	echoflg_off  = (VOID *) &echoflg;
 
-	envsize = get_original_envsize();	/* BAP - sets envsize to */
+	oldenvsize = get_original_envsize();	/* BAP - sets envsize to */
 						/* same as original COMMAND */
+	envsize=oldenvsize;
 	if ((envsize < 128) || (envsize > 32752)) envsize = 256; /* shouldn't really need this */
 
 	parent_psp = MK_FP(_psp2, 0x16);	/* our parental PSP is here  */
@@ -523,6 +525,7 @@ BYTE *cmd;
 
 	initflg = YES;				/* there's only one 1st time */
 	cflag = 0;				/* Clear the switch variable */
+	if (oldenvsize==0) cflag|=1;		/* Assume primary shell if no previous env */
 
 #if !defined(CDOSTMP)
 	/*
@@ -1209,10 +1212,10 @@ BOOLEAN   internal;		/* Search for INTERNAL Commands */
 	REG S_CMD FAR *s_cmd_p;
 	WORD	  i;
 	BYTE FAR  *cpf;
-	BYTE 	  loadfile[MAX_FILELEN];
+EXTERN	BYTE	  loadfile[MAX_FILELEN];
 	BYTE	  *cp1, *lcp;
 	UWORD	  loadtype;
-	BYTE	  argv0[MAX_FILELEN];
+EXTERN	BYTE	  argv0[MAX_FILELEN];
 
 	heap_get(0);				/* check for stack overflow */
 	lcp = cp;				/* in case 1st parse fails.. */
@@ -1247,7 +1250,8 @@ BOOLEAN   internal;		/* Search for INTERNAL Commands */
 
 	s_cmd_p = (S_CMD FAR *)farptr((BYTE *)&cmd_list[0]);
 	while(internal && s_cmd_p->cmnd) {	/* while more builtins	*/
-	    cpf = cgroupptr(s_cmd_p->cmnd);
+/*	    cpf = cgroupptr(s_cmd_p->cmnd);*/
+	    cpf = (BYTE FAR*)s_cmd_p->cmnd;
 	    for(i=0;cpf[i];i++)			/* make upper case copy */
 	    	argv0[i]=toupper(cpf[i]);
 	    for(;i<8;argv0[i++]=' ');		/* space fill it to 8 */
@@ -1300,7 +1304,8 @@ BOOLEAN   internal;		/* Search for INTERNAL Commands */
             show_help(0);
 	    s_cmd_p = (S_CMD FAR *)farptr((BYTE *)&cmd_list[0]);
 	    while(s_cmd_p->cmnd) {
-	        cpf = cgroupptr(s_cmd_p->cmnd);
+/*	        cpf = cgroupptr(s_cmd_p->cmnd);*/
+	        cpf = (BYTE FAR*)s_cmd_p->cmnd;
                 printf("%s\t",cpf);
 	        s_cmd_p++;
 	    }
@@ -1452,6 +1457,8 @@ UWORD	*loadtype;		/* Command file Type			*/
 	    envpath = stack(strlen(heap()) + 1);
 #else
 	    envpath = &pathbuf[0];
+	    if (strlen(heap())>=MAX_ENVLEN)
+	      heap()[MAX_ENVLEN]=0;
 #endif
 	    strcpy(envpath, heap());
 	}
@@ -1509,7 +1516,7 @@ UWORD	*loadtype;		/* Command file Type			*/
 	    if((strlen(sppath) == 2) && (sppath[1] == ':'))
 		sppath[0] = '\0';
 
-	} while(!*sppath && *path);
+	} while(!*sppath && (*path || *envpath));
 
 	return i;
 }

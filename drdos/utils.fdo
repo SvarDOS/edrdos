@@ -551,7 +551,7 @@ eject
 ; On Entry:
 ;	es:di -> path name
 ; On Exit:
-;	AL = path_drive = sepcified or default drive
+;	AL = path_drive = specified or default drive
 ;	es:di -> past drive name
 ;	cf = 1 if illegal drive name
 
@@ -2364,7 +2364,7 @@ BDOS_DATA	dseg	word
 join_name	db	'd:\filename.ext',0
 
 		db	'Patches to original OpenDOS source code '
-		db	'Copyright (c) 2002-2003 Udo Kuhnt'
+		db	'Copyright (c) 2002-2005 Udo Kuhnt'
 
 BDOS_CODE	cseg
 

@@ -158,14 +158,16 @@ diradd		dw	0		; sector offset of 1st root DIR sector
 LOCAL_DDSC_LEN	equ	offset $ - offset local_ddsc
 
 local_ddsc2	rb	0
+;		dw	0,0		; total free clusters on drive
+;		dw	0		; FAT flags
+;		dw	0		; FS info
+;		dw	0		; backup boot sec
 bdatadd		dw	0,0
 blastcl		dw	0,0		; # last cluster (32-bit)
 		dw	0,0		; # sectors per FAT (32-bit)
-		dw	0,0		; next block to allocate
-		dw	0,0		; total free clusters on drive
-		dw	0		; FAT flags
-		dw	0		; version of file system
 fsroot		dw	0,0		; first cluster of root dir
+;		dw	0,0		; next block to allocate
+;		dw	0		; version of file system
 
 LOCAL_DDSC2_LEN	equ	offset $ - offset local_ddsc2
 
@@ -205,7 +207,7 @@ byteoff		dw	0		; fdosrw local variable
 
 blk		dw	0,0		; current cluster of filepos
 blkidx		dw	0,0		; current cluster index within file
-blkoffset	dw	0		; offset within cluster
+blkoffset	dw	0,0		; offset within cluster
 
 fdrw_seek_cl	dw	0,0
 fdw_trunc_cl	dw	0,0
@@ -397,10 +399,15 @@ fdw_trunc:
 ;
 
 	les	bx,current_dhndl
-	mov	cx,blkoffset		; get offset within current block
+;	mov	cx,blkoffset		; get offset within current block
 	mov	ax,blkidx		; get logical block number
 	mov	dx,blkidx+2
-	 jcxz	fdw_t10			; skip if no data in last block
+	cmp	blkoffset,0		; get offset within current block
+;	 jcxz	fdw_t10			; skip if no data in last block
+	 jnz	fdw_t05			; skip if no data in last block
+	cmp	blkoffset+2,0
+	 jz	fdw_t10
+fdw_t05:
 ;	inc	ax			; else add in another cluster
 	add	ax,1			; else add in another cluster
 	adc	dx,0
@@ -528,9 +535,11 @@ fdrw_p20:
 	call	mul32			; compute maximum size of disk
 	pop	ax
 	pop	dx
-	add	sp,12			; clean up the stack again
+	pop	cx
+	add	sp,10			; clean up the stack again
 	sub	ax,byteoff
 	sbb	dx,byteoff+WORD		; beyond this we can't go
+	sbb	cx,0
 	 jc	fdrw_p30
 ;	mov	ax,byteoff		; DX:AX = current file size
 ;	mov	dx,byteoff+WORD
@@ -544,7 +553,8 @@ fdrw_p20:
 	sub	sp,8			; reserve space on stack
 	call	div32
 	pop	word ptr blkoffset	; offset within cluster
-	add	sp,2			; skip high word
+	pop	word ptr blkoffset+2
+;	add	sp,2			; skip high word
 	pop	word ptr blkidx		; save it for later
 	pop	word ptr blkidx+2
 	add	sp,8			; clean up stack
@@ -770,7 +780,8 @@ fdrw_seek:
 	sub	sp,8			; reserve space on stack for result
 	call	div32
 	pop	word ptr blkoffset	; save cluster and offset within it
-	add	sp,2
+	pop	word ptr blkoffset+2
+;	add	sp,2
 	pop	word ptr blkidx
 	pop	word ptr blkidx+2
 	add	sp,8			; clean up stack
@@ -847,6 +858,7 @@ fdrw_seek40:
 	mov	blk,ax			; save the block for coniguous checks
 	mov	blk+2,dx
 	mov	bx,blkoffset
+	mov	cx,blkoffset+2
 	call	clus2sec		; convert to sector/offset
 	mov	word ptr fdrwsec,ax	; remember this block
 	mov	word ptr fdrwsec+WORD,dx
@@ -920,11 +932,15 @@ direct_rw:
 	sub	dx,dx			; assume no extra blocks required
 	mov	ax,fdrwreq		; total byte count
 	mov	cx,clsize		; get number of bytes
-	sub	cx,blkoffset		; CX = bytes remaining in this block
+	mov	bx,clsize+2
+	sub	cx,blkoffset		; BX:CX = bytes remaining in this block
+	sbb	bx,blkoffset+2
 	sub	ax,cx			; if wholly containined within block
-	 jbe	direct_rw10		; then leave it alone
+	sbb	dx,bx
+;	 jbe	direct_rw10		; then leave it alone
+	 jnc	direct_rw10		; then leave it alone
 ;	div	clsize			; else get # of extra clusters
-	push	cx
+;	push	cx
 	push	dx
 	push	ax
 	push	word ptr clsize+2
@@ -935,7 +951,7 @@ direct_rw:
 	add	sp,2
 	pop	ax
 	add	sp,10
-	pop	cx
+;	pop	cx
 	xchg	ax,dx			; DX = clusters, AX = remainder
 	or	ax,ax			; round up if any remainder
 	 jz	direct_rw10		; skip if even number
@@ -955,7 +971,7 @@ direct_rw10:				; DX = # of contiguous clusters req'd
 	pop	dx
 	add	sp,12
 	sub	ax,blkoffset		; BX = skipped bytes in 1st cluster
-	sbb	dx,0
+	sbb	dx,blkoffset+2
 					; AX:DX = max # of bytes transferrable
 					;    from current position
 	test	dx,dx
@@ -1062,20 +1078,20 @@ SynchroniseBuffers:	; synchronize BCBs after multi sector transfer
 ;	mov	ah,byte ptr fdrwsec+WORD
 	mov	ax,word ptr fdrwsec+2
 ;	mov	al,adrive		; get our drive number
+	mov	cl,adrive		; get our drive number
 	lds	bx,bcb_root		; DS:BX -> 1st buffer
 SynchroniseBuffers10:
 	test	ds:BCB_FLAGS[bx],BF_ISDAT; is this a data buffer?
 	 jz	SynchroniseBuffers30	; skip if directory or FAT
 ;	cmp	al,ds:BCB_DRV[bx]	; does the drive match?
-	mov	cl,adrive		; get our drive number
 	cmp	cl,ds:BCB_DRV[bx]	; does the drive match?
 	 jne	SynchroniseBuffers30	; skip if different
 	mov	si,ds:BCB_REC[bx]	; compute bcb->rec - prec
-	sub	si,dx			; result in SI,CL (lsb..msb)
+	sub	si,dx			; result in SI,DI (lsb..msb)
 ;	mov	cl,ds:byte ptr BCB_REC2[bx]
 ;	sbb	cl,ah			; get bits 16-23 of result
-	mov	cx,ds:BCB_REC2[bx]
-	sbb	cx,ax			; get bits 16-31 of result
+	mov	di,ds:BCB_REC2[bx]
+	sbb	di,ax			; get bits 16-31 of result
 	 jne	SynchroniseBuffers30	; skip if bcb->rec < prec
 	cmp	si,ss:fdrwdircnt	; else check against transfer length
 	 jae	SynchroniseBuffers30	; skip if beyond transfer length
@@ -1089,6 +1105,7 @@ SynchroniseBuffers10:
 	push	ax ! push dx		; save record address
 
 	mov	ax,ss:psecsiz		; # of bytes in sector buffer
+	push	cx			; save drive number
 	mov	cx,ax
 	shr	cx,1			; CX = words per sector
 	mul	si			; AX = byte offset from start buffer
@@ -1097,6 +1114,7 @@ SynchroniseBuffers10:
 	mov	es,ss:fdrwseg		; ES:DI -> data to be replaced
 	lea	si,BCB_DATA[bx]
 	rep	movsw			; move CX words (one physical sector)
+	pop	cx			; restore drive number
 	pop	dx ! pop ax		; restore record address
 	jmps	SynchroniseBuffers30
 
@@ -1239,11 +1257,25 @@ device_driver:
 	ret
 
 device_driver10:
+;	push	ds
+;	push	ds:DH_INTERRUPT[si]	; interrupt routine address on stack
+;	push	ds
+;	push	ds:DH_STRATEGY[si]	; strategy routine address on stack
+;	retf				; retf to strategy, interrupt, us
 	push	ds
-	push	ds:DH_INTERRUPT[si]	; interrupt routine address on stack
+	push	si
+	push	cs
+	mov	ax,offset device_driver11
+	push	ax
 	push	ds
 	push	ds:DH_STRATEGY[si]	; strategy routine address on stack
-	retf				; retf to strategy, interrupt, us
+	retf				; retf to strategy and device_driver11
+device_driver11:
+	pop	si
+	pop	ds
+	push	ds
+	push	ds:DH_INTERRUPT[si]	; interrupt routine address on stack
+	retf				; retf to interrupt, us
 
 eject
 ;	Select drive and check for door open ints
@@ -1729,7 +1761,7 @@ clus2sec:		; convert from cluster/offset to sector/offset
 ;--------
 ; On Entry:
 ;	DX:AX = cluster
-;	BX = byte offset in cluster
+;	CX:BX = byte offset in cluster
 ; On Exit:
 ;	DX:AX = sector
 ;	BX = byte offset in sector
@@ -1739,7 +1771,8 @@ clus2sec:		; convert from cluster/offset to sector/offset
 	sbb	dx,0
 	push	dx			; save cluster on stack
 	push	ax
-	xor	dx,dx
+;	xor	dx,dx
+	xchg	dx,cx
 	xchg	ax,bx			; DX:AX = byte offset
 	div	psecsiz			; AX = sector offset, DX = byte offset
 	mov	bx,dx			; BX = byte offset in sector
@@ -1914,34 +1947,5 @@ output_hex30:
 	pop	ax
 	ret
 output_hex40	db	20h,0		; end of string
-
-	public	output_fcb
-output_fcb:
-;----------------
-; On Entry:
-;	si = offset CGROUP:message_msg
-; On Exit:
-;	None
-	push	si
-	push	ds
-	push	ax
-	push	bx
-	push	cx
-	mov	cx,11
-	lodsb				; get 1st character (never NULL)
-output_fcb10:
-	mov	ah,0Eh
-	mov	bx,7
-	push	cx
-	int	10h			; TTY write of character
-	pop	cx
-	lodsb				; fetch another character
-	loop	output_fcb10
-	pop	cx
-	pop	bx
-	pop	ax
-	pop	ds
-	pop	si
-	ret
 
 	end

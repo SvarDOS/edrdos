@@ -420,9 +420,10 @@ _heap_size:
         jnc     noprobs
         xor     bp,bp
 noprobs:
-	mov	ax,sp		
-	pop	bp		
-	ret			
+;	mov	ax,sp
+	mov	ax,bp
+	pop	bp
+	ret
 
 ;
 ;	HEAP() can only return a pointer to the top of the C Heap

@@ -87,14 +87,14 @@ IF ERRORLEVEL 1 GOTO FAILED
 
 REM ***************************************************
 REM Link the OBJ's and LIBR file to create the BIOS.EXE
-REM and then use EXE2BIN to create the IBMBIO.COM file.
+REM and then use EXE2BIN to create the DRBIO.SYS file.
 REM ***************************************************
 %LINK% @bios.lnk
 IF ERRORLEVEL 1 GOTO FAILED
-%LOCTOOLS%\exe2bin.exe .\bin\bios.exe .\bin\ibmbio.com
+%LOCTOOLS%\exe2bin.exe .\bin\bios.exe .\bin\drbio.sys
 IF ERRORLEVEL 1 GOTO FAILED
 del .\bin\bios.exe
-%LOCTOOLS%\compbios .\bin\ibmbio.com
+%LOCTOOLS%\compbios .\bin\drbio.sys
 IF ERRORLEVEL 1 GOTO FAILED
 goto exit
 

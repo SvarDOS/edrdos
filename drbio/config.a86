@@ -75,8 +75,9 @@ INITCODE	CSEG	PARA 'INITCODE'
 	extrn	AllocHMA:near
 	extrn	SetupHMA:near
 	extrn	alloc_instseg:near	; Allocate "Segment" Instance Memory
-	extrn	alloc_hiseg:near	; Allocate "Segment" High Memory
+	extrn	alloc_hiseg:near	; Allocate "Segment" Upper or Low Memory, depending on hidos flag
 	extrn	alloc_seg:near		; Allocate "Segment" Memory
+	extrn	alloc_upper:near	; Allocate "Segment" Upper Memory
 	extrn	config_process:near
 	extrn	InitStacks:near
 	extrn	HookInt2F:near
@@ -157,6 +158,7 @@ cfg_ex10:
 
 	call	SetupDeblocking		; do our thing with deblocking
 
+	mov	byte ptr configPass,1
 	call	config_finish		; clean up configuration
 	call	setup_fopen		; allocate disk hashing
 	call	setup_history
@@ -383,6 +385,7 @@ setup_hist20:
 	push	ax			; save buffers size in bytes
 	shr	ax,cl			; convert to para's
 	mov	dl,'H'			; History buffer
+	mov	dh,ALLOC_IN_UMB
 	call	alloc_instseg		; Allocate Buffer
 	mov	es:word ptr 00[si],ax	; Buffer Start Address
 	pop	cx			; recover buffer size in bytes
@@ -548,7 +551,13 @@ dev_init:
 	push ds ! pop es		; ES -> Points at the Data Segment
 	mov	ds,strategy_seg		; DS == Device Drive Segment
  	mov	si,di			; DS:SI -> device driver header
+	push	ds
+	push	es
  	callf	cs:strategy		; Call Device Strategy Routine
+	pop	es
+	pop	ds
+	mov	ax,ds:DH_INTERRUPT[si]	; Set up the INTERRUPT Entry Point
+	mov	es:interrupt_off,ax
 	callf	cs:interrupt		; Call Device Interrupt Routine
 	pop di ! pop si ! pop bx	; recover the pointers
 	pop es ! pop ds			; Restore Segment Registers
@@ -661,6 +670,7 @@ resident_ddscs:
 ; Allocate DDSC's for the resident device drivers - we can only do this
 ; after the DOS data area is established.
 ;
+	push	word ptr res_ddsc_ptr
 	sub	bx,bx			; start with 1st block device
 	mov	cx,num_blkdev		; get # of block devices
 	 jcxz	res_ddsc40		; skip if no block devices
@@ -697,6 +707,7 @@ res_ddsc20:				; CX = remaining units
 	inc	bx
 	loop	res_ddsc10		; repeat for next driver
 res_ddsc40:				; all block devices done
+	pop	word ptr res_ddsc_ptr
 	ret
 
 	
@@ -758,11 +769,12 @@ setup_ldt:
 	mov	al,es:F52_LASTDRV[bx]	; lastdrive
 	push	ax			; save for later
 	les	di,es:F52_PATHPTR[bx]	; now initialise the CSD's
+	mov	bx,di
 	xor	al,al			; to zero
 	rep	stosb			; zero them
 	pop	ax			; recover lastdrive
 
-	xor	bx,bx			; start with zero offset
+;	xor	bx,bx			; start with zero offset
 	xor	cx,cx			; start with drive A
 	xchg	al,cl			; AH = physical limit, CX logical limit
 ldt_init:
@@ -880,10 +892,13 @@ config_finish:		; finish off configuration
 	mov	resdev_off,-1		; only do this once...
 cfg_fin10:
 
+	cmp	byte ptr configPass,0	; skip if second pass
+	 jne	cfg_fin20
 	les	bx,func52_ptr		; ES:BX -> base of DOS variables
 	call	setup_drives		; Update No of Physical Drives in case
 					; this is the first pass
 	call	setup_ldt		; setup the ldt's
+cfg_fin20:
 	les	bx,func52_ptr
 	lea	di,F52_CLKDEV[bx]	; ES:DI -> clock ptr, console ptr
 	mov	si,offset clkdev_off	; DS:SI -> local pointer values
@@ -891,6 +906,19 @@ cfg_fin10:
 	movsw				; set segment of clock device driver
 	movsw				; set offset of console device driver
 	movsw				; set segment of console device driver
+
+	push	num_files
+	push	num_fcbs
+	mov	al,filesIn
+	push	ax
+	mov	num_fcbs,MIN_NUM_FCBS
+	mov	num_files,MIN_NUM_FILES
+	mov	filesIn,0
+	call	setup_doshndl
+	pop	ax
+	mov	filesIn,al
+	pop	num_fcbs
+	pop	num_files
 
 	call	setup_doshndl		; Allocate DOS compatible Handles
 					; NB must immediately follow devices !
@@ -958,7 +986,7 @@ setup_b40:
 	mov	dl,'B'			; allocate as a Buffer
 	test	buffersIn,BUFFERS_IN_UMB
 	 jz	setup_b50		; allocation from UMB's OK ?
-	call	alloc_hiseg		; yes, try and allocate memory there
+	call	alloc_upper		; yes, try and allocate memory there
 	 jnc	setup_b60
 setup_b50:
 	call	alloc_seg		; allocate memory in bottom 640 K
@@ -999,7 +1027,7 @@ setup_b80:
 	mov	cl,4
 	shr	ax,cl			; convert to para size
 	mov	dl,'B'			; allocate as a Buffer
-	call	alloc_seg		; allocate a deblocking buffer
+	call	alloc_hiseg		; allocate a deblocking buffer
 	mov	es:F52_DEBLOCK[bx],ax
 	les	bx,drdos_ptr		; ES:BX -> data area
 	mov	es:DRDOS_DEBLOCK[bx],ax	;  of deblocking buffer
@@ -1028,15 +1056,45 @@ setup_dh20:
 
 	mov	ax,DHNDL_LEN			; How many bytes do we need
 	mul	cx				; for the structure
-	mov	dx,ax				; including the control
+	add	ax,DCNTRL_LEN			; including the control
+	mov	dx,ax
 
-	add	ax,DCNTRL_LEN+15		; Ensure the new structure is
+	test	filesIn,FILES_IN_HMA
+	 jz	setup_dh23
+	push	es
+	push	bx
+	push	ax
+	push	cx
+	push	dx
+	call	SetupHMA			; make sure HMA chain is established
+	pop cx ! push cx			; CX = bytes wanted
+	mov	dx,0FFFFh			; anywhere is OK
+	call	AllocHMA			; ES:DI -> allocated data
+	pop	dx
+	pop	cx
+	pop	ax
+	pop	bx
+	 jc	setup_dh22
+	mov	ax,es
+	pop	es
+	jmps	setup_dh27
+setup_dh22:
+	pop	es
+setup_dh23:
+	add	ax,15				; Ensure the new structure is
 	shr ax,1 ! shr ax,1			; a paragraph value
 	shr ax,1 ! shr ax,1			; allocate some memory
 	mov	dl,'F'				; allocate for Files
-    call    alloc_seg           
-
-	mov	es:DCNTRL_DSOFF[bx],0		; link the new seg
+	test	filesIn,FILES_IN_UMB		; UMB usage activated?
+	 jz	setup_dh25			; no, use conventional mem
+	call	alloc_upper			; then try to move them there first
+	 jnc	setup_dh26			; if upper fails, try low mem
+setup_dh25:
+	call    alloc_seg           
+setup_dh26:
+	xor	di,di
+setup_dh27:
+	mov	es:DCNTRL_DSOFF[bx],di		; link the new seg
 	mov	es:DCNTRL_DSSEG[bx],ax		; to the end of the list
 	
 ; We can now initialise the new structure
@@ -1062,7 +1120,8 @@ setup_drives:
 	push	es ! push bx
 	les	bx,func52_ptr		; ES:BX -> base of DOS variables
 	mov	es:F52_PHYDRV[bx],al	; set # of Physical drives installed
-	mov	es:F52_LASTDRV[bx],al	; set # of Logical drives installed
+;	mov	es:F52_LASTDRV[bx],al	; set # of Logical drives installed
+	mov	es:F52_LASTDRV[bx],26	; set # of Logical drives installed
 	pop	bx ! pop es
 	ret
 
@@ -1173,11 +1232,14 @@ build_cl1:
 	stosb
 	loop	build_cl1
 	mov	al,CR		; indicate we can go no more....
+	jmps	build_cl4
 build_cl2:
 	cmp	al,CR		; it it really the end ?
 	mov	al,' '		; now insert a space character
 	stosb
 	 je	build_cl_exit	; CR meant it's time to go
+	cmp	byte ptr -1[si],' '
+	 je	build_cl3
 	dec	si		; rewind the source one character	
 build_cl3:
 	lodsb			; Copy the tail
@@ -1259,7 +1321,6 @@ INITDATA	DSEG 'INITDATA'
 
 
 
-
 include	initmsgs.def				; Include TFT Header File
 
 
@@ -1275,6 +1336,7 @@ include	initmsgs.def				; Include TFT Header File
 	Public	max_clsize, init_buf, num_read_ahead_buf
 	Public	buffersIn, history_flg, history_size
 	Public	dbcs_tbl, ctry_info, boot_device, boot_drv, resdev_chain
+	Public	filesIn, stacksIn, lastdrvIn
 
 
 history_flg	db	0	; Disable history buffers to save RAM
@@ -1285,7 +1347,11 @@ cfg_buffer	rb	CFG_BUF_LEN	; extra termination for buggy Windows
 	
 init_buf	db	MIN_NUM_BUFFS	; default # of buffers
 num_read_ahead_buf db	DEF_READ_AHEAD	; default # of read-ahead
-buffersIn	db	0		; default is low
+buffersIn	db	0		; desired location of buffers, default is low
+
+filesIn		db	0		; desired location of file handles, default is low
+stacksIn	db	0		; desired location of stacks, default is low
+lastdrvIn	db	0		; desired location of LDT, default is low
 
 dev_count	db	0		; count of new drives (used by preload)
 next_drv	db	0		; Next Drive to Allocate
@@ -1405,5 +1471,7 @@ deblockSeg		dw	0
 	Public	DeblockSetByUser
 DeblockSetByUser	db	FALSE
 
+	Public	configPass
+configPass		db	0
 
 	end

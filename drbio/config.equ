@@ -114,6 +114,26 @@ RLF_MATCH	equ	0000$1000b	; We are matching a command
 BUFFERS_IN_HMA	equ	0000$0001b
 BUFFERS_IN_UMB	equ	0000$0010b
 
+FILES_IN_HMA	equ	0000$0001b
+FILES_IN_UMB	equ	0000$0010b
+
+STACKS_IN_HMA	equ	0000$0001b
+STACKS_IN_UMB	equ	0000$0010b
+
+LASTDRV_IN_HMA	equ	0000$0001b
+LASTDRV_IN_UMB	equ	0000$0010b
+
+DDSCS_IN_HMA	equ	0000$0001b
+DDSCS_IN_UMB	equ	0000$0010b
+
+DOSDATA_IN_UMB	equ	0000$0010b
+
+ALLOC_IN_HMA	equ	0000$0001b
+ALLOC_IN_UMB	equ	0000$0010b
+
+MOVE_XBDA_LOW	equ	0000$0001b
+MOVE_XBDA_HIGH	equ	0000$0010b
+
 DMD_ID          equ     es:byte ptr .0	; id code ('M' or 'Z')
 DMD_PSP         equ     es:word ptr .1	; owner of memory block
 DMD_LEN         equ     es:word ptr .3	; length of memory block

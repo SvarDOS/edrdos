@@ -54,4 +54,21 @@ BPB_RESRVD2	dw	6 dup (?)
 BPB		ends
 
 BPB_LENGTH	equ	size BPB
-OLD_BPB_LENGTH	equ	31
+
+OLDBPB		struc
+OLDBPB_SECSIZ	dw	?	; # of bytes per sector 
+OLDBPB_ALLOCSIZ	db	?	; # of sectors per allocation unit
+OLDBPB_FATADD	dw	?	; # of reserved sectors (1)
+OLDBPB_NFATS	db	?	; # of fats
+OLDBPB_DIRMAX	dw	?	; # of directory entries
+OLDBPB_TOTSEC	dw	?	; # of sectors total in image
+OLDBPB_FATID	db	?	;  holds a copy of the fat id byte
+OLDBPB_FATSEC	dw	?	; # of sectors in a fat
+OLDBPB_SPT	dw	?	; # of sectors per track
+OLDBPB_HEADS	dw	?	; # of heads
+OLDBPB_HIDDEN	dd	?	; disk offset (32 bit)
+OLDBPB_SIZE	dd	?	; disk size (32 bit)
+OLDBPB_RESRVD2	db	6 dup (?)
+OLDBPB		ends
+
+OLDBPB_LENGTH	equ	size OLDBPB
