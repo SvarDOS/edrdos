@@ -109,6 +109,7 @@ BDOS_CODE	cseg
 	extrn	update_dir:NEAR
 	extrn	update_fat:NEAR
 	extrn	zeroblk:near
+	extrn	div32:near
 
 eject
 
@@ -249,7 +250,19 @@ rd_pcdir:
 	xchg	ax,cx		; keep subdir cluster in CX
 	mov	ax,FCBLEN	; AX = size of dir entry
 	mul	bx		; DX:AX = offset of set entry we want
-	div	clsize		; AX = # clusters to skip, DX = offset in cluster
+;	div	clsize		; AX = # clusters to skip, DX = offset in cluster
+	push	cx
+	push	dx
+	push	ax
+	push	word ptr clsize+2
+	push	word ptr clsize
+	sub	sp,8
+	call	div32
+	pop	dx
+	add	sp,2
+	pop	ax
+	add	sp,10
+	pop	cx
 	xchg	ax,dx		; DX = # to skip, AX = offset in cluster
 	xchg	ax,cx		; AX = start of chain, CX = offset in cluster
 	xchg	bx,cx		; BX = offset in cluster, CX = dcnt

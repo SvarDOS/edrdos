@@ -117,7 +117,7 @@ INITCODE	CSEG	PARA 'INITCODE'
 		db	'XXXX-0000-987654321X '
 
 		db	'Patches to original OpenDOS source code '
-		db	'Copyright (c) 2002 Udo Kuhnt'
+		db	'Copyright (c) 2002-2003 Udo Kuhnt'
 
 
 	Public	biosinit

@@ -913,7 +913,7 @@ login_LBA2CHS:
 	mov	dx,0			; divide high word of LBA block number
 	mov	ax,word ptr [si+10]
 	div	max_sect
-	push	ax			; high word of dividend
+	push	ax			; high word of quotient
 	mov	ax,word ptr [si+8]	; divide low word & remainder
 	div	max_sect
 	mov	cx,dx			; remainder = sector number
