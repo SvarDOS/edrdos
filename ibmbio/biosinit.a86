@@ -114,7 +114,10 @@ INITCODE	CSEG	PARA 'INITCODE'
 
 		db	'Copyright (c) 1983,1996 '
 		db	'Caldera, Inc. All Rights Reserved '
-		db	'XXXX-0000-987654321X'
+		db	'XXXX-0000-987654321X '
+
+		db	'Patches to original OpenDOS source code '
+		db	'Copyright (c) 2002 Udo Kuhnt'
 
 
 	Public	biosinit

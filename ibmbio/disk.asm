@@ -84,6 +84,7 @@
 	include	BPB.EQU			; BIOS parameter block equates
 	include	UDSC.EQU		; unit descriptor equates
 	include	DRIVER.EQU		; device driver equates
+	include KEYS.EQU		; common key definitions
 
 
 int_____DISK_INT macro
@@ -103,6 +104,7 @@ DOS20_ID	equ	1		; DOS 2.0 partition, < 4086 clusters
 DOS30_ID	equ	4		; DOS 3.0 partition, < 65536 sectors
 DOSEX_ID	equ	5		; DOS 3.3 extended partition
 DOS331_ID	equ	6		; COMPAQ DOS 3.31 partition > 32 Mb
+EXTX_ID 	equ	0fh		; Win95 ExtendedX partition
 
 ; Now for the secure partition types
 SEC_ID          equ     0C0h            ; New DR secure partition types
@@ -170,6 +172,7 @@ CODE	segment	'CODE'
 	extrn	bpbtbl:word
 	extrn	req_off:word
 	extrn	req_seg:word
+	extrn	output_msg:near
 
 
 udsc_root	label	dword
@@ -2182,6 +2185,11 @@ LOG_EXTD	equ	02h		; log in extended partitions
 
 log_flag	dw	LOG_PRIM	; scan for primary only initially
 
+ver_1x		db	"1.x",CR,LF,NUL
+ver_20		db	"2.0/EDD-1.0",CR,LF,NUL
+ver_21		db	"2.1/EDD-1.1",CR,LF,NUL
+ver_30		db	"EDD-3.0",CR,LF,NUL
+
 hard_init:	; setup all hard disk units
 ;---------
 ;	mov	log_flag,LOG_PRIM	; log in primary only initially
@@ -2203,6 +2211,40 @@ hardi0:
 	mov	dl,80h			; start with first hard disk
 hardi1:
 	pushx	<cx, dx>		; save drive count, physical drive
+	mov	ah,ROS_LBACHK		; int 13 extensions available?
+	mov	bx,55aah
+	int_____DISK_INT
+	jc	hardi2
+	cmp	bx,0aa55h
+	jnz	hardi2
+	cmp	int13ex_ver,0
+	jnz	hardi3
+	mov	si,offset CGROUP:lba_supp_msg
+	call	output_msg
+	cmp	ah,01
+	jnz	ver20
+	lea	si,ver_1x
+	call	output_msg
+	jmp	hardi3
+ver20:
+	cmp	ah,20
+	jnz	ver21
+	lea	si,ver_20
+	call	output_msg
+	jmp	hardi3
+ver21:
+	cmp	ah,21
+	jnz	ver30
+	lea	si,ver_21
+	call	output_msg
+	jmp	hardi3
+ver30:
+	lea	si,ver_30
+	call	output_msg	
+hardi3:
+	mov	int13ex_ver,ah		; version of int 13 extensions
+	mov	int13ex_bits,cx		; int 13 API support bitmap
+hardi2:
 	call	login_hdisk		; find all partitions on hard disk
 	popx	<dx, cx>		; restore physical drive, drive count
 	inc	dx			; next physical hard disk
@@ -2309,6 +2351,9 @@ log_sec2:
 log_h6a:
 ;** SECURE PARTITIONS **
 	cmp	al,DOSEX_ID		; DOS 3.3 extended partition found?
+	 je	log_h6b
+log_h6c:
+	cmp	al,EXTX_ID
 	 jne	log_h7
 log_h6b:
 	mov	dh,1[si]		; get head # for next table
@@ -2609,6 +2654,10 @@ part_size	dw	2 dup (?)	; temporary save address for size
 nunits		db	2		; start with driver C:
 nhard		db	0		; # of hard disk partitions
 nfloppy		db	0		; # of floppy drives
+
+int13ex_ver	db	0		; version of int 13 extensions
+		db	0
+int13ex_bits	dw	0		; int 13 API support bitmap
 
 	Public	init_runit
 init_runit	db	0		; poked with ROS Unit at boot

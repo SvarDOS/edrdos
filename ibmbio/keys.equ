@@ -1,0 +1,5 @@
+NUL	equ	0
+BS	equ	8
+TAB	equ	9
+LF	equ	10
+CR	equ	13

@@ -848,6 +848,23 @@ init3:
 
 init0	endp
 
+	public	output_msg
+output_msg:
+;----------------
+; On Entry:
+;	si = offset CGROUP:message_msg
+; On Exit:
+;	None
+	lodsb				; get 1st character (never NULL)
+output_msg10:
+	mov	ah,0Eh
+	mov	bx,7
+	int	VIDEO_INT		; TTY write of character	
+	lodsb				; fetch another character
+	test	al,al			; end of string ?
+	 jnz	output_msg10
+	ret
+
 get_boot_options:
 ;----------------
 ; On Entry:
@@ -855,14 +872,7 @@ get_boot_options:
 ; On Exit:
 ;	AX = boot options
 	mov	si,offset CGROUP:starting_dos_msg
-	lodsb				; get 1st character (never NULL)
-get_boot_options10:
-	mov	ah,0Eh
-	mov	bx,7
-	int	VIDEO_INT		; TTY write of character	
-	lodsb				; fetch another character
-	test	al,al			; end of string ?
-	 jnz	get_boot_options10
+	call	output_msg
 	call	option_key		; poll keyboard for a while
 	 jnz	get_boot_options20	; if key available return that
 	mov	ah,2			; else ask ROS for shift state

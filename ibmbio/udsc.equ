@@ -50,6 +50,8 @@ UDSC_TIMER	dw	2 dup (?)	; tick count for MEDCHK
 UDSC_LABEL	db	12 dup (?)	; ASCIIZ volume label
 UDSC_SERIAL	dd	?		; serial number
 UDSC_FSTYPE	db	9 dup (?)	; ASCIIZ "FAT12"/"FAT16" type
+UDSC_INT13EXT	dw	0		; version of int 13 extensions
+UDSC_INT13BITS	dw	0		; int 13 API support bitmap
 UDSC		ends
 
 UDSC_LENGTH	equ	size UDSC
