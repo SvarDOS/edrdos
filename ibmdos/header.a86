@@ -290,13 +290,15 @@ msdos_file_tbl	dw	-1		; 00A6 1st HDB entries
 
 		rb	5*DHNDL_LEN	; Reserve 5 Internal Handles
 
-	rb	1fbh - (offset $ - offset dos_data)
+;	rb	1fbh - (offset $ - offset dos_data)
 
 	Public	savbuf
-savbuf		rb	128		; cmdline editing temp buffer
+;savbuf		rb	128		; cmdline editing temp buffer
+savbuf		rb	CMDLINE_LEN	; cmdline editing temp buffer
 	Public	fdos_buf
 fdos_buf	db	2,0		; initialise buffer to empty
-		rb	128+1		; room for 128 byte readline + LF
+;		rb	128+1		; room for 128 byte readline + LF
+		rb	CMDLINE_LEN+1	; room for 128 byte readline + LF
 
 	rb	2feh - (offset $ - offset dos_data)
 ; this byte is used for ^P support

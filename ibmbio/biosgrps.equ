@@ -46,9 +46,6 @@ RCODE		ends
 RESUMECODE	segment public para 'RESUMECODE'
 RESUMECODE	ends
 
-RESBIOS		segment public para 'RESBIOS'
-RESBIOS		ends
-
 ICODE		segment public word 'ICODE'
 ICODE		ends
 
@@ -58,11 +55,14 @@ IDATA		ends
 INITCODE	segment public para 'INITCODE'
 INITCODE	ends
 
-STACKS		segment	public para 'STACKS'
-STACKS		ends
-
 INITDATA	segment public para 'INITDATA'
 INITDATA	ends
+
+RESBIOS		segment public para 'RESBIOS'
+RESBIOS		ends
+
+STACKS		segment	public para 'STACKS'
+STACKS		ends
 
 INITPSP		segment public para 'INITDATA'
 INITPSP		ends

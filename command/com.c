@@ -159,7 +159,8 @@ MLOCAL BYTE	valid_sepchar[] = ":.;,=+";
 MLOCAL BYTE PATH_DIR[]  = "A:\\OPENDOS";
 MLOCAL BYTE SET_PATH[]  = "PATH=%s";
 MLOCAL BYTE SET_PROMPT[]  = "PROMPT=$P$G";
-MLOCAL BYTE SET_OS[]   = "OS=OPENDOS";	/* environment in COMMAND */
+/*MLOCAL BYTE SET_OS[]   = "OS=OPENDOS";*/	/* environment in COMMAND */
+MLOCAL BYTE SET_OS[]   = "OS=DRDOS";	/* environment in COMMAND */
 MLOCAL BYTE SET_VER[]  = "VER=7";	/* not in BIOSINIT        */
 #if !defined(FINAL)
 MLOCAL BYTE SET_BETA[] = "BETA=Beta 4";
@@ -169,7 +170,7 @@ MLOCAL BYTE SET_BETA[] = "BETA=Beta 4";
 GLOBAL jmp_buf break_env;
 
 #if defined(DOSPLUS)
-EXTERN	UWORD	_psp;
+EXTERN	UWORD	_psp2;
 EXTERN	VOID	*batchptr_off;
 EXTERN	VOID	*batchflg_off;
 EXTERN	VOID	*echoflg_off;
@@ -472,12 +473,12 @@ BYTE *cmd;
 						/* same as original COMMAND */
 	if ((envsize < 128) || (envsize > 32752)) envsize = 256; /* shouldn't really need this */
 
-	parent_psp = MK_FP(_psp, 0x16);		/* our parental PSP is here  */
+	parent_psp = MK_FP(_psp2, 0x16);	/* our parental PSP is here  */
 	ret = ioctl_ver();			/* Get the BDOS Version No.  */
 
 	if(ret < 0x1071) {			/* Abort if this is not DOS  */
 	    eprintf(MSG_BADOS);			/* PLUS with a BDOS version  */
-	    if ((*parent_psp) && (*parent_psp != _psp))
+	    if ((*parent_psp) && (*parent_psp != _psp2))
 		ms_x_exit(-1);			/* abort unless root process */
 	    while(1){};
 	}
@@ -727,7 +728,7 @@ BYTE *cmd;
 
 #if defined(DOSPLUS)
 	save_parent = *parent_psp;
-	*parent_psp = _psp;			/* Always do this */
+	*parent_psp = _psp2;			/* Always do this */
 
 	    if(COMMAND_P) {			/* Action the /P flag for   */
 		execed = NO;			/* DOSPLUS.COM		    */
@@ -1806,7 +1807,7 @@ void	save_psp()
 	BYTE far *fp;
 	WORD	i;
 	
-	fp = MK_FP(_psp,0);
+	fp = MK_FP(_psp2,0);
 
 	psp_xsum = 0;
 	for  (i=64;i<128;i++) psp_xsum += fp[i];
@@ -1818,7 +1819,7 @@ void	check_psp()
 	WORD	xsum;
 	WORD	i;
 
-	fp = MK_FP(_psp,0);
+	fp = MK_FP(_psp2,0);
 	
 	xsum = 0;
 	for (i=64;i<128;i++) xsum += fp[i];

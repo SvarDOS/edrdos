@@ -129,7 +129,7 @@ EXTERN UWORD CDECL  heap_size(VOID);            /* CSUP.ASM */
 
 EXTERN PD FAR * CDECL pd;	/* Far pointer to Current PD */
 EXTERN UWORD CDECL sysdat_seg;	/* System Data Page */
-EXTERN UWORD _psp;		/* PSP Segment */
+EXTERN UWORD _psp2;		/* PSP Segment */
 
 struct	qpb {	
             UWORD	internal0;

@@ -856,8 +856,11 @@ fcb_sss50:
 	mov	si,offset fcb_search_buf+15h
 	movsb				; copy the attribute field
 	xor	ax,ax
-	mov	cx,10/WORD
+;	mov	cx,10/WORD
+	mov	cx,8/WORD
 	rep	stosw			; 10 bytes of zeros
+	mov	ax,word ptr srch_buf+21+DBLOCK1H
+	stosw				; high word of 1st block
 	movsw				; copy time
 	movsw				; copy date
 	mov	ax,word ptr srch_buf+21+DBLOCK1

@@ -107,7 +107,7 @@ DTA {				/* 128 Data Transfer Buffer in Search	*/
 	BYTE	fattr;
 	WORD	ftime;
 	WORD	fdate;
-	LONG	fsize;
+	ULONG	fsize;
 	BYTE	fname[13];
 };
 

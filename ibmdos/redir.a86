@@ -116,6 +116,7 @@ BDOS_CODE	cseg
 	extrn	find_dhndl:near
 	extrn	ifn2dhndl:near
 	extrn	get_xftptr:near
+	extrn	output_hex:near
 if KANJI
 	extrn	dbcs_lead:near
 endif

@@ -105,6 +105,8 @@ DOS30_ID	equ	4		; DOS 3.0 partition, < 65536 sectors
 DOSEX_ID	equ	5		; DOS 3.3 extended partition
 DOS331_ID	equ	6		; COMPAQ DOS 3.31 partition > 32 Mb
 FAT16X_ID	equ	0eh		; FAT16 LBA partition
+FAT32_ID	equ	0bh		; FAT32 partition
+FAT32X_ID	equ	0ch		; FAT32 LBA partition
 EXTX_ID 	equ	0fh		; Win95 ExtendedX partition
 
 ; Now for the secure partition types
@@ -848,7 +850,7 @@ getdrivegeo:				; get number of heads & sectors
 ; On Exit:
 ;	max_head & max_sect
 
-	pushx	<cx,dx,es>
+	pushx	<cx,dx,es,di>
 	mov	ah,ROS_PARAM		; get drive parameters
 	int_____DISK_INT
 	xor	dl,dl			; isolate head bits
@@ -857,7 +859,7 @@ getdrivegeo:				; get number of heads & sectors
 	mov	max_head,dx		; number of heads on this drive
 	and	cx,3fh			; isolate sector bits
 	mov	max_sect,cx		; number of sectors per track on this drive
-	popx	<es,dx,cx>
+	popx	<di,es,dx,cx>
 	ret
 
 login_CHS2LBA:
@@ -1215,6 +1217,7 @@ trkrw30_lba:
 ;	mov	ax,P_MCNT[bp]		; AL = physical sector count
 	mov	ax,P_MCNT[bp]		; physical sector count
 	mov	word ptr [si+2],ax
+	xor	al,al
 	mov	ah,P_ROSCMD[bp]		; AH = ROS read command
 	add	ah,40h			; extended (LBA) version of command
 	cmp	ah,ROS_LBAVERIFY	; write with verify?
@@ -1224,6 +1227,7 @@ trkrw30_lba:
 	 jc	trkrw50_lba		; skip if any errors occurred
 	mov	ax,P_MCNT[bp]		; else get sector count
 	mov	word ptr [si+2],ax
+	xor	al,al
 	mov	ah,ROS_LBAVERIFY	; verify disk sectors
 trkrw40_lba:				; AH = function, AL = count
 	int_____DISK_INT		; read/write/verify via ROM BIOS
@@ -1554,7 +1558,8 @@ get1:
 	pop	es
 	lea	di,7[bx]		; ES:DI -> BPB in parameter block
 	pop	ds			; DS:SI -> BPB to copy
-	mov	cx,UDSC_BPB_LENGTH
+;	mov	cx,UDSC_BPB_LENGTH
+	mov	cx,OLD_BPB_LENGTH
 	rep	movsb			; copy the BPB across to user
 	pop	di
 	pop	es
@@ -1592,12 +1597,14 @@ ioctl_set:	; set device parameters
 set1:
 	lea	si,7[bx]		; DS:SI -> new BPB from user
 	xchg	ax,di			; ES:DI -> BPB in es:UDSC_
-	mov	cx,UDSC_BPB_LENGTH
+;	mov	cx,UDSC_BPB_LENGTH
+	mov	cx,OLD_BPB_LENGTH
 	rep	movsb			; copy BPB into UDSC as new default
 	xchg	ax,di			; ES:DI -> UDSC_ again
 
 set2:					; now set track layout
-	lea	si,BPB_LENGTH+7[bx]	; DS:SI -> new user layout
+;	lea	si,BPB_LENGTH+7[bx]	; DS:SI -> new user layout
+	lea	si,OLD_BPB_LENGTH+7[bx]	; DS:SI -> new user layout
 	mov	es,cs:DataSegment
 	mov	di,CG:layout_table	; ES:DI -> BIOS layout table
 	lodsw				; get sector count
@@ -2567,6 +2574,10 @@ log_h2a:
 	cmp	al,DOS331_ID		; is this a DOS 3.31/4.0 partition?
 	 je	log_h3			; yes, try to log it in
 	cmp	al,FAT16X_ID		; is this a DOS 7.x FAT16 LBA partition?
+	 je	log_h3			; yes, try to log it in
+	cmp	al,FAT32_ID		; is this a DOS 7.x FAT32 partition?
+	 je	log_h3			; yes, try to log it in
+	cmp	al,FAT32X_ID		; is this a DOS 7.x FAT32 LBA partition?
 	 jne	log_h4			; skip if not a good partition
 log_h3:
 	push	si			; save partition table index
@@ -2688,6 +2699,8 @@ login_primary:
 	 jnz	login_p0		; yes, then proceed normally
 	cmp	byte ptr [si+4],FAT16X_ID	; LBA partition?
 	 je	login_p9		; ignore this if LBA support not present
+	cmp	byte ptr [si+4],FAT32X_ID	; LBA partition?
+	 je	login_p9		; ignore this if LBA support not present
 	mov	ax,word ptr partend+2	; partition within CHS bounds?
 	cmp	ax,word ptr partend_max+2
 	 ja	login_p9		; cannot access via CHS, ignoring it
@@ -2725,6 +2738,8 @@ login_p9:
 log_p0:
 	call	new_unit		; ES:DI -> new UDSC
 	cmp	byte ptr [si+4],FAT16X_ID	; LBA partition?
+	 je	log_p0a			; yes, then always use LBA
+	cmp	byte ptr [si+4],FAT32X_ID	; LBA partition?
 	 je	log_p0a			; yes, then always use LBA
 	mov	ax,word ptr partend+2	; test if beyond CHS barrier
 	cmp	ax,word ptr partend_max+2
@@ -2820,7 +2835,7 @@ log_p1a:
 					; elsa build new BPB
 log_p1:					; any of the above:  BPB invalid
 					; (propably FDISKed, not FORMATted yet)
-	jmps	log_p9
+	jmp	log_p9
 
 log_p2:					; valid BPB for partition, AX/DX = size
 	push	ax
@@ -2836,6 +2851,30 @@ log_p2:					; valid BPB for partition, AX/DX = size
 	mov	BPB_FATADD[bx],ax
 	mov	al,BPB_NFATS[si]
 	mov	BPB_NFATS[bx],al
+	cmp	BPB_FATSEC[si],0	; is this a FAT32 BPB?
+	 je	log_p21			; yes, then copy some more parameters
+	mov	ax,BPB_FATSEC[si]	; expand sectors per FAT value to 32-bit
+	mov	word ptr BPB_BFATSEC[bx],ax
+	mov	word ptr BPB_BFATSEC+2[bx],0
+	 jmps	log_p22
+log_p21:
+	mov	ax,word ptr BPB_BFATSEC[si]
+	mov	word ptr BPB_BFATSEC[bx],ax
+	mov	ax,word ptr BPB_BFATSEC+2[si]
+	mov	word ptr BPB_BFATSEC+2[bx],ax
+	mov	ax,BPB_FATFLAG[si]
+	mov	BPB_FATFLAG[bx],ax
+	mov	ax,BPB_FSVER[si]
+	mov	BPB_FSVER[bx],ax
+	mov	ax,word ptr BPB_FSROOT[si]
+	mov	word ptr BPB_FSROOT[bx],ax
+	mov	ax,word ptr BPB_FSROOT+2[si]
+	mov	word ptr BPB_FSROOT+2[bx],ax
+	mov	ax,BPB_FSINFO[si]
+	mov	BPB_FSINFO[bx],ax
+	mov	ax,BPB_BOOTBAK[si]
+	mov	BPB_BOOTBAK[bx],ax
+log_p22:
 	pop	ax
 
 	cmp	BPB_TOTSEC[bx],0	; is it an 32 bit sector partition ?

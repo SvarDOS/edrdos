@@ -32,11 +32,10 @@
 ;
 ;    ENDLOG
 
-
-DCNTRL_DSADD    equ dword ptr 0000h   
-DCNTRL_DSOFF    equ  word ptr 0000h   
-DCNTRL_DSSEG    equ  word ptr 0002h   
-DCNTRL_COUNT    equ  word ptr 0004h   
+DCNTRL_DSADD    equ dword ptr 0000h  
+DCNTRL_DSOFF    equ  word ptr 0000h  
+DCNTRL_DSSEG    equ  word ptr 0002h  
+DCNTRL_COUNT    equ  word ptr 0004h  
 DCNTRL_LEN	equ	6
 
 DHNDL_COUNT	equ	word ptr 00h		; 00 - Usage Count
@@ -102,7 +101,11 @@ DHNDL_PSP	equ	word ptr 31h		; 31 - Owning PSP
 DHNDL_SHARE	equ	word ptr 33h		; 33 - Offset of sharing record
 DHNDL_BLK	equ	word ptr 35h		; 35 - absolute cluster of last read
 						; 37 - dword reserved for IFS
-DHNDL_LEN	equ	3Bh
+DHNDL_BLK1H	equ	word ptr 3Bh
+DHNDL_IDXH	equ	word ptr 3Dh
+DHNDL_DBLKH	equ	word ptr 3Fh
+DHNDL_BLKH	equ	word ptr 41h
+DHNDL_LEN	equ	43h
 
 ; With DOS 3 structures _DBLK is a 16 bit
 
@@ -112,9 +115,11 @@ LDT_NAME	equ	byte ptr 00h		; 00 - Ascii Name field
 LDT_FLAGS	equ	word ptr 43h		; 43 - Flag field
 LDT_PDT		equ	dword ptr 45h		; 45 - PDT for this drive
 LDT_BLK		equ	word ptr 49h		; 49 - directory sector 
-LDT_ROOT    equ word ptr 4bh        ; 4B - virtual block root 
-LDT_DRV     equ byte ptr 4dh        ; 4D - physical drive 
+LDT_ROOT	equ	word ptr 4bh		; 4B - virtual block root
+LDT_DRV		equ	byte ptr 4dh		; 4D - physical drive 
 LDT_ROOTLEN	equ	word ptr 4fh		; 4F - Length of root portion
+LDT_BLKH	equ	word ptr 51h
+LDT_ROOTH	equ	word ptr 53h
 LDT_LEN		equ	58h
 
 LFLG_NETWRKD	equ	8000h

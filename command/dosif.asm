@@ -346,7 +346,8 @@ _ms_drv_space:
 	mov	[bx],cx			; bytes/sector
 	mov	bx,10[bp]
 	mov	[bx],dx			; clusters/disk
-	cbw
+;	cbw
+	xor	ah,ah
 	pop	bp
 	ret
 

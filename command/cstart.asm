@@ -249,7 +249,8 @@ C_HEAP_SIZE	equ	1200h		; C routine Heap Size - TMP has
 else					;  extra to save ENV in
 ;C_HEAP_SIZE	equ	0800h		; C routine Heap Size
 ;endif					; (observed sizes 500h-600h - IJ)
-C_HEAP_SIZE	equ	0860h		; C routine Heap Size
+;C_HEAP_SIZE	equ	0860h		; C routine Heap Size
+C_HEAP_SIZE	equ	08A0h		; C routine Heap Size
 ; For safety increased that value as UNC filenames require 128 byte buffers
 ; allocated dynamically on tha stack. With respect to the observed sizes
 ; above it might be dangerous to leave that value at 0800h. I would have

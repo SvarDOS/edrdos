@@ -115,6 +115,7 @@ BDOS_DATA	dseg	word
 	public	fatadd
 	public	hdsaddr
 	public	lastcl
+	public	blastcl
 	public	logical_drv
 	public	mult_sec
 	public	nfatrecs
@@ -124,6 +125,7 @@ BDOS_DATA	dseg	word
 	public	psecsiz
 	public	req_hdr
 	public	secperclu
+	public	fsroot
 
 eject
 ; The following specify the drive selected for the current operation
@@ -155,10 +157,22 @@ diradd		dw	0		; sector offset of 1st root DIR sector
 
 LOCAL_DDSC_LEN	equ	offset $ - offset local_ddsc
 
+local_ddsc2	rb	0
+bdatadd		dw	0,0
+blastcl		dw	0,0		; # last cluster (32-bit)
+		dw	0,0		; # sectors per FAT (32-bit)
+		dw	0,0		; next block to allocate
+		dw	0,0		; total free clusters on drive
+		dw	0		; FAT flags
+		dw	0		; version of file system
+fsroot		dw	0,0		; first cluster of root dir
+
+LOCAL_DDSC2_LEN	equ	offset $ - offset local_ddsc2
+
 ;	some extra parameters calculated from local_ddsc for convenience
 
 nfats		dw	0		; # FAT's (WORD is handier)
-nfatrecs	dw	0		; # sectors per FAT (accurate version)
+nfatrecs	dw	0,0		; # sectors per FAT (accurate version)
 clsize		dw	0,0		; cluster size in bytes
 secperclu	dw	0		; # sectors per cluster
 dirperclu	dw	0		; # dir enrties in subdir
@@ -189,9 +203,14 @@ fdrwdircnt	dw	0		; # sectors in direct xfer
 byteoff		dw	0		; fdosrw local variable
 		dw	0		; byte offset with file
 
-blk		dw	0		; current cluster of filepos
-blkidx		dw	0		; current cluster index within file
+blk		dw	0,0		; current cluster of filepos
+blkidx		dw	0,0		; current cluster index within file
 blkoffset	dw	0		; offset within cluster
+
+fdrw_seek_cl	dw	0,0
+fdw_trunc_cl	dw	0,0
+fdw_extend_cl	dw	0,0
+check_cont_cl	dw	0,0
 
 ;	static request header for DOS device driver I/O
 
@@ -260,6 +279,7 @@ BDOS_CODE	cseg
 	public	select_physical_drv
 	public 	write_block
 	public	div32
+	public	mul32
 
 eject
 
@@ -379,31 +399,61 @@ fdw_trunc:
 	les	bx,current_dhndl
 	mov	cx,blkoffset		; get offset within current block
 	mov	ax,blkidx		; get logical block number
+	mov	dx,blkidx+2
 	 jcxz	fdw_t10			; skip if no data in last block
-	inc	ax			; else add in another cluster
+;	inc	ax			; else add in another cluster
+	add	ax,1			; else add in another cluster
+	adc	dx,0
 fdw_t10:				; AX = # of clusters required in file
 	test	ax,ax
 	 jnz	fdw_t20
+	test	dx,dx
+	 jnz	fdw_t20
 	xchg	ax,es:DHNDL_BLK1[bx]	; forget about chain
+	xchg	dx,es:DHNDL_BLK1H[bx]
 	jmps	fdw_t50
 
 fdw_t20:
-	xchg	ax,cx			; CX = # of blocks to keep
+;	xchg	ax,cx			; CX = # of blocks to keep
+	mov	fdw_trunc_cl,ax		; # of blocks to keep
+	mov	fdw_trunc_cl+2,dx
 	mov	ax,es:DHNDL_BLK1[bx]	; get first block in file
+	mov	dx,es:DHNDL_BLK1H[bx]
 fdw_t30:				; scan all block we want to keep
-	push	cx
+;	push	cx
+	push	dx
 	push	ax
 	call	getnblk			; get next block
 	pop	bx
 	pop	cx
-	cmp	ax,lastcl		; stop on premature end of chain
+;	cmp	ax,lastcl		; stop on premature end of chain
+	cmp	dx,blastcl+2		; stop on premature end of chain
 	 ja	fdw_t60
-	loop	fdw_t30
+	 jb	fdw_t35
+	cmp	ax,blastcl
+	 ja	fdw_t60
+fdw_t35:
+;	loop	fdw_t30
+	sub	fdw_trunc_cl,1
+	sbb	fdw_trunc_cl+2,0
+	cmp	fdw_trunc_cl+2,0
+	 jne	fdw_t30
+	cmp	fdw_trunc_cl,0
+	 jne	fdw_t30
+	push	dx
 	push	ax			; yep, remember what
 	mov	ax,dosfat
+	xor	dx,dx
+	cmp	ax,FAT32		; FAT32 file system?
+	 jne	fdw_t36			; no, proceed normally
+	mov	ax,FAT16		; use 0ffffh instead
+	mov	dx,ax
+fdw_t36:
 	xchg	ax,bx			; truncate chain at cluster AX
+	xchg	dx,cx
 	call	fixfat			;  as thats all we need
 	pop	ax
+	pop	dx
 fdw_t50:
 	call	delfat			; release the chain
 fdw_t60:
@@ -414,7 +464,9 @@ fdw_t60:
 	mov	es:DHNDL_SIZEHI[bx],ax
 	xor	ax,ax			; cause reads/writes to scan
 	mov	es:DHNDL_BLK[bx],ax	;   block chain from start
+	mov	es:DHNDL_BLKH[bx],ax
 	mov	es:DHNDL_IDX[bx],ax
+	mov	es:DHNDL_IDXH[bx],ax
 	mov	fdos_ret,ax		; no logical errors
 	ret
 
@@ -470,14 +522,13 @@ fdrw_p20:
 ;	mul	cx			; DX:AX = maximum size of disk
 	push	word ptr clsize+2
 	push	word ptr clsize
-	xor	ax,ax
-	push	ax
-	push	word ptr lastcl
-	sub	sp,8
+	push	blastcl+2
+	push	blastcl
+	sub	sp,8			; reserve space on stack
 	call	mul32			; compute maximum size of disk
 	pop	ax
 	pop	dx
-	add	sp,12
+	add	sp,12			; clean up the stack again
 	sub	ax,byteoff
 	sbb	dx,byteoff+WORD		; beyond this we can't go
 	 jc	fdrw_p30
@@ -495,7 +546,8 @@ fdrw_p20:
 	pop	word ptr blkoffset	; offset within cluster
 	add	sp,2			; skip high word
 	pop	word ptr blkidx		; save it for later
-	add	sp,10			; clean up stack
+	pop	word ptr blkidx+2
+	add	sp,8			; clean up stack
 	clc				; theoretically possible
 fdrw_p30:
 	ret
@@ -584,35 +636,80 @@ fdwrite_extend:
 	push	word ptr clsize
 	sub	sp,8
 	call	div32
-	pop	dx
-	add	sp,2
 	pop	ax
-	add	sp,10
+	pop	dx
+	pop	fdw_extend_cl
+	pop	fdw_extend_cl+2
+	add	sp,8
 	test	dx,dx			; any remainder ?
-	 jz	fdw_e05			; yes, we have a partial block
-	inc	ax			; round up blocks required
-fdw_e05:
-	xchg	ax,cx			; CX blocks are required
-	mov	ax,es:DHNDL_BLK1[bx]	; assume we need to follow from start
+	 jnz	fdw_e04
 	test	ax,ax
-	 jz	fdw_e30			; if no starting block do the lot
-	dec	cx			;  else count # extra blocks required
-	mov	dx,es:DHNDL_BLK[bx]	; do we have a current block ?
+	 jz	fdw_e05			; yes, we have a partial block
+fdw_e04:
+;	inc	ax			; round up blocks required
+	add	fdw_extend_cl,1		; round up blocks required
+	adc	fdw_extend_cl+2,0
+fdw_e05:
+;	xchg	ax,cx			; CX blocks are required
+	mov	ax,es:DHNDL_BLK1[bx]	; assume we need to follow from start
+	mov	dx,es:DHNDL_BLK1H[bx]
+	test	ax,ax
+	 jnz	fdw_e06
+	test	dx,dx
+	 jnz	fdw_e06			; if no starting block do the lot
+	 jmp	fdw_e30
+fdw_e06:
+;	dec	cx			;  else count # extra blocks required
+	sub	fdw_extend_cl,1		;  else count # extra blocks required
+	sbb	fdw_extend_cl+2,0
+;	mov	dx,es:DHNDL_BLK[bx]	; do we have a current block ?
+	mov	ax,es:DHNDL_BLK[bx]	; do we have a current block ?
+	mov	dx,es:DHNDL_BLKH[bx]
 	test	dx,dx			; if not we have to start
+	 jnz	fdw_e07
+	test	ax,ax
 	 jz	fdw_e10			;  with the first block
-	mov	ax,dx			; new starting block as this must
-	sub	cx,es:DHNDL_IDX[bx]	;  be less than extended size
+fdw_e07:
+;	mov	ax,dx			; new starting block as this must
+	mov	ax,es:DHNDL_BLK[bx]
+	mov	dx,es:DHNDL_BLKH[bx]
+;	sub	cx,es:DHNDL_IDX[bx]	;  be less than extended size
+	mov	cx,es:DHNDL_IDX[bx]	;  be less than extended size
+	sub	fdw_extend_cl,cx
+	mov	cx,es:DHNDL_IDXH[bx]
+	sbb	fdw_extend_cl+2,cx
+	jmps	fdw_e11
 fdw_e10:
-	 jcxz	fdw_e20			; bail out of we have enough
+	mov	ax,es:DHNDL_BLK1[bx]
+	mov	dx,es:DHNDL_BLK1H[bx]
+fdw_e11:
+;	 jcxz	fdw_e20			; bail out of we have enough
+	cmp	fdw_extend_cl+2,0
+	 jnz	fdw_e15
+	cmp	fdw_extend_cl,0
+	 jz	fdw_e20			; bail out of we have enough
 fdw_e15:
+	push	dx
 	push	ax			; save current block
-	push	cx			; save # required
+;	push	cx			; save # required
 	call	getnblk			; AX = next block in chain	
-	pop	cx			; restore # required
+;	pop	cx			; restore # required
 	pop	bx			; recover previous block
-	cmp	ax,lastcl		; end of chain yet ?
+	pop	cx
+;	cmp	ax,lastcl		; end of chain yet ?
+	cmp	dx,blastcl+2		; end of chain yet ?
 	 ja	fdw_e40
-	loop	fdw_e15			; try another one
+	 jb	fdw_e17
+	cmp	ax,blastcl
+	 ja	fdw_e40
+fdw_e17:
+;	loop	fdw_e15			; try another one
+	sub	fdw_extend_cl,1
+	sbb	fdw_extend_cl+2,0
+	cmp	fdw_extend_cl+2,0
+	 jne	fdw_e15
+	cmp	fdw_extend_cl,0
+	 jne	fdw_e15
 fdw_e20:
 	clc				; chain is already long enough
 	ret
@@ -620,22 +717,29 @@ fdw_e20:
 fdw_e30:
 ; We have no initial block, so allocate them all
 ;	xor	ax,ax			; no preconceptions over where we
+	mov	cx,fdw_extend_cl	; this value *should* not exceed 16 bits...
 	call	alloc_chain		;  allocate chain of CX clusters
 	 jc	fdw_e35
 	les	bx,current_dhndl
 	mov	es:DHNDL_BLK1[bx],ax	; remember initial block
+	mov	es:DHNDL_BLK1H[bx],dx
 	clc
 fdw_e35:
 	ret
 
 fdw_e40:
-; We have a partial chain, ending at cluster BX
+; We have a partial chain, ending at cluster CX:BX
+	push	cx
 	push	bx			; save current end of chain
 	xchg	ax,bx			; start allocating from cluster AX a
+	xchg	dx,cx
+	mov	cx,fdw_extend_cl	; this value *should* not exceed 16 bits...
 	call	alloc_chain		;  a chain of CX clusters
 	pop	bx
+	pop	cx
 	 jc	fdw_e45
 	xchg	ax,bx			; AX = previous cluster, link cluster
+	xchg	dx,cx
 	call	fixfat			;  BX to end of the chain
 	clc
 fdw_e45:
@@ -668,33 +772,80 @@ fdrw_seek:
 	pop	word ptr blkoffset	; save cluster and offset within it
 	add	sp,2
 	pop	word ptr blkidx
-	add	sp,10			; clean up stack
+	pop	word ptr blkidx+2
+	add	sp,8			; clean up stack
 	les	bx,current_dhndl
 	mov	ax,blkidx
-	cmp	ax,es:DHNDL_IDX[bx]	; do we know this block ?
+	mov	dx,blkidx+2
+;	cmp	ax,es:DHNDL_IDX[bx]	; do we know this block ?
+	cmp	dx,es:DHNDL_IDXH[bx]	; do we know this block ?
 	 jb	fdrw_seek10		; we can't go backwards, use 1st block
+	 ja	fdrw_seek05
+	cmp	ax,es:DHNDL_IDX[bx]
+	 jb	fdrw_seek10
+fdrw_seek05:
+;	mov	cx,es:DHNDL_BLK[bx]	; get last index block
+;	 jcxz	fdrw_seek10		; use 1st block if it isn't valid
 	mov	cx,es:DHNDL_BLK[bx]	; get last index block
-	 jcxz	fdrw_seek10		; use 1st block if it isn't valid
+	mov	fdrw_seek_cl,cx
+	mov	cx,es:DHNDL_BLKH[bx]
+	mov	fdrw_seek_cl+2,cx
+	cmp	fdrw_seek_cl+2,0
+	 jne	fdrw_seek06
+	cmp	fdrw_seek_cl,0
+	 je	fdrw_seek10		; use 1st block if it isn't valid
+fdrw_seek06:
 	sub	ax,es:DHNDL_IDX[bx]	; skip this many
+	sbb	dx,es:DHNDL_IDXH[bx]
 	jmps	fdrw_seek20
 fdrw_seek10:
 	mov	cx,es:DHNDL_BLK1[bx]	; start with 1st block
+	mov	fdrw_seek_cl,cx
+	mov	cx,es:DHNDL_BLK1H[bx]
+	mov	fdrw_seek_cl+2,cx
 fdrw_seek20:
-	xchg	ax,cx			; AX = starting cluster
-	 jcxz	fdrw_seek40		; CX = clusters to skip
+;	xchg	ax,cx			; AX = starting cluster
+;	 jcxz	fdrw_seek40		; CX = clusters to skip
+	xchg	ax,fdrw_seek_cl		; DX:AX = starting cluster
+	xchg	dx,fdrw_seek_cl+2
+	cmp	fdrw_seek_cl+2,0
+	 jne	fdrw_seek30
+	cmp	fdrw_seek_cl,0
+	 je	fdrw_seek40		; CX = clusters to skip
 fdrw_seek30:
 	push	cx
 	call	getnblk			; get next block
 	pop	cx
-	cmp	ax,lastcl		; stop on premature end of chain
+;	cmp	ax,lastcl		; stop on premature end of chain
+	cmp	dx,blastcl+2		; stop on premature end of chain
 	 ja	fdrw_seek_error		; (file size must be wrong..)
-	loop	fdrw_seek30
+	 jb	fdrw_seek35		; continue
+	cmp	ax,blastcl
+	 ja	fdrw_seek_error
+fdrw_seek35:
+;	loop	fdrw_seek30
+	sub	fdrw_seek_cl,1
+	sbb	fdrw_seek_cl+2,0
+	cmp	fdrw_seek_cl+2,0
+	 jne	fdrw_seek30
+	cmp	fdrw_seek_cl,0
+	 jne	fdrw_seek30
 fdrw_seek40:
 	les	bx,current_dhndl
-	mov	dx,blkidx
-	mov	es:DHNDL_IDX[bx],dx	; remember this position for next time
-	mov	es:DHNDL_BLK[bx],ax	
+	push	dx
+	push	ax
+;	mov	dx,blkidx
+	mov	ax,blkidx
+	mov	dx,blkidx+2
+;	mov	es:DHNDL_IDX[bx],dx	; remember this position for next time
+	mov	es:DHNDL_IDX[bx],ax	; remember this position for next time
+	mov	es:DHNDL_IDXH[bx],dx
+	pop	ax
+	pop	dx
+	mov	es:DHNDL_BLK[bx],ax
+	mov	es:DHNDL_BLKH[bx],dx
 	mov	blk,ax			; save the block for coniguous checks
+	mov	blk+2,dx
 	mov	bx,blkoffset
 	call	clus2sec		; convert to sector/offset
 	mov	word ptr fdrwsec,ax	; remember this block
@@ -720,7 +871,8 @@ deblock_rw:
 ;----------
 	mov	cx,0FF00h+BF_ISDAT	; CH = preread, buffer is data
 	mov	dx,word ptr fdrwsec	; set sector to xfer from
-	mov	ah,byte ptr fdrwsec+WORD
+;	mov	ah,byte ptr fdrwsec+WORD
+	mov	ax,word ptr fdrwsec+WORD
 	call	locate_buffer		; ES:SI -> buffer
 	mov	bx,fdrwsecoff		; BX = offset within sector
 	mov	ax,psecsiz
@@ -855,23 +1007,32 @@ check_cont:	; check for adjacent blocks or space
 ;	allocated, then we count them as well and link
 ;	them into the file.
 
+	mov	di,dx			; save # of blocks req'd
 	mov	ax,blk			; current block number
+	mov	dx,blk+2
 	xor	cx,cx			; contiguous blocks found = 0
-	test	dx,dx			; any extra required ?
+	test	di,di			; any extra required ?
 	 jz	check_cont20
 check_cont10:				; get link of current block
-	push	ax			; save current block
+;	push	ax			; save current block
+	mov	check_cont_cl,ax	; save current block
+	mov	check_cont_cl+2,dx
 	push	cx			; save extra blocks so far
-	push	dx			; save extra blocks we'd like
+	push	di			; save extra blocks we'd like
 	call	getnblk			; get the link
-	pop	dx
+	pop	di
 	pop	cx
-	pop	bx
-	inc	bx			; BX = current block + 1
-	cmp	ax,bx			; check if next block is contiguous
+;	pop	bx
+;	inc	bx			; BX = current block + 1
+	add	check_cont_cl,1		; current block + 1
+	adc	check_cont_cl+2,0
+;	cmp	ax,bx			; check if next block is contiguous
+	cmp	ax,check_cont_cl	; check if next block is contiguous
 	 jne	check_cont20		;  and try for another
+	cmp	dx,check_cont_cl+2
+	 jne	check_cont20
 	inc	cx			; extra contiguous cluster
-	dec	dx			; one less block to check
+	dec	di			; one less block to check
 	 jnz	check_cont10		; try again if we still want more
 check_cont20:				; we can do CX extra clusters
 	inc	cx			; include 1st cluster too..
@@ -898,18 +1059,23 @@ SynchroniseBuffers:	; synchronize BCBs after multi sector transfer
 ;
 ;
 	mov	dx,word ptr fdrwsec
-	mov	ah,byte ptr fdrwsec+WORD
-	mov	al,adrive		; get our drive number
+;	mov	ah,byte ptr fdrwsec+WORD
+	mov	ax,word ptr fdrwsec+2
+;	mov	al,adrive		; get our drive number
 	lds	bx,bcb_root		; DS:BX -> 1st buffer
 SynchroniseBuffers10:
 	test	ds:BCB_FLAGS[bx],BF_ISDAT; is this a data buffer?
 	 jz	SynchroniseBuffers30	; skip if directory or FAT
-	cmp	al,ds:BCB_DRV[bx]	; does the drive match?
+;	cmp	al,ds:BCB_DRV[bx]	; does the drive match?
+	mov	cl,adrive		; get our drive number
+	cmp	cl,ds:BCB_DRV[bx]	; does the drive match?
 	 jne	SynchroniseBuffers30	; skip if different
 	mov	si,ds:BCB_REC[bx]	; compute bcb->rec - prec
 	sub	si,dx			; result in SI,CL (lsb..msb)
-	mov	cl,ds:BCB_REC2[bx]
-	sbb	cl,ah			; get bits 16-23 of result
+;	mov	cl,ds:byte ptr BCB_REC2[bx]
+;	sbb	cl,ah			; get bits 16-23 of result
+	mov	cx,ds:BCB_REC2[bx]
+	sbb	cx,ax			; get bits 16-31 of result
 	 jne	SynchroniseBuffers30	; skip if bcb->rec < prec
 	cmp	si,ss:fdrwdircnt	; else check against transfer length
 	 jae	SynchroniseBuffers30	; skip if beyond transfer length
@@ -1093,7 +1259,10 @@ select_logical_drv:
 ;	ES:BX -> LDT_
 ;
 	cmp	al,last_drv		; is it a legal drive ?
-	 jae	select_drv_bad		;  no, reject it now
+;	 jae	select_drv_bad		;  no, reject it now
+	 jb	select_logical_drv05
+	 jmp	select_drv_bad		;  no, reject it now
+select_logical_drv05:
 	mov	logical_drv,al		; save logical drive
 	call	get_ldt			; ES:BX -> LDT_ for drive
 	 jc	select_physical_drv	; no LDT_ during init, must be physical
@@ -1119,12 +1288,17 @@ if JOIN
 endif
 	cmp	es:LDT_BLK[bx],0FFFFh	; did we have a media change ?
 	 jne	select_logical_drv20	; then we'd better rebuild
+	cmp	es:LDT_BLKH[bx],0FFFFh
+	 jne	select_logical_drv20
 select_logical_drv10:
 	call	rebuild_ldt_root	;  the LDT_ root block
 select_logical_drv20:
 	mov	ax,es:LDT_ROOT[bx]	; get virtual root from LDT
+	mov	dx,es:LDT_ROOTH[bx]
 	mov	fdos_hds_root,ax	; move there
+	mov	fdos_hds_root+2,dx
 	mov	fdos_hds_blk,ax
+	mov	fdos_hds_blk+2,dx
 if JOIN
 	mov	al,es:LDT_DRV[bx]	; same with drive
 	mov	fdos_hds_drv,al
@@ -1141,7 +1315,9 @@ select_physical_drv:
 ;
 	xor	dx,dx
 	mov	fdos_hds_blk,dx		; put it in the root by default
+	mov	fdos_hds_blk+2,dx
 	mov	fdos_hds_root,dx
+	mov	fdos_hds_root+2,dx
 	mov	fdos_hds_drv,al		; set physical drive in working HDS
 	cmp	al,phys_drv		; should we have a DDSC_ for this drive
 	 jae	select_drv_bad		;  no, we can't select it then
@@ -1231,7 +1407,25 @@ select_ddsc:
 	mov	di,offset local_ddsc	; ES:DI -> DDSC_ copy
 	mov	cx,LOCAL_DDSC_LEN
 	rep	movsb			; make a local copy of interesting bits
-	push es ! pop ds		; DS=ES=local data segment
+	cmp	ds:DDSC_NFATRECS[bx],0	; is it a 32 bit FAT ?
+	 je	select_ddsc04		; yes, then also copy extended DDSC
+	mov	ax,es:datadd		; these values are used as 32-bit
+	mov	es:bdatadd,ax
+	mov	ax,es:lastcl
+	mov	es:blastcl,ax
+	xor	ax,ax
+	mov	es:bdatadd+2,ax
+	mov	es:blastcl+2,ax
+	jmps	select_ddsc05
+select_ddsc04:
+	lea	si,DDSC_BDATADDR[bx]
+	mov	di,offset local_ddsc2
+	mov	cx,LOCAL_DDSC2_LEN
+	rep	movsb			; more interesting bits to copy
+select_ddsc05:
+;	push es ! pop ds		; DS=ES=local data segment
+	push ds ! push es
+	pop ds ! pop es			; swap ES and DS
 ;	mov	ax,psecsiz		; now initialise some other vaiiables
 ;	mov	cl,clshf
 ;	shl	ax,cl			; AX = bytes per cluster
@@ -1243,24 +1437,40 @@ select_ddsc:
 	mul	psecsiz			; DX:AX byte size of cluster
 	mov	clsize,ax
 	mov	clsize+2,dx
+	xor	ax,ax
 	mov	al,byte_nfats		; AX = number of FATs
 	mov	nfats,ax		;  (it's handier as a word
-	mov	ax,diradd		; number of FAT records can be
-    sub ax,fatadd       ;  bigger than 255 
-    xor dx,dx           
-    div nfats           
-    mov nfatrecs,ax     
+;	mov	ax,diradd		; number of FAT records can be
+;	sub	ax,fatadd		;  bigger than 255 
+;	xor	dx,dx
+;	div	nfats
+	cmp	es:DDSC_NFATRECS[bx],0	; is it a 32 bit FAT ?
+	 je	select_ddsc10		; yes, then use 32-bit value
+	mov	ax,es:word ptr DDSC_NFATRECS[bx]	; # of sectors per FAT
+	mov 	nfatrecs,ax
+	xor	ax,ax
+	mov	nfatrecs+2,ax
+	jmps	select_ddsc20
+select_ddsc10:
+	mov	ax,es:word ptr DDSC_BFATRECS[bx]	; # of sectors per FAT
+	mov 	nfatrecs,ax
+	mov	ax,es:word ptr DDSC_BFATRECS+2[bx]
+	mov 	nfatrecs+2,ax
+select_ddsc20:
 	mov	cx,FCBLEN
 	mov	ax,clsize		; convert from cluster size
 ;	xor	dx,dx			;  to number of dir entries
 	mov	dx,clsize+2		;  to number of dir entries
 	div	cx			;  per cluster - handy for
 	mov	dirperclu,ax		;  subdirectories
+	mov	ax,FAT32
+	cmp	es:DDSC_NFATRECS[bx],0	; is it a 32 bit FAT ?
+	 je	select_ddsc30
 	mov	ax,FAT12
 	cmp	lastcl,MAX12		; is it a 12 bit FAT ?
-	 jbe	select_ddsc10
+	 jbe	select_ddsc30
 	mov	ax,FAT16		; no, it's 16 bit
-select_ddsc10:
+select_ddsc30:
 	mov	dosfat,ax		; remember which for later
 	clc				; drive all selected
 	ret
@@ -1427,6 +1637,7 @@ mlu10:
 	cmp	dl,es:LDT_DRV[bx]	; does the physical drive match ?
 	 jne	mlu20
 	mov	es:LDT_BLK[bx],0FFFFh	; indicate we shouldn't trust BLK
+	mov	es:LDT_BLKH[bx],0FFFFh
 mlu20:
 	inc	ax			; onto next LDT
 	jmps	mlu10
@@ -1517,23 +1728,38 @@ eject
 clus2sec:		; convert from cluster/offset to sector/offset
 ;--------
 ; On Entry:
-;	AX = cluster
+;	DX:AX = cluster
 ;	BX = byte offset in cluster
 ; On Exit:
 ;	DX:AX = sector
 ;	BX = byte offset in sector
 ;
-	xchg	ax,cx			; remember cluster in CX
+;	xchg	ax,cx			; remember cluster in CX
+	sub	ax,2			; minus 2 reserved clusters
+	sbb	dx,0
+	push	dx			; save cluster on stack
+	push	ax
 	xor	dx,dx
 	xchg	ax,bx			; DX:AX = byte offset
 	div	psecsiz			; AX = sector offset, DX = byte offset
 	mov	bx,dx			; BX = byte offset in sector
-	xchg	ax,cx			; AX = cluster, CX = sector offset
-	dec	ax
-	dec	ax			; forget about 2 reserved clusters
-	mul	secperclu		; DX:AX = offset of cluster
-	add	ax,datadd
-	adc	dx,0			; DX:AX = offset of start of dir
+;	xchg	ax,cx			; AX = cluster, CX = sector offset
+	mov	cx,ax			; CX = sector offset
+;	dec	ax
+;	dec	ax			; forget about 2 reserved clusters
+;	mul	secperclu		; DX:AX = offset of cluster
+	xor	ax,ax			; sectors per cluster
+	push	ax
+	push	secperclu
+	sub	sp,8			; reserve space for product
+	call	mul32			; multiply cluster with sectors per cluster
+	pop	ax			; DX:AX = sector number
+	pop	dx
+	add	sp,12			; clean up stack
+;	add	ax,datadd
+;	adc	dx,0			; DX:AX = offset of start of dir
+	add	ax,bdatadd
+	adc	dx,bdatadd+2			; DX:AX = offset of start of dir
 	add	ax,cx			; DX:AX - add in sector offset
 	adc	dx,0
 	ret
@@ -1619,5 +1845,103 @@ mul32_1:
 mul32_2:
 	ret
 
+	public	output_msg
+output_msg:
+;----------------
+; On Entry:
+;	si = offset CGROUP:message_msg
+; On Exit:
+;	None
+	push	ax
+	push	bx
+	lodsb				; get 1st character (never NULL)
+output_msg10:
+	mov	ah,0Eh
+	mov	bx,7
+	int	10h			; TTY write of character	
+	lodsb				; fetch another character
+	test	al,al			; end of string ?
+	 jnz	output_msg10
+	pop	bx
+	pop	ax
+	ret
+
+	public	output_hex
+output_hex:
+;----------------
+; On Entry:
+;	dx = 2 byte hex value
+; On Exit:
+;	None
+; Used Regs:
+;	ax,bx,cx,dx,si
+	push	ax
+	push	bx
+	push	cx
+	push	si
+	push	ds
+	mov	cx,4
+	mov	ah,0eh
+	mov	bx,7
+output_hex10:
+	mov	al,dh
+	push	cx
+	mov	cl,4
+	shr	al,cl
+	pop	cx
+	and	al,0fh
+	cmp	al,09h			; greater 0-9?
+	jg	output_hex20
+	add	al,30h
+	jmp	output_hex30
+output_hex20:
+	add	al,37h
+output_hex30:
+	int	10h
+	push	cx
+	mov	cl,4
+	shl	dx,cl
+	pop	cx
+	loop	output_hex10
+	push	cs
+	pop	ds
+	lea	si,ds:output_hex40
+	call	output_msg
+	pop	ds
+	pop	si
+	pop	cx
+	pop	bx
+	pop	ax
+	ret
+output_hex40	db	20h,0		; end of string
+
+	public	output_fcb
+output_fcb:
+;----------------
+; On Entry:
+;	si = offset CGROUP:message_msg
+; On Exit:
+;	None
+	push	si
+	push	ds
+	push	ax
+	push	bx
+	push	cx
+	mov	cx,11
+	lodsb				; get 1st character (never NULL)
+output_fcb10:
+	mov	ah,0Eh
+	mov	bx,7
+	push	cx
+	int	10h			; TTY write of character
+	pop	cx
+	lodsb				; fetch another character
+	loop	output_fcb10
+	pop	cx
+	pop	bx
+	pop	ax
+	pop	ds
+	pop	si
+	ret
 
 	end

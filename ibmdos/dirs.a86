@@ -64,7 +64,9 @@ BDOS_DATA	dseg	word
 	extrn	hashmax:word
 	EXTRN	info_fcb:BYTE
 	extrn 	lastcl:word
+	extrn 	blastcl:word
 	extrn	psecsiz:word
+	extrn	fsroot:dword
 
 eject
 
@@ -73,7 +75,7 @@ hash		rw	2		; hash code work area
 ; The dirbcb says what is in the local dirbuf
 
 dirbcb		db	0ffh		; drive of dirbuf entry
-dirbcb_cl	dw	0		; cluster of dirbuf entry
+dirbcb_cl	dw	0,0		; cluster of dirbuf entry
 dirbcb_dcnt	dw	0		; directory index of dirbuf entry
 dirbcb_block	rw	2		; block of dirbuf entry
 dirbcb_offset	dw	0		; byte offset in block of dirbuf entry
@@ -95,7 +97,10 @@ finddfcb_mask	dw	0800h		; hi byte = reject DA_VOLUME attribs
 					;	pending deletes
 					; 0000 = include everything
 	public	chdblk
-chdblk		dw	0		; current cluster # of directory
+chdblk		dw	0,0		; current cluster # of directory
+
+rd_pcdir_cl	dw	0,0		; current cluster in rd_pcdir
+find_hcb_cl	dw	0,0		; current cluster in find_hcb
 
 
 BDOS_CODE	cseg
@@ -110,6 +115,8 @@ BDOS_CODE	cseg
 	extrn	update_fat:NEAR
 	extrn	zeroblk:near
 	extrn	div32:near
+	extrn	output_msg:near
+	extrn	output_hex:near
 
 eject
 
@@ -126,20 +133,28 @@ eject
 	public	setenddir
 eject
 
-;----------
 fill_dirbuf:	;get 32 byte directory entry
 ;----------
 ; On Entry:
-;	AX = cluster to read (0=root)
+;	DX:AX = cluster to read (0=root)
 ;	BX = dir within cluster
 ; On Exit:
 ;	DI -> dirbuf entry
 
 	call	discard_dirbuf		; invalidate block in case of error
 	mov	dirbcb_cl,ax		; remember which cluster
+	mov	dirbcb_cl+2,dx
 	mov	dirbcb_dcnt,bx		;  and dir entry we want
 	test	ax,ax			; are we in the root ?
-	 jz	fill_dirbuf10
+;	 jz	fill_dirbuf10
+	 jnz	fill_dirbuf09
+	test	dx,dx
+	 jnz	fill_dirbuf09
+	cmp	dirinroot,0		; is this a FAT32 file system?
+	 jne	fill_dirbuf10		; no, proceed with FAT16/12 routine
+	mov	ax,word ptr fsroot	; low word of root dir cluster
+	mov	dx,word ptr fsroot+2
+fill_dirbuf09:
 	mov	cl,FCBSHF
 	shl	bx,cl			; BX = byte offset in cluster
 	call	clus2sec		; DX:AX -> sector
@@ -156,8 +171,8 @@ fill_dirbuf20:
 	mov	dirbcb_block,ax		; we want this sector
 	mov	dirbcb_block+WORD,dx
 	mov	dirbcb_offset,bx
-	xchg	ax,dx			; DX = low word of sector
-	mov	ah,al			; AH = low byte of high word
+	xchg	ax,dx			; DX = low word of sector, AX = high word
+;	mov	ah,al			; AH = low byte of high word
 	push	bx			; save byte offset in sector
 	mov	cx,0FF00h+BF_ISDIR	; locate directory sector
 	call	locate_buffer		; ES:SI -> BCB_
@@ -187,7 +202,7 @@ flush_dirbuf:
 	lodsw				; get low word of block
 	xchg	ax,dx			; put it in DX where it belongs
 	lodsw				; get high word of block
-	mov	ah,al			; AH:DX -> block to find
+;	mov	ah,al			; AH:DX -> block to find
 	mov	cx,0FF00h+BF_ISDIR	; look for directory
 	call	locate_buffer		; locate physical sector
 	or	es:BCB_FLAGS[si],BF_DIRTY; mark this buffer as modified
@@ -201,8 +216,11 @@ flush_dirbuf:
 	rep	movsw			; copy modified entry back
 
 	push	ax
-	xor	dh,dh			; we only want HCB_ if it's there
-	mov	cx,dirbcb_cl		;  and it's this cluster
+;	xor	dh,dh			; we only want HCB_ if it's there
+;	mov	cx,dirbcb_cl		;  and it's this cluster
+	xor	ch,ch			; we only want HCB_ if it's there
+	mov	ax,dirbcb_cl		;  and it's this cluster
+	mov	dx,dirbcb_cl+2
 	call	find_hcb		; does an HCB_ exist for this entry ?
 	pop	ax
 	 jc	flush_dir20		; no, skip update
@@ -243,10 +261,19 @@ rd_pcdir:
 	inc	bx
 	mov	dcnt,bx		; dcnt=dcnt+1
 	call	hdsblk		; AX = current directory block
-	 jz	rd_pcdir40	; skip if we're at the root
-
+;	 jz	rd_pcdir40	; skip if we're at the root
+	 jnz	rd_pcdir05	; not in root dir
+	cmp	dirinroot,0	; is this a FAT32 file system?
+	 je	rd_pcdir04
+	 jmp	rd_pcdir40	; no, skip to normal root dir routine
+rd_pcdir04:
+	mov	ax,word ptr fsroot	; else treat it as a normal sub directory
+	mov	dx,word ptr fsroot+2
+rd_pcdir05:
 ; we we in a subdirectory - lets follow the chain
 
+	mov	rd_pcdir_cl,ax	; save cluster number for later use
+	mov	rd_pcdir_cl+2,dx
 	xchg	ax,cx		; keep subdir cluster in CX
 	mov	ax,FCBLEN	; AX = size of dir entry
 	mul	bx		; DX:AX = offset of set entry we want
@@ -264,32 +291,53 @@ rd_pcdir:
 	add	sp,10
 	pop	cx
 	xchg	ax,dx		; DX = # to skip, AX = offset in cluster
+	mov	di,dx
 	xchg	ax,cx		; AX = start of chain, CX = offset in cluster
+	mov	ax,rd_pcdir_cl
+	mov	dx,rd_pcdir_cl+2
 	xchg	bx,cx		; BX = offset in cluster, CX = dcnt
 	 jcxz	rd_pcdir20	; 1st subdir entry, we are already there
-	mov	cx,chdblk	; do we already know where we are ?
-	 jcxz	rd_pcdir10	;  if not trace from start of chain
-	xchg	ax,cx		; AX = cluster of last dir entry
+;	mov	cx,chdblk	; do we already know where we are ?
+;	 jcxz	rd_pcdir10	;  if not trace from start of chain
+	cmp	chdblk,0	; do we already know where we are ?
+	 jnz	rd_pcdir09
+	cmp	chdblk+2,0
+	 jz	rd_pcdir10	;  if not trace from start of chain
+rd_pcdir09:
+;	xchg	ax,cx		; AX = cluster of last dir entry
+	mov	ax,chdblk
+	mov	dx,chdblk+2
 	test	bx,bx		; have we moved onto next cluster?
 	 jnz	rd_pcdir20	; no, trust me..
-	mov	dx,1		; move on to next entry in the chain
+;	mov	dx,1		; move on to next entry in the chain
+	mov	di,1		; move on to next entry in the chain
 rd_pcdir10:
-	or	dx,dx		; skip along chain until we arrive
+;	or	dx,dx		; skip along chain until we arrive
+	or	di,di		; skip along chain until we arrive
 	 jz	rd_pcdir20	;  at the destination cluster
-	dec	dx
+;	dec	dx
+	dec	di
 	push	bx
-	push	dx
+;	push	dx
+	push	di
 	call	getnblk		; AX = next cluster in chain
-	pop	dx
+;	pop	dx
+	pop	di
 	pop	bx
-	cmp	ax,lastcl	; have we fallen off the end of the chain ?
+;	cmp	ax,lastcl	; have we fallen off the end of the chain ?
+	cmp	dx,blastcl+2	; have we fallen off the end of the chain ?
+	 jb	rd_pcdir10
+	 ja	rd_pcdir30
+	cmp	ax,blastcl
 	 jbe	rd_pcdir10
 	jmps	rd_pcdir30	; yes, set end of directory
 rd_pcdir20:
 	mov	chdblk,ax	; remember this cluster for next time
+	mov	chdblk+2,dx
 	mov	cl,FCBSHF	; to divide by fcb size
 	shr	bx,cl		; BX = dir offset in cluster
 	jmps	rd_pcdir50	;  now go and find the entry
+
 
 rd_pcdir30:
 	call	setenddir	; yes, set dcnt to end of directory
@@ -316,6 +364,7 @@ setenddir:	;set dcnt to the end of directory (dcnt = 0ffffh)
 ;---------
 	mov	dcnt,ENDDIR
 	mov	chdblk,0
+	mov	chdblk+2,0
 	ret
 
 
@@ -372,12 +421,18 @@ getdir:
 					;struct dirfcb *getdir(offset,srchl);
 
 	cmp	dcnt,0FFFFh		;if ((dcnt == 0xffff) &&
-	 jne	gtd_next
+;	 jne	gtd_next
+	 je	gtdo10
+	 jmp	gtd_next
+gtdo10:
 	mov	hash+2,cx		; Save off calling option
 	xor	ax,ax			; hash code 0 for free entry
 	cmp	cx,1			; what kind of search?
 	 je	gtdo15			; CL=1: find free entry (AX=0)
-	 jb	gtd_next		; CL=0: find any entry (unhashed)
+;	 jb	gtd_next		; CL=0: find any entry (unhashed)
+	 jae	gtdo12
+	jmp	gtd_next		; CL=0: find any entry (unhashed)
+gtdo12:
 	or	ch,ch			; name in INFO_FCB+1?
 	 jnz	gtd_next		; no, unhashed search
 	mov	bx,offset info_fcb
@@ -388,32 +443,55 @@ getdir:
 gtdo15:
 	mov	hash,ax			; save it for search
 	call	hdsblk			; get directory block
+	cmp	ax,0			; is this the root dir?
+	 jne	gtdo3			; no
+	cmp	dx,0
+	 jne	gtdo3
+	cmp	dosfat,FAT32		; if yes, is this a FAT32 file system?
+	 jne	gtdo3			; no, then skip
+	mov	ax,word ptr fsroot	; else use the real root cluster number instead
+	mov	dx,word ptr fsroot+2
 gtdo3:
-	push	ax			; save dir block for later
+	push	dx			; save dir block for later
+	push	ax
 	call	hashsrch		; try and use hashing to find a match
 	 jnc	gtdo4			; look closer if we get possible match
 	add	dcnt,ax			;  else skip known non-matches
 	pop	ax			; recover current dir block
+	pop	dx
 	test	ax,ax			; if we are in the root
+	 jnz	gtdo31
+	test	dx,dx
 	 jz	unhashed		;  we must search the hard way
-	xchg	ax,bx
+gtdo31:
+;	xchg	ax,bx
+	push	dx
+	push	ax
 	mov	ax,dcnt			; should we go onto next cluster ?
 	inc	ax			; only if next entry is the start
 	xor	dx,dx			;  of a cluster
 	div	dirperclu
-	xchg	ax,bx
+;	xchg	ax,bx
 	test	dx,dx			; at start of cluster ?
+	pop	ax
+	pop	dx
 	 jnz	unhashed
 	call	getnblk			; onto next cluster until we are
-	cmp	ax,lastcl		;  at the end of the chain
+;	cmp	ax,lastcl		;  at the end of the chain
+	cmp	dx,blastcl+2		;  at the end of the chain
+	 jb	gtdo3
+	 ja	unhashed
+	cmp	ax,blastcl
 	 jbe	gtdo3
 	jmps	unhashed		; out of luck
 gtdo4:
 	add	dcnt,ax			; we have found a match, so start
 	pop	ax			;  search here
+	pop	dx
 ;	jmps	unhashed
 unhashed:				;   /* locate entry */
 	mov	chdblk,0
+	mov	chdblk+2,0
 unhshd1:
 	mov	cx,hash+2		;}
 gtd_next:
@@ -446,6 +524,8 @@ gtd3:
 gtd4:					; looking for particular entry
 	call	hdsblk			; Are we at the root?
 	 jnz	gtd5			; skip if not
+	cmp	dirinroot,0		; is this FAT32?
+	 jz	gtd5			; yes, proceed normally
 	mov	ax,dcnt			; check for end of directory
 	cmp	ax,dirinroot		; have we reached end of root?
 	mov	ax,0			; assume we have
@@ -483,7 +563,10 @@ match3:
 match4:
 	pop	cx
 	or	al,al			; did we match ?
-	 jnz	gtd_next		; no, try for another
+;	 jnz	gtd_next		; no, try for another
+	 jz	match5
+	 jmp	gtd_next		; no, try for another
+match5:
 	mov	bx,dirp			; Return (BX)
 	jmp	gtd2
 
@@ -492,23 +575,29 @@ eject
 find_hcb:				; find HCB_ for given drive
 ;--------
 ; On Entry:
-;	CX = cluster we are looking for
-;	DH = 00 if exact match required
+;	DX:AX = cluster we are looking for
+;	CH = 00 if exact match required
 ;	     FF if we want to recyle oldest HCB_
 ; On Exit:
 ;	CY set, AX=0 if HCB_ not found
 ;	CY clear ES:BX = offset of HCB_ (moved to head of list)
-;	(AX/DX trashed, All other regs preserved)
+;	(AX/CX trashed, All other regs preserved)
 ;
 
+	mov	find_hcb_cl,ax
+	mov	find_hcb_cl+2,dx
 	les	bx,hashroot		; get our hashing pointer
 	mov	ax,es
 	or	ax,bx			; is hashing enabled ?
 	 jz	find_hcb30
-	mov	dl,adrive		; look for this drive
-	cmp	cx,es:HCB_CLU[bx]	; does cluster match?
+	mov	cl,adrive		; look for this drive
+	mov	dx,find_hcb_cl
+	cmp	dx,es:HCB_CLU[bx]	; does cluster match?
 	 jne	find_hcb10		; goto next if not
-	cmp	dl,es:HCB_DRV[bx]	; does drive match?
+	mov	dx,find_hcb_cl+2
+	cmp	dx,es:HCB_CLUH[bx]
+	 jne	find_hcb10
+	cmp	cl,es:HCB_DRV[bx]	; does drive match?
 	 jne	find_hcb10		; goto next if not
 ;	clc
 	ret				; we have a match on the 1st one
@@ -519,14 +608,18 @@ find_hcb10:
 	test	ax,ax			; is there one ?
 	 jz	find_hcb20
 	xchg	ax,bx			; AX = previous entry, BX = current
-	cmp	cx,es:HCB_CLU[bx]	; does cluster match?
+	mov	dx,find_hcb_cl
+	cmp	dx,es:HCB_CLU[bx]	; does cluster match?
 	 jne	find_hcb10		; goto next if not
-	cmp	dl,es:HCB_DRV[bx]	; does drive match?
+	mov	dx,find_hcb_cl+2
+	cmp	dx,es:HCB_CLUH[bx]
+	 jne	find_hcb10
+	cmp	cl,es:HCB_DRV[bx]	; does drive match?
 	 jne	find_hcb10		; goto next if not
 ; we have a match, but it's not the first so recycle it
-	mov	dx,es:HCB_LINK[bx]	; get link to the rest of the chain
+	mov	cx,es:HCB_LINK[bx]	; get link to the rest of the chain
 	xchg	ax,bx			; BX = previous entry
-	mov	es:HCB_LINK[bx],dx	; unlink ourselves from chain
+	mov	es:HCB_LINK[bx],cx	; unlink ourselves from chain
 	mov	bx,ax			; BX = current entry
 	xchg	ax,word ptr hashroot	; put current entry at the head
 	mov	es:HCB_LINK[bx],ax	;  and relink the rest of the chain
@@ -536,18 +629,20 @@ find_hcb10:
 find_hcb20:
 ; we have been all along the chain with no luck
 	xor	ax,ax
-	test	dh,dh			; no HCB_ - do we want to recyle ?
+	test	ch,ch			; no HCB_ - do we want to recyle ?
 	 jz	find_hcb30		;  if not skip
 	mov	es:HCB_CNT[bx],ax	; we need to recycle oldest HCB_
-	mov	es:HCB_CLU[bx],cx	;  so mark as us, but with nothing
-	mov	es:HCB_DRV[bx],dl	;  in it
+	mov	dx,find_hcb_cl
+	mov	es:HCB_CLU[bx],dx	;  so mark as us, but with nothing
+	mov	dx,find_hcb_cl+2
+	mov	es:HCB_CLUH[bx],dx
+	mov	es:HCB_DRV[bx],cl	;  in it
 ;	clc
 	ret
 
 find_hcb30:
 	stc				; return failure
 	ret
-
 
 eject
 ;-----
@@ -596,10 +691,10 @@ if DELWATCH
 fixup_hashing:
 ;-------------
 ; On Entry:
-;	AX =	segment of dir buffer
-;	CX =	cluster to fixup (0 = root)
+;	CX =	segment of dir buffer
+;	DX:AX =	cluster to fixup (0 = root)
 ;	DI =	directory entry index (clipped to cluster if subdir)
-;	AX:SI->	dir entry (single entry for hashing)
+;	CX:SI->	dir entry (single entry for hashing)
 ;
 ; On Exit:
 ;	None
@@ -607,14 +702,15 @@ fixup_hashing:
 	push	ds
 	push	es
 
-	xor	dh,dh			; we only want HCB_ if it's there
-	push	ax			; save seg of dir entry
+;	xor	dh,dh			; we only want HCB_ if it's there
+	push	cx			; save seg of dir entry
+	xor	ch,ch			; we only want HCB_ if it's there
 	call	find_hcb		; does an HCB_ exist for this entry ?
 	pop	ds			; DS:SI -> entry to hash
 	 jc	fixup_ck10		; not hashed, skip update
 	cmp	di,es:HCB_CNT[bx]	; is this within the hashed entries ?
 	 jae	fixup_ck10		;  no, skip the fixup
-	call	mkhsh			; AX = hash code of our entry
+	call	mkhsh			; cx = hash code of our entry
 
 	shl	di,1			; DI = offset of hashed entry
 	lea	di,HCB_DATA[bx+di]
@@ -631,11 +727,12 @@ eject
 
 hashsrch:
 ;--------
-;	entry:	AX = starting cluster of directory
+;	entry:	DX:AX = starting cluster of directory
 ;	exit:	AX is possible match index
 ;
-	mov	dh,0FFh			; we want HCB_ even if it's recycled
-	xchg	ax,cx			;  and this block
+;	mov	dh,0FFh			; we want HCB_ even if it's recycled
+	mov	ch,0FFh			; we want HCB_ even if it's recycled
+;	xchg	ax,cx			;  and this block
 	call	find_hcb		; does an HCB_ exist for this entry ?
 ;	mov	ax,0			; assume unhashed search required
 	 jc	hashsrch20		;  start one if no hashing
@@ -668,7 +765,7 @@ hashsrch30:
 rehash_entry:
 ;------------
 ;	entry:	ES:BX -> HCB
-;		AX = hash cluster number
+;		AX = hash cluster number ??? This does not seem to be used...
 
 	call	hash_entries_to_do	; how many entries still to hash ?
 	 jcxz	rehash_entry40		; if we have hashed them all exit
@@ -684,6 +781,7 @@ rehash_entry:
 	dec	ax			; make previous entry BEFORE this
 	mov	dcnt,ax
 	mov	chdblk,0		; non-sequential access
+	mov	chdblk+2,0
 	cmp	cx,512/32		; don't try reading more than 512 bytes
 	 jb	rehash_entry20		;  at a time - then with 512 byte secs
 	mov	cx,512/32		;  we only read when we
@@ -718,6 +816,7 @@ rehash_entry20:
 rehash_entry30:	
 	pop	dcnt			; restore count
 	mov	chdblk,0		; non-sequential access
+	mov	chdblk+2,0
 	clc				; we have new hashing codes
 	ret				; HCB updated with new cluster
 
@@ -735,7 +834,13 @@ hash_entries_to_do:
 ;
 	mov	cx,dirinroot		; assume root dir
 	cmp	es:HCB_CLU[bx],0	; was it ?
-	 je	hash_etd10
+;	 je	hash_etd10
+	 jne	hash_etd09		; no, proceed normally
+	cmp	es:HCB_CLUH[bx],0
+	 jne	hash_etd09
+	cmp	dirinroot,0		; is this FAT32?
+	 jne	hash_etd10		; no, proceed with FAT12/16 routine
+hash_etd09:
 	mov	cx,dirperclu		; subdir, so cluster limit
 hash_etd10:
 	cmp	cx,hashmax		; do we support this many ?
@@ -802,36 +907,62 @@ allocdir:			; Called by rename and MAKE
 	ret
 allocdir10:
 	call	hdsblk			; Are we at the root?
-	 jz	enlarge_root		; YES -- Report error(no room)
+	 jnz	allocdir20		; no, proceed
+	cmp	dosfat,FAT32		; FAT32 file system?
+;	 jz	enlarge_root		; YES -- Report error(no room)
+	 jne	enlarge_root		; NO -- Report error(no room)
+	mov	dx,word ptr fsroot+2	; use starting cluster of root dir
+	mov	ax,word ptr fsroot
 
 	; We are in a subdirectory so enlarge it
 	; AX has 1st block of subdirectory   NOTE -- AX is never
 	; above 'lastcl' on entry.
 allocdir20:
-	cmp	ax,lastcl		; Are we at end of subdirectory?
+;	cmp	ax,lastcl		; Are we at end of subdirectory?
+	cmp	dx,blastcl+2		; Are we at end of subdirectory?
 	 ja	allocdir30		; YES
+	 jb	allocdir25
+	cmp	ax,blastcl
+	 ja	allocdir30
+allocdir25:
+	push	dx
 	push	ax
 	call	getnblk			; NO -- get next block then
         pop	bx
+	pop	cx
 	jmps	allocdir20
 
 allocdir30:
+	push	cx
 	push	bx			; save last block number
 	xchg	ax,bx			; Get a new block (start from old)
+	xchg	dx,cx
 	call	alloc_cluster
 	pop	bx
+	pop	cx
 	 jc	allocdir_err		; Report Error(no room on disk)
+	push	dx
 	push	ax			; save new block
 	xchg	ax,bx
+	xchg	dx,cx
 	call	fixfat			; Update fat (AX,BX) old last block
 					;  points to new last block
 	pop	ax			; Get new last block
+	pop	dx
+	push	dx
 	push	ax
+	xor	cx,cx
 	mov	bx,dosfat		; 12 or 16 bit fat
+	cmp	dosfat,FAT32		; FAT32 file system
+	 jne	allocdir35		; no, then proceed with this value
+	mov	bx,0ffffh		; else use this one instead
+	mov	cx,bx
+allocdir35:
 	call	fixfat			; Update fat (AX,BX)  new last block
 					;  has end of cluster marker
 	call	update_fat		; Write out to disk
 	pop	ax			; Get new last block
+	pop	dx
 	call	zeroblk			; Zero it out
         call	setenddir		; Set up for search first
 	mov	cx,1			; Find empty fcb

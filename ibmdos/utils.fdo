@@ -229,7 +229,9 @@ rebuild_ldt_root10:
 	push ds ! pop es		; ES:BX -> LDT_
 	pop	ds
 	mov	ax,fdos_hds_blk
+	mov	dx,fdos_hds_blk+2
 	mov	es:LDT_ROOT[bx],ax	; update our root block
+	mov	es:LDT_ROOTH[bx],dx
 if JOIN
 	mov	al,fdos_hds_drv		;  and the physical drive
 	mov	es:LDT_DRV[bx],al
@@ -276,7 +278,9 @@ rebuild_ldt_curdir40:
 	push ds ! pop es		; ES:BX -> LDT_
 	pop	ds
 	mov	ax,fdos_hds_blk
+	mov	dx,fdos_hds_blk+2
 	mov	es:LDT_BLK[bx],ax	; update our curdir block
+	mov	es:LDT_BLKH[bx],dx
 if JOIN
 	mov	al,fdos_hds_drv		;  and the physical drive
 	mov	es:LDT_DRV[bx],al
@@ -319,7 +323,9 @@ endif
 	 jnc	select_dir20
 select_dir10:
 	mov	ax,fdos_hds_root	; move to the virtual root
+	mov	dx,fdos_hds_root
 	mov	fdos_hds_blk,ax	
+	mov	fdos_hds_blk+2,dx
 	stc				; return error
 select_dir20:
 	pop bx ! pop ds
@@ -365,7 +371,10 @@ path_prep_cont:
 	lods	es:al			; get next char
 	dec	si			; forget we looked
 	test	al,al			; if just a '\' stop now
-	 jz	path_prep_done
+;	 jz	path_prep_done
+	 jnz	path_prep_cont10
+	 jmp	path_prep_done
+path_prep_cont10:
     call    check_slash     
 	 jne	path_prep_next		;  otherwise start processing from root
 	mov	ax,ED_ACCESS		; get correct error code
@@ -389,11 +398,15 @@ else
 endif
 	cmp	ax,es:LDT_BLK[bx]	; do we need to do a rebuild
 	 jne	path_prep_curdir20	;  or can we trust the media ?
+	cmp	ax,es:LDT_BLKH[bx]
+	 jne	path_prep_curdir20
 path_prep_curdir10:
 	call	rebuild_ldt_curdir	; better reselect current dir
 path_prep_curdir20:
 	mov	ax,es:LDT_BLK[bx]	; move to current directory block
+	mov	dx,es:LDT_BLKH[bx]
 	mov	fdos_hds_blk,ax
+	mov	fdos_hds_blk+2,dx
 path_prep_curdir30:
 	pop si ! pop es			; ES:SI -> name again
 
@@ -469,12 +482,22 @@ endif
 	 jz	path_prep_exit		; stop if we can't
 	call	open_dir		; move into the directory
 	 jc	path_prep_error		; stop if we can't
-	mov	cx,DBLOCK1[bx]		; are we destined for the root ?
-	 jcxz	path_prep_root		; yes, stop - we won't find anything
+;	mov	cx,DBLOCK1[bx]		; are we destined for the root ?
+	cmp	word ptr DBLOCK1[bx],0	; are we destined for the root ?
+	 jne	path_prep_done10	; no, proceed
+	cmp	dosfat,FAT32		; FAT32 file system?
+;	 jcxz	path_prep_root		; yes, stop - we won't find anything
+	 jne	path_prep_root		; no, stop - we won't find anything
+	cmp	DBLOCK1H[bx],0		; else also check high word of cluster
+	 je	path_prep_root
+path_prep_done10:
+	push	fdos_hds_root+2
 	push	fdos_hds_root
 	mov	fdos_hds_root,0		; don't stop at virtual root
+	mov	fdos_hds_root+2,0
 	call	find_parent		; find the parental entry
 	pop	fdos_hds_root
+	pop	fdos_hds_root+2
 	 jz	path_prep_error		; (shouldn't happen)
 	mov	ax,DPWD[bx]		; get password hash code from entry
 	mov	local_password,ax	; ensure we can get back down
@@ -736,28 +759,44 @@ eject
 
 mkdir_init:
 ;----------
+	push	dx
 	push	ax			; Init 1st block of the directory
 	call	zeroblk			; zero the block
-	pop ax ! push ax		; get the block number
+;	pop ax ! push ax		; get the block number
+	pop ax ! pop dx			; get the block number
+	push	dx
+	push	ax
 	xor	bx,bx			; seek to beginning of cluster
 	call	fill_dirbuf		; DI -> directory entry
-	pop dx ! push dx		; get our own block #
-	mov	ax,' .'			; this is the "." directory
+;	pop dx ! push dx		; get our own block #
+	pop ax ! pop dx			; get our own block #
+	push	dx
+	push	ax
+;	mov	ax,' .'			; this is the "." directory
+	mov	cx,' .'			; this is the "." directory
 	call	init_dot		; set name, attrib, time, date, block1
 	call	flush_dirbuf		; copy '.' entry to sector buffer
 	pop	ax			; get the block number
+	pop	dx
 	mov	bx,1			; do 2nd entry
 	call	fill_dirbuf		; DI -> directory entry
 	call	hdsblk
-	xchg	ax,dx			; DX = parent directory
-	mov	ax,'..'			; this is the ".." directory
+;	xchg	ax,dx			; DX = parent directory
+;	mov	ax,'..'			; this is the ".." directory
+	mov	cx,'..'			; this is the ".." directory
 ;	call	init_dot		; fall into INIT_DOT
 ;	ret
 
 init_dot:
 	mov	dirp,di			; save directory entry for SETPCD
 	push	di
-	mov	DBLOCK1[di],dx		; our own block #
+;	mov	DBLOCK1[di],dx		; our own block #
+	mov	DBLOCK1[di],ax		; our own block #
+	cmp	dosfat,FAT32		; 32-bit file system?
+	 jne	init_dot10		; no, do not use high cluster entry
+	mov	DBLOCK1H[di],dx
+init_dot10:
+	xchg	ax,cx
 	stosw				; store "." or ".."
 	mov	al,' '
 	mov	cx,11-2
@@ -778,11 +817,18 @@ rmdir_ok:	; make sure directory not in use
 
 	mov	bx,dirp			; get the directory entry
 	mov	ax,DBLOCK1[bx]		; block number of directory
+	xor	dx,dx
+	cmp	dosfat,FAT32		; FAT32 file system?
+	 jne	rmdir_ok05		; no, then skip high word of cluster
+	mov	dx,DBLOCK1H[bx]
+rmdir_ok05:
 	xor	bx,bx			; start at beginning
 rmdir_ok1:
+	push	dx
 	push	ax ! push bx		; save block, offset
 	call	fill_dirbuf		; locate directory entry
 	pop	bx ! pop ax		; restore offset, block
+	pop	dx
 	cmp	DNAME[di],0		; is it virgin entry?
 	 je	rmdir_ok4		;    yes, no entries above here
 	cmp	DNAME[di],0E5h		; is it deleted entry?
@@ -794,6 +840,7 @@ if DELWATCH
 ; and that delwatch is installed. Then we can ignore it.
 	test	DATTS[di],DA_VOLUME	; is the volume label bit set
 	 jz	rmdir_not_empty		;  no, can't be pending delete
+	push	dx
 	xor	dx,dx			; (also sets DH = DELW_RDMASK)
 ;	cmp	dx,DBLOCK1[di]		; is it really a pending delete ?
 ;	 jz	rmdir_not_empty		; yes, fall thru to delwatch check
@@ -801,6 +848,7 @@ if DELWATCH
 	mov	si,di			; -> directory buffer (for DELWATCH)
 	callf	ss:fdos_stub		; is the delwatch TSR installed
 	xchg	ax,dx			; AX = dir cluster
+	pop	dx
 	 jnc	rmdir_ok3		; delwatch will handle pending deletes
 rmdir_not_empty:
 endif
@@ -815,8 +863,12 @@ rmdir_ok3:				; else this entry O.K.
 	 jb	rmdir_ok1		; loop back if more to come
 	call	getnblk			; get next block in directory
 	sub	bx,bx			; start at beginning of block
-	cmp	ax,lastcl		; end of cluster chain?
+;	cmp	ax,lastcl		; end of cluster chain?
+	cmp	dx,blastcl+2		; end of cluster chain?
 	 jb	rmdir_ok1		; loop back if not done yet
+	 ja	rmdir_ok4
+	cmp	ax,blastcl
+	 jb	rmdir_ok1
 rmdir_ok4:				; directory is empty
 	mov	al,adrive
 	call	hshdscrd		; discard the hash values
@@ -833,6 +885,13 @@ chkcds:		; check if any process uses directory to delete
 ;
 	mov	bx,dirp
 	mov	cx,DBLOCK1[bx]		; block number of directory to delete
+	mov	chkcds_cl,cx
+	xor	cx,cx
+	cmp	dosfat,FAT32		; id this a FAT32 file system?
+	 jne	chkcds05		; no, proceed
+	mov	cx,DBLOCK1H[bx]		; else load high word of cluster, too
+chkcds05:
+	mov	chkcds_cl+2,cx
 	mov	dl,physical_drv		; get the drive the subdir is in
 	mov	al,-1			; start with drive A:
 chkcds10:
@@ -845,6 +904,8 @@ chkcds10:
 	cmp	dl,es:LDT_DRV[bx]	; does the drive match?
 	 jne	chkcds10		; no, don't bother then
 	cmp	es:LDT_BLK[bx],0ffffh	; is it valid
+	 jne    chkcds19
+	cmp	es:LDT_BLKH[bx],0ffffh
 	 jne    chkcds19
 	push	ax
 	push	cx
@@ -859,11 +920,20 @@ if 0
 ; This didn't make the beta, so leave until the next release
 ; We really need to make sure we relog all SUBST's drives before
 ; we can be sure this is valid and fail the rmdir
+	mov	cx,chkcds_cl
 	cmp	cx,es:LDT_ROOT[bx]	; is this our root block ?
+	 jne	chkcds19a
+	mov	cx,chkcds_cl+2
+	cmp	cx,es:LDT_ROOTH[bx]
 	 je	chkcds20		; (ie. a SUBST'd drive)
+chkcds19a:
 endif
+	mov	cx,chkcds_cl
 	cmp	cx,es:LDT_BLK[bx]	; does the block match
 	 jne	chkcds10		; no, try next drive
+	mov	cx,chkcds_cl+2
+	cmp	cx,es:LDT_BLKH[bx]
+	 jne	chkcds10
 chkcds20:
 	ret
 
@@ -875,7 +945,7 @@ eject
 ;	DIRP -> directory to open
 ;	PATH_DRIVE = drive to use
 ; On Exit:
-;	AX = fdos_hds_blk (the current directory block)
+;	DX:AX = fdos_hds_blk (the current directory block)
 ;	CY clear on success
 ;	CY set on error
 ;
@@ -888,16 +958,29 @@ open_dir:
 	cmp	word ptr info_fcb+1,'..'
 	 jne	open_dir10		; watch out if going up a level
 	mov	ax,fdos_hds_blk		; get current block
+	mov	dx,fdos_hds_blk+2
 	cmp	ax,fdos_hds_root	; check if at logical root already
 	 jne	open_dir10		;  and if not carry on
+	cmp	dx,fdos_hds_root+2
+	 jne	open_dir10
 	cmp	ax,DBLOCK1[bx]		; if we are already at the virtual root
 	stc				;  and want to stay there that's OK
 	 jne	open_dir20		; otherwise return an error
+	cmp	dosfat,FAT32		; 32-bit cluster values in dir entry?
+	 jne	open_dir10		; no, continue
+	cmp	dx,DBLOCK1H[bx]		; else check high word of cluster, too
+	 jne	open_dir20
 open_dir10:
 	mov	al,physical_drv		; remember the drive
 	mov	fdos_hds_drv,al
 	mov	ax,DBLOCK1[bx]		; remember this directory block
+	xor	dx,dx
+	cmp	dosfat,FAT32		; 32-bit file system?
+	 jnz	open_dir15		; no, then leave high word at zero
+	mov	dx,DBLOCK1H[bx]		; else read it from dir entry
+open_dir15:
 	mov	fdos_hds_blk,ax
+	mov	fdos_hds_blk+2,dx
 	clc				; success
 open_dir20:
 	ret
@@ -909,12 +992,16 @@ open_dir20:
 hdsblk:					;/* check if we are in subdirectory */
 ;======
 ;
-;	exit:	AX = directory block number
+;	exit:	DX:AX = directory block number
 ;		ZF = set if at root
 ;	regs:	others preserved
 
 	mov	ax,fdos_hds_blk		; get current directory block
+	mov	dx,fdos_hds_blk+2
 	test	ax,ax			; set ZF
+	 jnz	hdsblk10
+	test	dx,dx
+hdsblk10:
 	ret
 
 
@@ -922,7 +1009,7 @@ hdsblk:					;/* check if we are in subdirectory */
 parent2save_area:
 ;-----------------
 ; On Entry:
-;	AX = cluster number of parent to find
+;	DX:AX = cluster number of parent to find
 ; On Exit:
 ;	save_area contains parental name (DX = length of name)
 ;
@@ -1017,13 +1104,14 @@ mkspace_parent:
 	ret
 
 ;	find parent directory starting with cluster AX
-;	entry:	AX = cluster of parent to find
+;	entry:	DX:AX = cluster of parent to find
 ;	exit:	ZF = 1 if not found (shouldn't happen)
 ;			-or-
 ;		ZF = 0 if found, BX=DIRP -> dir entry
 
 find_parent:
 	mov	blk,ax			; save the block number
+	mov	blk+2,dx
 	push ds ! pop es
 	mov	di,offset info_fcb+1
 	mov	ax,'..' ! stosw		; file name is '..'
@@ -1046,7 +1134,14 @@ fndpar1:
 	test	DATTS[bx],DA_DIR	; try to find directory
 	 jz	fndpar1			; skip plain files
 	mov	ax,DBLOCK1[bx]		; get starting cluster
+	xor	dx,dx
+	cmp	dosfat,FAT32		; 32-bit file system?
+	 jne	fndpar15		; no, then skip high word of starting cluster
+	mov	dx,DBLOCK1H[bx]
+fndpar15:
 	cmp	ax,blk
+	 jne	fndpar1
+	cmp	dx,blk+2
 	 jne	fndpar1
 fndpar3:
 	or	ax,0FFFFh		; force non-zero condition
@@ -1102,6 +1197,8 @@ chk_for_root:
 ;
 	cmp	fdos_hds_blk,0		; are we in the root ?
 	 jne	chk_for_root10		; no, no further checks required
+	cmp	fdos_hds_blk+2,0
+	 jne	chk_for_root10
 	push ds ! pop es
 	mov	di,offset info_fcb+1
 	mov	al,'.'			;  check for root
@@ -1362,6 +1459,11 @@ endif
 	xchg	al,DNAME[bx]		; delete the directory entry
 	mov	DUNDEL[bx],al		; save 1st letter for UNDEL command
 	mov	ax,DBLOCK1[bx]		; get starting block #
+	xor	dx,dx
+	cmp	dosfat,FAT32		; FAT32 file system?
+	 jne	kill_file05		; no
+	mov	dx,DBLOCK1H[bx]		; else get high word of starting cluster
+kill_file05:
 	call	delfat			; release all clusters
 kill_file10:
 	jmp	flush_dirbuf		; update the directory
@@ -1421,7 +1523,9 @@ find_label:				; find label only
 ;	dirp/dcnt tell where label is
 ;
 	mov	chdblk,0		; don't assume sequential access
+	mov	chdblk+2,0
 	mov	fdos_hds_blk,0		; look for labels in the root
+	mov	fdos_hds_blk+2,0
 	mov	finddfcb_mask,000ffh	; return VOL labels, not pending dels
 find_label30:
 	call	finddfcb		; find matching file name
@@ -1605,8 +1709,15 @@ creat_handle20:
 	mov	ax,DBLOCK1[si]		; get starting cluster of file
 ;	lea	di,DHNDL_BLK1[bx]
 	stosw
+	xor	ax,ax
+	cmp	dosfat,FAT32		; is this a FAT32 file system?
+	 jne	creat_handle25		; no, then skip
+	mov	ax,DBLOCK1H[si]		; high word of cluster
+creat_handle25:
+	lea	di,DHNDL_BLK1H[bx]
+	stosw
 	lea	si,DTIME[si]
-;	lea	di,DHNDL_TIME[bx]
+	lea	di,DHNDL_TIME[bx]
 	movsw				; copy the time
 ;	lea	di,DHNDL_DATE[bx]
 	movsw				; and the date
@@ -1618,34 +1729,44 @@ creat_handle20:
 	stosw ! stosw
 ;	lea	di,DHNDL_IDX[bx]
 	stosw				; zero block index
+	lea	di,DHNDL_IDXH[bx]
+	stosw
 if DOS5
 	call	hdsblk			; get directory block
-;	lea	di,DHNDL_DBLK[bx]
+	lea	di,DHNDL_DBLK[bx]
 	stosw
-	xor	ax,ax
+	mov	ax,dx
+	lea	di,DHNDL_DBLKH[bx]
 	stosw
 else
-;	lea	di,DHNDL_BLK[bx]
+	lea	di,DHNDL_BLK[bx]
 	stosw				; and current block
+	lea	di,DHNDL_BLKH[bx]
+	stosw
 	call	hdsblk			; get directory block
-;	lea	di,DHNDL_DBLK[bx]
+	lea	di,DHNDL_DBLK[bx]
+	stosw
+	mov	ax,dx
+	lea	di,DHNDL_DBLKH[bx]
 	stosw
 endif
 	mov	ax,dcnt			; set DCNT of file
-;	lea	di,DHNDL_DCNTLO[bx]
+	lea	di,DHNDL_DCNTLO[bx]
 	stosb				; store low byte of DCNT
 	mov	es:DHNDL_DCNTHI[bx],ah	;  and hi byte
-;	lea	di,DHNDL_NAME[bx]	; copy name from dir entry
+	lea	di,DHNDL_NAME[bx]	; copy name from dir entry
 	mov	si,dirp
 	mov	cx,11
 	rep	movsb
 	xor	ax,ax
-    stosw               ; zero DWORD 
-    stosw               
+	stosw				; zero DWORD 
+	stosw
 	lea	di,DHNDL_SHARE[bx]	; zero sharing record
 	stosw
 if DOS5
 	stosw ! stosw ! stosw		; zero DHNDL_BLK + IFS
+	lea	di,DHNDL_BLKH[bx]
+	stosw
 endif
 	callf	ss:share_stub+S_OPEN	; we have opened this handle
 					;  ask SHARE to register it
@@ -1685,7 +1806,9 @@ select_handle:		; select directory of current handle
 	call	select_physical_drv	; select the drive
 	pop bx ! pop es
 	mov	ax,es:DHNDL_DBLK[bx]
+	mov	dx,es:DHNDL_DBLKH[bx]
 	mov	fdos_hds_blk,ax		; copy HDS_BLK
+	mov	fdos_hds_blk+2,dx
 	clc				; handle is OK file
 vfy_hnd9:
 	ret				; good handle
@@ -2094,6 +2217,8 @@ check_join:
 	 je	check_join30		;  not if we haven't JOIN'd
 	cmp	fdos_hds_root,0		; is virtual root the physical one ?
 	 jne	check_join10		;  if not we can't be JOIN'd
+	cmp	fdos_hds_root+2,0
+	 jne	check_join10
 	call	get_ldt			; ES:BX -> LDT for this drive
 	 jc	check_join10		; bad LDT - we can't be joined
 	test	es:LDT_FLAGS[bx],LFLG_JOINED
@@ -2253,7 +2378,9 @@ mv_join_root:
 ;
 	push bx ! push si ! push di	; save index registers
 	mov	ax,fdos_hds_root
+	mov	dx,fdos_hds_root+2
 	mov	fdos_hds_blk,ax		; move us to virtual root
+	mov	fdos_hds_blk+2,dx
 	test	ax,ax			; is it the real root ?
 	 jnz	mvj_root10		; if not forget about JOIN'd drives
 	call	check_join		; are we joined ?
@@ -2276,7 +2403,9 @@ mvhds_drvroot:
 	mov	fdos_hds_drv,al		; change to joined drive
 	xor	dx,dx
 	mov	fdos_hds_blk,dx		; put us back to the root again
+	mov	fdos_hds_blk+2,dx
 	mov	fdos_hds_root,dx
+	mov	fdos_hds_root+2,dx
 	cmp	al,physical_drv		; already there ?
 	 je	mvhds_drvroot10		; then skip the selection
 	call	select_physical_drv	; select the drive
@@ -2301,7 +2430,10 @@ if PASSWORD
 	mov	cx,local_password	; were we given a password ?
 	 jcxz	stamp_dir_entry10	;  if so apply it
 	mov	bx,dirp
+	cmp	dosfat,FAT32		; FAT32 file system?
+	 je	stamp_dir_entry05	; then do not overwrite this entry
 	mov	DPWM[bx],PWM_ANY	; deny all for compatibility
+stamp_dir_entry05:
 	or	DATTS[bx],DA_HIDDEN	;  make dir entry hidden
 	mov	DPWD[bx],cx		;  with this password
 stamp_dir_entry10:
@@ -2397,8 +2529,12 @@ select_from_DTA:
 	mov	es:dcnt,ax
 
 	lodsw				; get the directory block
+	xchg	ax,dx
+	lodsw
+	xchg	ax,dx
 	pop	ds			; restore data segment
 	mov	fdos_hds_blk,ax
+	mov	fdos_hds_blk+2,dx
 	ret
 
 if PASSWORD
@@ -2435,6 +2571,8 @@ check_pwd:		; check for password mismatch
 	 je	check_pwd10		; yes, go ahead
 					; else we've got a password mismatch
 
+	cmp	dosfat,FAT32		; check if FAT32 file system
+	 je	check_pwd10		; if yes then passwords do not apply
 	test	cx,DPWM[bx]		; test if password mode affects us
 	 jz	check_pwd10		; skip if attempted access O.K.
 	mov	ax,ED_PASSWORD		; return password error

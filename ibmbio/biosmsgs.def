@@ -4,6 +4,8 @@
 	extrn	disk_msgB	: byte
 	extrn	_div_by_zero_msg	: byte
 	extrn	div_by_zero_msg	: byte
+	extrn	_drdosprojects_msg	: byte
+	extrn	drdosprojects_msg	: byte
 	extrn	_starting_dos_msg	: byte
 	extrn	starting_dos_msg	: byte
 	extrn	_lba_supp_msg		: byte

@@ -215,6 +215,10 @@ BDOS_DATA	dseg	word
 	extrn	mult_sec:word
 	extrn	rwmode:byte
 	extrn	valid_flg:byte
+	extrn	dosfat:word
+
+chdir_cl	dw	0,0
+chkcds_cl	dw	0,0
 
 NO_CRIT_ERRORS	equ	0100$0000b	; critical error shouldn't be generated
 					; warning - must match PCMODE.EQU
@@ -228,6 +232,7 @@ NO_CRIT_ERRORS	equ	0100$0000b	; critical error shouldn't be generated
 	extrn	hdsaddr:word
 	extrn	intl_xlat:dword
 	extrn 	lastcl:word
+	extrn	blastcl:word
 	extrn	logical_drv:byte
 	extrn	pblock:dword
 	extrn	physical_drv:byte
@@ -248,15 +253,15 @@ path_drive	dw	0
 	Public	fdos_hds_blk, fdos_hds_root, fdos_hds_drv
 
 fdos_hds	rw	0		; temporary HDS that we make up
-fdos_hds_blk	dw	0
-fdos_hds_root	dw	0
+fdos_hds_blk	dw	0,0
+fdos_hds_root	dw	0,0
 fdos_hds_drv	db	0
 
 HDS_LEN		equ	offset $ - offset fdos_hds
 
 saved_hds	rw	0		; saved HDS on F_DOS rename
-saved_hds_blk	dw	0
-saved_hds_root	dw	0
+saved_hds_blk	dw	0,0
+saved_hds_root	dw	0,0
 saved_hds_drv	db	0
 
 saved_dcnt	dw	0		; saved DCNT on F_DOS rename
@@ -265,7 +270,7 @@ dta_ofl		db	0		; non-zero if read/write > DTA size
 
 extflg		dw	0		; DOS FCB was extended FCB
 
-blk		dw	0		; temp variable for cluster #
+blk		dw	0,0		; temp variable for cluster #
 
 attributes	db	0		;fcb interface attributes hold byte
 

@@ -921,6 +921,8 @@ get_boot_options:
 ;	None
 ; On Exit:
 ;	AX = boot options
+	mov	si,offset CGROUP:drdosprojects_msg
+	call	output_msg
 	mov	si,offset CGROUP:starting_dos_msg
 	call	output_msg
 	call	option_key		; poll keyboard for a while

@@ -718,12 +718,16 @@ i2f_121F_30:
 	stosw
 	mov	ax,ds			; AX = DDSC seg
 	stosw
-;	lea	di,LDT_BLK
 	mov	ax,0FFFFh		; AX = FFFF
 	stosw ! stosw ! stosw		; fill in block info
+;	stosw ! stosw
 ;	lea	di,LDT_ROOTLEN
 	mov	ax,2
 	stosw				; set root length
+;	lea	di,LDT_BLKH
+	stosw
+;	lea	di,LDT_ROOTH
+	stosw
 	pop	di
 	pop dx ! pop si ! pop ds
 	ret
@@ -967,7 +971,9 @@ i2f_1002:
 ; On Exit:
 ;	ES:SI -> Buffer control block
 ;
-    jmp locate_buffer       
+	mov	al,ah
+	xor	ah,ah
+    jmp locate_buffer
 
 i2f_1003:
 ;--------
@@ -987,6 +993,7 @@ i2f_1004:
 ;	AX = 1st block to release on current drive
 ; On Exit:
 ;	None
+	xor	dx,dx
     jmp delfat          
 
 i2f_1005:
@@ -999,6 +1006,7 @@ i2f_1005:
 ;	AX = 0000 if none available
 ;	     else allocated block (marked as End Of Chain)
 ;
+	xor	dx,dx
 	jmp	allocate_cluster	; ask DEBLOCK.A86 to allocate some space
 
 i2f_1006:
@@ -1009,6 +1017,7 @@ i2f_1006:
 ; On Exit:
 ;	AX = next block in chain
 ;
+	xor	dx,dx
 	jmp	getblk			; ask DEBLOCK.A86 to return next block
 
 i2f_1007:
@@ -1020,6 +1029,9 @@ i2f_1007:
 ; On Exit:
 ;	None
 ;
+	mov	bx,dx
+	xor	dx,dx
+	xor	cx,cx
 	jmp	change_fat_entry	; ask DEBLOCK.A86 to modify FAT entry
 
 i2f_1008:
@@ -1033,6 +1045,8 @@ i2f_1008:
 ; On Exit:
 ;	None
 ;
+	xchg	cx,ax
+	xor	dx,dx
 	jmp	fixup_hashing
 
 endif

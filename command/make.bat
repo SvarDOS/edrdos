@@ -28,13 +28,15 @@ if not exist %WC% goto badtool
 ECHO Checking for %LINK510%
 if not exist %LINK510% goto badtool
 
-%MASM% /Fo.\bin\message message
-IF ERRORLEVEL 1 GOTO FAILED
+rem %MASM% /Fo.\bin\message message
+rem IF ERRORLEVEL 1 GOTO FAILED
 %MASM% /Fo.\bin\resident resident
 IF ERRORLEVEL 1 GOTO FAILED
 %MASM% /Fo.\bin\txhelp txhelp
 IF ERRORLEVEL 1 GOTO FAILED
 
+%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\message.obj .\message.asm
+IF ERRORLEVEL 1 GOTO FAILED
 %MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\cstart.obj .\cstart.asm
 IF ERRORLEVEL 1 GOTO FAILED
 %MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\csup.obj .\csup.asm

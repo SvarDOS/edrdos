@@ -374,6 +374,12 @@ search_mem_next:
 	mov	ax,es
 	cmp	ax,dmd_upper_root	; if we reach the dmd upper root
 	 jne	search_mem_loop		;  then we have a special case
+	test	mem_strategy,UPPER_FIT+UPPER_ONLY_FIT	; upper memory block preferred or explicitly requested?
+	 jnz	search_mem_next10	; then also search UMBs
+	cmp	di,0FFFFh		; no block found in lower mem?
+	 je	search_mem_next10	; then also search UMBs
+	jmps	search_mem_exit		; else return the previously found block 
+search_mem_next10:
 	or	mem_strategy,FIRST_FIT	; grab 1st high memory block we find
 	test	mem_strategy,UPPER_ONLY_FIT
 	 jnz	search_mem_init		; upper only is another special case

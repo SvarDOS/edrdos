@@ -102,7 +102,7 @@ EXTERN UWORD CDECL cpm_de_init(VOID);		/* CP/M Clean-Up Routine*/
 
 MLOCAL WORD linesleft;		/* Remaining lines on Screen	*/
 MLOCAL WORD ret;		/* general BDOS return code	*/
-
+MLOCAL char	n[12];
 
 #if defined(CDOSTMP) || defined(CDOS)
 /*.pa*/
@@ -652,6 +652,33 @@ BYTE	*s;
 }
 
 
+MLOCAL char * thousands(v)
+ULONG	v;
+{
+	char	s[15];
+	int	i1,i2,i3,sl,sp;
+	ultoa(v,s,10);
+	i1=sl=strlen(s);
+	i2=(i1%3);
+	if (i2==0) i2=3;
+	sp=0;
+	while (i1>0) {
+	  for (i3=0;i3<i2;i3++) {
+	    n[sp+i3]=s[sl-i1+i3];
+	  }
+	  sp+=i2;
+	  n[sp]=0;
+	  i1=i1-i2;
+	  i2=3;
+	  if (i1>0) {
+	    n[sp]=*country.d1000;
+	    sp++;
+	    n[sp]=0;
+	  }
+	}
+	return n;
+}
+
 MLOCAL BYTE * date_format(fmt)
 UWORD			fmt;
 {
@@ -973,9 +1000,17 @@ REG BYTE *cmd;
 		    show_crlf(OPT(DIR_PAGE));
 		printf("%-9s%-3s", search.fname, ext);
 		if (search.fattr & ATTR_DIR)
-		    printf(" <DIR>   ");
+/*		    printf(" <DIR>   ");*/
+		  if (OPT(DIR_2COLS))
+		    printf(" <DIR>    ");
+		  else
+		    printf(" <DIR>        ");
 		else
-		    printf ("%9lu", search.fsize);
+		  if (OPT(DIR_2COLS))
+/*		    printf ("%9lu", search.fsize);*/
+		    printf ("%10lu", search.fsize);
+		  else
+		    printf ("%14s", thousands(search.fsize));
 
 		if(search.fdate) {	   /* if timestamp exists */
 		    printf (" "); disp_filedate (search.fdate);
@@ -1003,10 +1038,15 @@ REG BYTE *cmd;
 
 	show_crlf(OPT(DIR_PAGE));
 	nfree = (LONG)ret * (LONG)free * (LONG)secsiz;
-	if (ddrive != -1)
-	    printf ("%9d %s%10ld %s", nfiles, MSG_FILES, nfree, MSG_FREE);
+	if (ddrive != -1) {
+/*	    printf ("%9d %s%10ld %s", nfiles, MSG_FILES, nfree, MSG_FREE);*/
+/*	    printf ("%9s %s%15ls %s", thousands(nfiles), MSG_FILES, thousands(nfree), MSG_FREE);*/
+	    printf ("%9s %s", thousands(nfiles), MSG_FILES);
+	    printf ("%15ls %s", thousands(nfree), MSG_FREE);
+	}
 	else
-	    printf ("%9d %s", nfiles, MSG_FILES);
+/*	    printf ("%9d %s", nfiles, MSG_FILES);*/
+	    printf ("%9s %s", thousands(nfiles), MSG_FILES);
 	show_crlf(OPT(DIR_PAGE));
 
 	if(others)			/* if others do exist, tell them */

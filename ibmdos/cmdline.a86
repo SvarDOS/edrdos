@@ -1101,7 +1101,8 @@ PCMODE_DATA	DSEG	WORD
 	extrn	con_device:dword	; Current Console Device
 	extrn	column:byte 		; Console Cursor Location
 
-	savbuf_size	equ	128
+;	savbuf_size	equ	128
+	savbuf_size	equ	CMDLINE_LEN
 
 	extrn	savbuf:byte		; fixed location in DOS data area
 

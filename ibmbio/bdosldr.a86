@@ -45,6 +45,7 @@ DATTS		equ	byte ptr 11
  DA_VOLUME	equ	08h
  DA_DIR		equ	10h
 DBLOCK1		equ	word ptr 26
+DSIZE		equ	word ptr 28
 
 
 eject
@@ -263,6 +264,15 @@ open_fail:				; file not found
 	jmp	dev_fail
 
 open_foundit:				; found the open file handle
+	mov	ax,DSIZE[di]		; get length of dosfile
+	mov	dx,DSIZE+2[di]
+	mov	cx,BT_bytes_per_sector	; in sectors
+	div	cx
+;	cmp	dx,0			; any remainder?
+;	 jne	open_found10		; no
+	inc	ax			; round to whole sectors
+open_found10:
+	mov	dosfile_size,ax		; and save it
 	mov	ax,DBLOCK1[di]		; get first disk block
 	mov	start_cluster,ax	; save starting cluster
 	xor	ax,ax
@@ -397,11 +407,17 @@ rd_cluster:
 	mov	al,BT_sctr_per_cluster
 	mov	ah,0			; AX = sectors per cluster
 	mul	dx			; AX = sectors in all clusters
+	cmp	ax,dosfile_size		; is this longer than actual file size?
+	 jbe	rd_cluster10		; no
+	mov	ax,dosfile_size		; do not read more than remaining
+rd_cluster10:
+	sub	dosfile_size,ax		; less to read next time
 	push	ax			; save the sector count
 
 	sub	cx,2			; cluster 2 is data area start
 	mov	al,BT_sctr_per_cluster
-	cbw
+;	cbw
+	xor	ah,ah
 	mul	cx			; AX,DX = relative sector #
 	mov	cx,ax
 	mov	bp,dx			; CX,BP = data area sector #
@@ -513,6 +529,7 @@ dta_seg		rw	1
 
 start_cluster	rw	1
 cluster_count	rw	1
+dosfile_size	rw	1
 
 current_fatsec	dw	-1			; no FAT sector read yet
 fat16		dw	0			; defaults to 12 bit FAT

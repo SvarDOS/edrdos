@@ -31,6 +31,7 @@
 ;    $Log$
 ;
 ;    ENDLOG
+;
 ;		   Structure of Buffer Control Blocks
 ;		   ----------------------------------
 ;	These BCBs immediately preceed the data buffers. BCBs are
@@ -43,7 +44,8 @@ BCB_PREV	equ	word ptr  02h	; link to previous buffer
 BCB_DRV		equ	byte ptr  04h	; drive of this buffer or 0FFh
 BCB_FLAGS	equ	byte ptr  05h	; buffer flags
 BCB_REC		equ	word ptr  06h	; low 16 bits of sector address
-BCB_REC2	equ	byte ptr  08h	; top 8 bits of record address
+BCB_REC2	equ	word ptr  08h	; top 16 bits of sector address
+;BCB_REC2	equ	byte ptr  08h	; top 8 bits of record address
 BCB_COPIES	equ	byte ptr  0Ah	; number of copies to write
 BCB_SEPARATION	equ	word ptr  0Bh	; # sectors copies are apart
 BCB_DDSC	equ	dword ptr 0Dh	; DWORD ptr to DDSC_
@@ -66,12 +68,15 @@ MAX12		equ	0FF6h		; max. disk size w/ 12-bit media
 HCB_LINK	equ	word ptr 0	; link to next control block
 HCB_DRV		equ	byte ptr 2	; drive for this entry or 0FFh
 HCB_CLU		equ	word ptr 4	; cluster number or 0000 if root
-HCB_CNT		equ	word ptr 6	; number of hashed entries
-HCB_DATA	equ	word ptr 8	; hash buffer data
+HCB_CLUH	equ	word ptr 6	; high word of cluster number
+HCB_CNT		equ	word ptr 8	; number of hashed entries
+HCB_DATA	equ	word ptr 10	; hash buffer data
 
 
 ;		      Structure of DOS FCB
 ;		      --------------------
+;	This is hopefully  consistent  with what DOS stores in an
+;	open file control block for DOS 1.x functions
 
 MSF_EXTFLG	equ	byte ptr 0	; if this is 0xFF, skip 1st 7 byte
 MSF_ATTRIB	equ	byte ptr 6	; file attributes if MSF_EXTFLG
@@ -95,6 +100,10 @@ MSF_RR2		equ	byte ptr 35	; random record overflow
 
 ;		      Structure of DOS DPB
 ;		      --------------------
+;	The  layout  of  this  structure  is  a  guess  based  on
+;	examples.  It is returned by PC MODE on functions 1Fh and
+;	32h  and is required  by various  disk-related  utilities
+;	like disk editors and CHKDSK.
 
 DDSC_UNIT	equ	byte ptr 0		; absolute drive number
 DDSC_RUNIT	equ	byte ptr 1		; relative unit number
@@ -116,7 +125,16 @@ DDSC_FIRST	equ	byte ptr 24		; "drive never accessed" flag
 DDSC_LINK	equ	dword ptr 25		; next drive's DDSC
 DDSC_BLOCK	equ	word ptr 29		; next block to allocate
 DDSC_FREE	equ	word ptr 31		; total free clusters on drive
-DDSC_LEN	equ	33
+DDSC_BDATADDR	equ	word ptr 33		; sector address of cluster #2 (32-bit)
+DDSC_BCLSTRS	equ	dword ptr 37		; # of clusters on disk (32-bit)
+DDSC_BFATRECS	equ	dword ptr 41		; # of sectors per FAT (32-bit)
+DDSC_BBLOCK	equ	dword ptr 45		; next block to allocate (32-bit)
+DDSC_BFREE	equ	dword ptr 49		; total free clusters on drive (32-bit)
+DDSC_FSFLAGS	equ	word ptr 53		; FAT mirroring flags
+DDSC_FSVER	equ	word ptr 55		; version of file system
+DDSC_FSROOT	equ	dword ptr 57		; starting cluster of root directory
+DDSC_FSINFO	equ	word ptr 61		; sector number of file system info block
+DDSC_LEN	equ	63
 
 
 
@@ -193,6 +211,7 @@ DMODDATE    	equ	word ptr 18	;delwatch date (yyyyyyymmmmddddd)
 ;DUSER		equ	18		;FlexOS user ID of creator
 ;DGROUP		equ	19		;FlexOS group ID of creator
 DPWM		equ	word ptr 20	;FlexOS access rights
+DBLOCK1H	equ	word ptr 20	;high word of first block in file
 DTIME		equ	22		;time (hhhhhmmmmmmsssss)
 DDATE		equ	24		;date (yyyyyyymmmmddddd)
 DBLOCK1		equ	26		;first block in file
@@ -215,6 +234,7 @@ PWM_ANY		equ	PWM_R+PWM_W+PWM_D	; PWD required for anything
 
 FAT12		equ	00fffh		; 12 bit fat
 FAT16		equ	0ffffh		; 16 bit fat
+FAT32		equ	0		; 32 bit fat
 
 ENDDIR		equ	0ffffh		;end of directory
 

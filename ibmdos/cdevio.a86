@@ -50,6 +50,7 @@ title 'F_DOS Character device I/O'
 	eject ! include i:doshndl.def
 	eject ! include i:driver.equ
 	eject ! include rh.equ
+	eject ! include cmdline.equ
 
 BDOS_DATA	dseg
 
@@ -388,7 +389,8 @@ con_dev_loop:
 	sub	ax,bx			; have we any bytes left in the buffer?
 	 ja	con_dev_cont		; yes, return them
 	 				; no, we need a fresh input line
-	mov	fdos_buf,128		; read up to 128 characters
+;	mov	fdos_buf,128		; read up to 128 characters
+	mov	fdos_buf,CMDLINE_LEN	; read up to 128 characters
 	mov	si,2[bp]		; SI -> parameter block
 	mov	bx,ds:2[si]		; BX = input handle
 	push	ds ! pop es
