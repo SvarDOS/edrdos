@@ -1,0 +1,573 @@
+;    File              : $BDOSLDR.A86$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+
+	include i:reqhdr.equ
+	include i:driver.equ
+	include	config.equ
+
+;	MISC constants
+CR		equ	0dh			;the usual
+LF		equ	0ah
+
+
+DATTS		equ	byte ptr 11
+ DA_VOLUME	equ	08h
+ DA_DIR		equ	10h
+DBLOCK1		equ	word ptr 26
+
+
+eject
+CGROUP		group	INITCODE, INITDATA
+
+INITCODE	cseg	'INITCODE'
+
+eject
+if DOS5
+VER_MUSTBE	equ	1072h
+else
+VER_MUSTBE	equ	1071h
+endif
+
+	Public	dos_version_check
+
+	Public	read_dos		; read BDOS from disk
+
+;--------
+read_dos:	; read in the BDOS
+;--------
+	call	login_drive		; build BPB for the boot drive
+	mov	si,offset dos_name	; get name of file to open
+	call	open_file		; open the BDOS file
+	call	read_file		; read in the system file
+	ret
+
+login_drive:
+;-----------
+	les	di,boot_device		; get device driver address
+	mov	dl,boot_drv		; get the boot drive sub unit
+	mov	ax,es
+	or	ax,di			; make sure boot device is initialised
+	 jnz	login_drive10
+	jmp	dev_fail
+login_drive10:
+	mov	ax,es:6[di]		; get strategy offset
+	mov	strat_off,ax
+	mov	strat_seg,es		; get strategy segment
+	mov	ax,es:8[di]		; get interrupt offset
+	mov	intrpt_off,ax
+	mov	intrpt_seg,es		; get interrupt segment
+
+	mov	bx,offset req_hdr
+	mov	ds:RH_UNIT,dl		; save logical unit to use
+	mov	ds:RH_CMD,CMD_BUILD_BPB
+	call	device_request		; tell it to build a BPB
+	 jc	dev_fail		; return if can't determine BPB
+	push	ds ! push si
+	push	ds ! pop es
+	mov	di,offset local_bpb	; ES:DI -> local BPB copy
+	mov	cx,BPB_LENGTH
+	lds	si,ds:RH2_BPB		; copy BPB to local memory
+	rep	movsb
+	pop	si ! pop ds
+
+;	Now we have to figure out whether the media uses 12 or 16 bit FATs.
+;	To that end, we need to compute the # of clusters on the drive:
+
+	mov	fat16,0			; assume 12 bit FAT
+
+	mov	al,BT_nfats		; compute FAT size
+	mov	ah,0			; AX = # of FAT copies (usually 2)
+	mul	BT_fat_size		; AX/DX = size of FAT in sectors
+
+	add	ax,BT_reserved_sectors	; add in bootstrap sectors
+	adc	dx,0
+	mov	cx,ax			; CX/BP = sector address of root dir
+	mov	bp,dx
+
+	mov	ax,32			; compute root directory size
+	mul	BT_dirsize		; AX/DX = bytes in directory
+	mov	bx,BT_bytes_per_sector
+	dec	bx			; BX = sector size - 1 for rounding
+	add	ax,bx			; round up to next sector size
+	adc	dx,0
+	inc	bx			; BX = sector size in bytes
+	div	bx			; AX = # of root directory sectors
+	add	cx,ax			; CX/BP = sectors before data area
+	adc	bp,0
+
+	mov	ax,BT_total_sectors	; AX/DX = total disk size in sectors
+	sub	dx,dx
+	test	ax,ax			; is it actually larger than 65535?
+	 jnz	dev_small		; no, AX/DX is correct
+	mov	ax,BT_total_long	; else get real size from extension
+	mov	dx,BT_total_long+2
+dev_small:				; AX/DX = disk size in sectors
+	sub	ax,cx			; AX/DX = data sectors
+	sbb	dx,bp
+					; now convert this to clusters
+	mov	bl,BT_sctr_per_cluster
+	mov	bh,0			; BX = sectors per clusters
+	div	bx			; AX = # of data clusters
+	inc	ax
+	inc	ax			; cluster 0,1 are reserved
+	cmp	ax,0FF6h		; is this too large for 12 bits?
+	 jbe	dev_12bit		; skip if 12 bits will do
+	mov	fat16,-1		; else we use 16 bits
+dev_12bit:
+	ret
+
+
+dos_version_check:
+;-----------------
+	mov	ax,4452h
+	int	21h			; try and get DRDOS version number
+	 jc	dev_fail		;  it's not DRDOS !
+	cmp	ax,VER_MUSTBE		; version check the DRDOS BDOS
+	 jne	dev_fail		;  reject all but the one we want
+	ret				; return now I'm happy
+
+dev_fail:	; any error has occurred loading the BDOS
+;--------
+; Print '$' terminated message at offset DX to console without using the BDOS
+;
+	mov	dx,offset dos_msg
+	les	di,resdev_chain		; get first device driver address
+fail_scan:
+	test	es:DH_ATTRIB[di],DA_CHARDEV
+	 jz	fail_next		; skip if not a character device
+	test	es:DH_ATTRIB[di],DA_ISCOT
+	 jnz	fail_found		; skip if console device found
+fail_next:
+	les	di,es:[di]		; get next device
+	jmps	fail_scan
+fail_found:
+	mov	ax,es:6[di]		; get strategy offset
+	mov	strat_off,ax
+	mov	strat_seg,es		; get strategy segment
+	mov	ax,es:8[di]		; get interrupt offset
+	mov	intrpt_off,ax
+	mov	intrpt_seg,es		; get interrupt segment
+
+	mov	bx,offset req_hdr
+	mov	ds:RH_CMD,CMD_OUTPUT	; write to console
+	mov	ds:RH_LEN,RH4_LEN	; set request header length
+	mov	ds:RH4_BUFOFF,dx	; set address of string
+	mov	ds:RH4_BUFSEG,ds
+	mov	ds:RH4_COUNT,-1
+	mov	si,dx			; now find the end of the string
+fail_count_chars:
+	inc	ds:RH4_COUNT		; print another char
+	lodsb				; examine the next one
+	cmp	al,'$'			; terminating char ?
+	 jnz	fail_count_chars
+	call	device_request		; call the console driver
+
+	sti
+	jmps	$			; wait for reboot
+
+
+device_request:		; general device driver interface
+;--------------
+;	entry:	BX -> request header
+;	exit:	CY = 1 if error
+
+	push	ds ! push es
+	push	ds ! pop es
+	mov	ds,strat_seg
+	callf	cs:strat_ptr
+	callf	cs:intrpt_ptr
+	pop	es ! pop ds
+	test	ds:RH_STATUS,RHS_ERROR
+	 jnz	devreq_err
+	clc
+	ret
+devreq_err:
+	jmp	dev_fail		; print error message
+
+
+	ret
+	
+open_file:	; open BDOS system file
+;---------
+;	entry:	SI -> 11 byte file name
+
+	mov	al,BT_nfats
+	cbw
+	mul	BT_fat_size		; DX:AX = # FAT sectors
+
+	mov	cx,ax			; CX = rel_sctr dir start
+	mov	dx,BT_dirsize		; dx = # entries to scan
+
+open_f1: 				; CX = current dir sector
+					; DX = current dir count
+					; SI -> file name
+	push	cx ! push dx ! push si
+	push	ds ! pop es		; ES:BX -> sector buffer
+	mov	bx,offset sector_buffer
+	mov	dx,1			; read one directory sector
+	call	rd_sector_rel		;     via disk driver
+	pop	si ! pop dx ! pop cx
+	inc	cx			; increment sector for next time
+
+	sub	bx,bx			; start at beginning of sector
+open_f2:
+	lea	di,sector_buffer[bx]	; ES:DI -> directory entry
+	push	si ! push di ! push cx	; save name ptr and count
+	push	ds ! pop es
+	mov	cx,11
+	repe	cmpsb			; check if name matches
+	pop	cx ! pop di ! pop si
+	 jne	open_f3			; skip if name doesn't match
+	test	DATTS[di],DA_DIR+DA_VOLUME
+	 jz	open_foundit		; skip if matches
+open_f3:
+	dec	dx			; count down root directory entries
+	 jz	open_fail		; skip if root directory done
+	add	bx,32			; next entry in directory sector
+	cmp	bx,BT_bytes_per_sector	; sector complete?
+	 jb	open_f2			; loop back while more
+	jmps	open_f1			; read next directory sector
+
+open_fail:				; file not found
+	jmp	dev_fail
+
+open_foundit:				; found the open file handle
+	mov	ax,DBLOCK1[di]		; get first disk block
+	mov	start_cluster,ax	; save starting cluster
+	xor	ax,ax
+	ret				; return success
+
+
+read_file:	; read BDOS files into memory at MEM_CURRENT:0000
+;---------
+	mov	ax,current_dos		; Get the Segment address to
+	mov	dta_seg,ax		; load the BDOS at
+	sub	ax,ax
+	mov	dta_off,ax
+rd_file1:
+	mov	cluster_count,1		; we can read at least one cluster
+	mov	cx,start_cluster
+rd_file2:				; check if next cluster contiguous
+	push	cx			; save current cluster number
+	call	next_cluster		; get link to next cluster
+	pop	dx			; get previous cluster #
+	inc	dx			; is current cluster contiguous?
+	cmp	cx,dx			; contiguos if CX == DX
+	 jne	rd_file3		; no, need a separate read
+	inc	cluster_count		; else read one more cluster
+	jmps	rd_file2		; try again with next cluster
+rd_file3:				; CX = next chain, multi cluster read
+	push	cx			; save start of next chain
+	les	bx,dta_ptr		; ES:BX -> transfer address
+	mov	cx,start_cluster	; previous contiguous chain starts here
+	mov	dx,cluster_count	; length of chain in clusters
+	call	rd_cluster		; read DX clusters
+	mov	al,BT_sctr_per_cluster
+	mov	ah,0			; AX = sectors per cluster
+	mul	cluster_count		; AX = sectors in chain to read
+	mul	BT_bytes_per_sector	; AX = bytes in chain to read
+	add	dta_off,ax
+	pop	cx			; CX = next (noncontiguous) cluster
+	mov	start_cluster,cx	; start of new chain
+	inc	cx			; was it end of file cluster number?
+	 jnz	rd_file1		; go back for more if not
+					; else all clusters done
+	ret
+
+
+get_FAT_byte:
+;------------
+;	entry:	BX = offset into FAT
+
+	mov	ax,bx			; BX = offset into FAT
+	sub	dx,dx			; AX/DX = 32 bit offset
+	div	BT_bytes_per_sector	; AX = sector, DX = offset in sector
+	push	dx			; save offset in sector
+	call	locate_FAT		; read FAT sector AX
+	pop	bx			; BX = offset in FAT sector
+	mov	al,sector_buffer[bx]	; get byte from FAT buffer
+	ret
+
+
+locate_FAT:
+;----------
+;	entry:	AX = FAT sector to locate
+
+	cmp	ax,current_fatsec	; AX = sector offset into FAT
+	 je	locate_FAT_match	; O.K. if same as last time
+
+	mov	current_fatsec,ax	; set new sector for next time
+	push	cx ! push si		; preserve FAT index
+	mov	cx,ax			; CX = sector number
+	mov	bx,offset sector_buffer
+	push	ds ! pop es		; ES:BX -> sector buffer
+	mov	dx,1			; DX = single sector
+	call	rd_sector_rel		; read FAT sector
+	pop	si ! pop cx		; restore FAT index
+
+locate_FAT_match:			; return with right sector in buffer
+	ret
+
+
+eject
+;	reads sectors relative to start of DOS area on disk (start=0)
+;	same parameters as rd_sector
+rd_sector_rel:
+;-------------
+;	entry:	CX = sector address relative to first FAT sector
+;		DX = sector count
+
+	sub	bp,bp				;overflow word = 0
+	add	cx,BT_reserved_sectors
+	adc	bp,0
+;	jmps	rd_sector
+	
+
+;	reads absolute sectors from hard disk using rom bios
+rd_sector:
+;---------
+;	entry:	DX = number of sectors
+;		ES:BX -> data transfer buffer
+;		DS -> program global data segment
+;		CX/BP = absolute sector # (32 bit) (low/high)
+
+	push	cx ! push dx		; save parameters
+	mov	req3_bufoff,bx		; save transfer offset
+	mov	req3_bufseg,es		; save transfer segment
+	mov	req3_count,dx		; set sector count
+	mov	bx,offset req_hdr	; BX -> request header
+	mov	ds:RH_CMD,CMD_INPUT	; read from disk device
+	mov	req3_sector,cx		; set requested sector address
+if DOS5
+	mov	req_hdr,RH4_LEN
+	mov	req3_sector32,cx	;  with 32 sector number
+	mov	req3_sector32+2,bp
+	test	bp,bp			; large sector number?
+	 jz	rd_sec1			; no, normal request header
+	mov	req3_sector,0FFFFh	; mark as a large request
+rd_sec1:
+else
+	mov	req3_sector+2,bp	; (support large DOS drives)
+	mov	req_hdr,24		; indicate large request
+endif
+	call	device_request		; tell it to read sectors
+	pop	cx ! pop dx
+	ret				; if CY, AH=error code
+
+
+rd_cluster:
+;----------
+;	entry:	CX = DOS cluster number.
+;		DX = cluster count
+;		ES:BX -> transfer buffer
+
+	push	bx ! push es
+
+	mov	al,BT_sctr_per_cluster
+	mov	ah,0			; AX = sectors per cluster
+	mul	dx			; AX = sectors in all clusters
+	push	ax			; save the sector count
+
+	sub	cx,2			; cluster 2 is data area start
+	mov	al,BT_sctr_per_cluster
+	cbw
+	mul	cx			; AX,DX = relative sector #
+	mov	cx,ax
+	mov	bp,dx			; CX,BP = data area sector #
+
+	mov	al,BT_nfats		; compute FAT size
+	mov	ah,0			; AX = # of FAT copies (usually 2)
+	mul	BT_fat_size		; AX/DX = size of FAT in sectors
+	add	cx,ax
+	adc	bp,dx			; CX,BP = end of FAT sectors
+
+	mov	ax,32
+	mul	BT_dirsize		; AX,DX = bytes in root directory
+	mov	bx,BT_bytes_per_sector
+	dec	bx
+	add	ax,bx			; round up directory size
+	adc	dx,0
+	inc	bx
+	div	bx			; AX = root directory sectors
+	add	cx,ax
+	adc	bp,0			; add root directory size
+
+	add	cx,BT_reserved_sectors	; add in boot sector(s)
+	adc	bp,0
+
+	pop	dx ! pop es ! pop bx	; sector count, disk address
+
+	jmp	rd_sector		; DX secs from CX/BP to ES:BX
+
+
+;	Finds the NEXT cluster after the one passed in CX in an allocation
+;	chain by using the FAT.  Returns the carry set if the end of chain
+;	mark is found, otherwise returns the NEW cluster # in CX.
+next_cluster:
+;------------
+	push	dx ! push bx		; save some registers
+	cmp	fat16,0			; check if this is 12 bit media
+	 je	next_cluster12		; skip if old fashioned 12 bit
+	mov	ax,2
+	mul	cx			; AX/DX = byte offset in FAT (max. 128K)
+	div	BT_bytes_per_sector	; AX = FAT sector #, DX = byte offset
+	push	dx			; save byte offset within sector
+	call	locate_FAT		; get FAT sector AX
+	pop	bx			; BX = offset within sector
+	mov	cx,word ptr sector_buffer[bx]
+					; get 16 bit from FAT
+
+	cmp	cx,0FFF7h		; check if too large for #
+	 jae	next_cluster_eof	; set carry, EOF
+	clc
+	jmps	next_cluster_ret	; good link
+
+next_cluster12:				; DOS 2.x disk
+	push	cx			; save cluster number
+	mov	bx,cx
+	add	bx,bx			; BX = cluster# * 2
+	add	bx,cx			; BX = cluster# * 3
+	shr	bx,1			; BX = cluster# * 1.5
+	push	bx			; save offset in the FAT
+	inc	bx			; BX = offset of high byte
+	call	get_FAT_byte		; get the high byte in AL
+	pop	bx			; BX = offset of low byte
+	push	ax			; save high byte on stack
+	call	get_FAT_byte		; get the low byte in AL
+	pop	bx			; pop off high byte into BL
+	mov	ah,bl			; set high byte, AX = word
+	pop	cx			; restore cluster number
+	shr	cx,1			; test if even or odd
+	 jnc	even_fat		; if even entry, done
+	mov	cl,4			; odd entry, shift down one nibble
+	shr	ax,cl			; else need to justify
+even_fat:				; even entry, strip off top bits
+	and	ax,0fffh		; bx[0..11] are cluster
+	mov	cx,ax			; CX = cluster number
+	cmp	cx,0ff7h		; compare with largest legal 12 bit #
+	 jae	next_cluster_eof	; check for end mark
+	clc
+	jmps	next_cluster_ret	; return value in CX, CY = 0
+next_cluster_eof:
+	mov	cx,-1			; indicate end of chain
+	stc				; end of chain
+next_cluster_ret:
+	pop	bx ! pop dx
+	ret
+
+
+eject
+;
+;	INITIALIZED DATA SEGMENT
+;	========================
+INITDATA	dseg	'INITDATA'
+
+		extrn	resdev_chain:dword	; resident device driver root
+		extrn	current_dos:word	; current BDOS segment
+		extrn	boot_device:dword	; device driver we boot from
+		extrn	boot_drv:byte		; boot drive
+		extrn	dos_name:byte		; name of BDOS file
+
+strat_ptr	rd	0
+strat_off	rw	1
+strat_seg	rw	1
+
+intrpt_ptr	rd	0
+intrpt_off	rw	1
+intrpt_seg	rw	1
+
+dta_ptr		rd	0
+dta_off		rw	1
+dta_seg		rw	1
+
+start_cluster	rw	1
+cluster_count	rw	1
+
+current_fatsec	dw	-1			; no FAT sector read yet
+fat16		dw	0			; defaults to 12 bit FAT
+
+;	single error message if BDOS can't be loaded:
+
+
+include	initmsgs.def				; Include TFT Header File
+
+
+;dos_msg	db	CR,LF,'Can''t load DOS file.$'
+
+
+;	static request header for DOS device driver I/O
+
+req_hdr		db	22
+req_unit	rb	1
+req_cmd		rb	1
+req_status	rw	1
+		rd	2
+req_media	rb	1
+		rb	16
+
+req1_return	equ	byte ptr req_media+1
+req1_volid	equ	word ptr req_media+2
+
+req2_bufoff	equ	word ptr req_media+1
+req2_bufseg	equ	word ptr req_media+3
+req2_bpb	equ	word ptr req_media+5
+
+req3_buffer	equ	dword ptr req_media+1
+req3_bufoff	equ	word ptr req_media+1
+req3_bufseg	equ	word ptr req_media+3
+req3_count	equ	word ptr req_media+5
+req3_sector	equ	word ptr req_media+7
+req3_volid	equ	word ptr req_media+9
+req3_sector32	equ	word ptr req_media+13
+
+;	local copy of the BPB for the boot device
+
+local_bpb		rb	0
+BT_bytes_per_sector	rw	1
+BT_sctr_per_cluster	rb	1
+BT_reserved_sectors	rw	1
+BT_nfats		rb	1
+BT_dirsize		rw	1
+BT_total_sectors	rw	1
+BT_fatid		rb	1
+BT_fat_size		rw	1
+BT_sectors_per_track 	rw	1
+BT_nheads		rw	1
+BT_hidden_sectors	rw	2
+BT_total_long		rw	2
+BPB_LENGTH		equ	(offset $-offset local_bpb)
+
+	extrn	sector_buffer:byte
+
+	end

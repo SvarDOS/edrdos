@@ -1,0 +1,327 @@
+;    File              : $Workfile: MODFUNC.DEF$
+;
+;    Description       : Standard VLADIVAR include file
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+;****************************************************************;
+;*								*;
+;*	OS386 Inter-Module Function Definitions			*;
+;*								*;
+;****************************************************************;
+
+OS386_FUNC	equ	2780h			; AX value
+OS386_INT	equ	02Fh			; interrupt number
+
+	; Module definitions
+USER		equ	0
+SUP		equ	1
+RTM		equ	2
+MEM		equ	3
+DOM		equ	4
+VM		equ	5
+DPMI		equ	6
+DPMS		equ	7
+MIN_MODULE	equ	5
+MAX_MODULE	equ	15
+
+	; Internal SUP functions
+F_NotImp	equ	SUP + 0100h * 00	; Function Not Implemented
+F_Illegal	equ	SUP + 0100h * 01	; Illegal Function
+F_ModuleReg	equ	SUP + 0100h * 02	; Register Module
+F_SysDatAlloc	equ	SUP + 0100h * 03	; allocate SYSDAT memory
+F_SysDat	equ	SUP + 0100h * 04	; return SYSDAT selector
+F_MoveReal	equ	SUP + 0100h * 05	; move real mode memory to protected mode
+F_Reboot	equ	SUP + 0100h * 06
+F_Debug		equ	SUP + 0100h * 07
+F_ForeCheck	equ	SUP + 0100h * 08	; Check for foreground
+F_RegisterVxD	equ	SUP + 0100h * 09	; Register VxD with system
+F_UnloadVxD	equ	SUP + 0100h * 10	; Unload VxD hook
+F_PostInit	equ	SUP + 0100h * 11	; end of initialisation phase
+F_AllocWindow	equ	SUP + 0100h * 12	; allocate a 4K mapping window
+F_RegisterBoot	equ	SUP + 0100h * 13	; register reboot addresses
+F_EnquireBoot	equ	SUP + 0100h * 14	; enquire if reboot active
+F_GetDebugLevel	equ	SUP + 0100h * 15	; get debug level
+F_SetDebugLevel	equ	SUP + 0100h * 16	; set debug level
+F_Version	equ	SUP + 0100h * 17	; version check
+F_V86BPInstall	equ	SUP + 0100h * 18	; install v86 break point
+F_V86BPRemove	equ	SUP + 0100h * 19	; remove v86 break point
+F_V86BPOffer	equ	SUP + 0100h * 20	; offer int 3 as v86 break point
+F_LoaderCleanup	equ	SUP + 0100h * 21	; offer the chance to cleanup
+F_RegisterVxDWindow equ	SUP + 0100h * 22	; Register VxD mapping window
+F_RegisterPNW	equ	SUP + 0100h * 23	; Register PNW info
+
+	; Internal RTM functions
+F_PDCount	equ	RTM + 0100h * 01
+F_FlgWait	equ	RTM + 0100h * 02
+F_FlgSet	equ	RTM + 0100h * 03
+F_QMake		equ	RTM + 0100h * 04
+F_QOpen		equ	RTM + 0100h * 05
+F_QDelete	equ	RTM + 0100h * 06
+F_QRead		equ	RTM + 0100h * 07
+F_CQread	equ	RTM + 0100h * 08
+F_QWrite	equ	RTM + 0100h * 09
+F_CQWrite	equ	RTM + 0100h * 10
+F_Delay		equ	RTM + 0100h * 11
+F_Dispatch	equ	RTM + 0100h * 12
+F_PTerm		equ	RTM + 0100h * 13
+F_PCreat	equ	RTM + 0100h * 14
+F_SetPrior	equ	RTM + 0100h * 15
+F_PDAddr	equ	RTM + 0100h * 16
+F_PAbort	equ	RTM + 0100h * 17
+F_Sleep		equ	RTM + 0100h * 18
+F_Wakeup	equ	RTM + 0100h * 19
+F_FindPDName	equ	RTM + 0100h * 20
+F_SetFlags	equ	RTM + 0100h * 21
+F_EndOfInterrupt equ	RTM + 0100h * 22	; Register PIC end of interrupt
+F_NoAbort	equ	RTM + 0100h * 23
+F_OkAbort	equ	RTM + 0100h * 24
+F_FlagStatus	equ	RTM + 0100h * 25
+F_QRdMX		equ	RTM + 0100h * 26
+F_QWrMX		equ	RTM + 0100h * 27
+F_FlgAlloc	equ	RTM + 0100h * 28
+F_FlgFree	equ	RTM + 0100h * 29
+F_NumFlags	equ	RTM + 0100h * 30
+F_NDQRead	equ	RTM + 0100h * 31
+F_FlgWWTO	equ	RTM + 0100h * 32
+F_UdaAlloc	equ	RTM + 0100h * 33
+F_UdaFree	equ	RTM + 0100h * 34
+F_PFreeze	equ	RTM + 0100h * 35
+F_PThaw		equ	RTM + 0100h * 36
+F_CritEnter	equ	RTM + 0100h * 37
+F_CritExit	equ	RTM + 0100h * 38
+F_PCreate	equ	RTM + 0100h * 39
+F_PDList	equ	RTM + 0100h * 40
+F_PDToName	equ	RTM + 0100h * 41
+F_PDToStatus	equ	RTM + 0100h * 42
+F_PDToDomain	equ	RTM + 0100h * 43
+F_GetPrior	equ	RTM + 0100h * 44
+F_QDList	equ	RTM + 0100h * 45
+F_QDToName	equ	RTM + 0100h * 46
+F_QDToMsgLen	equ	RTM + 0100h * 47
+F_QDToMaxMsgs	equ	RTM + 0100h * 48
+F_QDToNqPD	equ	RTM + 0100h * 49
+F_QDToDqPD	equ	RTM + 0100h * 50
+F_QDToNumMsgs	equ	RTM + 0100h * 51
+F_QDToFlags	equ	RTM + 0100h * 52
+F_NameToQD	equ	RTM + 0100h * 53
+F_NameToPD	equ	RTM + 0100h * 54
+F_MutexAlloc	equ	RTM + 0100h * 55
+F_MutexFree	equ	RTM + 0100h * 56
+F_MutexEnter	equ	RTM + 0100h * 57
+F_MutexCEnter	equ	RTM + 0100h * 58
+F_MutexExit	equ	RTM + 0100h * 59
+F_Slice		equ	RTM + 0100h * 60
+F_TickLength	equ	RTM + 0100h * 61
+F_ProcessID	equ	RTM + 0100h * 62
+F_QClose	equ	RTM + 0100h * 63
+F_QDispose	equ	RTM + 0100h * 64
+F_PDToFlags	equ	RTM + 0100h * 65
+F_PDToDParam	equ	RTM + 0100h * 66
+F_ReleaseMX	equ	RTM + 0100h * 67
+F_SimulateInt	equ	RTM + 0100h * 68
+F_SetQFlags	equ	RTM + 0100h * 69
+F_TickRate	equ	RTM + 0100h * 70
+
+	; Internal MEMORY functions
+F_PdirGet	equ	MEM + 0100h * 01
+F_PdirSet	equ	MEM + 0100h * 02
+F_PageAlloc	equ	MEM + 0100h * 03
+F_RealAllocG	equ	MEM + 0100h * 04
+F_RealAllocI	equ	MEM + 0100h * 05
+F_PtblRead	equ	MEM + 0100h * 06
+F_PtblWrite	equ	MEM + 0100h * 07
+F_PageGet	equ	MEM + 0100h * 08
+F_PageSet	equ	MEM + 0100h * 09
+F_PagesAlloc	equ	MEM + 0100h * 10
+F_PageFree	equ	MEM + 0100h * 11
+F_MemAlloc	equ	MEM + 0100h * 12
+F_MemFree	equ	MEM + 0100h * 13
+F_MemSize	equ	MEM + 0100h * 14
+F_MemResize	equ	MEM + 0100h * 15
+F_DescAlloc	equ	MEM + 0100h * 16
+F_DescFree	equ	MEM + 0100h * 17
+F_DescGet	equ	MEM + 0100h * 18
+F_DescSet	equ	MEM + 0100h * 19
+F_DescMemAlloc	equ	MEM + 0100h * 20
+F_DescMemFree	equ	MEM + 0100h * 21
+F_DescMemSize	equ	MEM + 0100h * 22
+F_DescMemResize	equ	MEM + 0100h * 23
+F_PageLock	equ	MEM + 0100h * 24
+F_PageUnlock	equ	MEM + 0100h * 25
+F_PageLockAny	equ	MEM + 0100h * 26
+F_PageUnlockReuse equ	MEM + 0100h * 27
+F_PageLockNone	equ	MEM + 0100h * 28
+F_PageUnlockNone equ	MEM + 0100h * 29
+F_CallRealRaw	equ	MEM + 0100h * 30	; Call real mode (SS:ESP supplied)
+F_IntRealRaw	equ	MEM + 0100h * 31	; Do real mode interrupt (SS:ESP supplied)
+F_CallReal	equ	MEM + 0100h * 32	; Call real mode with RETF frame
+F_IntReal	equ	MEM + 0100h * 33	; Do real mode interrupt
+F_PagedCallReal	equ	MEM + 0100h * 34	; Paged real mode call
+F_PagedIntReal	equ	MEM + 0100h * 35	; Paged real mode interrupt
+F_CallIretReal	equ	MEM + 0100h * 36	; Call real mode with IRET frame
+F_CallIretRealRaw equ	MEM + 0100h * 37	; Call real mode with IRET frame (SS:ESP supplied)
+F_CallProt16	equ	MEM + 0100h * 38	; Call protected mode 16 bit code
+F_CallProt32	equ	MEM + 0100h * 39	; Call protected mode 32 bit code
+F_IAddPage	equ	MEM + 0100h * 40	; add kernel instance data
+F_BankPageLock	equ	MEM + 0100h * 41
+F_BankPageUnlock equ	MEM + 0100h * 42
+F_BankPageLockAny equ	MEM + 0100h * 43
+F_BankPageUnlockReuse equ MEM+0100h * 44
+F_BankPageLockNone equ	MEM + 0100h * 45
+F_BankPageUnlockNone equ MEM+ 0100h * 46
+F_GateAlloc	equ	MEM + 0100h * 47
+F_GateFree	equ	MEM + 0100h * 48
+F_MemTotalFree	equ	MEM + 0100h * 49
+F_AddressSpace	equ	MEM + 0100h * 50
+F_MemTotal	equ	MEM + 0100h * 51
+F_DescRead	equ	MEM + 0100h * 52
+F_DescWrite	equ	MEM + 0100h * 53
+F_GetStack	equ	MEM + 0100h * 54
+F_SetStack	equ	MEM + 0100h * 55
+
+	; Internal DOMain functions
+
+F_DAlloc	equ	DOM + 0100h * 00	; create a new domain
+F_DFree		equ	DOM + 0100h * 01	; free up a domain
+F_DGet		equ	DOM + 0100h * 02	; get current domain
+F_DSet		equ	DOM + 0100h * 03	; switch to another domain
+F_SWIntHandler	equ	DOM + 0100h * 04	; Install Software Interrupt handler
+F_PFaultHandler	equ	DOM + 0100h * 05	; Install Page Fault handler
+F_IOExHandler	equ	DOM + 0100h * 06	; Install I/O Exception handler
+F_GenExHandler	equ	DOM + 0100h * 07	; Install General Exception handler
+F_HWIntHandler	equ	DOM + 0100h * 08	; Install HW int handler
+F_IOBitGet	equ	DOM + 0100h * 09	; Get domain IO bitmap
+F_IOBitSet	equ	DOM + 0100h * 10	; Set domain IO bitmap
+F_BankIOBitGet	equ	DOM + 0100h * 11	; Get domain banked IO bitmap
+F_BankIOBitSet	equ	DOM + 0100h * 12	; Set domain banked IO bitmap
+F_BankMemGet	equ	DOM + 0100h * 13	; Read domain banked memory
+F_BankMemSet	equ	DOM + 0100h * 14	; Write domain banked memory
+F_BankPageGet	equ	DOM + 0100h * 15	; Get domain banked page table entry
+F_BankPageSet	equ	DOM + 0100h * 16	; Set domain banked page table entry
+F_RegInstData	equ	DOM + 0100h * 17	; register DOS instance data
+F_NProcesses	equ	DOM + 0100h * 18	; Get number of processes in domain
+F_DFreeze	equ	DOM + 0100h * 19	; Suspend domain
+F_DThaw		equ	DOM + 0100h * 20	; Unsuspend domain
+F_DFork		equ	DOM + 0100h * 21	; Fork domain
+F_DAbort	equ	DOM + 0100h * 22	; Abort all processes in domain
+F_UnlinkHandler equ	DOM + 0100h * 23	; Uninstall a handler
+F_HWIntDfltHandler equ	DOM + 0100h * 24	; Install HW int default handler
+F_VHWIntHandler	equ	DOM + 0100h * 25	; Install Virtual HW int handler
+F_VHWIntDfltHandler equ	DOM + 0100h * 26	; Install Virtual HW int default handler
+F_SwapInHandler	equ	DOM + 0100h * 27	; Install process swap in handler
+F_SwapOutHandler equ	DOM + 0100h * 28	; Install process swap out handler
+F_DosStartup	equ	DOM + 0100h * 29	; Statup a DOS session
+F_DosShutdown	equ	DOM + 0100h * 30	; Terminate a DOS session
+F_PCreateHandler equ	DOM + 0100h * 31	; Install process create handler
+F_PDeleteHandler equ	DOM + 0100h * 32	; Install process terminate handler
+F_RootPD	equ	DOM + 0100h * 33	; Get Domain Root Process
+F_DForeground	equ	DOM + 0100h * 34	; Domain has just switched to foreground
+F_DBackground	equ	DOM + 0100h * 35	; Domain will be switching to background
+F_MapHMA	equ	DOM + 0100h * 36	; Map Domains HMA
+F_AddInstData	equ	DOM + 0100h * 37	; add DOS instance data
+F_DMemFree	equ	DOM + 0100h * 38	; get memory available to this domain
+F_DMemTotal 	equ	DOM + 0100h * 39	; get memory allocated to this domain
+F_DGetMemLimit 	equ	DOM + 0100h * 40	; get limit on local memory allocations
+F_DSetMemLimit 	equ	DOM + 0100h * 41	; set limit on local memory allocations
+F_ReflectInt21	equ	DOM + 0100h * 42	; support for protected mode Int 21's
+F_DTestRegion	equ	DOM + 0100h * 43	; test region for global/local memory
+F_Switcher	equ	DOM + 0100h * 44	; make task switcher call
+F_HandlerCleanup equ	DOM + 0100h * 45	; debugger hook - remove all handlers for a selector
+F_DFlagGet	equ	DOM + 0100h * 46	; get Domain Flags
+F_DFlagSet	equ	DOM + 0100h * 47	; set Domain Flags
+F_DSwitchHandler equ	DOM + 0100h * 48	; Install domain switch handler
+F_GIOExHandler	equ	DOM + 0100h * 49	; Install Global I/O Exception handler
+
+;------------
+
+; VM Functions
+
+F_VMProtInit	equ	VM + 0100h * 00	; Protected Mode initialisation internal)
+
+F_LoadMT	equ	VM + 0100h * 01	; Load MultiTasking
+F_UnloadMT	equ	VM + 0100h * 02	; Unload MultiTasking
+F_ConsoleFree	equ	VM + 0100h * 03	; Save Console if enabled, then free it
+F_ConsoleGet	equ	VM + 0100h * 04	; Get Console, then restore if enabled
+F_ConsoleSaveEnable  equ VM +0100h * 05	; Enable Console save/restore
+F_ConsoleSaveDisable equ VM +0100h * 06	; Disable Console save/restore
+
+F_TMInit	equ	VM + 0100h * 07	; Task Manager Init
+F_GetKey	equ	VM + 0100h * 08	; Domain Manager to Keyboard Handler
+F_KeyScanEnable	equ	VM + 0100h * 09	; Enable hotkey scanning
+F_KeyScanDisable equ	VM + 0100h * 10	; Disable hotkey scanning
+F_ConsoleOwner	equ	VM + 0100h * 11	; Get console owner domain id
+F_DMAHandlerEnable  equ	VM + 0100h * 12 ; Re-enable DMA address translation
+F_DMAHandlerDisable equ VM + 0100h * 13	; Disable DMA address translation
+F_SetSerialTimeout  equ	VM + 0100h * 14	; Set Serial Port Timeout
+F_SetParallelTimeout equ VM+ 0100h * 15	; Set Parallel Port Timeout
+F_VCPIEntry	equ	VM + 0100h * 16	; Domain is going into VCPI mode
+F_VCPIExit	equ	VM + 0100h * 17	; Domain has probably come out of VCPI mode
+F_SetGlobalMsgMode  equ	VM + 0100h * 18	; Enter global message display mode
+F_DisplayGlobalMsg  equ	VM + 0100h * 19	; Ditto, plus display message
+F_ExitGlobalMsgMode equ	VM + 0100h * 20	; Exit global message display mode
+F_SetDomainMsgMode  equ	VM + 0100h * 21	; Enter domain message display mode
+F_DisplayDomainMsg  equ	VM + 0100h * 22	; Ditto, plus display message
+F_ExitDomainMsgMode equ	VM + 0100h * 23	; Exit domain message display mode
+F_DisplayFatalMsg   equ	VM + 0100h * 24	; Display fatal message
+F_SetSerialBase	    equ	VM + 0100h * 25	; Set Serial port base address
+F_SetParallelBase   equ	VM + 0100h * 26	; Set Parallel port base address
+F_SetSerialIRQ	    equ	VM + 0100h * 27	; Set Serial port IRQ number
+F_SetParallelIRQ    equ VM + 0100h * 28	; Set Parallel port IRQ number
+F_ResetVideo	    equ VM + 0100h * 29	; EMERGENCY reset of the video system
+F_SetMouseIRQ	    equ VM + 0100h * 30	; Set mouse IRQ
+F_CheckNotIdle      equ	VM + 0100h * 31	; Check if we are idle or not
+F_GetMouseInfo	    equ	VM + 0100h * 32
+F_GetSerialOwner    equ	VM + 0100h * 33
+F_GetSerialTimeout  equ	VM + 0100h * 34
+F_GetParallelOwner  equ	VM + 0100h * 35
+F_GetParallelTimeout equ VM+ 0100h * 36
+
+LAST_VM_FUNC	equ	36
+
+;------------
+
+; DPMI Functions
+
+; These "DPMI" functions are those that are provided by the DPMI module via the
+; Vladivar interface. True DPMI functions should be accessed via int 31h as per
+; the DPMI spec.
+
+F_InitDPMI	equ DPMI + 0100h * 0 ; used internally by DPMI. Do not call.
+F_DescAllocLDT	equ DPMI + 0100H * 1 ; allocate an LDT descriptor
+F_DescFreeLDT	equ DPMI + 0100H * 2 ; free an LDT descriptor
+F_DescGetLDT	equ DPMI + 0100H * 3 ; same as F_DescGet, but for LDT 
+F_DescSetLDT	equ DPMI + 0100H * 4 ; same as F_DescSet, but for LDT 
+F_DescAllocInt21 equ DPMI + 0100H * 5 ; allocate an LDT descriptor for pmode
+				     ;  int 21 memory allocation. 
+F_WhereIsDPMI	equ DPMI + 0100H * 6 ; return address of DPMI global data
+
+LAST_DPMI_FUNC	equ	6
+

@@ -1,0 +1,74 @@
+;    File              : $CHAR.DEF$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+;************************************************;
+;*						*;
+;*	      Character Definitions		*;
+;*						*;
+;************************************************;
+
+CTLA		equ	'A' - '@'
+CTLB		equ	'B' - '@'
+CTLC		equ	'C' - '@'
+CTLD		equ	'D' - '@'
+CTLE		equ	'E' - '@'
+CTLF		equ	'F' - '@'
+CTLG		equ	'G' - '@'
+BELL		equ	'G' - '@'
+CTLH		equ	'H' - '@'
+CTLI		equ	'I' - '@'
+TAB		equ	'I' - '@'
+CTLJ		equ	'J' - '@'
+LF		equ	'J' - '@'
+CTLK		equ	'K' - '@'
+CTLM		equ	'M' - '@'
+CR		equ	'M' - '@'
+CTLP		equ	'P' - '@'
+CTLQ		equ	'Q' - '@'
+CTLR		equ	'R' - '@'
+CTLS		equ	'S' - '@'
+CTLT		equ	'T' - '@'
+CTLU		equ	'U' - '@'
+CTLV		equ	'V' - '@'
+CTLW		equ	'W' - '@'
+CTLX		equ	'X' - '@'
+CTLY		equ	'Y' - '@'
+CTLZ		equ	'Z' - '@'
+ESC		equ	'[' - '@'
+CTLBS		equ	'\' - '@'
+CTLUB		equ	'_' - '@'
+CTLUP		equ	'^' - '@'
+DEL		equ	07Fh
+RUBOUT		equ	DEL
+
+CTL		equ	'^'

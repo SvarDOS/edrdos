@@ -1,0 +1,166 @@
+;    File              : $REQHDR.EQU$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+
+CMD_INIT		equ	 0	; Initialize the Device Driver
+CMD_MEDIA_CHECK		equ	 1	; Request Media Check
+CMD_BUILD_BPB		equ	 2	; Build Drive BPB
+CMD_INPUT_IOCTL		equ	 3	; IOCTL input
+CMD_INPUT		equ	 4	; Input
+CMD_INPUT_NOWAIT	equ	 5	; Non destructive input no wait
+CMD_INPUT_STATUS	equ	 6	; Input status
+CMD_INPUT_FLUSH		equ	 7	; Input flush
+CMD_OUTPUT		equ	 8	; Output
+CMD_OUTPUT_VERIFY	equ	 9	; Output with verify
+CMD_OUTPUT_STATUS	equ	10	; Output status
+CMD_OUTPUT_FLUSH	equ	11	; Output flush
+CMD_OUTPUT_IOCTL	equ	12	; IOCTL output
+CMD_DEVICE_OPEN		equ	13	; Device OPEN
+CMD_DEVICE_CLOSE	equ	14	; Device CLOSE
+CMD_FIXED_MEDIA		equ	15	; Removeable Media Check
+CMD_GENERIC_IOCTL	equ	19	; Generic IOCTL
+CMD_GET_DEVICE		equ	23	; Get the Logical Device
+CMD_SET_DEVICE		equ	24	; Set the Logical Device
+CMD_QUERY_IOCTL		equ	25	; query ioctl support
+
+;	Generic Request Header Format
+
+RH_LEN		equ	es:byte ptr 0[bx]
+RH_UNIT		equ	es:byte ptr 1[bx]
+RH_CMD		equ	es:byte ptr 2[bx]
+RH_STATUS	equ	es:word ptr 3[bx]
+  RHS_DONE	equ	0100h
+  RHS_BUSY	equ	0200h
+  RHS_IC	equ	0400h			; Interim Character
+  RHS_RM	equ	0800h
+  RHS_ERROR	equ	8000h
+
+;******
+;* No longer safe to use - some device drivers trample on them....
+;*
+;* RH_STRATEGY	equ	es:dword ptr 5[bx]	; Device Strategy Routine
+;* RH_STRATOFF	equ	es:word ptr  5[bx]	; Strategy Offset
+;* RH_STRATSEG	equ	es:word ptr  7[bx]	; Strategy Segment
+;* RH_INTERRUPT	equ	es:dword ptr 9[bx]	; Device Interrupt Routine
+;* RH_INTOFF	equ	es:word ptr  9[bx]	; Intterupt Offset
+;* RH_INTSEG	equ	es:word ptr 11[bx]	; Interrupt Segment
+;*****
+
+;	Request header for initialization
+
+RH0_NUNITS	equ	es:byte ptr 13[bx]
+RH0_RESIDENT	equ	es:word ptr 14[bx]
+RH0_BPBOFF	equ	es:word ptr 18[bx]
+RH0_BPBSEG	equ	es:word ptr 20[bx]
+RH0_DRIVE	equ	es:byte ptr 22[bx]
+RH0_LEN		equ	22
+
+;	Request header for media check
+
+RH1_MEDIA	equ	es:byte ptr 13[bx]	; BDOS: current media byte
+RH1_RETURN	equ	es:byte ptr 14[bx]	; driver: return code (00, 01, FF)
+RH1_VOLID	equ	es:dword ptr 15[bx]	; driver: volume label address
+RH1_LEN		equ	15
+
+;	Request header for "build BPB"
+
+RH2_MEDIA	equ	es:byte ptr 13[bx]	; BDOS or driver?
+RH2_BUFFER	equ	es:dword ptr 14[bx]	; BDOS: scratch buffer for driver use
+RH2_BPB		equ	es:dword ptr 18[bx]	; same as the following:
+RH2_BPBOFF	equ	es:word ptr 18[bx]	; driver: address of new BPB
+RH2_BPBSEG	equ	es:word ptr 20[bx]
+RH2_LEN		equ	24
+
+;	Request header for input/output
+
+RH4_MEDIA	equ	es:byte ptr 13[bx]	; BDOS: current media byte
+RH4_RIC		equ	es:byte ptr 13[bx]	; BDOS: Return Interim Char flg
+RH4_BUFFER	equ	es:dword ptr 14[bx]	; BDOS: disk transfer address
+RH4_BUFOFF	equ	es:word ptr 14[bx]	; BDOS: Buffer Offset
+RH4_BUFSEG	equ	es:word ptr 16[bx]	; BDOS: Buffer Segment
+RH4_COUNT	equ	es:word ptr 18[bx]	; BDOS: sector count
+RH4_SECTOR	equ	es:word ptr 20[bx]	; BDOS: starting sector
+RH4_VOLID	equ	es:dword ptr 22[bx]	; driver: volume if illegal disk change
+RH4_BIGSECTOR   equ es:dword ptr 26[bx] 
+RH4_BIGSECTORLO	equ	es:word ptr 26[bx]
+RH4_BIGSECTORHI	equ	es:word ptr 28[bx]
+
+RH4_LEN		equ	30
+
+;	Request Header for Non-Destructive Input
+
+RH5_CHAR	equ	es:byte ptr 13[bx]	; Character Read from Device
+RH5_RIC		equ	es:byte ptr 13[bx]	; BDOS: Return Interim Char flg
+RH5_LEN		equ	14
+
+;	Request Header for Device Open
+
+RH13_LEN	equ	13
+
+;	Request Header for Device Close
+
+RH14_LEN	equ	13
+
+;	Request header for generic IOCTL
+
+RH19_CATEGORY	equ	es:word ptr 13[bx]	; BDOS: major/minor function number
+RH19_MAJOR	equ	es:byte ptr 13[bx]	; BDOS: Major Function Number
+RH19_MINOR	equ	es:byte ptr 14[bx]	; BDOS: Minor Function Number
+RH19_SI		equ	es:word ptr 15[bx]	; BDOS: User SI	
+RH19_DI		equ	es:word ptr 17[bx]	; BDOS: User DI	
+RH19_GENPB	equ	es:dword ptr 19[bx]	; BDOS: extra parameters
+RH19_LEN	equ	23
+
+RQ19_SET	equ	40h		; set device parameters
+RQ19_GET	equ	60h		; get device parameters
+RQ19_WRITE	equ	41h		; write tracks
+RQ19_READ	equ	61h		; read tracks
+RQ19_FORMAT	equ	42h		; format tracks
+RQ19_VERIFY	equ	62h		; verify tracks
+
+RQ19_PRP_START	equ	4Ch		; start of codepage prepare
+RQ19_PRP_END	equ	4Dh		; end of codepage prepare
+RQ19_SELECT	equ	4Ah		; select code page
+RQ19_QRY_SEL	equ	6Ah		; query selected code page
+RQ19_QRY_PRP	equ	6Bh		; query prepared code page(s)
+RQ19_DSP_SET	equ	5Fh		; set display information
+RQ19_DSP_GET	equ	7Fh		; get display information
+
+;	Request header for get/set drive
+
+RH24_CMD	equ	es:byte ptr 14[bx]	; BDOS: Command Code
+RH24_STATUS	equ	es:word ptr 15[bx]	; BDOS: Status
+RH24_RESVD	equ	es:dword ptr 17[bx]	; BDOS: Reserved
+RH24_LEN	equ	21
+
+RH_SIZE		equ	30		; maximum size of request header

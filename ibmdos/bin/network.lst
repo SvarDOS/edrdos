@@ -1,0 +1,696 @@
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page   1
+
+
+=  0001                   __RASM__        EQU     1
+
+                          ;    File              : $NETWORK.A86$
+                          ;
+                          ;    Description       :
+                          ;
+                          ;    Original Author   : DIGITAL RESEARCH
+                          ;
+                          ;    Last Edited By    : $CALDERA$
+                          ;
+                          ;-----------------------------------------------------------------------;
+                          ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+                          ;      
+                          ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+                          ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+                          ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+                          ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+                          ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+                          ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+                          ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+                          ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+                          ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+                          ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+                          ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+                          ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+                          ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+                          ;    CIVIL LIABILITY.
+                          ;-----------------------------------------------------------------------;
+                          ;
+                          ;    *** Current Edit History ***
+                          ;    *** End of Current Edit History ***
+                          ;
+                          ;    $Log$
+                          ;    ENDLOG
+                          ;
+                          ;   DOS Network Function Calls
+
+=                                 include pcmode.equ
+=                         ;    File              : $PCMODE.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page   2
+
+
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ;       This file contains all the general purpose definitions
+=                         ;       and equates used by the PCMODE Module.
+=                         ;
+=
+=  FFFF                   TRUE            equ     0FFFFh          ; value of TRUE
+=  0000                   FALSE           equ     0               ; value of FALSE
+=
+=  0006                   TRUE_VERSION    equ     6
+=
+=  FFFF                   IDLE_DETECT     equ     TRUE            ; Check for IDLE Process's
+=
+=                         if IDLE_DETECT
+=  0001                   IDLE_COMMAND    equ     0001h           ; Command Processor Active
+=  0002                   IDLE_DOSFUNC    equ     0002h           ; DOS Function Called
+=  0004                   IDLE_INT28      equ     0004h           ; INT 28 Called
+=
+=  4000                   IDLE_ON         equ     4000h           ; ReSet when Idle Checking Enabled
+=  8000                   IDLE_INIT       equ     8000h           ; ReSet when $IDLE$ Loaded and Active
+=  C000                   IDLE_DISABLE    equ     IDLE_INIT + IDLE_ON 
+=
+=  0001                   PROC_IDLE       equ     0001            ; Process is IDLE
+=  0002                   PROC_INT28      equ     0002            ; INT28 Polling Loop
+=  0003                   PROC_KEYIN      equ     0003            ; Keyboard Input
+=  0004                   PROC_DEVIN      equ     0004            ; Device Input Routine
+=                         endif
+=
+=
+=  00C0                   STACK_SIZE      equ     192             ; Local Stack Size (Levels)
+=  0050                   MAX_PATHLEN     equ     80              ; Maximum Path length
+=  000D                   MAX_FILELEN     equ     13
+=
+=                         ;
+=                         ;       DOS process termination Codes
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page   3
+
+
+=                         ;
+=  0000                   TERM_NORMAL     equ     0               ; Normal Termination
+=  0001                   TERM_BREAK      equ     1               ; Termination by Control Break
+=  0002                   TERM_ERROR      equ     2               ; Termination by Critical Error
+=  0003                   TERM_RESIDENT   equ     3               ; Terminate and Stay Resident
+=
+=                         ;
+=                         ;       Critical Error responses from the default INT 24 handler and
+=                         ;       the DO_INT24 routine.
+=                         ;
+=  0000                   ERR_IGNORE      equ     0               ; Ignore Error
+=  0001                   ERR_RETRY       equ     1               ; Retry the Operation
+=  0002                   ERR_ABORT       equ     2               ; Terminate the Process
+=  0003                   ERR_FAIL        equ     3               ; Fail Function
+=                         ;
+=  0008                   OK_FAIL         equ     0000$1000b      ; Fail is a Valid Response
+=  0010                   OK_RETRY        equ     0001$0000b      ; Retry is a Valid Response
+=  0020                   OK_IGNORE       equ     0010$0000b      ; Ignore is a valid Response
+=  0038                   OK_RIF          equ     0011$1000b      ; All Responsese are Valid
+=  0030                   OK_RI           equ     0011$0000b      ; Retry and Ignore are Valid
+=  0018                   OK_RF           equ     0001$1000b      ; Retry and Fail are Valid
+=                         ;
+=  0040                   NO_CRIT_ERRORS  equ     0100$0000b      ; critical error shouldn't be generated
+=                                                                 ; warning - must match FDOS.A86
+=                         ;
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page   4
+
+
+=                         eject
+=                         ;       The following equates define the format in which the users registers
+=                         ;       are saved on the stack. This format is also seen by an application
+=                         ;       when a critical error occurs.
+=                         ;
+=                         CodeMacro       POP$DOS         ; Pop User Registers a la MS-DOS
+=                                 db 058h ! db 05Bh       ; pop AX ! pop BX
+=                                 db 059h ! db 05Ah       ; pop BX ! pop CX
+=                                 db 05Eh ! db 05Fh       ; pop SI ! pop DI
+=                                 db 05Dh                 ; pop BP
+=                                 db 01Fh ! db 007h       ; pop DS ! pop ES
+=                         EndM
+=
+=                         CodeMacro   PUSH$DOS    ; Push User Registers
+=                                 db 006h ! db 01Eh       ; push ES ! push DS
+=                                 db 055h                 ; push BP
+=                                 db 057h ! db 056h       ; push DI ! push SI
+=                                 db 052h ! db 051h       ; push DX ! push CX
+=                                 db 053h ! db 050h       ; push BX ! push AX
+=                         EndM
+=
+=  0000                   reg_AX          equ     word ptr .00
+=  0000                   reg_AL          equ     byte ptr .00
+=  0001                   reg_AH          equ     byte ptr .01
+=
+=  0002                   reg_BX          equ     word ptr .02
+=  0002                   reg_BL          equ     byte ptr .02
+=  0003                   reg_BH          equ     byte ptr .03
+=
+=  0004                   reg_CX          equ     word ptr .04
+=  0004                   reg_CL          equ     byte ptr .04
+=  0005                   reg_CH          equ     byte ptr .05
+=
+=  0006                   reg_DX          equ     word ptr .06
+=  0006                   reg_DL          equ     byte ptr .06
+=  0007                   reg_DH          equ     byte ptr .07
+=
+=  0008                   reg_SI          equ     word ptr .08
+=  000A                   reg_DI          equ     word ptr .10
+=  000C                   reg_BP          equ     word ptr .12
+=
+=  000E                   reg_DS          equ     word ptr .14
+=  0010                   reg_ES          equ     word ptr .16
+=
+=  0012                   reg_IP          equ     word ptr .18
+=  0014                   reg_CS          equ     word ptr .20
+=  0016                   reg_FLAGS       equ     word ptr .22
+=
+=                         ; Processor Flags
+=  0001                   CARRY_FLAG      equ     0001h           ; Carry Flag
+=  0040                   ZERO_FLAG       equ     0040h           ; Zero Flag
+=  0080                   SIGN_FLAG       equ     0080h           ; Sign Flag
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page   5
+
+
+=  0200                   INT_FLAG        equ     0200h           ; Interrupt Flag
+=  0400                   DIR_FLAG        equ     0400h           ; Direction Flag
+=  0800                   OFLW_FLAG       equ     0800h           ; OverFlow Flag
+=
+=  0000                   DMD_ID          equ     es:byte ptr .0  ; id code ('M' or 'Z')
+=  0001                   DMD_PSP         equ     es:word ptr .1  ; owner of memory block
+=  0003                   DMD_LEN         equ     es:word ptr .3  ; length of memory block
+=  0006                   DMD_IDLE_FLAGS  equ es:word ptr .6  ; idle flags live here
+=  0008                   DMD_NAME        equ     es:byte ptr .8  ; ASCIIZ name field
+=  0008                   DMD_NAME_LEN    equ     8               ;  8 Bytes long
+=  004D                   IDM             equ     'M'             ; not last id code
+=  005A                   IDZ             equ     'Z'             ; last id code
+=
+=                         PCMCODE         GROUP   PCM_HEADER, PCM_CODE, BDOS_CODE, PCM_RODATA
+=                         PCMCODE         GROUP   PCM_HISTORY, PCM_ICODE, PCM_CODEND
+=
+=                         PCM_HEADER      CSEG    PARA
+=                         PCM_CODE        CSEG    BYTE
+=                         PCM_RODATA      CSEG    WORD
+=                         BDOS_CODE       CSEG    WORD
+=                         PCM_HISTORY     CSEG    BYTE
+=                         PCM_ICODE       CSEG    BYTE
+=                         PCM_CODEND      CSEG    PARA
+=
+=
+=                         PCMDATA         GROUP   PCMODE_DATA, FDOS_DSEG, FIXED_DOS_DATA
+=                         PCMDATA         GROUP   PCMODE_CODE, GLOBAL_DATA, BDOS_DATA, PCMODE_DSIZE
+=
+=                         PCMODE_DATA     DSEG    WORD            ; DOS Data
+=                         FDOS_DSEG       DSEG    WORD COMMON     ; FDOS Parameter Block  
+=0000                     fdos_data       rw      7
+=                         FIXED_DOS_DATA  CSEG    WORD    'DATA'  ; Fixed DOS Data Area
+=                         PCMODE_CODE     CSEG    WORD    'DATA'  ; DATA relative CODE
+=                         GLOBAL_DATA     DSEG    WORD            ; GLOBAL DOS DATA (Process Independant)
+=                         BDOS_DATA       DSEG    WORD            ; BDOS Data Area
+=                         PCMODE_DSIZE    DSEG    PARA            ; End of DOS Data Area
+
+=                                 include i:mserror.equ
+=                         ;    File              : $MSERROR.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page   6
+
+
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=  FFFF                   ED_FUNCTION     equ     -01             ; invalid function number
+=  FFFE                   ED_FILE         equ     -02             ; file not found
+=  FFFD                   ED_PATH         equ     -03             ; path not found
+=  FFFC                   ED_HANDLE       equ     -04             ; too many open files
+=  FFFB                   ED_ACCESS       equ     -05             ; file access denied
+=  FFFA                   ED_H_MATCH      equ     -06             ; invalid handle number
+=  FFF9                   ED_DMD          equ     -07             ; memory descriptor destroyed
+=  FFF8                   ED_MEMORY       equ     -08             ; insufficient memory
+=  FFF7                   ED_BLOCK        equ     -09             ; invalid memory block addr
+=  FFF6                   ED_ENVIRON      equ     -10             ; invalid environment
+=  FFF5                   ED_FORMAT       equ     -11             ; invalid format
+=  FFF4                   ED_ACC_CODE     equ     -12             ; invalid access code
+=  FFF3                   ED_DATA         equ     -13             ; invalid data
+=  FFF1                   ED_DRIVE        equ     -15             ; invalid drive specified
+=  FFF0                   ED_DIR          equ     -16             ; can't remove current dir
+=  FFEF                   ED_DEVICE       equ     -17             ; not same device
+=  FFEE                   ED_ROOM         equ     -18             ; no more files
+=
+=  FFED                   ED_PROTECT      equ     -19             ; disk write protected
+=  FFEC                   ED_BADUNIT      equ     -20             ; invalid drive specified
+=  FFEB                   ED_NOTREADY     equ     -21             ; drive doesn't respond
+=  FFEA                   ED_BADCMD       equ     -22             ; invalid command to driver
+=  FFE9                   ED_BADDATA      equ     -23             ; data CRC error
+=  FFE8                   ED_BADRHLEN     equ     -24             ; (shouldn't happen)
+=  FFE7                   ED_BADSEEK      equ     -25             ; can't seek to track
+=  FFE6                   ED_BADMEDIA     equ     -26             ; unrecognizable medium
+=  FFE5                   ED_RNF          equ     -27             ; record/sector not found
+=  FFE4                   ED_NOPAPER      equ     -28             ; printer error
+=  FFE3                   ED_WRFAIL       equ     -29             ; write failed
+=  FFE2                   ED_RDFAIL       equ     -30             ; read failed
+=  FFE1                   ED_GENFAIL      equ     -31             ; anything failed
+=  FFE0                   ED_SHAREFAIL    equ     -32             ; sharing conflict
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page   7
+
+
+=  FFDF                   ED_LOCKFAIL     equ     -33             ; locking conflict
+=  FFDE                   ED_DISKCHG      equ     -34             ; invalid disk change
+=  FFDD                   ED_NOFCBS       equ     -35             ; FCB table exhausted
+=  FFDC                   ED_NOLOCKS      equ     -36             ; lock list items exhausted
+=  FFCE                   ED_NET          equ     -50             ; Network Request Not Supported
+=
+=  FFBF                   ED_NETACCESS    equ     -65             ; file access denied
+=
+=  FFB7                   ED_NETPWD       equ     -73             ; Server Password Error
+=  FFB6                   ED_NETVER       equ     -74             ; Incorrect Server version
+=  FFB5                   ED_NETREQ       equ     -75             ; No Local Network Resources
+=  FFB4                   ED_NETTIME      equ     -76             ; Network Time Out Error
+=  FFB3                   ED_NETCOMM      equ     -77             ; Network Communications Error
+=  FFB2                   ED_NETSRVR      equ     -78             ; No Server Network Resources 
+=  FFB1                   ED_NETLOG       equ     -79             ; Server Not Logged In
+=
+=  FFB0                   ED_EXISTS       equ     -80             ; file already exists
+=  FFAE                   ED_MAKE         equ     -82             ; Cannot Make (Files ??)
+=  FFAD                   ED_FAIL         equ     -83             ; FAIL code returned from INT 24
+=  FFAC                   ED_STRUCT       equ     -84             ; Out of Structures
+=  FFAB                   ED_ASSIGN       equ     -85             ; Already Assigned
+=  FFAA                   ED_PASSWORD     equ     -86             ; Invalid Password
+=  FFA9                   ED_PARAM        equ     -87             ; Invalid Parameter
+=  FFA8                   ED_NETWRITE     equ     -88             ; Network write fault
+=  FFA7                   ED_NETFUNC      equ     -89             ; Function not supported on network
+=  FFA6                   ED_COMPONENT    equ     -90             ; system component not installed
+=  FFA6                   ED_LASTERROR    equ     -90             ; Last Error Number Used
+=
+=
+=  0001                   CLASS_RESOURCE  equ     1       ; Out of Resource
+=  0002                   CLASS_TEMP      equ     2       ; Temporary Situation
+=  0003                   CLASS_AUTHOR    equ     3       ; Authorization Error
+=  0004                   CLASS_INTERNAL  equ     4       ; Internal System Software Error
+=  0005                   CLASS_HARDWARE  equ     5       ; Hardware Failure
+=  0006                   CLASS_SYSTEM    equ     6       ; Serious System Failure
+=  0007                   CLASS_APPLIC    equ     7       ; Application Program Error
+=  0008                   CLASS_LOST      equ     8       ; File/Item Not Found
+=  0009                   CLASS_FORMAT    equ     9       ; File/Item Illegal Format 
+=  000A                   CLASS_LOCKED    equ     10      ; File/Item Locked
+=  000B                   CLASS_MEDIA     equ     11      ; Media Failure
+=  000C                   CLASS_EXISTS    equ     12      ; Item Already Exists
+=  000D                   CLASS_UNKNOWN   equ     13      ; Unknown Classification
+=
+=  0001                   ACT_RETRY       equ     1       ; Retry a few times then prompt user
+=  0002                   ACT_DELAY       equ     2       ; Delay then as ACT_RETRY
+=  0003                   ACT_USER        equ     3       ; Prompt user to re-enter data
+=  0004                   ACT_ABORT       equ     4       ; Clean Up then ABORT the process
+=  0005                   ACT_TERM        equ     5       ; Terminate immeadiately NO CLEAN UP
+=  0006                   ACT_IGNORE      equ     6       ; Ignore the Error
+=  0007                   ACT_URETRY      equ     7       ; Retry the error after user intervention
+=
+=  0001                   LOC_UNKNOWN     equ     1       ; Unknown error location
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page   8
+
+
+=  0002                   LOC_BLOCK       equ     2       ; Block Device Failure
+=  0003                   LOC_NET         equ     3       ; Network Failure
+=  0004                   LOC_CHAR        equ     4       ; Related to Serial/Character devices
+=  0005                   LOC_MEMORY      equ     5       ; Failure related to Memory 
+
+=                                 include i:redir.equ
+=                         ;    File              : $REDIR.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ; Int 2F AH=11 msnet redirector hook equates
+=
+=  1100                   I2F_PRESCENCE   equ     1100h
+=  1101                   I2F_RMDIR       equ     1101h
+=  1103                   I2F_MKDIR       equ     1103h
+=  1105                   I2F_CHDIR       equ     1105h
+=  1106                   I2F_CLOSE       equ     1106h
+=  1107                   I2F_COMMIT      equ     1107h
+=  1108                   I2F_READ        equ     1108h
+=  1109                   I2F_WRITE       equ     1109h
+=  110A                   I2F_LOCK        equ     110Ah
+=  110B                   I2F_UNLOCK      equ     110Bh
+=  110C                   I2F_SPACE       equ     110Ch
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page   9
+
+
+=  110E                   I2F_SET_ATTR    equ     110Eh
+=  110F                   I2F_GET_ATTR    equ     110Fh
+=  1111                   I2F_REN         equ     1111h
+=  1113                   I2F_DEL         equ     1113h
+=  1116                   I2F_OPEN        equ     1116h
+=  1117                   I2F_CREATE      equ     1117h
+=  1118                   I2F_XCREATE     equ     1118h
+=  1119                   I2F_XSFIRST     equ     1119h
+=  111B                   I2F_SFIRST      equ     111Bh
+=  111C                   I2F_SNEXT       equ     111Ch
+=  111D                   I2F_PCLOSE      equ     111Dh
+=  111E                   I2F_REDIR_5F    equ     111Eh
+=  111F                   I2F_REDIR_5E    equ     111Fh
+=  1120                   I2F_FLUSH       equ     1120h
+=  1121                   I2F_LSEEK       equ     1121h
+=  1122                   I2F_PTERM       equ     1122h
+=  1123                   I2F_PPATH       equ     1123h
+=  1124                   I2F_CTLP_ERR    equ     1124h
+=  1125                   I2F_REDIR_5D    equ     1125h
+=  1126                   I2F_CTLP        equ     1126h
+=
+
+=                                 include i:doshndl.def
+=                         ;    File              : $DOSHNDL.DEF$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page  10
+
+
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=  0000                   DCNTRL_DSADD    equ dword ptr 0000h  
+=  0000                   DCNTRL_DSOFF    equ  word ptr 0000h  
+=  0002                   DCNTRL_DSSEG    equ  word ptr 0002h  
+=  0004                   DCNTRL_COUNT    equ  word ptr 0004h  
+=  0006                   DCNTRL_LEN      equ     6
+=
+=  0000                   DHNDL_COUNT     equ     word ptr 00h            ; 00 - Usage Count
+=  0002                   DHNDL_MODE      equ     word ptr 02h            ; 02 - File Mode
+=
+=  8000                   DHM_FCB         equ     8000h                   ; marks as FCB
+=  4000                   DHM_COMMIT      equ     4000h                   ; auto-commit file
+=  2000                   DHM_NOCRIT      equ     2000h                   ; no critical errors
+=  0080                   DHM_LOCAL       equ     10000000b               ; file is not inherited
+=  0070                   DHM_SHAREMSK    equ     01110000b               ; sharing bits
+=  0000                   DHM_COMPAT      equ     00000000b
+=  0010                   DHM_DENY_ALL    equ     00010000b               ; exclusive - deny all
+=  0020                   DHM_DENY_WRITE  equ     00100000b
+=  0030                   DHM_DENY_READ   equ     00110000b
+=  0040                   DHM_DENY_NONE   equ     01000000b
+=  000F                   DHM_RWMSK       equ     00001111b               ; read write bits
+=  0002                   DHM_RW          equ     00000010b               ; file opened read/write
+=  0001                   DHM_WO          equ     00000001b               ; file opened write only
+=  0000                   DHM_RO          equ     00000000b               ; file opened read only
+=
+=                         ;
+=                         ;       01h to 03h To be Determined
+=                         ;
+=  0004                   DHNDL_DATRB     equ     byte ptr 04h            ; Disk attribute byte
+=  0005                   DHNDL_ATTR      equ     byte ptr 05h            ; Attribute Byte
+=  0005                   DHNDL_WATTR     equ     word ptr 05h            ; Attribute Word
+=
+=  8000                   DHAT_REMOTE     equ     8000h                   ; set if file remote
+=  4000                   DHAT_TIMEOK     equ     4000h                   ; set if timestamp up to date
+=  1000                   DHAT_LOCAL      equ     1000h                   ; file is not inherited
+=  0800                   DHAT_NETPRN     equ     0800h                   ; device is networked printer
+=  0080                   DHAT_DEV        equ     0080h                   ; device/file bit
+=  0040                   DHAT_READY      equ     0040h                   ; ready/not ready bit
+=  0040                   DHAT_CLEAN      equ     0040h                   ; this bit CLEAR if dirty
+=  0020                   DHAT_BIN        equ     0020h                   ; raw/cooked bit
+=  001F                   DHAT_DRVMSK     equ     001Fh                   ; drive in bottom bits
+=  0008                   DHAT_CLK        equ     0008h                   ; -reserved-
+=  0004                   DHAT_NUL        equ     0004h                   ; handle is null device
+=  0002                   DHAT_COT        equ     0002h                   ; handle is console output device
+=  0001                   DHAT_CIN        equ     0001h                   ; handle is console input device
+=
+=  0007                   DHNDL_DEVPTR    equ     dword ptr 07h           ; 07 - pointer to device
+=  0007                   DHNDL_DEVOFF    equ     word ptr 07h            ; 07 - offset of device
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page  11
+
+
+=  0009                   DHNDL_DEVSEG    equ     word ptr 09h            ; 09 - segment of device
+=  000B                   DHNDL_BLK1      equ     word ptr 0Bh            ; 0B - first cluster in file
+=  000D                   DHNDL_TIME      equ     word ptr 0Dh            ; 0D - file time stamp
+=  000F                   DHNDL_DATE      equ     word ptr 0Fh            ; 0F - file date stamp
+=  0011                   DHNDL_SIZE      equ     dword ptr 11h           ; 11 - file length
+=  0011                   DHNDL_SIZELO    equ     word ptr 11h
+=  0013                   DHNDL_SIZEHI    equ     word ptr 13h
+=  0015                   DHNDL_POS       equ     dword ptr 15h           ; 15 - current file position
+=  0015                   DHNDL_POSLO     equ     word ptr 15h
+=  0017                   DHNDL_POSHI     equ     word ptr 17h
+=  0019                   DHNDL_IDX       equ     word ptr 19h            ; 19 - relative cluster within file of last 
+                          read
+=  001B                   DHNDL_DBLK      equ     word ptr 1Bh            ; 1B - cluster # of dir entry
+=  001E                   DHNDL_DCNTHI    equ     byte ptr 1Eh            ; 1E - dir offset # within cluster
+=  001F                   DHNDL_DCNTLO    equ     byte ptr 1Fh            ; 1F - dir offset # within cluster
+=  0020                   DHNDL_NAME      equ     byte ptr 20h            ; 20 - File/Device Name
+=  0028                   DHNDL_EXT       equ     byte ptr 28h            ; 28 - File extension
+=  002B                   DHNDL_SFT       equ     dword ptr 2Bh           ; 2B - pointer to previous SFT
+=  002F                   DHNDL_UID       equ     word ptr 2Fh            ; 2F - Owning Machine ID
+=  0031                   DHNDL_PSP       equ     word ptr 31h            ; 31 - Owning PSP
+=  0033                   DHNDL_SHARE     equ     word ptr 33h            ; 33 - Offset of sharing record
+=  0035                   DHNDL_BLK       equ     word ptr 35h            ; 35 - absolute cluster of last read
+=                                                                         ; 37 - dword reserved for IFS
+=  003B                   DHNDL_LEN       equ     3Bh
+=
+=                         ; With DOS 3 structures _DBLK is a 16 bit
+=
+=
+=                         ; Logical Drive Table format
+=  0000                   LDT_NAME        equ     byte ptr 00h            ; 00 - Ascii Name field
+=  0043                   LDT_FLAGS       equ     word ptr 43h            ; 43 - Flag field
+=  0045                   LDT_PDT         equ     dword ptr 45h           ; 45 - PDT for this drive
+=  0049                   LDT_BLK         equ     word ptr 49h            ; 49 - directory sector 
+=  004B                   LDT_ROOT    equ word ptr 4bh        ; 4B - virtual block root
+=  004D                   LDT_DRV     equ byte ptr 4dh        ; 4D - physical drive 
+=  004F                   LDT_ROOTLEN     equ     word ptr 4fh            ; 4F - Length of root portion
+=  0058                   LDT_LEN         equ     58h
+=
+=  8000                   LFLG_NETWRKD    equ     8000h
+=  4000                   LFLG_PHYSICAL   equ     4000h
+=  2000                   LFLG_JOINED     equ     2000h
+=  1000                   LFLG_SUBST      equ     1000h
+
+
+                          PCM_CODE        CSEG    BYTE
+
+                                  extrn   reload_ES:near
+                                  extrn   return_AX_CLC:near
+                                  extrn   return_CX:near
+                                  extrn   error_exit:near
+                                  extrn   get_ldt_raw:near
+
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page  12
+
+
+                          ;       *****************************
+                          ;       ***    DOS Function 5E    ***
+                          ;       ***    Get Machine Name   ***
+                          ;       *****************************
+                          ;
+                                  Public  func5E
+                          func5E:
+ 0000 3C017208       000C         cmp al,1 ! jb f5E00             ; Get Machine Name Sub-Function
+ 0004 741C           0022                    je f5E01             ; Set Machine Name Sub-Function
+ 0006 B81F11                      mov     ax,I2F_REDIR_5E ; magic int 2F number
+ 0009 E96100         006D         jmp     func5F_common           ; use common routine
+                          ;
+                          ;       Get the current Machine Name
+                          ;
+                          f5E00:
+ 000C 8BFA                        mov     di,dx                   ; Copy the 15 Byte Network Name
+ 000E BE0000       E              mov     si,offset net_name      
+ 0011 B90800                      mov     cx,16/2
+ 0014 F3A5                        rep     movsw
+                          ;       mov     ch,name_num             ; 00 -> Undefined Name
+                          ;       mov     cl,netbios              ; 00 -> Name Number
+ 0016 8B0E0000     E              mov     cx,word ptr netbios
+ 001A E80000       E              call    return_CX
+                          f5E_success:
+ 001D 33C0                        xor     ax,ax                   ; return zero
+ 001F E90000       E              jmp     return_AX_CLC
+
+                          ;
+                          ;       Set the Network Name
+                          ;
+                          f5E01:
+                          ;       mov     name_num,ch             ; Get the Network and NetBios Nos.
+                          ;       mov     netbios,cl              ; and save in local variables
+ 0022 890E0000     E              mov     word ptr netbios,cx
+ 0026 FE060000     E              inc     net_set_count
+ 002A 1E06                        push ds ! push es
+ 002C 1F07                        pop ds ! pop es                 ; Copy the specified name
+ 002E 8BF2                        mov     si,dx                   ; to internal save area
+ 0030 BF0000       E              mov     di,offset net_name
+ 0033 B90F00                      mov     cx,15                   ; Copy 15 byte name leave
+ 0036 F3A4                        rep     movsb                   ; Terminating 00
+ 0038 061F                        push es ! pop ds
+ 003A EBE1           001D         jmps    f5E_success
+
+
+                          ;       *****************************
+                          ;       ***    DOS Function 5F    ***
+                          ;       ***    Network Control    ***
+                          ;       *****************************
+                          ;
+                                  Public  func5F
+                          func5F:
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page  13
+
+
+ 003C 3C07                        cmp     al,07h
+ 003E 7404           0044          je     func5F_10
+ 0040 3C08                        cmp     al,08h
+ 0042 7526           006A          jne    func5F_40
+                          func5F_10:
+ 0044 50                          push    ax
+ 0045 8AC2                        mov     al,dl
+ 0047 E80000       E              call    get_ldt_raw
+ 004A 58                          pop     ax
+ 004B 7215           0062          jc     func5F_30
+ 004D 26837F4501                  cmp     es:word ptr LDT_PDT[bx],1
+ 0052 720E           0062          jb     func5F_30
+ 0054 26804F4440                  or      es:byte ptr LDT_FLAGS+1[bx],LFLG_PHYSICAL/100h
+ 0059 3C07                        cmp     al,07h
+ 005B 7405           0062          je     func5F_30
+ 005D 26806744BF                  and     es:byte ptr LDT_FLAGS+1[bx],(not LFLG_PHYSICAL)/100h
+                          func5F_30:
+ 0062 731A           007E         jnc     func5F_OK
+ 0064 B8F1FF                      mov     ax,ED_DRIVE
+ 0067 E90000       E              jmp     error_exit
+
+                          func5F_40:
+ 006A B81E11                      mov     ax,I2F_REDIR_5F ; magic int 2F number
+
+                          Public  func5F_common
+                          func5F_common:
+ 006D 1E                          push    ds
+ 006E FF360000     E              push    int21AX                 ; AX passed on the stack..
+ 0072 06                          push    es
+ 0073 E80000       E              call    reload_ES               ; get the segment registers
+ 0076 1F                          pop     ds                      ;  back to entry state
+ 0077 F9                          stc                             ; assume it will fail
+ 0078 CD2F                        int     2fh                     ; pass it on to MSNET
+ 007A 1F                          pop     ds                      ; throw away word on the stack
+ 007B 1F                          pop     ds
+ 007C 7203           0081          jc     func5F_error
+                          func5F_OK:
+ 007E E90000       E              jmp     return_AX_CLC           ;  return the result
+                          func5F_error:
+ 0081 F7D8                        neg     ax                      ; our error convention is negative..
+ 0083 E90000       E              jmp     error_exit              ; Error for all sub functions
+
+                          PCMODE_DATA     DSEG    WORD
+
+                                  extrn   net_name:byte
+                                  extrn   net_set_count:byte
+                                  extrn   name_num:byte
+                                  extrn   netbios:byte
+                                  extrn   int21AX:word
+
+                          end
+
+PC-DOS RASM-86 1.4a  Source: NETWORK.A86                                                                     Page  14
+
+
+
+End of assembly.  Number of errors:   0.  Use factor: 14%
+
+
+                   

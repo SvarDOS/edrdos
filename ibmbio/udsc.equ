@@ -1,0 +1,64 @@
+;    File              : $UDSC.EQU$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;    ENDLOG
+
+
+UDSC_BPB_LENGTH	equ	25
+
+UDSC		struc
+UDSC_NEXT	dd	?		; link to next UDSC_
+UDSC_RUNIT	db	?		; ROS drive number (0/1/80/81)
+UDSC_DRIVE	db	?		; logical drive
+UDSC_BPB	db	UDSC_BPB_LENGTH dup (?)	; current BPB
+UDSC_FATFLAG	db	?
+UDSC_OPNCNT	dw	?		; # of files open on drive
+UDSC_TYPE	db	?		; floppy drive type (0/1/2/7)
+UDSC_FLAGS	dw	?		; various flags for drive
+UDSC_NCYL	dw	?		; # of cylinders per drive
+UDSC_DEVBPB	db	UDSC_BPB_LENGTH dup (?)	; device BPB
+		db	7 dup (?)
+UDSC_TIMER	dw	2 dup (?)	; tick count for MEDCHK
+UDSC_LABEL	db	12 dup (?)	; ASCIIZ volume label
+UDSC_SERIAL	dd	?		; serial number
+UDSC_FSTYPE	db	9 dup (?)	; ASCIIZ "FAT12"/"FAT16" type
+UDSC		ends
+
+UDSC_LENGTH	equ	size UDSC
+
+UDF_HARD	equ	0001h		; drive is a hard disk
+UDF_CHGLINE	equ	0002h		; drive support disk change line
+UDF_UNSURE	equ	0004h		; drive has just been formatted
+UDF_VFLOPPY	equ	0010h		; drive shares physical drive
+UDF_OWNER	equ	0020h		; logical drive "owns" physical drive
+UDF_MEDIA	equ	0100h		; media id is from bootsec, not default
+
+MAXPART		equ	26		; support up 26 drives

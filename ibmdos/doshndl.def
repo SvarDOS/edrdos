@@ -1,0 +1,122 @@
+;    File              : $DOSHNDL.DEF$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+
+DCNTRL_DSADD    equ dword ptr 0000h  
+DCNTRL_DSOFF    equ  word ptr 0000h  
+DCNTRL_DSSEG    equ  word ptr 0002h  
+DCNTRL_COUNT    equ  word ptr 0004h  
+DCNTRL_LEN	equ	6
+
+DHNDL_COUNT	equ	word ptr 00h		; 00 - Usage Count
+DHNDL_MODE	equ	word ptr 02h		; 02 - File Mode
+
+DHM_FCB		equ	8000h			; marks as FCB
+DHM_COMMIT	equ	4000h			; auto-commit file
+DHM_NOCRIT	equ	2000h			; no critical errors
+DHM_LOCAL	equ	10000000b		; file is not inherited
+DHM_SHAREMSK	equ	01110000b		; sharing bits
+DHM_COMPAT	equ	00000000b
+DHM_DENY_ALL	equ	00010000b		; exclusive - deny all
+DHM_DENY_WRITE	equ	00100000b
+DHM_DENY_READ	equ	00110000b
+DHM_DENY_NONE	equ	01000000b
+DHM_RWMSK	equ	00001111b		; read write bits
+DHM_RW		equ	00000010b		; file opened read/write
+DHM_WO		equ	00000001b		; file opened write only
+DHM_RO		equ	00000000b		; file opened read only
+
+;
+;	01h to 03h To be Determined
+;
+DHNDL_DATRB	equ	byte ptr 04h		; Disk attribute byte
+DHNDL_ATTR	equ	byte ptr 05h		; Attribute Byte
+DHNDL_WATTR	equ	word ptr 05h		; Attribute Word
+
+DHAT_REMOTE	equ	8000h			; set if file remote
+DHAT_TIMEOK	equ	4000h			; set if timestamp up to date
+DHAT_LOCAL	equ	1000h			; file is not inherited
+DHAT_NETPRN	equ	0800h			; device is networked printer
+DHAT_DEV	equ	0080h			; device/file bit
+DHAT_READY	equ	0040h			; ready/not ready bit
+DHAT_CLEAN	equ	0040h			; this bit CLEAR if dirty
+DHAT_BIN	equ	0020h			; raw/cooked bit
+DHAT_DRVMSK	equ	001Fh			; drive in bottom bits
+DHAT_CLK	equ	0008h			; -reserved-
+DHAT_NUL	equ	0004h			; handle is null device
+DHAT_COT	equ	0002h			; handle is console output device
+DHAT_CIN	equ	0001h			; handle is console input device
+
+DHNDL_DEVPTR	equ	dword ptr 07h		; 07 - pointer to device
+DHNDL_DEVOFF	equ	word ptr 07h		; 07 - offset of device
+DHNDL_DEVSEG	equ	word ptr 09h		; 09 - segment of device
+DHNDL_BLK1	equ	word ptr 0Bh		; 0B - first cluster in file
+DHNDL_TIME	equ	word ptr 0Dh		; 0D - file time stamp
+DHNDL_DATE	equ	word ptr 0Fh		; 0F - file date stamp
+DHNDL_SIZE	equ	dword ptr 11h		; 11 - file length
+DHNDL_SIZELO	equ	word ptr 11h
+DHNDL_SIZEHI	equ	word ptr 13h
+DHNDL_POS	equ	dword ptr 15h		; 15 - current file position
+DHNDL_POSLO	equ	word ptr 15h
+DHNDL_POSHI	equ	word ptr 17h
+DHNDL_IDX	equ	word ptr 19h		; 19 - relative cluster within file of last read
+DHNDL_DBLK	equ	word ptr 1Bh		; 1B - cluster # of dir entry
+DHNDL_DCNTHI	equ	byte ptr 1Eh		; 1E - dir offset # within cluster
+DHNDL_DCNTLO	equ	byte ptr 1Fh		; 1F - dir offset # within cluster
+DHNDL_NAME	equ	byte ptr 20h		; 20 - File/Device Name
+DHNDL_EXT	equ	byte ptr 28h		; 28 - File extension
+DHNDL_SFT	equ	dword ptr 2Bh		; 2B - pointer to previous SFT
+DHNDL_UID	equ	word ptr 2Fh		; 2F - Owning Machine ID
+DHNDL_PSP	equ	word ptr 31h		; 31 - Owning PSP
+DHNDL_SHARE	equ	word ptr 33h		; 33 - Offset of sharing record
+DHNDL_BLK	equ	word ptr 35h		; 35 - absolute cluster of last read
+						; 37 - dword reserved for IFS
+DHNDL_LEN	equ	3Bh
+
+; With DOS 3 structures _DBLK is a 16 bit
+
+
+; Logical Drive Table format
+LDT_NAME	equ	byte ptr 00h		; 00 - Ascii Name field
+LDT_FLAGS	equ	word ptr 43h		; 43 - Flag field
+LDT_PDT		equ	dword ptr 45h		; 45 - PDT for this drive
+LDT_BLK		equ	word ptr 49h		; 49 - directory sector 
+LDT_ROOT    equ word ptr 4bh        ; 4B - virtual block root
+LDT_DRV     equ byte ptr 4dh        ; 4D - physical drive 
+LDT_ROOTLEN	equ	word ptr 4fh		; 4F - Length of root portion
+LDT_LEN		equ	58h
+
+LFLG_NETWRKD	equ	8000h
+LFLG_PHYSICAL	equ	4000h
+LFLG_JOINED	equ	2000h
+LFLG_SUBST	equ	1000h

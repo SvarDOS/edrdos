@@ -1,0 +1,3 @@
+-w -d -f- -K -O -X -Z -c -ms -IC:\TOOLS\BCC20\H -DMESSAGE -DDOSPLUS -zSCGROUP -zTCODE -zR_MSG 
+-I.\ 
+-o.\bin\cmdlist.obj .\cmdlist.c 

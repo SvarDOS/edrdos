@@ -1,0 +1,124 @@
+;    File              : $CONFIG.EQU$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+
+
+DOS5		equ	0FFFFh
+
+if DOS5
+MOVE_DOWN	equ	1800h		; start relocated code 96K down
+else
+MOVE_DOWN	equ	2500h		; start relocated code 148K down
+endif
+
+NUM_BUFFS	equ	4
+SIZEOF_BUFFS	equ	1024+32		; allow for large sectors during init
+
+CONFIG_BUF	equ	ds:byte ptr .0
+CONFIG_BUF_SIZE	equ	 8*1024		; CONFIG.SYS read in this size chunks
+INIT_BUFFERS	equ	CONFIG_BUF+CONFIG_BUF_SIZE
+if DOS5
+INIT_BUFFERS_SIZE equ	NUM_BUFFS*SIZEOF_BUFFS
+					; reserve space for init disk buffers
+TEMP_LDT	equ	INIT_BUFFERS+INIT_BUFFERS_SIZE
+					; space for temp LDT's at CONFIG time
+TEMP_LDT_SIZE	equ	 ((26*58h)/16)*16+20h
+else
+INIT_BUFFERS_SIZE equ	NUM_BUFFS*(512+16)	; reserve space for init disk buffers
+TEMP_LDT	equ	INIT_BUFFERS+INIT_BUFFERS_SIZE
+					; space for temp LDT's at CONFIG time
+TEMP_LDT_SIZE	equ	 ((26*51h)/16)*16+20h
+endif
+DYNAMIC_DATA_END equ	TEMP_LDT+TEMP_LDT_SIZE
+
+BLKDEV_LENGTH	equ	9		; # of bytes per block device init entry
+	
+MAX_PATHLEN	equ	65		; Maximum Path Length
+MAX_FILELEN	equ	80		; Maximum File Length
+EOF		equ	01ah		; End of File Marker
+
+MIN_NUM_BUFFS	equ	3		; minimum # of disk buffers required
+MAX_NUM_BUFFS	equ	99		; maximum # of disk buffers supported
+DEF_NUM_BUFFS	equ	1		; 1 during config to so most go hi
+
+MIN_READ_AHEAD	equ	1		; minimum read-ahead
+MAX_READ_AHEAD	equ	99		; maximum read-ahead
+DEF_READ_AHEAD	equ	0		; default no read-ahead
+;
+;	DEF_NUM_FILES must be less than MIN_NUM_FILES in order to
+;	force two file structure allocations Windows will FAIL if this 
+;	is not TRUE.
+;
+MIN_NUM_FILES	equ	8		; minimum # of files required
+MAX_NUM_FILES	equ	255		; maximum # of files supported
+DEF_NUM_FILES	equ	1		; default # of files (+4 FCBS)
+
+MIN_NUM_FCBS	equ	0		; minimum # of fcbs required
+MAX_NUM_FCBS	equ	255		; maximum # of fcbs supported
+DEF_NUM_FCBS	equ	4		; default # of fcb handles
+
+MIN_NUM_FOPEN	equ	0		; minimum # of hashed files required
+MAX_NUM_FOPEN	equ	32768		; maximum # of hashed files supported
+DEF_NUM_FOPEN	equ	4096		; default # of files on normal system
+
+MIN_NUM_STACKS	equ	8		; on hardware interrupts swap stacks
+MAX_NUM_STACKS	equ	64		;  to a dynamically allocated one
+DEF_NUM_STACKS	equ	0		; zero is a special case - no swapping
+
+MIN_SIZE_STACK	equ	32		; the dynamic stacks are this size
+MAX_SIZE_STACK	equ	512
+DEF_SIZE_STACK	equ	128		; default size
+
+CFG_BUF_LEN	equ	256		; Length of CONFIG.SYS line buffer
+
+DEF_COUNTRY	equ	1		; USA
+DEF_CODEPAGE	equ	0		; No codepage
+
+DELWATCH	equ	0FFFFh
+
+RLF_ENHANCED	equ	0000$0001b	; Enhanced features are on
+RLF_INS		equ	0000$0010b	; Insert Flag
+RLF_SEARCH	equ	0000$0100b 	; Search mode on
+RLF_MATCH	equ	0000$1000b	; We are matching a command
+
+BUFFERS_IN_HMA	equ	0000$0001b
+BUFFERS_IN_UMB	equ	0000$0010b
+
+DMD_ID          equ     es:byte ptr .0	; id code ('M' or 'Z')
+DMD_PSP         equ     es:word ptr .1	; owner of memory block
+DMD_LEN         equ     es:word ptr .3	; length of memory block
+DMD_NAME	equ	es:byte ptr .8	; ASCIIZ name field
+DMD_NAME_LEN	equ	8		;  8 Bytes long
+IDM             equ     'M'		; not last id code
+IDZ             equ     'Z'		; last id code
+

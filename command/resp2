@@ -1,0 +1,11 @@
+.\bin\cstart.obj .\bin\com.obj .\bin\csup.obj +
+.\bin\dosif.obj .\bin\comint.obj .\bin\support.obj+
+.\bin\cmdlist.obj .\bin\printf.obj+
+.\bin\message.obj +
+.\bin\batch.obj .\bin\global.obj .\bin\config.obj+
+.\bin\comcpy.obj .\bin\crit.obj +
++
+.\bin\resident.obj
+.\bin\command.exe
+.\command.map
+C:\TOOLS\WATCOMC\LIB\CLIBs

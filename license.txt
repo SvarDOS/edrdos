@@ -1,0 +1,282 @@
+CALDERA'S OPENDOS END-USER LICENSE AGREEMENT. 
+
+CALDERA OPENDOS IS AVAILABLE FOR INSTALLATION FROM THIS FILE SET.  
+IF YOU CHOOSE TO INSTALL THIS SOFTWARE YOU ARE CONSENTING TO BE 
+BOUND BY TERMS OF THIS AGREEMENT. IF YOU DO NOT AGREE TO ALL OF 
+THE TERMS OF THIS AGREEMENT, DO NOT CONTINUE WITH THE INSTALLATION 
+AND/OR RETURN THE COMPLETE PACKAGE  TO CALDERA FOR A FULL REFUND.
+
+THIS DOWNLOAD, CDROM OR OTHER SUPPLIED MEDIA/DISTRIBUTION IS PROVIDED 
+WITHOUT TECHNICAL SUPPORT.  
+ 
+This Agreement has 4 parts.  At least  two parts will apply to you. 
+Part I applies if you have not purchased a license to the accompanying 
+software (the "Software").  Part II applies if you have purchased a 
+license to the Software.  Part III applies to binary license grants 
+to the Software within the categories of Part I or Part II.  Part IV 
+applies to source code license grants to the Software within said 
+primary categories.  If you initially acquired a copy of the Software 
+without purchasing a license and you wish to purchase a license, 
+contact Caldera, Inc. ("Caldera") on the Internet at 
+http:/www.caldera.com or call +1-800-850-7779.
+
+PART I -- TERMS APPLICABLE WHEN LICENSE FEES NOT (YET) PAID TO 
+CALDERA (LIMITED LICENSE FOR EVALUATION, EDUCATIONAL AND NON-PROFIT 
+USE) ONLY.
+
+Caldera grants you a non-exclusive license to use the Software in 
+source or binary form free of charge if (a) you are a student, 
+faculty member or staff member of an educational institution 
+(K-12, junior college, college or library), a staff member of 
+a religious organization, or an employee of an  organization which 
+meets Caldera's criteria for a charitable  non-profit organization; 
+or (b) your use of the Software is for the purpose of evaluating 
+whether to purchase an ongoing license to the Software.  The evaluation 
+period for use by or on behalf of a commercial entity is limited 
+to 90 days; evaluation use by others is not subject to this 90 day 
+limit but is still limited to a reasonable period.  Government 
+agencies (other than public libraries) are not considered educational, 
+religious, or charitable non-profit organizations for purposes of this 
+Agreement. If you are using the Software free of charge, you are not 
+entitled to support or telephone assistance.   If you fit within the 
+description of a non-commercial use license, you may use the Software 
+in the manner described in Parts III and  IV below under "Scope of Grant."
+ 
+DISCLAIMER OF WARRANTY FOR NON-COMMERCIAL USE.
+
+Software obtained free of charge, wether in source and binary forms, 
+are provided on an "AS IS" basis, without warranty of any kind, 
+including without limitation the warranties of merchantability, fitness 
+for a particular purpose and non-infringement. The entire risk as to 
+the quality and performance of the Software is born by you.  Should 
+the Software prove defective, you and not Caldera assume the entire 
+cost of any service and repair you may desire. In addition, the 
+security mechanisms implemented by Caldera software have inherent 
+limitations, and you must determine that the Software sufficiently 
+meets your requirements. This disclaimer of warranty constitutes an 
+essential part of the agreement. SOME JURISDICTIONS DO NOT ALLOW 
+EXCLUSIONS OF AN IMPLIED WARRANTY, SO THIS DISCLAIMER MAY NOT APPLY 
+TO YOU AND YOU MAY HAVE OTHER LEGAL RIGHTS THAT VARY BY JURISDICTION.
+
+PART II -- TERMS APPLICABLE WHEN LICENSE FEES PAID
+
+GRANT. Subject to payment of applicable license fees, Caldera grants 
+to you a non-exclusive license to use the Software in binary and source 
+form and accompanying online documentation ("Documentation") in the 
+manner described in Parts III and IV below under "Scope of Grant."
+
+LIMITED WARRANTY FOR COMMERCIAL USE.
+
+Caldera warrants that for a period of ninety (90) days from the date 
+of acquisition, the Software, if operated as directed, will substantially 
+achieve the functionality described in the Documentation. Caldera does 
+not warrant, however, that your use of the Software will be uninterrupted 
+or that the operation of the Software will be error-free or secure. In 
+addition, the security mechanisms implemented by Caldera software have 
+inherent limitations, and you must determine that the Software 
+sufficiently meets your requirements.  Caldera also warrants that
+the media containing the Software, if provided by Caldera, is free 
+from defects in material and workmanship and will so remain for ninety 
+(90) days from the date you acquired the Software. Caldera's sole 
+liability for any breach of this warranty shall be, in Caldera's sole 
+discretion: 
+
+(i) to replace your defective media; or (ii) to advise you how to achieve 
+substantially the same functionality with the Software as described in 
+the Documentation through a procedure different from that set forth in 
+the Documentation; or (iii) if the above remedies are demonstrated to 
+be impracticable, to refund the license fee you paid for the Software. 
+Repaired, corrected, or replaced Software and Documentation shall be 
+covered by this limited warranty for the period remaining under the 
+warranty that covered the original Software, or if longer, for thirty 
+(30) days after the date (a) of shipment to you of the repaired or 
+replaced Software, or (b) Caldera advised you how to operate the
+Software so as to achieve the functionality described in the 
+Documentation. Only if you inform Caldera in writing of your problem 
+with the Software during the applicable warranty period and provide
+evidence of the date you purchased a license to the Software will 
+Caldera be obligated to honor this warranty. Caldera will use reasonable 
+commercial efforts to repair, replace, advise or, for individual 
+consumers, refund pursuant to the foregoing warranty within 30 days 
+of being so notified. 
+
+THIS IS A LIMITED WARRANTY AND IT IS THE ONLY WARRANTY MADE BY CALDERA.
+CALDERA MAKES NO OTHER EXPRESS WARRANTY AND NO WARRANTY OF NON-INFRINGEMENT 
+OF THIRD PARTIES' RIGHTS. THE DURATION OF IMPLIED WARRANTIES, INCLUDING 
+WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY AND OF FITNESS FOR 
+A PARTICULAR PURPOSE, IS LIMITED TO THE ABOVE LIMITED WARRANTY PERIOD; 
+SOME JURISDICTIONS DO NOT ALLOW LIMITATIONS ON HOW LONG AN IMPLIED 
+WARRANTY LASTS, SO LIMITATIONS MAY NOT APPLY TO YOU. NO CALDERA DEALER, 
+AGENT, OR EMPLOYEE IS AUTHORIZED TO MAKE ANY MODIFICATIONS, EXTENSIONS, 
+OR ADDITIONS TO THIS WARRANTY. If any modifications are made to the 
+Software by you during the warranty period; if the media is subjected 
+to accident, abuse, or improper use; or if you violate the terms of this
+Agreement, then this warranty shall immediately be terminated. This 
+warranty shall not apply if the Software is used on or in conjunction 
+with hardware or software other than the unmodified version of hardware 
+and software with which the software was designed to be used as described 
+in the Documentation.  THIS WARRANTY GIVES YOU SPECIFIC LEGAL RIGHTS, 
+AND YOU MAY HAVE OTHER LEGAL RIGHTS THAT VARY BY JURISDICTION.
+
+PART III -- TERMS APPLICABLE TO BINARY LICENSE GRANTS
+
+SCOPE OF GRANT.
+
+For the binary license grants listed above, you may:
+*  use the Software on any single computer;
+*  use the Software on a network, provided that each person accessing 
+   the Software through the network must have a copy licensed to that person;
+*  use the Software on a second computer so long as only one copy is used 
+   at a time;
+*  copy the Software for archival purposes, provided any copy must contain 
+   all of the original Software's proprietary notices and license terms; 
+   or 
+*  if you have purchased multiple licenses (as in a 10 Pack or a 50 Pack, 
+   for instance) you may make any number of copies of the Software (but not 
+   the documentation) up to the number licensed (10 or 50, in the example), 
+   provided any copy must contain all of the original Software's proprietary
+   notices, marks and licenses.  The number of copies is the total number 
+   of copies that may be made for all platforms.  Additional copies of 
+   Documentation may be purchased.
+*  REDISTRIBUTION OF THE SOFTWARE IS PERMITTED FOR NON-COMMERCIAL
+   PURPOSES provided that the copyright notices, marks and these terms 
+   and conditions in this document are duplicated in all such forms and 
+   that the documentaiton, advertising materials, and other materials 
+   related to such distribution and use acknowledge that the software was 
+   developed by Caldera, Inc.  Caldera's name may not be used to endorse 
+   or promote products derived from this Software without specific prior 
+   written permission. You may not:
+
+*  permit concurrent use of the Software without proper licenses;
+*  copy the Software other than as specified above;
+*  rent, lease, grant a security interest in, or otherwise transfer 
+   rights to the Software; or
+*  remove any proprietary notices, licenses  or labels on the Software.
+
+PART IV -- TERMS APPLICABLE TO SOURCE CODE GRANT
+
+GRANT.  Caldera grants you a non-exclusive license to use the Software 
+in source code form free of charge for personal, non-commercial use.  
+The Software in source code form may also be used for commercial 
+development purposes, provided a license is obtained from Caldera 
+before any products or derivative works are shipped for commercial gain 
+that utilize the Software , its components or derivative works.  
+
+For the source code license grant, you may:
+*  use the Software on any single computer;
+*  use the Software on a network, provided that each person accessing 
+   the Software through the network agrees to the terms and conditions 
+   of this license 
+*  use the Software on as many computers as needed provided that each 
+   person accessing the Software agrees to the terms and conditions of 
+   this license;
+*  redistribute the Software for non-commerical purposes, provided any 
+   copy must contain all of the  original Software's proprietary notices, 
+   marks and license terms. (Note: redistibution of derivative products 
+   for commercial gain is permitted, provided a license is obtained 
+   before the derivative products are exchanged for commercial gain)
+*  copy the Software for archival purposes, provided any copy must 
+   contain all of the original Software's proprietary notices, marks 
+   and license terms. 
+*  modify, translate, compile, disassemble, or create derivative works 
+   based on the Software provided that such modifications are for 
+   non-commercial use and that such modifications are provided back to
+   Caldera except for those who have obtained the right from Caldera 
+   in writing to retain such modifications; any modification, translation, 
+   compilation, disassembly or derivative work used for commercial gain 
+   requires a seperate license from Caldera; 
+
+   You may not:
+
+*  permit other individuals to use the Software except under the terms 
+   listed above;
+*  copy the Software other than as specified above;
+*  rent, lease, grant a security interest in, or otherwise transfer 
+   rights to the Software; or
+*  remove any proprietary  notices , licenses or labels on the Software.
+
+TITLE.
+
+Title, ownership rights, and intellectual property rights in the Software 
+and all derivative works wether in binary and source forms shall remain 
+in Caldera and/or its suppliers unless otherwise specificed in a 
+seperate agreement with Caldera. The Software is protected by the 
+copyright laws and treaties.  Title and related rights in the content 
+accessed through the Software is the property of the applicable content 
+owner and may also be protected by applicable law. This License gives you 
+no rights to such content.
+
+TERMINATION.
+
+The license will terminate automatically if you fail to comply with the 
+limitations described herein. On termination, you must destroy all copies 
+of the Software and Documentation.
+
+EXPORT CONTROLS.
+
+None of the Software or underlying information or technology may be 
+exported or reexported (i) into (or to a national or resident of) Cuba, 
+Iraq, Libya, North Korea, Iran, Syria or any other country to which the 
+U.S. has embargoed goods; or (ii) to anyone on the U.S. Treasury 
+Department's list of Specially Designated Nationals or the U.S. 
+Commerce Department's Table of Denial Orders. By downloading or using 
+the Software, you are agreeing to the foregoing and you are representing
+and warranting that you are not located in, under the control of, or 
+a national or resident of any such country or on any such list.
+
+LIMITATION OF LIABILITY. UNDER NO CIRCUMSTANCES AND UNDER NO LEGAL
+THEORY, TORT, CONTRACT, OR OTHERWISE, SHALL CALDERA OR ITS
+SUPPLIERS OR RESELLERS BE LIABLE TO YOU OR ANY OTHER PERSON FOR ANY
+INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES OF ANY
+CHARACTER INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF
+GOODWILL, WORK STOPPAGE, COMPUTER FAILURE OR MALFUNCTION, OR ANY AND
+ALL OTHER COMMERCIAL DAMAGES OR LOSSES. IN NO EENT WILL CALDERA
+BE LIABLE FOR ANY DAMAGES IN EXCESS OF THE AMOUNT CALDERA
+RECEIVED FROM YOU FOR A LICENSE TO THE SOFTWARE, EVEN IF CALDERA
+SHALL HAVE BEEN INFORMED OF THE POSSIBILITY OF SUCH DAMAGES, OR FOR
+ANY CLAIM BY ANY OTHER PARTY. THIS LIMITATION OF LIABILITY SHALL NOT
+APPLY TO LIABILITY FOR DEATH OR PERSONAL INJURY TO THE EXTENT
+APPLICABLE LAW PROHIBITS SUCH LIMITATION. FURTHERMORE, SOME
+JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR LIMITATION OF INCIDENTAL
+OR CONSEQUENTIAL DAMAGES, SO THIS LIMITATION AND EXCLUSION MAY NOT
+APPLY TO YOU.
+
+HIGH RISK ACTIVITIES.
+
+The Software is not fault-tolerant and is not designed, manufactured or 
+intended for use or resale as on-line control equipment in hazardous 
+environments requiring fail-safe performance, such as in the operation 
+of nuclear facilities, aircraft navigation or communication systems, air 
+traffic control, direct life support machines, or weapons systems, in 
+which the failure of the Software could lead directly to death, 
+personal injury, or severe physical or environmental damage ("High 
+Risk Activities").  Caldera and its suppliers specifically disclaim 
+any express or implied warranty of fitness for High Risk Activities.
+
+MISCELLANEOUS.
+
+If the copy of the Software you received was accompanied by a printed or 
+other form of "hard-copy" End User License Agreement whose terms vary from 
+this Agreement, then the hard-copy End User License Agreement governs your 
+use of the Software.  This Agreement represents the complete agreement 
+concerning this license and may amended only by a writing executed by 
+both parties.
+
+THE ACCEPTANCE OF ANY PURCHASE ORDER PLACED BY YOU IS EXPRESSLY MADE
+CONDITIONAL ON YOUR ASSENT TO THE TERMS SET FORTH HEREIN, AND NOT
+THOSE IN YOUR PURCHASE ORDER. If any provision of this Agreement is held 
+to be unenforceable, such provision shall be reformed only to the extent 
+necessary to make it enforceable. This Agreement shall be governed by 
+Utah law (except for conflict of law provisions). The application the 
+United Nations Conventio of Contracts for the International Sale of 
+Goods is expressly excluded.
+
+U.S. GOVERNMENT RESTRICTED RIGHTS.  Use, duplication or disclosure by 
+the Government is subject to restrictions set forth in subparagraphs 
+(a) through (d) of the Commercial Computer-Restricted Rights clause 
+at FAR 52.227-19 when applicable, or in subparagraph (c)(1)(ii)
+of the Rights in Technical Data and Computer Software clause at 
+DFARS 252.227-7013, or at 252.211-7015, or to Caldera's standard 
+commercial license, as applicable, and in similar clauses in the 
+NASA FAR Supplement. Contractor/manufacturer is Caldera, Inc. 633 South 
+550 East, Provo, UT 84606, U.S.A.

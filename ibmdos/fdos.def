@@ -1,0 +1,126 @@
+;    File              : $FDOS.DEF$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+
+FD_DISKINFO	equ	48h
+FD_FLUSH	equ	49h
+FD_SELECT	equ	4Ah
+FD_EXEC		equ	4Bh
+FD_EXIT		equ	4Ch
+FD_FCB		equ	4Dh
+FD_COMMIT	equ	50H
+FD_NEW		equ	51h
+FD_LOCK		equ	52h
+FD_DDIO		equ	54h
+FD_EXPAND	equ	55h
+FD_REOPEN	equ	58h
+
+FDOS_MAXPARM	equ	7		; Maximum FDOS Parameter Length (WORDS)
+
+FD_FUNC		equ	fdos_data
+
+FD_DRIVE	equ	fdos_data + 2
+FD_DPB		equ	dword ptr fdos_data + 4
+FD_DPBOFF	equ	fdos_data + 4
+FD_DPBSEG	equ	fdos_data + 6
+FD_ADJUST	equ	fdos_data + 8
+
+FD_NAME		equ	dword ptr fdos_data + 2
+FD_NAMEOFF	equ	fdos_data + 2
+FD_NAMESEG	equ	fdos_data + 4
+
+FD_MODE		equ	fdos_data + 6
+
+FD_HANDLE	equ	fdos_data + 2
+
+FD_BUF		equ	dword ptr fdos_data + 4
+FD_BUFOFF	equ	fdos_data + 4
+FD_BUFSEG	equ	fdos_data + 6
+
+FD_COUNT	equ	fdos_data + 8
+
+FD_OFFSET	equ	dword ptr fdos_data + 4
+
+FD_METHOD	equ	fdos_data + 8
+
+FD_FLAG		equ	fdos_data + 6
+
+FD_ATTRIB	equ	fdos_data + 8
+
+FD_PATH		equ	dword ptr fdos_data + 4
+FD_PATHOFF	equ	fdos_data + 4
+FD_PATHSEG	equ	fdos_data + 6
+
+FD_ONAME	equ	dword ptr fdos_data + 2
+FD_ONAMEOFF	equ	fdos_data + 2
+FD_ONAMESEG	equ	fdos_data + 4
+
+FD_NNAME	equ	dword ptr fdos_data + 10
+FD_NNAMEOFF	equ	fdos_data + 10
+FD_NNAMESEG	equ	fdos_data + 12
+
+FD_SFLAG	equ	fdos_data + 4
+FD_DATE		equ	fdos_data + 6
+FD_TIME		equ	fdos_data + 8
+
+FD_LENGTH	equ	dword ptr fdos_data + 8
+FD_LFLAG	equ	word  ptr fdos_data + 12
+
+FD_NEWHND	equ	fdos_data + 4
+
+FD_FCBADR	equ	dword ptr fdos_data + 2
+FD_FCBOFF	equ	fdos_data + 2
+FD_FCBSEG	equ	fdos_data + 4
+
+FD_FCBCNT	equ	fdos_data + 6
+FD_FCBFUNC	equ	fdos_data + 8
+
+FD_PSPSEG	equ	fdos_data + 2
+
+FD_BPBOFF	equ	fdos_data + 2
+FD_BPBSEG	equ	fdos_data + 4
+FD_DDSCOFF	equ	fdos_data + 6
+FD_DDSCSEG	equ	fdos_data + 8
+
+FD_IOCTLFUNC	equ	fdos_data + 4
+FD_IOCTLSTAT	equ	fdos_data + 6
+
+FD_NUMOPEN	equ	fdos_data + 2
+
+FD_DDIO_DRV_OP	equ	fdos_data + 2
+FD_DDIO_NSECTORS equ	fdos_data + 4
+FD_DDIO_STARTLOW equ	fdos_data + 6
+FD_DDIO_STARTHIGH equ	fdos_data + 8
+FD_DDIO_DMAOFF	equ	fdos_data + 10
+FD_DDIO_DMASEG	equ	fdos_data + 12
+

@@ -1,0 +1,80 @@
+;    File              : $BDOS.EQU$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;    ENDLOG
+;
+;	Search variables
+;
+
+NEXT		equ	0
+EMPTY		equ	1
+
+DOT		equ	2eh		; '.'
+
+DRIVEN		equ	0dh		; (0 rel)
+DRIVEP		equ	0fh		; (0 rel)
+
+DSKMAP		equ	16
+
+; struct pcfcb
+
+DRIVE		equ	0		;drive
+FNAME		equ	1		;file name & type
+EXTENT		equ	12		;extent (0 - 31)
+CHKSUM		equ	13		;checksum
+MODULE		equ	14		;module (0 - 63)
+					; 0x80 - file extended flag
+					; 0x40 - file write flag
+RCDCNT		equ	15		;record count (0 - 128)
+PCFCB1		equ	16		;PCDOS fcb flag byte
+					; 0x1f - high byte of file's dcnt
+					; 0x20 - hidden
+					; 0x40 - sub-directory
+					; 0x80 - always one
+PCFCB2		equ	17		;same as pcfcb1
+LOWDCNT		equ	18		;low byte of file's dcnt
+CBFLAG		equ	19		;current block flag
+CBLOCK		equ	20		;current block (2 bytes)
+CBLKIDX		equ	22		;current block index (2 bytes)
+TIME		equ	22		;time (hhhhhmmmmmmsssss)
+DATE		equ	24		;date (yyyyyyymmmmddddd)
+BLOCK1		equ	26		;first block in file
+CSIZE		equ	28		;current file size (2 words)
+CR		equ	32		;current record
+RR0		equ	33		;random record field (byte 0)
+RR1		equ	34		;random record field (byte 1)
+RR2		equ	35		;random record field (byte 2)
+
+
+;struct fcb
+
+FCBLEN	   	equ	32	      ; size of file control block
+FCBSHF		equ	5	      ; log2(fcblen)

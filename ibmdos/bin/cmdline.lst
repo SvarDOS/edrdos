@@ -1,0 +1,1921 @@
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page   1
+
+
+=  0001                   __RASM__        EQU     1
+
+                          ;    File              : $CMDLINE.A86$
+                          ;
+                          ;    Description       :
+                          ;
+                          ;    Original Author   : DIGITAL RESEARCH
+                          ;
+                          ;    Last Edited By    : $CALDERA$
+                          ;
+                          ;-----------------------------------------------------------------------;
+                          ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+                          ;      
+                          ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+                          ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+                          ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+                          ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+                          ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+                          ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+                          ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+                          ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+                          ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+                          ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+                          ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+                          ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+                          ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+                          ;    CIVIL LIABILITY.
+                          ;-----------------------------------------------------------------------;
+                          ;
+                          ;    *** Current Edit History ***
+                          ;    *** End of Current Edit History ***
+                          ;
+                          ;    $Log$
+                          ;    CMDLINE.A86 1.8 93/03/25 15:06:03
+                          ;    tweak console block output
+                          ;    ENDLOG
+                          ;
+                          ;       DOSPLUS Command Line Editor Routines
+                          ;
+
+=                                 include pcmode.equ
+=                         ;    File              : $PCMODE.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page   2
+
+
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ;       This file contains all the general purpose definitions
+=                         ;       and equates used by the PCMODE Module.
+=                         ;
+=
+=  FFFF                   TRUE            equ     0FFFFh          ; value of TRUE
+=  0000                   FALSE           equ     0               ; value of FALSE
+=
+=  0006                   TRUE_VERSION    equ     6
+=
+=  FFFF                   IDLE_DETECT     equ     TRUE            ; Check for IDLE Process's
+=
+=                         if IDLE_DETECT
+=  0001                   IDLE_COMMAND    equ     0001h           ; Command Processor Active
+=  0002                   IDLE_DOSFUNC    equ     0002h           ; DOS Function Called
+=  0004                   IDLE_INT28      equ     0004h           ; INT 28 Called
+=
+=  4000                   IDLE_ON         equ     4000h           ; ReSet when Idle Checking Enabled
+=  8000                   IDLE_INIT       equ     8000h           ; ReSet when $IDLE$ Loaded and Active
+=  C000                   IDLE_DISABLE    equ     IDLE_INIT + IDLE_ON 
+=
+=  0001                   PROC_IDLE       equ     0001            ; Process is IDLE
+=  0002                   PROC_INT28      equ     0002            ; INT28 Polling Loop
+=  0003                   PROC_KEYIN      equ     0003            ; Keyboard Input
+=  0004                   PROC_DEVIN      equ     0004            ; Device Input Routine
+=                         endif
+=
+=
+=  00C0                   STACK_SIZE      equ     192             ; Local Stack Size (Levels)
+=  0050                   MAX_PATHLEN     equ     80              ; Maximum Path length
+=  000D                   MAX_FILELEN     equ     13
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page   3
+
+
+=
+=                         ;
+=                         ;       DOS process termination Codes
+=                         ;
+=  0000                   TERM_NORMAL     equ     0               ; Normal Termination
+=  0001                   TERM_BREAK      equ     1               ; Termination by Control Break
+=  0002                   TERM_ERROR      equ     2               ; Termination by Critical Error
+=  0003                   TERM_RESIDENT   equ     3               ; Terminate and Stay Resident
+=
+=                         ;
+=                         ;       Critical Error responses from the default INT 24 handler and
+=                         ;       the DO_INT24 routine.
+=                         ;
+=  0000                   ERR_IGNORE      equ     0               ; Ignore Error
+=  0001                   ERR_RETRY       equ     1               ; Retry the Operation
+=  0002                   ERR_ABORT       equ     2               ; Terminate the Process
+=  0003                   ERR_FAIL        equ     3               ; Fail Function
+=                         ;
+=  0008                   OK_FAIL         equ     0000$1000b      ; Fail is a Valid Response
+=  0010                   OK_RETRY        equ     0001$0000b      ; Retry is a Valid Response
+=  0020                   OK_IGNORE       equ     0010$0000b      ; Ignore is a valid Response
+=  0038                   OK_RIF          equ     0011$1000b      ; All Responsese are Valid
+=  0030                   OK_RI           equ     0011$0000b      ; Retry and Ignore are Valid
+=  0018                   OK_RF           equ     0001$1000b      ; Retry and Fail are Valid
+=                         ;
+=  0040                   NO_CRIT_ERRORS  equ     0100$0000b      ; critical error shouldn't be generated
+=                                                                 ; warning - must match FDOS.A86
+=                         ;
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page   4
+
+
+=                         eject
+=                         ;       The following equates define the format in which the users registers
+=                         ;       are saved on the stack. This format is also seen by an application
+=                         ;       when a critical error occurs.
+=                         ;
+=                         CodeMacro       POP$DOS         ; Pop User Registers a la MS-DOS
+=                                 db 058h ! db 05Bh       ; pop AX ! pop BX
+=                                 db 059h ! db 05Ah       ; pop BX ! pop CX
+=                                 db 05Eh ! db 05Fh       ; pop SI ! pop DI
+=                                 db 05Dh                 ; pop BP
+=                                 db 01Fh ! db 007h       ; pop DS ! pop ES
+=                         EndM
+=
+=                         CodeMacro   PUSH$DOS    ; Push User Registers
+=                                 db 006h ! db 01Eh       ; push ES ! push DS
+=                                 db 055h                 ; push BP
+=                                 db 057h ! db 056h       ; push DI ! push SI
+=                                 db 052h ! db 051h       ; push DX ! push CX
+=                                 db 053h ! db 050h       ; push BX ! push AX
+=                         EndM
+=
+=  0000                   reg_AX          equ     word ptr .00
+=  0000                   reg_AL          equ     byte ptr .00
+=  0001                   reg_AH          equ     byte ptr .01
+=
+=  0002                   reg_BX          equ     word ptr .02
+=  0002                   reg_BL          equ     byte ptr .02
+=  0003                   reg_BH          equ     byte ptr .03
+=
+=  0004                   reg_CX          equ     word ptr .04
+=  0004                   reg_CL          equ     byte ptr .04
+=  0005                   reg_CH          equ     byte ptr .05
+=
+=  0006                   reg_DX          equ     word ptr .06
+=  0006                   reg_DL          equ     byte ptr .06
+=  0007                   reg_DH          equ     byte ptr .07
+=
+=  0008                   reg_SI          equ     word ptr .08
+=  000A                   reg_DI          equ     word ptr .10
+=  000C                   reg_BP          equ     word ptr .12
+=
+=  000E                   reg_DS          equ     word ptr .14
+=  0010                   reg_ES          equ     word ptr .16
+=
+=  0012                   reg_IP          equ     word ptr .18
+=  0014                   reg_CS          equ     word ptr .20
+=  0016                   reg_FLAGS       equ     word ptr .22
+=
+=                         ; Processor Flags
+=  0001                   CARRY_FLAG      equ     0001h           ; Carry Flag
+=  0040                   ZERO_FLAG       equ     0040h           ; Zero Flag
+=  0080                   SIGN_FLAG       equ     0080h           ; Sign Flag
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page   5
+
+
+=  0200                   INT_FLAG        equ     0200h           ; Interrupt Flag
+=  0400                   DIR_FLAG        equ     0400h           ; Direction Flag
+=  0800                   OFLW_FLAG       equ     0800h           ; OverFlow Flag
+=
+=  0000                   DMD_ID          equ     es:byte ptr .0  ; id code ('M' or 'Z')
+=  0001                   DMD_PSP         equ     es:word ptr .1  ; owner of memory block
+=  0003                   DMD_LEN         equ     es:word ptr .3  ; length of memory block
+=  0006                   DMD_IDLE_FLAGS  equ es:word ptr .6  ; idle flags live here
+=  0008                   DMD_NAME        equ     es:byte ptr .8  ; ASCIIZ name field
+=  0008                   DMD_NAME_LEN    equ     8               ;  8 Bytes long
+=  004D                   IDM             equ     'M'             ; not last id code
+=  005A                   IDZ             equ     'Z'             ; last id code
+=
+=                         PCMCODE         GROUP   PCM_HEADER, PCM_CODE, BDOS_CODE, PCM_RODATA
+=                         PCMCODE         GROUP   PCM_HISTORY, PCM_ICODE, PCM_CODEND
+=
+=                         PCM_HEADER      CSEG    PARA
+=                         PCM_CODE        CSEG    BYTE
+=                         PCM_RODATA      CSEG    WORD
+=                         BDOS_CODE       CSEG    WORD
+=                         PCM_HISTORY     CSEG    BYTE
+=                         PCM_ICODE       CSEG    BYTE
+=                         PCM_CODEND      CSEG    PARA
+=
+=
+=                         PCMDATA         GROUP   PCMODE_DATA, FDOS_DSEG, FIXED_DOS_DATA
+=                         PCMDATA         GROUP   PCMODE_CODE, GLOBAL_DATA, BDOS_DATA, PCMODE_DSIZE
+=
+=                         PCMODE_DATA     DSEG    WORD            ; DOS Data
+=                         FDOS_DSEG       DSEG    WORD COMMON     ; FDOS Parameter Block  
+=0000                     fdos_data       rw      7
+=                         FIXED_DOS_DATA  CSEG    WORD    'DATA'  ; Fixed DOS Data Area
+=                         PCMODE_CODE     CSEG    WORD    'DATA'  ; DATA relative CODE
+=                         GLOBAL_DATA     DSEG    WORD            ; GLOBAL DOS DATA (Process Independant)
+=                         BDOS_DATA       DSEG    WORD            ; BDOS Data Area
+=                         PCMODE_DSIZE    DSEG    PARA            ; End of DOS Data Area
+
+=                                 include i:msdos.equ
+=                         ;    File              : $MSDOS.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page   6
+
+
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=
+=  0000                   MS_P_TERMCPM    equ     00H
+=  0001                   MS_C_READ       equ     01H
+=  0002                   MS_C_WRITE      equ     02H
+=  0003                   MS_A_READ       equ     03H
+=  0004                   MS_A_WRITE      equ     04H
+=  0005                   MS_L_WRITE      equ     05H
+=  0006                   MS_C_RAWIO      equ     06H
+=  0007                   MS_C_RAWIN      equ     07H
+=  0008                   MS_C_NOECHO     equ     08H
+=  0009                   MS_C_WRITESTR   equ     09H
+=  000A                   MS_C_READSTR    equ     0aH
+=  000B                   MS_C_STAT       equ     0bH
+=  000C                   MS_C_FLUSH      equ     0cH
+=  000D                   MS_DRV_ALLRESET equ     0dH
+=  000E                   MS_DRV_SET      equ     0eH
+=  000F                   MS_F_OPEN       equ     0fH
+=  0010                   MS_F_CLOSE      equ     10H
+=  0011                   MS_F_SFIRST     equ     11H
+=  0012                   MS_F_SNEXT      equ     12H
+=  0013                   MS_F_DELETE     equ     13H
+=  0014                   MS_F_READ       equ     14H
+=  0015                   MS_F_WRITE      equ     15H
+=  0016                   MS_F_MAKE       equ     16H
+=  0017                   MS_F_RENAME     equ     17H
+=  0019                   MS_DRV_GET      equ     19H
+=  001A                   MS_F_DMAOFF     equ     1aH
+=  001B                   MS_DRV_ALLOC    equ     1bH
+=  001C                   MS_DRV_ALLOCSPEC equ    1cH
+=  0021                   MS_F_READRAND   equ     21H
+=  0022                   MS_F_WRITERAND  equ     22H
+=  0023                   MS_F_SIZE       equ     23H
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page   7
+
+
+=  0024                   MS_F_RANDREC    equ     24H
+=  0025                   MS_S_SETINT     equ     25H
+=  0026                   MS_P_MKPSP      equ     26H
+=  0027                   MS_F_READBLK    equ     27H
+=  0028                   MS_F_WRITEBLK   equ     28H
+=  0029                   MS_F_PARSE      equ     29H
+=  002A                   MS_T_GETDATE    equ     2aH
+=  002B                   MS_T_SETDATE    equ     2bH
+=  002C                   MS_T_GETTIME    equ     2cH
+=  002D                   MS_T_SETTIME    equ     2dH
+=  002E                   MS_F_VERIFY     equ     2eH
+=  002F                   MS_F_DMAGET     equ     2fH
+=  0030                   MS_S_BDOSVER    equ     30H
+=  0031                   MS_P_TERMKEEP   equ     31H
+=  0033                   MS_S_BREAK      equ     33H
+=  0035                   MS_S_GETINT     equ     35H
+=  0036                   MS_DRV_SPACE    equ     36H
+=  0038                   MS_S_COUNTRY    equ     38H
+=  0039                   MS_X_MKDIR      equ     39H
+=  003A                   MS_X_RMDIR      equ     3aH
+=  003B                   MS_X_CHDIR      equ     3bH
+=  003C                   MS_X_CREAT      equ     3cH
+=  003D                   MS_X_OPEN       equ     3dH
+=  003E                   MS_X_CLOSE      equ     3eH
+=  003F                   MS_X_READ       equ     3fH
+=  0040                   MS_X_WRITE      equ     40H
+=  0041                   MS_X_UNLINK     equ     41H
+=  0042                   MS_X_LSEEK      equ     42H
+=  0043                   MS_X_CHMOD      equ     43H
+=  0044                   MS_X_IOCTL      equ     44H
+=  0045                   MS_X_DUP        equ     45H
+=  0046                   MS_X_DUP2       equ     46H
+=  0047                   MS_X_CURDIR     equ     47H
+=  0048                   MS_M_ALLOC      equ     48H
+=  0049                   MS_M_FREE       equ     49H
+=  004A                   MS_M_SETBLOCK   equ     4aH
+=  004B                   MS_X_EXEC       equ     4bH
+=  004C                   MS_X_EXIT       equ     4cH
+=  004D                   MS_X_WAIT       equ     4dH
+=  004E                   MS_X_FIRST      equ     4eH
+=  004F                   MS_X_NEXT       equ     4fH
+=  0050                   MS_P_SETPSP     equ     50H
+=  0054                   MS_F_GETVERIFY  equ     54H
+=  0056                   MS_X_RENAME     equ     56H
+=  0057                   MS_X_DATETIME   equ     57H
+=  0058                   MS_M_STRATEGY   equ     58h
+=  0059                   MS_F_ERROR      equ     59H
+=  005A                   MS_X_MKTEMP     equ     5aH
+=  005B                   MS_X_MKNEW      equ     5bH
+=  005C                   MS_F_LOCK       equ     5cH
+=  0060                   MS_X_EXPAND     equ     60H
+=  0062                   MS_P_GETPSP     equ     62H
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page   8
+
+
+=  6601                   MS_X_GETCP      equ     6601h
+=  6602                   MS_X_SETCP      equ     6602h
+=  0067                   MS_X_SETHC      equ     67h
+=  0068                   MS_X_COMMIT     equ     68h
+=
+=  0021                   DOS_INT     equ 21h ; DOS Entry Point
+=                         ;
+=  0000                   STDIN           equ     0       ; Standard Console Input Handle
+=  0001                   STDOUT          equ     1       ; Standard Console Output Handle
+=  0002                   STDERR          equ     2       ; Standard Error Output
+=  0003                   STDAUX          equ     3       ; Auxilary Device Handle
+=  0004                   STDPRN          equ     4       ; Printer Device Handle
+
+=                                 include i:char.def
+=                         ;    File              : $CHAR.DEF$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ;************************************************;
+=                         ;*                                              *;
+=                         ;*            Character Definitions             *;
+=                         ;*                                              *;
+=                         ;************************************************;
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page   9
+
+
+=
+=  0001                   CTLA            equ     'A' - '@'
+=  0002                   CTLB            equ     'B' - '@'
+=  0003                   CTLC            equ     'C' - '@'
+=  0004                   CTLD            equ     'D' - '@'
+=  0005                   CTLE            equ     'E' - '@'
+=  0006                   CTLF            equ     'F' - '@'
+=  0007                   CTLG            equ     'G' - '@'
+=  0007                   BELL            equ     'G' - '@'
+=  0008                   CTLH            equ     'H' - '@'
+=  0009                   CTLI            equ     'I' - '@'
+=  0009                   TAB             equ     'I' - '@'
+=  000A                   CTLJ            equ     'J' - '@'
+=  000A                   LF              equ     'J' - '@'
+=  000B                   CTLK            equ     'K' - '@'
+=  000D                   CTLM            equ     'M' - '@'
+=  000D                   CR              equ     'M' - '@'
+=  0010                   CTLP            equ     'P' - '@'
+=  0011                   CTLQ            equ     'Q' - '@'
+=  0012                   CTLR            equ     'R' - '@'
+=  0013                   CTLS            equ     'S' - '@'
+=  0014                   CTLT            equ     'T' - '@'
+=  0015                   CTLU            equ     'U' - '@'
+=  0016                   CTLV            equ     'V' - '@'
+=  0017                   CTLW            equ     'W' - '@'
+=  0018                   CTLX            equ     'X' - '@'
+=  0019                   CTLY            equ     'Y' - '@'
+=  001A                   CTLZ            equ     'Z' - '@'
+=  001B                   ESC             equ     '[' - '@'
+=  001C                   CTLBS           equ     '\' - '@'
+=  001F                   CTLUB           equ     '_' - '@'
+=  001E                   CTLUP           equ     '^' - '@'
+=  007F                   DEL             equ     07Fh
+=  007F                   RUBOUT          equ     DEL
+=
+=  005E                   CTL             equ     '^'
+
+=                                 include i:cmdline.equ
+=                         ;    File              : $CMDLINE.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  10
+
+
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=  FFFE                   RL_INPUT        equ     word ptr -2[bp]         ; READ_LINE Input Handle
+=  FFFC                   RL_OUTPUT       equ     word ptr -4[bp]         ; READ_LINE Output Handle
+=  FFFA                   RL_BUFSEG       equ     word ptr -6[bp]         ; Retained line Segment
+=  FFF8                   RL_BUFOFF       equ     word ptr -8[bp]         ; Retained line Offset
+=  FFF8                   RL_BUFPTR       equ     dword ptr -8[bp]        ; Retained line Buffer
+=  FFF6                   RL_INICOL       equ     word ptr -10[bp]        ; initial column
+=  FFF4                   RL_FLAGS        equ     word ptr -12[bp]        ; Control Flags
+=  FFF2                   RL_MAXLEN       equ     word ptr -14[bp]        ; Maximum Buffer Size
+=  FFF0                   RL_KANJI        equ     word ptr -16[bp]                ; Kanji Character Buffer
+=  FFEE                   RL_SAVMAX       equ     word ptr -18[bp]        ; Size of retained data
+=  FFEC                   RL_SAVPOS       equ     word ptr -20[bp]        ; Current Position in data
+=  FFEA                   RL_HIST_RECL    equ     word ptr -22[bp]        ; We recall from here
+=  FFE8                   RL_HIST_SAVE    equ     word ptr -24[bp]        ; We save to here
+=  FFE6                   RL_HIST_SIZE    equ     word ptr -26[bp]        ; buffer is this big
+=  FFE4                   RL_HIST_SEG     equ     word ptr -28[bp]        ; buffer is at this segment
+=  001C                   RL_LENGTH       equ     28
+=
+=  0001                   RLF_ENHANCED    equ     0000$0001b              ; Enhanced features are on
+=  0002                   RLF_INS         equ     0000$0010b              ; Insert Flag
+=  0004                   RLF_SEARCH      equ     0000$0100b              ; Search mode on
+=  0008                   RLF_MATCH       equ     0000$1000b              ; We are matching a command
+=  0010                   RLF_RECALLED    equ     0001$0000b              ; Line already recalled
+=  0020                   RLF_DIRTY       equ     0010$0000b              ; Partial line needs saved
+=  0040                   RLF_KANJI       equ     0100$0000b              ; RL_KANJI is valid
+=  0080                   RLF_INROOT      equ     1000$0000b              ; In root
+=
+=  0001                   CHAR_SPACE      equ     0000$0001b      ; Space Character
+=  0002                   CHAR_TAB        equ     0000$0010b      ; Tab Character
+=  0004                   CHAR_CTL        equ     0000$0100b      ; Control Character expanded to "^X"
+=  0008                   CHAR_KANJI      equ     0000$1000b      ; Japanese Kanji character
+=  0010                   CHAR_ALPHAN     equ     0001$0000b      ; Alpha/Numeric
+=  0020                   CHAR_OTHER      equ     0010$0000b      ; Non AlphaNumeric
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  11
+
+
+=  0080                   CHAR_STD        equ     1000$0000b      ; Stored as a Byte displayed in 1 Col
+=
+=  008E                   CHAR_SIZE       equ     CHAR_STD or CHAR_KANJI or CHAR_TAB or CHAR_CTL
+=  0031                   CHAR_ONECOL     equ     CHAR_SPACE or CHAR_OTHER or CHAR_ALPHAN
+
+=                                 include i:reqhdr.equ
+=                         ;    File              : $REQHDR.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=  0000                   CMD_INIT                equ      0      ; Initialize the Device Driver
+=  0001                   CMD_MEDIA_CHECK         equ      1      ; Request Media Check
+=  0002                   CMD_BUILD_BPB           equ      2      ; Build Drive BPB
+=  0003                   CMD_INPUT_IOCTL         equ      3      ; IOCTL input
+=  0004                   CMD_INPUT               equ      4      ; Input
+=  0005                   CMD_INPUT_NOWAIT        equ      5      ; Non destructive input no wait
+=  0006                   CMD_INPUT_STATUS        equ      6      ; Input status
+=  0007                   CMD_INPUT_FLUSH         equ      7      ; Input flush
+=  0008                   CMD_OUTPUT              equ      8      ; Output
+=  0009                   CMD_OUTPUT_VERIFY       equ      9      ; Output with verify
+=  000A                   CMD_OUTPUT_STATUS       equ     10      ; Output status
+=  000B                   CMD_OUTPUT_FLUSH        equ     11      ; Output flush
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  12
+
+
+=  000C                   CMD_OUTPUT_IOCTL        equ     12      ; IOCTL output
+=  000D                   CMD_DEVICE_OPEN         equ     13      ; Device OPEN
+=  000E                   CMD_DEVICE_CLOSE        equ     14      ; Device CLOSE
+=  000F                   CMD_FIXED_MEDIA         equ     15      ; Removeable Media Check
+=  0013                   CMD_GENERIC_IOCTL       equ     19      ; Generic IOCTL
+=  0017                   CMD_GET_DEVICE          equ     23      ; Get the Logical Device
+=  0018                   CMD_SET_DEVICE          equ     24      ; Set the Logical Device
+=  0019                   CMD_QUERY_IOCTL         equ     25      ; query ioctl support
+=
+=                         ;       Generic Request Header Format
+=
+=  0000                   RH_LEN          equ     es:byte ptr 0[bx]
+=  0001                   RH_UNIT         equ     es:byte ptr 1[bx]
+=  0002                   RH_CMD          equ     es:byte ptr 2[bx]
+=  0003                   RH_STATUS       equ     es:word ptr 3[bx]
+=  0100                     RHS_DONE      equ     0100h
+=  0200                     RHS_BUSY      equ     0200h
+=  0400                     RHS_IC        equ     0400h                   ; Interim Character
+=  0800                     RHS_RM        equ     0800h
+=  8000                     RHS_ERROR     equ     8000h
+=
+=                         ;******
+=                         ;* No longer safe to use - some device drivers trample on them....
+=                         ;*
+=                         ;* RH_STRATEGY  equ     es:dword ptr 5[bx]      ; Device Strategy Routine
+=                         ;* RH_STRATOFF  equ     es:word ptr  5[bx]      ; Strategy Offset
+=                         ;* RH_STRATSEG  equ     es:word ptr  7[bx]      ; Strategy Segment
+=                         ;* RH_INTERRUPT equ     es:dword ptr 9[bx]      ; Device Interrupt Routine
+=                         ;* RH_INTOFF    equ     es:word ptr  9[bx]      ; Intterupt Offset
+=                         ;* RH_INTSEG    equ     es:word ptr 11[bx]      ; Interrupt Segment
+=                         ;*****
+=
+=                         ;       Request header for initialization
+=
+=  000D                   RH0_NUNITS      equ     es:byte ptr 13[bx]
+=  000E                   RH0_RESIDENT    equ     es:word ptr 14[bx]
+=  0012                   RH0_BPBOFF      equ     es:word ptr 18[bx]
+=  0014                   RH0_BPBSEG      equ     es:word ptr 20[bx]
+=  0016                   RH0_DRIVE       equ     es:byte ptr 22[bx]
+=  0016                   RH0_LEN         equ     22
+=
+=                         ;       Request header for media check
+=
+=  000D                   RH1_MEDIA       equ     es:byte ptr 13[bx]      ; BDOS: current media byte
+=  000E                   RH1_RETURN      equ     es:byte ptr 14[bx]      ; driver: return code (00, 01, FF)
+=  000F                   RH1_VOLID       equ     es:dword ptr 15[bx]     ; driver: volume label address
+=  000F                   RH1_LEN         equ     15
+=
+=                         ;       Request header for "build BPB"
+=
+=  000D                   RH2_MEDIA       equ     es:byte ptr 13[bx]      ; BDOS or driver?
+=  000E                   RH2_BUFFER      equ     es:dword ptr 14[bx]     ; BDOS: scratch buffer for driver use
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  13
+
+
+=  0012                   RH2_BPB         equ     es:dword ptr 18[bx]     ; same as the following:
+=  0012                   RH2_BPBOFF      equ     es:word ptr 18[bx]      ; driver: address of new BPB
+=  0014                   RH2_BPBSEG      equ     es:word ptr 20[bx]
+=  0018                   RH2_LEN         equ     24
+=
+=                         ;       Request header for input/output
+=
+=  000D                   RH4_MEDIA       equ     es:byte ptr 13[bx]      ; BDOS: current media byte
+=  000D                   RH4_RIC         equ     es:byte ptr 13[bx]      ; BDOS: Return Interim Char flg
+=  000E                   RH4_BUFFER      equ     es:dword ptr 14[bx]     ; BDOS: disk transfer address
+=  000E                   RH4_BUFOFF      equ     es:word ptr 14[bx]      ; BDOS: Buffer Offset
+=  0010                   RH4_BUFSEG      equ     es:word ptr 16[bx]      ; BDOS: Buffer Segment
+=  0012                   RH4_COUNT       equ     es:word ptr 18[bx]      ; BDOS: sector count
+=  0014                   RH4_SECTOR      equ     es:word ptr 20[bx]      ; BDOS: starting sector
+=  0016                   RH4_VOLID       equ     es:dword ptr 22[bx]     ; driver: volume if illegal disk change
+=  001A                   RH4_BIGSECTOR   equ es:dword ptr 26[bx] 
+=  001A                   RH4_BIGSECTORLO equ     es:word ptr 26[bx]
+=  001C                   RH4_BIGSECTORHI equ     es:word ptr 28[bx]
+=
+=  001E                   RH4_LEN         equ     30
+=
+=                         ;       Request Header for Non-Destructive Input
+=
+=  000D                   RH5_CHAR        equ     es:byte ptr 13[bx]      ; Character Read from Device
+=  000D                   RH5_RIC         equ     es:byte ptr 13[bx]      ; BDOS: Return Interim Char flg
+=  000E                   RH5_LEN         equ     14
+=
+=                         ;       Request Header for Device Open
+=
+=  000D                   RH13_LEN        equ     13
+=
+=                         ;       Request Header for Device Close
+=
+=  000D                   RH14_LEN        equ     13
+=
+=                         ;       Request header for generic IOCTL
+=
+=  000D                   RH19_CATEGORY   equ     es:word ptr 13[bx]      ; BDOS: major/minor function number
+=  000D                   RH19_MAJOR      equ     es:byte ptr 13[bx]      ; BDOS: Major Function Number
+=  000E                   RH19_MINOR      equ     es:byte ptr 14[bx]      ; BDOS: Minor Function Number
+=  000F                   RH19_SI         equ     es:word ptr 15[bx]      ; BDOS: User SI 
+=  0011                   RH19_DI         equ     es:word ptr 17[bx]      ; BDOS: User DI 
+=  0013                   RH19_GENPB      equ     es:dword ptr 19[bx]     ; BDOS: extra parameters
+=  0017                   RH19_LEN        equ     23
+=
+=  0040                   RQ19_SET        equ     40h             ; set device parameters
+=  0060                   RQ19_GET        equ     60h             ; get device parameters
+=  0041                   RQ19_WRITE      equ     41h             ; write tracks
+=  0061                   RQ19_READ       equ     61h             ; read tracks
+=  0042                   RQ19_FORMAT     equ     42h             ; format tracks
+=  0062                   RQ19_VERIFY     equ     62h             ; verify tracks
+=
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  14
+
+
+=  004C                   RQ19_PRP_START  equ     4Ch             ; start of codepage prepare
+=  004D                   RQ19_PRP_END    equ     4Dh             ; end of codepage prepare
+=  004A                   RQ19_SELECT     equ     4Ah             ; select code page
+=  006A                   RQ19_QRY_SEL    equ     6Ah             ; query selected code page
+=  006B                   RQ19_QRY_PRP    equ     6Bh             ; query prepared code page(s)
+=  005F                   RQ19_DSP_SET    equ     5Fh             ; set display information
+=  007F                   RQ19_DSP_GET    equ     7Fh             ; get display information
+=
+=                         ;       Request header for get/set drive
+=
+=  000E                   RH24_CMD        equ     es:byte ptr 14[bx]      ; BDOS: Command Code
+=  000F                   RH24_STATUS     equ     es:word ptr 15[bx]      ; BDOS: Status
+=  0011                   RH24_RESVD      equ     es:dword ptr 17[bx]     ; BDOS: Reserved
+=  0015                   RH24_LEN        equ     21
+=
+=  001E                   RH_SIZE         equ     30              ; maximum size of request header
+
+=                                 include i:driver.equ
+=                         ;    File              : $DRIVER.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ; Device driver header offsets.
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  15
+
+
+=
+=
+=  0000                   DH_NEXT         equ     es:dword ptr 0          ; Dword Pointer to Next DEV
+=  0000                   DH_NEXTOFF      equ     es:word ptr 0           ; Offset of next device
+=  0002                   DH_NEXTSEG      equ     es:word ptr 2           ; Segment of next device
+=  0004                   DH_ATTRIB       equ     es:word ptr 4           ; device attribute bits
+=  0006                   DH_STRATEGY     equ     es:word ptr 6           ; offset of strategy entry
+=  0008                   DH_INTERRUPT    equ     es:word ptr 8           ; offset of interupt entry
+=  000A                   DH_NAME         equ     es:byte ptr 10          ; 8-BYTE device name
+=
+=  8000                   DA_CHARDEV      equ     8000h           ; 1=character device, 0=block device
+=  4000                   DA_IOCTL        equ     4000h           ; device supports IOCTL string I/O
+=  2000                   DA_NONIBM       equ     2000h           ; dosen't require FAT for login
+=  2000                   DA_OTILBSY      equ     2000h           ; supports "output until busy"
+=  0800                   DA_REMOVE       equ     0800h           ; supports "removable media" check
+=  0080                   DA_QUERY        equ     0080h           ; supports query ioctl
+=  0040                   DA_GETSET       equ     0040h           ; supports 3.2 level functionality
+=  0010                   DA_SPECIAL      equ     0010h           ; fast console ouput via INT 29h
+=  0008                   DA_ISCLK        equ     0008h           ; device is current clock device
+=  0004                   DA_ISNUL        equ     0004h           ; device is NUL device (reserved)
+=  0002                   DA_BIGDRV       equ     0002h           ; supports > 65535 sector per drive
+=  0002                   DA_ISCOT        equ     0002h           ; device is standard output device
+=  0001                   DA_ISCIN        equ     0001h           ; device is standard input device
+=
+=  0029                   FASTCON_INT     equ     29h             ; fast console output interrupt
+=
+
+
+
+                          PCM_CODE        CSEG    BYTE
+                                  public  read_line, edit_size
+
+                                  extrn   dbcs_lead:near
+                                  extrn   cmdline_read:near
+                                  extrn   raw_read:near
+                                  extrn   cooked_write:near
+                                  extrn   get_dseg:near
+                                  extrn   device_driver:near
+
+                          ; WARNING - the following routines are to support history buffers
+                          ; As these are optional we muset NEVER call these routines unless
+                          ; the HISTORY_ON bit is set in @hist_flag.
+
+                                  extrn   init_history:near
+                                  extrn   save_history:near
+                                  extrn   prev_cmd:near
+                                  extrn   next_cmd:near
+                                  extrn   match_cmd:near
+                                  extrn   search_cmd:near
+                                  extrn   match_word:near
+                                  extrn   del_cur_history_buffer:near
+                                  extrn   del_history_buffers:near
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  16
+
+
+                                  extrn   goto_eol:near
+                                  extrn   next_word:near
+                                  extrn   prev_word:near
+                                  extrn   del_bol:near
+                                  extrn   deln_word:near
+
+                          ; The following are public for HISTORY.PCM
+                                  public  next_char, save_line
+                                  public  space_out, bs_out, put_string
+                                  public  goto_bol
+                                  public  del_eol, del_line
+                                  public  char_info
+                                  public  prev_w20
+                                  public  deln_w10
+
+
+                          ;       READ_LINE will read an editted line from the handle passed in BX
+                          ;       into a buffer with the following format:-
+                          ;
+                          ;       BYTE    Maximum String Length
+                          ;       BYTE    Current String Length
+                          ;       BYTE(s) String Buffer
+                          ;
+                          ;       On Entry:-
+                          ;               BX              Input Handle
+                          ;               CX              Output Handle
+                          ;               ES:DX           Buffer Address
+                          ;
+                          ;       On Exit:-
+                          ;               String input by user
+                          ;
+                          ;       The following conventions apply for the READ_LINE function
+                          ;
+                          ;       ES      Buffer segment
+                          ;       SI      Current cursor location in buffer (Index)
+                          ;       DX      Last Character in Buffer (Index)
+                          ;
+   0080                   DISABLE         equ     80h     ; Disable when advanced editing is off.
+   8000                   DISABLE_MASK    equ     8000h
+   0001                   ESC_CODE        equ     01h     ; Scan code must be preceeded by escape byte.
+   0000                   NESC_CODE       equ     00h     ; No lead zero needed.
+
+                          read_line:
+ 0000 55                          push    bp                      ; Save the Stack Frame Pointer
+ 0001 8BEC                        mov     bp,sp                   ; Intialise it to the top of the
+ 0003 83EC1C                      sub     sp,RL_LENGTH            ; READ_LINE control block and reserve
+                                                                  ; control block
+ 0006 895EFE                      mov     RL_INPUT,bx             ; Initialize the INPUT Handle
+ 0009 894EFC                      mov     RL_OUTPUT,cx            ; the OUTPUT Handle
+ 000C 4242                        inc dx ! inc dx                 ; Skip max and Returned Length
+ 000E 8956F8                      mov     RL_BUFOFF,dx            ; and save the buffer offset
+ 0011 8C46FA                      mov     RL_BUFSEG,es            ;  and segment
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  17
+
+
+ 0014 33C0                        xor     ax,ax                   ; now we zero
+ 0016 8946EC                      mov     RL_SAVPOS,ax            ;  both position in it
+ 0019 8946EE                      mov     RL_SAVMAX,ax            ;  and it's size
+ 001C A00000       E              mov     al,column
+ 001F 8946F6                      mov     RL_INICOL,ax            ; save initial column
+ 0022 A10000       E              mov     ax,cle_state            ; use to set initial editing state
+ 0025 25C7FF                      and     ax,not (RLF_MATCH+RLF_DIRTY+RLF_RECALLED)
+ 0028 8946F4                      mov     RL_FLAGS,ax             ; save in flags
+ 002B A90100                      test    ax,RLF_ENHANCED
+ 002E 7405           0035          jz     read_line10
+ 0030 E80000       E              call    init_history            ;  setup the history buffers
+ 0033 EB05           003A         jmps    read_line20
+                          read_line10:
+ 0035 8166F4FDFF                  and     RL_FLAGS,not RLF_INS    ; clear insert mode
+                          read_line20:
+ 003A 8BFA                        mov     di,dx                   ; di -> buffer
+ 003C 33DB                        xor     bx,bx
+ 003E 260A5DFE                    or      bl,es:byte ptr -2[di]   ; Get the Maximum number of chars
+ 0042 895EF2                      mov     RL_MAXLEN,bx            ; and save for later
+ 0045 7528           006F          jnz    read_line30             ; make sure some chars are requested
+ 0047 EB22           006B         jmps    ret_string10            ; if no chars just return
+                                  
+                          ret_string:
+ 0049 58                          pop     ax                      ; Remove local return address
+ 004A 8B46F4                      mov     ax,RL_FLAGS             ; get command line editor state
+ 004D A30000       E              mov     cle_state,ax            ;  save state for next time
+ 0050 8B7EF8                      mov     di,RL_BUFOFF            ; Get the buffer Offset
+ 0053 268855FF                    mov     es:byte ptr -1[di],dl   ; Return the number of characters
+ 0057 52                          push    dx                      ; Save length of entry
+ 0058 03FA                        add     di,dx                   ; Point to the end of the buffer
+ 005A B00D                        mov     al,CR
+ 005C AA                          stosb                           ; Save CR
+ 005D E87C04         04DC         call    write_char              ; Print a CR and return to the user
+ 0060 5A                          pop     dx
+ 0061 F746F40100                  test    RL_FLAGS,RLF_ENHANCED   ; Do not add to history if in
+ 0066 7403           006B          jz     ret_string10            ; compatibility mode
+ 0068 E80000       E              call    save_history            ; Save state of history buffer
+                          ret_string10:
+ 006B 8BE5                        mov     sp,bp                   ; Remove READ_LINE control Block
+ 006D 5D                          pop     bp                      ; Restore BP and return to the caller
+ 006E C3                          ret
+
+
+                          read_line30:
+ 006F 33F6                        xor     si,si                   ; Currently at start of buffer
+ 0071 8BD6                        mov     dx,si                   ; with an empty buffer.
+
+ 0073 33DB                        xor     bx,bx
+ 0075 260A5DFF                    or      bl,es:byte ptr -1[di]   ; Check if the buffer contains any
+ 0079 7408           0083          jz     read_line40             ; data which is terminated by a CR
+ 007B 2680390D                    cmp     es:byte ptr [bx+di],CR
+ 007F 7502           0083          jnz    read_line40
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  18
+
+
+ 0081 8BD3                        mov     dx,bx
+                          read_line40:
+ 0083 E84803         03CE         call    save_line               ; Update Save Buffer variables
+ 0086 8BD6                        mov     dx,si
+                          ;
+                          ; This is out main command loop - we get a character and try to match it
+                          ; with a command in our edit_table. If History is on we look at commands
+                          ; with the DISABLED bit set ie. enhanced commands.
+                          ; It a match isn't found we insert the character in the buffer, and optionally
+                          ; try to match with previous lines in the history buffer.
+                          ;
+                          read_line_loop:
+ 0088 8166F4BFFF                  and     RL_FLAGS,not RLF_KANJI  ; initial flags
+ 008D E86604         04F6         call    get_char                ; read the first character (AH Esc Flg)
+
+ 0090 2E8B0E0100   R              mov     cx,edit_size            ; now scan the control table looking
+ 0095 BB0300       R              mov     bx,offset edit_table    ;  for a match
+                          read_ll_next_cmd:
+ 0098 25FF7F                      and     ax,not DISABLE_MASK     ; assume normal function
+ 009B F746F40100                  test    RL_FLAGS,RLF_ENHANCED   ; compatibilty required? then it
+ 00A0 740A           00AC          jz     read_ll10               ;  has to be a normal function
+ 00A2 2EF7070080                  test    EDIT_CNTRL,DISABLE_MASK ; history enabled, so we make
+ 00A7 7403           00AC          jz     read_ll10               ;  our code match DISABLE mask
+ 00A9 0D0080                      or      ax,DISABLE_MASK         ;  of table entry
+                          read_ll10:
+ 00AC 2E3B07                      cmp     ax,EDIT_CNTRL           ; check for a match (Escape Flag
+ 00AF 7430           00E1          je     read_ll_found_cmd       ;  and the character)
+ 00B1 83C304                      add     bx,EDIT_LEN             ; Add the entry length
+ 00B4 E2E2           0098         loop    read_ll_next_cmd        ; and scan the whole table
+
+                          ; We have failed to find a command so insert char in buffer
+
+ 00B6 F6C401                      test    ah,ESC_CODE             ; Ignore non-matched escaped keys
+ 00B9 75CD           0088          jnz    read_line_loop
+
+ 00BB E82C00         00EA         call    save_char               ; not an command so save the character
+ 00BE 814EF42000                  or      RL_FLAGS,RLF_DIRTY      ;  and remember we have something new
+
+                          ; Are we in search mode ?
+
+ 00C3 F746F40100                  test    RL_FLAGS,RLF_ENHANCED   ; Compatibilty required?  
+ 00C8 74BE           0088          jz     read_line_loop
+ 00CA F746F40C00                  test    RL_FLAGS,RLF_SEARCH+RLF_MATCH
+ 00CF 74B7           0088          jz     read_line_loop          ; is searching/matching on ?
+ 00D1 56                          push    si                      ; save current offset
+ 00D2 E80000       E              call    search_cmd
+ 00D5 58                          pop     ax                      ; this is our target offset
+                          read_ll20:
+ 00D6 3BC6                        cmp     ax,si                   ; are we there yet ?
+ 00D8 73AE           0088          jae    read_line_loop
+ 00DA 50                          push    ax                      ; no, keep rewinding cursor
+ 00DB E83B01         0219         call    prev_char               ;  until we reach position
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  19
+
+
+ 00DE 58                          pop     ax                      ;  before we tried to match
+ 00DF EBF5           00D6         jmps    read_ll20
+
+                          read_ll_found_cmd:                      ; get the address of the corresponding
+ 00E1 2E8B4F02                    mov     cx,EDIT_FUNC            ;  function from the table      
+ 00E5 FFD1                        call    cx                      ;  execute the correct function
+ 00E7 EB9F           0088         jmps    read_line_loop          ;  and go back for next character
+
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  20
+
+
+                          eject
+                          ;
+                          ;       the SAVE_CHAR routine will write the character in AL into 
+                          ;       the buffer in memory and then update the screen image. The
+                          ;       RLF_INS flag is used to determine if INSERT is active.
+                          ;
+                          save_c10:
+ 00E9 C3                          ret
+
+                          save_char:
+ 00EA 80FCFF                      cmp     ah,TRUE                 ; Ignore any un-matched escape 
+ 00ED 74FA           00E9         jz      save_c10                ; sequences
+ 00EF E8BB00         01AD         call    save_kanji              ; Test if AL is a Kanji Character
+                                                                  ; and setup up the parameter blocks
+                                                                  ; for the INTSAVE_CHAR routine
+                          ;
+                          ;       INTSAVE_CHAR is the internal entry point to the Character Save
+                          ;       routine. It assumes the following:-
+                          ;
+                          ;       On Entry:-      AX(AL)      Contains the character
+                          ;                       CX          the new character length in bytes
+                          ;                       RLF_KANJI   Flag is set for a Kanji Character
+                          ;                       RL_KANJI    Contains the kanji charater
+                          ;                       
+                          intsave_char:
+ 00F2 8BD9                        mov     bx,cx
+ 00F4 F746F40200                  test    RL_FLAGS,RLF_INS        ; Overwrite the character in the
+ 00F9 7561           015C          jnz    save_c50                ; buffer currently
+ 00FB 03DE                        add     bx,si                   ; Add the current index to the character
+ 00FD 3B5EF2                      cmp     bx,RL_MAXLEN            ; size and compare against the buffer len
+ 0100 7355           0157          jae    bell_char               ; Full ? Yes Ring dat Bell !
+
+ 0102 3BD6                        cmp     dx,si                   ; Are we at the end of the line
+ 0104 7509           010F          jnz    intsave_c10             ; No so check character types
+ 0106 5051                        push ax ! push cx
+ 0108 E8CD01         02D8         call    skip_one_char           ; Skip the coresponding character in
+ 010B 5958                        pop cx ! pop ax                 ; the save buffer
+ 010D EB19           0128         jmps    simple_save
+
+                          intsave_c10:
+ 010F 50                          push    ax                      ; Save the Input Character
+ 0110 E8FC02         040F         call    char_type               ; Get the character type
+ 0113 8BD8                        mov     bx,ax                   ; and save in BX
+ 0115 268A05                      mov     al,es:[di]              ; get the byte to be replaced
+ 0118 E8F402         040F         call    char_type               ; and get its type
+ 011B 80E48E                      and     ah,CHAR_SIZE            ; Mask the Character SIZE attributes
+ 011E 80E78E                      and     bh,CHAR_SIZE            ; and check both storage and display
+                                                                  ; sizes are the same for old and new
+ 0121 3AE7                        cmp     ah,bh                   ; and do simple save if the character
+ 0123 58                          pop     ax                      ; Restore the input character to AX(AL)
+ 0124 7518           013E          jnz    save_c30                ; type match
+ 0126 2BD1                        sub     dx,cx                   ; Character overwritten so prevent
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  21
+
+
+                                                                  ; Max Index being incremented
+
+                          simple_save:
+ 0128 03F1                        add     si,cx                   ; Assume at the EOL
+ 012A 03D1                        add     dx,cx
+ 012C AA                          stosb                           ; Save the character typed
+ 012D F746F44000                  test    RL_FLAGS,RLF_KANJI      ; is this a Kanji character
+ 0132 7407           013B          jz     simple_s10              ; No so just output 1 character
+ 0134 E88C03         04C3         call    put_char                ; and echo it to the user
+ 0137 8A46F1                      mov     al,byte ptr RL_KANJI+1  ; Get the high byte of the Kanji
+ 013A AA                          stosb                           ; character save and then display it.
+                          simple_s10:
+ 013B E98503         04C3         jmp     put_char
+                          ;       ret
+
+                          ;
+                          ;       The SAVE_C30 function supports the Complex overwrite conditions
+                          ;       where the size of the character in memory or on the display do not
+                          ;       match with those of the present incumbent. eg a SPACE character
+                          ;       overwriting a TAB or a KANJI character overwriting a SPACE.
+                          ;
+                          ;       To minimize the complexity of the code the character to be 
+                          ;       overwritten is deleted and the new character then inserted.
+                          ;       This is not an optimal solution but drastically reduces the
+                          ;       amount of code required.
+                          ;
+                          save_c30:
+ 013E 5051                        push ax ! push cx
+ 0140 E82201         0265         call    deln_char
+ 0143 5958                        pop cx ! pop ax
+ 0145 3BD6                        cmp     dx,si
+ 0147 74DF           0128          jz     simple_save
+ 0149 814EF40200                  or      RL_FLAGS,RLF_INS
+ 014E E80B00         015C         call    save_c50
+ 0151 8166F4FDFF                  and     RL_FLAGS,not RLF_INS
+ 0156 C3                          ret
+
+                          bell_char:
+ 0157 B007                        mov     al,BELL
+ 0159 E98003         04DC         jmp     write_char
+                          ;
+                          ;       This code is called when INSERT mode is active and a 
+                          ;       character (possibly Kanji) is to be inserted in the buffer
+                          ;
+                          ;       On Entry:-      CX          the new character length in bytes
+                          ;
+                          save_c50:
+ 015C 8BD9                        mov     bx,cx                   ; Save new character length
+ 015E 03CA                        add     cx,dx                   ; Add the current max to the character
+ 0160 3B4EF2                      cmp     cx,RL_MAXLEN            ; size and compare against the buffer len
+ 0163 73F2           0157          jae    bell_char               ; Full ? Yes Ring dat Bell !
+ 0165 8BCB                        mov     cx,bx                   ; Restore Character Length
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  22
+
+
+ 0167 3BD6                        cmp     dx,si                   ; If we are at the end of the line
+ 0169 74BD           0128          je     simple_save             ; Use the simple save code
+                          ;
+                          ;       Create space in the current buffer for the new character
+                          ;
+ 016B 1E                          push ds
+ 016C 5657                        push si ! push di
+ 016E 8BCA2BCE                    mov cx,dx ! sub cx,si           ; CX -> Number of bytes to move
+ 0172 8BFA037EF8                  mov di,dx ! add di,RL_BUFOFF    ; DI -> End of Destination Offset
+ 0177 03FB4F                      add di,bx ! dec di              ;    -> + Insert Char len - 1
+ 017A 8BF72BF3                    mov si,di ! sub si,bx           ; SI -> DI - Insert Char Len
+ 017E 061F                        push es ! pop ds                ; DS == ES
+ 0180 FD                          std                             ; Make the right amount of space in
+ 0181 F3A4                        rep     movsb                   ; the buffer    
+ 0183 FC                          cld
+ 0184 5F5E                        pop di ! pop si
+ 0186 1F                          pop     ds
+
+ 0187 03D3                        add     dx,bx                   ; Update the Buffer Length
+ 0189 AA                          stosb                           ; Save the New character
+ 018A F746F44000                  test    RL_FLAGS,RLF_KANJI      ; Check if this was a Kanji Character
+ 018F 7403           0194          jz     save_c60                ; No
+ 0191 86C4AA                      xchg al,ah ! stosb              ; Yes Save high byte
+
+                          save_c60:
+ 0194 8BCA2BCE                    mov cx,dx ! sub cx,si           ; Display the updated string
+ 0198 03F356                      add si,bx ! push si             ; Save the Updated Index
+ 019B 8BF72BF3                    mov si,di ! sub si,bx           ; Get the offset of the new char
+ 019F E81103         04B3         call    put_string              ; in the buffer and display all
+ 01A2 5E                          pop     si                      ; Restore the new index
+ 01A3 87FA                        xchg    di,dx                   ; and calculate the number of BS
+ 01A5 E8D602         047E         call    calc_chars              ; characters required to get back
+ 01A8 87FA                        xchg    di,dx
+ 01AA E9FA02         04A7         jmp     bs_out
+                          ;
+                          ;       On Entry:       AL      First byte of Character
+                          ;
+                          ;       On Exit:        AX      Complete Character Code
+                          ;                       CX      Character Size Bytes
+                          ;                       RL_KANJI and RLF_KANJI set correctly
+                          ;
+                          save_kanji:
+ 01AD 8166F4BFFF                  and     RL_FLAGS,not RLF_KANJI
+ 01B2 8946F0                      mov     RL_KANJI,ax             ; Save the Character
+ 01B5 E85702         040F         call    char_type               ; Is this the first byte of a 
+ 01B8 F6C408                      test    ah,CHAR_KANJI           ; two byte Kanji character
+ 01BB B90100                      mov     cx,1                    ; Character size in bytes
+ 01BE 7411           01D1          jz     save_k10                ; No
+ 01C0 814EF44000                  or      RL_FLAGS,RLF_KANJI      ; Set internal Flag
+ 01C5 E82E03         04F6         call    get_char                ; Get the high byte and save
+ 01C8 8846F1                      mov     byte ptr RL_KANJI+1,al  ; in the local variable
+ 01CB 8B46F0                      mov     ax,RL_KANJI             ; Get the complete character
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  23
+
+
+ 01CE B90200                      mov     cx,2                    ; Character size in bytes
+                          save_k10:
+ 01D1 C3                          ret
+
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  24
+
+
+                          eject
+                          ;
+                          ;       The following group of functions modify the flags which control
+                          ;       the command line editor.
+                          ;
+                          toggle_ins:
+ 01D2 8176F40200                  xor     RL_FLAGS,RLF_INS        ; Toggle the OverWrite/Insert
+ 01D7 C3                          ret                             ; Flag
+
+                          toggle_search:
+ 01D8 8166F4F7FF                  and     RL_FLAGS,not RLF_MATCH  ; clear match bit
+ 01DD 8176F40400                  xor     RL_FLAGS,RLF_SEARCH     ; Toggle the Search on/off flag
+ 01E2 C3                          ret
+
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  25
+
+
+                          eject
+                          ;
+                          ;       This group of functions moves the cursor along the display
+                          ;       as well as updating the local variables.
+                          ;
+                          goto_bol:
+ 01E3 85F6                        test    si,si                   ; Move the cursor to the begining of
+ 01E5 740F           01F6          jz     goto_b10                ; the displayed line
+ 01E7 8BFE                        mov     di,si                   ; Set the buffer index to the
+ 01E9 33F6                        xor     si,si                   ; start of the line and the current 
+ 01EB E89002         047E         call    calc_chars              ; location
+ 01EE E8B602         04A7         call    bs_out
+ 01F1 33F6                        xor     si,si
+ 01F3 8B7EF8                      mov     di,RL_BUFOFF
+                          goto_b10:
+ 01F6 C3                          ret
+
+                          next_char:
+ 01F7 3BF2                        cmp     si,dx
+ 01F9 7503           01FE          jnz    next_c05                ; Treat this as "F1" when we at the
+ 01FB E92501         0323         jmp     copy_char               ; end of the line
+
+                          next_c05:
+ 01FE 268A05                      mov     al,es:[di]              ; Get the Offset of the next character
+ 0201 B90100                      mov     cx,1                    ; the character itself and assume
+ 0204 E80802         040F         call    char_type               ; it is 1 byte long
+ 0207 F6C4087401     020D         test ah,CHAR_KANJI ! jz next_c10
+ 020C 41                          inc     cx
+                          next_c10:
+ 020D 87F7                        xchg    si,di                   ; Get the string offset in SI
+ 020F E8A102         04B3         call    put_string              ; display the character and
+ 0212 87F7                        xchg    si,di                   ; restore the register contents
+ 0214 03F1                        add     si,cx
+ 0216 03F9                        add     di,cx
+ 0218 C3                          ret
+
+                          prev_char:
+ 0219 85F6                        test    si,si                   ; begining of line ?
+ 021B 742B           0248          jz     prev_w30
+ 021D 525657                      push dx ! push si ! push di
+ 0220 8B76F8                      mov     si,RL_BUFOFF            ; Scan from the begining of the buffer
+ 0223 8BD6                        mov     dx,si                   ; keeping the last match in DX
+                          prev_c10:
+ 0225 E82B02         0453         call    char_info               ; Get the character information
+ 0228 3BF7                        cmp     si,di                   ; Stop when we get to the current
+ 022A 7404           0230          je     prev_w20                ; character location
+ 022C 8BD6                        mov     dx,si                   ; Save current location
+ 022E EBF5           0225         jmps    prev_c10                ; and repeat
+
+                          prev_w20:
+ 0230 2BF2                        sub     si,dx                   ; Calculate character length
+ 0232 56                          push    si                      ; save for update
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  26
+
+
+
+ 0233 2B7EF8                      sub     di,RL_BUFOFF            ; Convert Offset to Index
+ 0236 F7DE03F7                    neg si ! add si,di              ; Set the buffer index to the current
+ 023A E84102         047E         call    calc_chars              ; location and the previous character
+ 023D E86702         04A7         call    bs_out                  ; BackSpace over character
+ 0240 59                          pop     cx                      ; Restore the character size
+ 0241 5F5E5A                      pop di ! pop si ! pop dx
+ 0244 2BF1                        sub     si,cx                   ; Update the Index and Pointer
+ 0246 2BF9                        sub     di,cx                   ; variables.
+                          prev_w30:
+ 0248 C3                          ret
+
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  27
+
+
+                          eject
+                          ;
+                          ;       This group of functions deletes characters or groups of characters
+                          ;       from the buffer.
+                          ;
+
+                          delf_char:              
+ 0249 3BF2                        cmp     si,dx                   ; any chars to our right ?
+ 024B 7218           0265          jb     deln_char               ;  yes, delete them first
+ 024D E98800         02D8     jmp skip_one_char      
+                          ;       ret                             ;  discard next saved char
+
+                          del_eol:
+ 0250 8BCA2BCE                    mov cx,dx ! sub cx,si           ; Calculate the number of bytes to 
+ 0254 E304           025A         jcxz    del_eol10               ; delete and jump to DELN_WORD if
+ 0256 03CF                        add     cx,di                   ; non zero. Convert to an offset
+ 0258 EB1E           0278         jmps    deln_w10                ; and jmp to common code.       
+                          del_eol10:
+ 025A C3                          ret
+
+                          delp_char:
+ 025B 0BF674FB       025A         or si,si ! jz del_eol10         ; Ignore if the user is at the start 
+ 025F E89900         02FB         call    back_one_char           ; of the line otherwise move back one
+ 0262 E8B4FF         0219         call    prev_char               ; character in the line buffer
+
+
+                          deln_char:
+ 0265 3BD674F1       025A         cmp dx,si ! jz del_eol10
+ 0269 268A05                      mov     al,es:[di]              ; Get the Offset of the next character
+ 026C 8D4D01                      lea     cx,1[di]                ; the character itself and assume
+ 026F E89D01         040F         call    char_type               ; it is 1 byte long
+ 0272 F6C4087401     0278         test ah,CHAR_KANJI ! jz deln_w10
+ 0277 41                          inc     cx
+                          ;       jmps    deln_w10
+
+                          ;
+                          ;       The 3 delete functions come together at this point with the standard
+                          ;       register format Plus CX is the offset of the first character not to
+                          ;       be deleted.
+                          ;
+                          deln_w10:
+ 0278 51                          push    cx                      ; Save Delete Offset
+ 0279 87FA                        xchg    di,dx                   ; Determine the no of characters
+ 027B E80002         047E         call    calc_chars              ; displayed to the end of the line
+ 027E 87FA                        xchg    di,dx
+ 0280 8BD9                        mov     bx,cx                   ; Save the Column count
+ 0282 58                          pop     ax                      ; restore the delete offset
+
+ 0283 5353                        push bx ! push bx               ; Save the count twice
+
+ 0285 5657                        push si ! push di
+ 0287 8BCA2BCE                    mov cx,dx ! sub cx,si           ; No of chars from old EOL
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  28
+
+
+ 028B 8BF0                        mov     si,ax                   ; Get the Source Offset
+ 028D 2BC7                        sub     ax,di                   ; calculate its length.
+ 028F 2BD0                        sub     dx,ax                   ; Update the string length
+
+ 0291 2BC8                        sub     cx,ax                   ; Number of chars to copy
+ 0293 1E                          push    ds                      ; Move the contents of the
+ 0294 061F                        push es ! pop ds                ; string down in memory and
+ 0296 F3A4                        rep     movsb                   ; then update the screen image
+ 0298 1F                          pop     ds
+ 0299 5E5F                        pop si ! pop di                 ; Get the current buffer offset
+                                                                  ; Restore SWAPPED SI <-> DI
+
+ 029B 8BCA                        mov     cx,dx                   ; Calculate the length of the
+ 029D 2BCF                        sub     cx,di                   ; string and print it alll
+ 029F E81102         04B3         call    put_string
+ 02A2 87F7                        xchg    si,di                   ; Restore SI and DI
+
+ 02A4 E307           02AD          jcxz   deln_w20
+ 02A6 87FA                        xchg    di,dx                   ; Calculate the number of columns
+ 02A8 E8D301         047E         call    calc_chars              ; displayed
+ 02AB 87FA                        xchg    di,dx
+
+                          deln_w20:
+ 02AD 5B                          pop     bx                      ; Restore the original line length
+ 02AE 2BD9                        sub     bx,cx                   ; and calculate the number of spaces
+ 02B0 8BCB                        mov     cx,bx                   ; required to overwrite the data
+ 02B2 E8EE01         04A3         call    space_out
+
+ 02B5 59                          pop     cx                      ; Finally move the cursor back to
+ 02B6 E9EE01         04A7         jmp     bs_out                  ; its correct place 
+
+
+
+
+                          ;
+                          ;       Delete the contents of the complete line
+                          ;
+                          del_line:
+ 02B9 C746EC0000                  mov     RL_SAVPOS,0             ; Reset the buffer index
+ 02BE 85D2                        test    dx,dx
+ 02C0 7415           02D7          jz     del_l10
+ 02C2 E81EFF         01E3         call    goto_bol                ; Jump to the begining of the line
+ 02C5 8BFA                        mov     di,dx                   ; calculate the number of display
+ 02C7 E8B401         047E         call    calc_chars              ; columns it currently takes up
+ 02CA E8D601         04A3         call    space_out               ; Overwrite with spaces
+ 02CD E8D701         04A7         call    bs_out                  ; Move back to the start of the line
+ 02D0 33F6                        xor     si,si                   ; and update all the initial variables
+ 02D2 8BD6                        mov     dx,si
+ 02D4 8B7EF8                      mov     di,RL_BUFOFF
+                          del_l10:
+ 02D7 C3                          ret
+
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  29
+
+
+                          eject
+                          ;
+                          ;       The following routines manipulate the SAVE Buffer data. Which
+                          ;       is initialised on entry to this function.
+                          ;
+                          ;       SKIP_ONE_CHAR increments the Save Buffer control variables and
+                          ;       returns the number of bytes skipped in CX.
+                          ;
+                          ;       On Entry:       Standard Registers
+                          ;
+                          ;       On Exit:        AX      Next Character in Buffer
+                          ;                       CX      Character Size (Bytes)
+                          ;
+                          skip_one_char:
+ 02D8 33C9                        xor     cx,cx                   
+ 02DA 8B5EEC                      mov     bx,RL_SAVPOS            ; Update the Save Buffer variables
+ 02DD 3B5EEE                      cmp     bx,RL_SAVMAX            ; Check the current save buffer is
+ 02E0 7315           02F7          jae    soc_20                  ; valid and has not been exhausted.
+                                                                  ; Otherwise increment the RL_SAVPOS
+ 02E2 BB0000       E              mov     bx,offset savbuf        ; pointer by one character. This 
+ 02E5 035EEC                      add     bx,RL_SAVPOS            ; means that the RL_SAVPOS can be 
+ 02E8 8A07                        mov     al,ds:[bx]              ; incremented by 1 or 2 depending on 
+ 02EA E82201         040F         call    char_type               ; the contents of the buffer
+ 02ED F6C408                      test    ah,CHAR_KANJI
+ 02F0 7404           02F6          jz     soc_10
+ 02F2 8A6701                      mov     ah,ds:1[bx]
+ 02F5 41                          inc     cx
+                          soc_10:
+ 02F6 41                          inc     cx
+                          soc_20:
+ 02F7 014EEC                      add     RL_SAVPOS,cx
+ 02FA C3                          ret
+                          ;
+                          ;
+                          ;       BACK_ONE_CHAR decrements the Save Buffer control variables and
+                          ;       returns the number of bytes skipped in CX.
+                          ;
+                          ;       On Entry:       Standard Registers
+                          ;
+                          ;       On Exit:        RL_SAVPOS       points to previous buffer char
+                          ;                       AX,BX,CX,DX     Unknown
+                          ;
+                          back_one_char:
+ 02FB 52                          push    dx
+ 02FC BB0000       E              mov     bx,offset savbuf        ; Get the Buffer address
+ 02FF 8BCB034EEC                  mov cx,bx ! add cx,RL_SAVPOS    ; CX is the Current location
+ 0304 8BD3                        mov     dx,bx                   ; DX is last matching character 
+                          boc_10:
+ 0306 3BD9                        cmp     bx,cx                   ; Have we reached the current Char
+ 0308 7410           031A          jz     boc_20                  ; Yes exit and update buffer
+ 030A 8BD3                        mov     dx,bx                   ; Update last character location
+ 030C 8A07                        mov     al,ds:[bx]              ; incremented by 1 or 2 depending on 
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  30
+
+
+ 030E E8FE00         040F         call    char_type               ; the contents of the buffer
+ 0311 43                          inc     bx
+ 0312 F6C408                      test    ah,CHAR_KANJI           ; Increment pointer by 2 for a Kanji
+ 0315 74EF           0306          jz     boc_10                  ; character
+ 0317 43                          inc     bx
+ 0318 EBEC           0306         jmps    boc_10
+
+                          boc_20: 
+ 031A 81EA0000     E              sub     dx,offset savbuf        ; Calculate the character Index
+ 031E 8956EC                      mov     RL_SAVPOS,dx            ; and save in RL_SAVPOS
+ 0321 5A                          pop     dx
+ 0322 C3                          ret
+
+                          copy_char:
+ 0323 3BD6                        cmp     dx,si           ; If at end of line copy characters 
+ 0325 7406           032D         jz      copy_c5
+ 0327 E8CDFE         01F7         call    next_char       ; Otherwise just move by 1
+ 032A E90A00         0337         jmp     copy_c10
+                          copy_c5:
+ 032D E8A8FF         02D8         call    skip_one_char           ; Calculate Bytes to copy
+ 0330 E305           0337         jcxz    copy_c10                ; Skip Update in no characters skipped
+ 0332 294EEC                      sub     RL_SAVPOS,cx            ; Restore the Buffer Position
+ 0335 EB23           035A         jmps    copy_a10                ; and copy the data
+                          copy_c10:
+ 0337 C3                          ret
+
+                          copy_till_char:
+ 0338 3BD6                        cmp     dx,si                   ; Copy out if at end of line
+ 033A 7508           0344         jnz     move_till_char
+ 033C E84B00         038A         call    skip_till_char          ; Returns index to the next char
+ 033F 294EEC                      sub     RL_SAVPOS,cx
+ 0342 EB16           035A         jmps    copy_a10
+                          move_till_char:
+ 0344 8976EC                      mov     RL_SAVPOS,si            ; Start search from the current
+ 0347 E84000         038A         call    skip_till_char          ; position
+ 034A E307           0353         jcxz    no_move                 ; CX=0 - dont move
+                          move_along:
+ 034C 51                          push    cx
+ 034D E8A7FE         01F7         call    next_char               ; Shuttle along the line until
+ 0350 59                          pop     cx                      ; we reach the character
+ 0351 E2F9           034C         loop    move_along
+                          no_move:
+ 0353 C3                          ret
+                                  
+                          copy_all:
+ 0354 8B4EEE                      mov     cx,RL_SAVMAX            ; Calculate the number of bytes to
+ 0357 2B4EEC                      sub     cx,RL_SAVPOS            ; copy from the buffer.
+                          copy_a10:
+ 035A 83F900                      cmp     cx,0                    ; do we have nothing to copy
+ 035D 7E2A           0389          jle    copy_a30                ; (or less than nothing..)
+
+ 035F FF76F4                      push    RL_FLAGS                ; Save State flags and prevent
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  31
+
+
+ 0362 814EF40200                  or      RL_FLAGS,RLF_INS        ; SAVPOS being modified
+                          copy_a20:
+ 0367 51                          push    cx
+ 0368 8166F4BFFF                  and     RL_FLAGS,not RLF_KANJI
+ 036D E868FF         02D8         call    skip_one_char           ; Return the next character and its 
+ 0370 83F901                      cmp     cx,1 
+ 0373 740B           0380         jz      copy_a25                ; size in bytes
+ 0375 8946F0                      mov     RL_KANJI,ax             ; Save the Kanji Character and
+ 0378 814EF44000                  or      RL_FLAGS,RLF_KANJI      ; set the control flag
+ 037D 5B                          pop     bx
+ 037E 4B                          dec     bx
+ 037F 53                          push    bx                      ; Decrement the Loop Count
+                                  
+                          copy_a25:
+ 0380 E86FFD         00F2         call    intsave_char            ; Save the character
+ 0383 59                          pop     cx                      ; and repeat till all bytes have
+ 0384 E2E1           0367         loop    copy_a20                ; been copied
+ 0386 8F46F4                      pop     RL_FLAGS                ; Restore State Flags
+                          copy_a30:
+ 0389 C3                          ret
+
+                          skip_till_char:
+ 038A E86901         04F6         call    get_char                ; Get the first character
+ 038D E81DFE         01AD         call    save_kanji              ; Setup RL_KANJI etc.
+ 0390 52                          push    dx
+ 0391 E844FF         02D8         call    skip_one_char           ; don't match on 1st char
+ 0394 8BD1                        mov     dx,cx                   ; remember we've skipped 1st char
+ 0396 E32F           03C7          jcxz   stc_40                  ; buffer exhausted
+                          stc_10:
+ 0398 E83DFF         02D8         call    skip_one_char           ; Get the Next Character
+ 039B E32A           03C7         jcxz    stc_40                  ; Buffer exhausted
+ 039D 03D1                        add     dx,cx                   ; Update the Total Byte Count
+ 039F 83F902740E     03B2         cmp cx,2 ! jz stc_20            ; Was this a Kanji Character
+ 03A4 F746F44000                  test RL_FLAGS,RLF_KANJI         ; No but are we looking for one ?
+ 03A9 75ED           0398         jnz     stc_10                  ; Yes so get the next character
+ 03AB 3A46F0                      cmp     al,byte ptr RL_KANJI    ; Have we got a matching character ?
+ 03AE 75E8           0398         jnz     stc_10                  ; No so look again
+ 03B0 EB0C           03BE         jmps    stc_30                  ; Return Sucess 
+
+                          stc_20:                                 ; Kanji Character in Buffer
+ 03B2 F746F44000                  test RL_FLAGS,RLF_KANJI         ; Are we looking for a Kanji Char
+ 03B7 74DF           0398         jz      stc_10                  ; No so try again
+ 03B9 3B46F0                      cmp     ax,RL_KANJI             ; Check the character and repeat
+ 03BC 75DA           0398         jnz     stc_10                  ; if they donot match
+
+                          stc_30:                                 ; Character Match
+ 03BE 2BD1                        sub     dx,cx                   ; Correct the Total Byte Count
+ 03C0 294EEC                      sub     RL_SAVPOS,cx            ; point to the matching char
+ 03C3 87CA                        xchg    cx,dx                   ; and return the Match Count
+ 03C5 5A                          pop     dx
+ 03C6 C3                          ret
+
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  32
+
+
+                          stc_40:                                 ; No Match
+ 03C7 2956EC                      sub     RL_SAVPOS,dx            ; Restore RL_SAVPOS to orginal value
+ 03CA 33C9                        xor     cx,cx                   ; and return 0000 characters skipped
+ 03CC 5A                          pop     dx
+ 03CD C3                          ret
+
+                          ;
+                          ;       Update the Save buffer with the contents of the users
+                          ;       line buffer.
+                          ;
+                          ;       On Entry:       ES:DI -> Current location in Buffer
+                          ;                       DX       No. of bytes in buffer
+                          ;
+                          ;       On Exit:        Update RL_SAVMAX, RL_SAVPOS, RL_SAVBUF
+                          ;
+                          save_line:
+ 03CE 33C0                        xor     ax,ax
+ 03D0 8946EC                      mov     RL_SAVPOS,ax
+ 03D3 8946EE                      mov     RL_SAVMAX,ax
+ 03D6 8BCA                        mov     cx,dx                   ; Current Line Length
+ 03D8 E31E           03F8          jcxz   save_l10
+ 03DA 81F98000                    cmp     cx,savbuf_size          ; clip the amount saved
+ 03DE 7203           03E3          jb     save_l5                 ; to be a maximum of
+ 03E0 B98000                      mov     cx,savbuf_size          ; the save buffer size
+                          save_l5:
+ 03E3 894EEE                      mov     RL_SAVMAX,cx            ; Set the Save Data Length
+ 03E6 1E06                        push ds ! push es
+ 03E8 5657                        push si ! push di
+
+ 03EA 1E07                        push ds ! pop es
+ 03EC C576F8                      lds     si,RL_BUFPTR
+ 03EF BF0000       E              mov     di,offset savbuf
+ 03F2 F3A4                        rep     movsb                   ; save the data
+ 03F4 5F5E                        pop di ! pop si
+ 03F6 071F                        pop es ! pop ds
+                          save_l10:
+                          ;       ret
+
+                          ignore_char:
+ 03F8 C3                          ret
+
+                          mem_line:               ;; JFL save from beginning of line 
+ 03F9 E8D2FF         03CE         call    save_line
+ 03FC E9E4FD         01E3         jmp     goto_bol
+                          ;       ret     
+
+
+                          eof_char:               ;; JFL make F6 return a CTL Z
+ 03FF B01A                        mov     al,01Ah
+ 0401 B90100                      mov     cx,1
+ 0404 E9EBFC         00F2         jmp     intsave_char
+                          ;       ret
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  33
+
+
+
+                          ctlat_char:             ;; JFL make F7 return a CTL @
+ 0407 B000                        mov     al,0h
+ 0409 B90100                      mov     cx,1
+ 040C E9E3FC         00F2         jmp     intsave_char
+                          ;       ret
+
+
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  34
+
+
+                          eject
+                          ;
+                          ;       CHAR_TYPE get the next character from the buffer ES:SI and returns
+                          ;       its type in AH using the equates CHAR_????. The character is returned
+                          ;       in AL.
+                          ;
+                          ;
+                          ;       
+                          char_type:
+ 040F B481                        mov ah,CHAR_SPACE or CHAR_STD   ; WhiteSpace
+ 0411 3C20743D       0452         cmp al,' ' ! jz char_t100
+ 0415 B402                        mov     ah,CHAR_TAB             ; Tab Character
+ 0417 3C097437       0452         cmp al,TAB ! jz char_t100
+ 041B B490                        mov ah,CHAR_ALPHAN or CHAR_STD  
+ 041D 3C157431       0452         cmp al,CTLU ! jz char_t100      ; Control-U and Control-T are treated
+ 0421 3C14742D       0452         cmp al,CTLT ! jz char_t100      ; as normal characters
+ 0425 B404                        mov     ah,CHAR_CTL             ; Control Character
+ 0427 3C207227       0452         cmp al,' ' ! jb char_t100
+
+ 042B B490                        mov ah,CHAR_ALPHAN or CHAR_STD  
+ 042D 3C30721F       0450         cmp al,'0' ! jb  char_t90       ; Return SYMBOL
+ 0431 3C39761D       0452         cmp al,'9' ! jbe char_t100      ; Return AlphaNumeric
+ 0435 3C417217       0450         cmp al,'A' ! jb  char_t90       ; Return Symbol
+ 0439 3C5A7615       0452         cmp al,'Z' ! jbe char_t100      ; Return AlphaNumeric
+ 043D 3C61720F       0450         cmp al,'a' ! jb  char_t90       ; Return Symbol
+ 0441 3C7A760D       0452         cmp al,'z' ! jbe char_t100      ; Return AlphaNumeric
+ 0445 3C807207       0450         cmp al,80h ! jb  char_t90       ; Return Symbol
+
+ 0449 B408                        mov     ah, CHAR_KANJI          ; assume character is 16 bits
+ 044B E80000       E              call    dbcs_lead               ; is byte a DBCS lead?
+ 044E 7402           0452         je      char_t100               ;  yes - done
+                          char_t90:
+ 0450 B4A0                        mov     ah,CHAR_OTHER or CHAR_STD ; no - Normal Character Symbol
+
+                          char_t100:
+ 0452 C3                          ret
+
+
+
+
+
+                          ;
+                          ;       CHAR_INFO will return various information about the character
+                          ;       at ES:SI
+                          ;
+                          ;       On Entry:       ES:SI   Character Pointer
+                          ;                       BX      Current Column No.
+                          ;                       CX      Byte Scan Count
+                          ;
+                          ;       On Exit:        ES:SI   Points to the next Character
+                          ;                       BX      Updates Column No.
+                          ;                       CX      Updates Byte Scan Count
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  35
+
+
+                          ;                       AH      Character type Flags
+                          ;                       AL      First byte of Character
+                          char_info:
+ 0453 26AC                        lods    es:al
+ 0455 E8B7FF         040F         call    char_type               ; Test the character type and assume
+ 0458 43                          inc     bx                      ; it will take 1 Screen location
+ 0459 F6C431                      test    ah,CHAR_ONECOL
+ 045C 751F           047D         jnz     char_i20
+
+ 045E 43                          inc     bx                      ; Now check for the Control Characters
+ 045F F6C404                      test    ah,CHAR_CTL             ; which take up 2 cols
+ 0462 7519           047D         jnz     char_i20
+
+ 0464 F6C408                      test    ah,CHAR_KANJI           ; If this was the first byte of a 
+ 0467 7404           046D         jz      char_i10                ; KANJI character then skip the
+ 0469 4649                        inc si ! dec cx                 ; next byte
+ 046B EB10           047D         jmps    char_i20
+
+                          char_i10:
+ 046D 50                          push    ax                      ; Save AX and calculate the number
+ 046E 4B4B                        dec bx ! dec bx                 ; of screen locations that this TAB
+ 0470 8BC3                        mov     ax,bx                   ; character will use based on the fact
+ 0472 250700                      and     ax,7                    ; BX contains the current column
+ 0475 F7D8050800                  neg ax ! add ax,8
+ 047A 03D8                        add     bx,ax
+ 047C 58                          pop     ax
+
+                          char_i20:
+ 047D C3                          ret
+
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  36
+
+
+                          eject
+                          ;
+                          ;       CALC_CHARS calculates the number of character locations used
+                          ;       on the screen to display a particular sub-string of the current
+                          ;       buffer. This routine takes account of the Kanji, Control and TAB
+                          ;       characters.
+                          ;
+                          ;       On Entry:       SI      Start Buffer Index
+                          ;                       DI      End Buffer Index
+                          ;
+                          ;       On Exit:        CX      Count
+                          ;
+                          calc_chars:
+ 047E 53                          push    bx
+ 047F 5657                        push si ! push di
+ 0481 8B5EF6                      mov     bx,RL_INICOL            ; Get the initial Column
+ 0484 2BFE                        sub     di,si                   ; DI = Sub-string length bytes
+ 0486 8BCE                        mov     cx,si                   ; Use the Start Index for the
+ 0488 8B76F8                      mov     si,RL_BUFOFF            ; initial count and scan from the
+ 048B E305           0492         jcxz    calc_c20                ; start of the buffer
+
+                          calc_c10:
+ 048D E8C3FF         0453         call    char_info
+ 0490 E2FB           048D         loop    calc_c10
+
+                          calc_c20:
+ 0492 8BCF                        mov     cx,di                   ; Sub-String Length
+ 0494 8BFB                        mov     di,bx                   ; Current Column position
+
+                          calc_c30:
+ 0496 E8BAFF         0453         call    char_info
+ 0499 E2FB           0496         loop    calc_c30
+
+ 049B 2BDF                        sub     bx,di
+ 049D 8BCB                        mov     cx,bx
+ 049F 5F5E                        pop di ! pop si
+ 04A1 5B                          pop     bx
+ 04A2 C3                          ret
+
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  37
+
+
+                          eject
+                          ;
+                          ;       The following functions are purely Low level character output
+                          ;       functions.
+                          ;
+                          space_out:                              ; Write CX Space characters to the
+ 04A3 B020                        mov     al,' '                  ; Output handle
+ 04A5 EB02           04A9         jmps    block_out
+                                  
+                          bs_out:
+ 04A7 B008                        mov     al,CTLH                 ; Write CX BackSpace characters to
+                          ;;      jmps    block_out               ; Output Handle
+
+                          block_out:
+ 04A9 E307           04B2          jcxz   block_o20
+ 04AB 51                          push    cx
+                          block_o10:
+ 04AC E82D00         04DC         call    write_char              ; output this character
+ 04AF E2FB           04AC         loop    block_o10
+ 04B1 59                          pop     cx
+                          block_o20:
+ 04B2 C3                          ret
+
+                          ;
+                          ;       Display CX characters from the string at ES:SI
+                          ;
+                          put_string:
+ 04B3 E30D           04C2         jcxz    puts_s20
+ 04B5 5156                        push cx ! push si
+                          put_s10:
+ 04B7 51                          push    cx
+ 04B8 26AC                        lods    es:al
+ 04BA E80600         04C3         call    put_char
+ 04BD 59                          pop     cx
+ 04BE E2F7           04B7         loop    put_s10
+ 04C0 5E59                        pop si ! pop cx
+                          puts_s20:
+ 04C2 C3                          ret
+
+                          ;
+                          ;       Display the character in AL
+                          ;
+                          put_char:
+ 04C3 3C207315       04DC         cmp al,' ' ! jae write_char     ; skip if it's printable
+ 04C7 3C147411       04DC         cmp al,CTLT! je write_char      ; Control-T and Control-U are treated
+ 04CB 3C15740D       04DC         cmp al,CTLU! je write_char      ; like normal Characters.
+ 04CF 3C097409       04DC         cmp al,TAB ! je write_char      ; skip if it's TAB
+ 04D3 0C40                        or      al,040h                 ; Convert Character to Uppercase
+ 04D5 50                          push    ax                      ; save it
+ 04D6 B05E                        mov     al,'^'                  ; display the character
+ 04D8 E80100         04DC         call    write_char              ;  in ^X format
+ 04DB 58                          pop     ax
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  38
+
+
+                          write_char:
+ 04DC 06                          push    es
+ 04DD 52                          push    dx
+ 04DE 51                          push    cx
+ 04DF 56                          push    si
+ 04E0 57                          push    di
+ 04E1 50                          push    ax                      ; char on stack
+ 04E2 8B5EFC                      mov     bx,RL_OUTPUT            ; Output AL to the OUTPUT Handle
+ 04E5 1607                        push ss ! pop es                ; ES:DX -> Character Buffer
+ 04E7 8BF4                        mov     si,sp                   ; buffer offset
+ 04E9 B90100                      mov     cx,1                    ; character count
+ 04EC E80000       E              call    cooked_write            ; Write Character
+ 04EF 58                          pop     ax
+ 04F0 5F                          pop     di
+ 04F1 5E                          pop     si
+ 04F2 59                          pop     cx
+ 04F3 5A                          pop     dx
+ 04F4 07                          pop     es
+ 04F5 C3                          ret
+                          ;
+                          ;       Read 1 a character from RL_INPUT saving all the vital registers
+                          ;       from corruption. If the first character is the ESCAPE character
+                          ;       set AH to TRUE and read the next byte. Otherwise AH is FALSE
+                          ;
+                          get_char:
+ 04F6 1E                          push    ds
+ 04F7 06                          push    es
+ 04F8 52                          push    dx
+ 04F9 56                          push    si
+ 04FA 57                          push    di
+
+ 04FB E80000       E              call    get_dseg                ; point at pcmode data
+ 04FE C5360000     E              lds     si,con_device           ; DS:SI -> current console device
+ 0502 F744040040                  test    ds:DH_ATTRIB[si],DA_IOCTL ; test bit 14: IOCTL bit
+ 0507 7427           0530          jz     get_c05                 ; error if IOCTL not supported
+ 0509 83EC1E                      sub     sp,RH_SIZE              ; reserve this many words on the stack
+ 050C 8BDC                        mov     bx,sp                   ; SS:BX -> request packet
+ 050E 1607                        push ss ! pop es                ; ES:BX -> request packet
+ 0510 8D56F4                      lea     dx,RL_FLAGS             ; point at flags
+ 0513 26C647020C                  mov     es:RH_CMD[bx],CMD_OUTPUT_IOCTL
+ 0518 26C6071E                    mov     es:RH_LEN[bx],RH4_LEN
+ 051C 2689570E                    mov     es:RH4_BUFOFF[bx],dx    ; set up for a normal
+ 0520 268C5710                    mov     es:RH4_BUFSEG[bx],ss    ;  IOCTL read/write
+ 0524 26C747120200                mov     es:RH4_COUNT[bx],WORD
+ 052A E80000       E              call    device_driver           ; execute the command
+ 052D 83C41E                      add     sp,RH_SIZE              ; reclaim the stack
+                          get_c05:
+
+ 0530 E80000       E              call    get_dseg                ; point at pcmode data
+ 0533 8B5EFE                      mov     bx,RL_INPUT             ; BX = input stream
+ 0536 E80000       E              call    cmdline_read            ; get a character
+
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  39
+
+
+ 0539 B400                        mov     ah,FALSE                ; Assume this is NOT the Escape 
+ 053B 2E3A060000   R              cmp     al,esc_char             ; character and set high byte of the
+ 0540 7505           0547          jnz    get_c10                 ; match word to FALSE
+
+ 0542 E80000       E              call    raw_read                ; read the second byte of the escape
+ 0545 B401                        mov     ah,ESC_CODE             ;  sequence, setting high byte to ESC
+                          get_c10:
+ 0547 5F                          pop     di
+ 0548 5E                          pop     si
+ 0549 5A                          pop     dx
+ 054A 07                          pop     es
+ 054B 1F                          pop     ds
+ 054C C3                          ret
+
+                          PCM_RODATA      CSEG    WORD
+
+   0000                   EDIT_CNTRL      equ     cs:word ptr 0[bx]       ; Character and Esc Flag
+   0002                   EDIT_FUNC       equ     cs:word ptr 2[bx]       ; Edit Function Address
+   0004                   EDIT_LEN        equ     4                       ; Edit Table Entry Size
+
+ 0000 00                  esc_char        db      0               ; Command Line Editor Escape Character
+ 0001 2D00                edit_size       dw      (offset edit_end - edit_table)/EDIT_LEN
+
+ 0003 0D004900     R      edit_table      db CR   ! db NESC_CODE ! dw ret_string
+ 0007 0A00F803     R              db LF   ! db NESC_CODE ! dw ignore_char
+ 000B 08005B02     R              db CTLH ! db NESC_CODE ! dw delp_char
+ 000F 7F004902     R              db DEL  ! db NESC_CODE ! dw delf_char
+
+ 0013 1B00B902     R              db ESC  ! db NESC_CODE ! dw del_line
+ 0017 3B012303     R              db ';'  ! db ESC_CODE  ! dw copy_char           ; Function 1
+ 001B 3C013803     R              db '<'  ! db ESC_CODE  ! dw copy_till_char      ; Function 2
+ 001F 3D015403     R              db '='  ! db ESC_CODE  ! dw copy_all            ; Function 3
+ 0023 3E018A03     R              db '>'  ! db ESC_CODE  ! dw skip_till_char      ; Function 4
+ 0027 3F01F903     R              db '?'  ! db ESC_CODE  ! dw mem_line            ; Function 5
+
+ 002B 4001FF03     R              db '@'  ! db ESC_CODE  ! dw eof_char            ; Function 6
+ 002F 41010704     R              db 'A'  ! db ESC_CODE  ! dw ctlat_char          ; Function 7
+ 0033 42810000     E              db 'B'  ! db ESC_CODE or DISABLE ! dw match_cmd ; Function 8
+
+ 0037 5201D201     R              db 'R'  ! db ESC_CODE  ! dw toggle_ins          ; Insert
+ 003B 53014902     R              db 'S'  ! db ESC_CODE  ! dw delf_char           ; Delete
+ 003F 4B811902     R              db 'K'  ! db ESC_CODE or DISABLE  ! dw prev_char ; Left Arrow 
+ 0043 4D81F701     R              db 'M'  ! db ESC_CODE or DISABLE  ! dw next_char        ; Right Arrow
+                          ; When advanced editing is disabled the match for Left/Right arrows will fall
+                          ; through to here
+ 0047 4B015B02     R              db 'K'  ! db ESC_CODE  ! dw delp_char           ; Left Arrow - compat
+ 004B 4D012303     R              db 'M'  ! db ESC_CODE  ! dw copy_char           ; Right Arrow - compat
+                          ;
+                          ; Extended functions from here on
+                          ;
+ 004F 43810000     E              db 'C'  ! db ESC_CODE or DISABLE ! dw del_cur_history_buffer ; Func 9
+ 0053 44810000     E              db 'D'  ! db ESC_CODE or DISABLE ! dw del_history_buffers ; Func 10
+PC-DOS RASM-86 1.4a  Source: CMDLINE.A86                                                                     Page  40
+
+
+ 0057 4781E301     R              db 'G'  ! db ESC_CODE or DISABLE  ! dw goto_bol         ; Home
+ 005B 4F810000     E              db 'O'  ! db ESC_CODE or DISABLE  ! dw goto_eol         ; End
+ 005F 74810000     E              db 't'  ! db ESC_CODE or DISABLE  ! dw next_word        ; Control Right Arrow
+ 0063 73810000     E              db 's'  ! db ESC_CODE or DISABLE  ! dw prev_word        ; Control Left Arrow
+
+
+ 0067 1680D201     R              db CTLV ! db NESC_CODE or DISABLE ! dw toggle_ins
+ 006B 1180E301     R              db CTLQ ! db NESC_CODE or DISABLE ! dw goto_bol
+ 006F 17800000     E              db CTLW ! db NESC_CODE or DISABLE ! dw goto_eol
+ 0073 12800000     E              db CTLR ! db NESC_CODE or DISABLE ! dw match_cmd
+ 0077 0480F701     R              db CTLD ! db NESC_CODE or DISABLE ! dw next_char
+ 007B 13801902     R              db CTLS ! db NESC_CODE or DISABLE ! dw prev_char
+ 007F 06800000     E              db CTLF ! db NESC_CODE or DISABLE ! dw next_word
+ 0083 01800000     E              db CTLA ! db NESC_CODE or DISABLE ! dw prev_word
+ 0087 07806502     R              db CTLG ! db NESC_CODE or DISABLE ! dw deln_char
+ 008B 14800000     E              db CTLT ! db NESC_CODE or DISABLE ! dw deln_word
+ 008F 1980B902     R              db CTLY ! db NESC_CODE or DISABLE ! dw del_line
+ 0093 02800000     E              db CTLB ! db NESC_CODE or DISABLE ! dw del_bol
+ 0097 0B805002     R              db CTLK ! db NESC_CODE or DISABLE ! dw del_eol
+
+ 009B 4981F803     R              db 'I'  ! db ESC_CODE or DISABLE  ! dw ignore_char      ; PageUP
+ 009F 5181F803     R              db 'Q'  ! db ESC_CODE or DISABLE  ! dw ignore_char      ; PageDown
+ 00A3 48810000     E              db 'H'  ! db ESC_CODE or DISABLE  ! dw prev_cmd         ; Up Arrow
+ 00A7 50810000     E              db 'P'  ! db ESC_CODE or DISABLE  ! dw next_cmd         ; Down Arrow
+ 00AB 05800000     E              db CTLE ! db NESC_CODE or DISABLE ! dw prev_cmd
+ 00AF 18800000     E              db CTLX ! db NESC_CODE or DISABLE ! dw next_cmd
+ 00B3 1F80D801     R              db CTLUB ! db NESC_CODE or DISABLE ! dw toggle_search   ; Default search mode
+ 00B7                     edit_end        rb      0
+
+
+                          PCMODE_DATA     DSEG    WORD
+
+                                  extrn   con_device:dword        ; Current Console Device
+                                  extrn   column:byte             ; Console Cursor Location
+
+   0080                           savbuf_size     equ     128
+
+                                  extrn   savbuf:byte             ; fixed location in DOS data area
+
+                                  extrn   cle_state:word          ; command line editing state
+
+                                  end
+
+
+End of assembly.  Number of errors:   0.  Use factor: 23%
+n_device:dword        ; Current Console Device

@@ -1,0 +1,8 @@
+	extrn	_disk_msgA	: byte
+	extrn	disk_msgA	: byte
+	extrn	_disk_msgB	: byte
+	extrn	disk_msgB	: byte
+	extrn	_div_by_zero_msg	: byte
+	extrn	div_by_zero_msg	: byte
+	extrn	_starting_dos_msg	: byte
+	extrn	starting_dos_msg	: byte

@@ -1,0 +1,57 @@
+ifndef _DLS_INCLS_
+; DLS parameters passed to _dls_get_table function.
+DLS_NO	equ	0
+DLS_YES	equ	1
+
+endif ; !_DLS_INCLS_
+
+; DLS system functions.
+	extrn	_dls_init      : near
+	extrn	_dls_get_table : near
+	extrn	_dls_language  : near
+
+; DLS system variables.
+	extrn	_dls_table : word
+
+
+; Component messages equated to entries in _dls_table.
+help_aaa	equ	0
+help_and	equ	2
+help_break	equ	4
+help_call	equ	6
+help_chcp	equ	8
+help_chdir	equ	10
+help_cls	equ	12
+help_copy	equ	14
+help_ctty	equ	16
+help_date	equ	18
+help_del	equ	20
+help_delq	equ	22
+help_dir	equ	24
+help_echo	equ	26
+help_eraq	equ	28
+help_erase	equ	30
+help_exit	equ	32
+help_for	equ	34
+help_gosubreturn	equ	36
+help_goto	equ	38
+help_hiload	equ	40
+help_idle	equ	42
+help_if	equ	44
+help_mkdir	equ	46
+help_or	equ	48
+help_path	equ	50
+help_pause	equ	52
+help_prompt	equ	54
+help_rem	equ	56
+help_rename	equ	58
+help_rmdir	equ	60
+help_set	equ	62
+help_shift	equ	64
+help_switch	equ	66
+help_time	equ	68
+help_truename	equ	70
+help_type	equ	72
+help_ver	equ	74
+help_verify	equ	76
+help_vol	equ	78

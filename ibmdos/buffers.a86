@@ -1,0 +1,1300 @@
+title 'BUFFERS - buffer handling routines'
+;    File              : $BUFFERS.A86$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    BUFFERS.A86 1.13 94/11/30 16:26:08 
+;    added support for using multiple FAT copies on reads if one fails    
+;    BUFFERS.A86 1.12 93/08/06 16:19:11
+;    make geblk public    
+;    BUFFERS.A86 1.8 93/07/07 21:06:25
+;    Smirnoff'd
+;    BUFFERS.A86 1.6 93/03/16 22:30:29
+;    UNDELETE support changes
+;    BUFFERS.A86 1.5 93/03/05 18:00:26
+;    Fix bug clearing cluster of new sub directory
+;    ENDLOG
+
+;	Date	   Who	Modification
+;	---------  ---	---------------------------------------
+;    9 Sep 91 Initial version created for VLADIVAR
+;    3 mar 93 correct zeroblk bug
+
+	NOLIST
+	eject ! include i:fdos.equ
+	eject ! include bdos.equ
+	eject ! include i:doshndl.def
+	eject
+	LIST
+
+eject
+PCMODE_DATA	dseg
+
+	extrn	current_ddsc:dword
+if DELWATCH
+	extrn	fdos_stub:dword
+endif
+
+BDOS_DATA	dseg	word
+
+fatrec		rw	1		; current FAT record
+
+fatbytl		rb	1		; low byte of split FAT entry
+fatbyth		rb	1		; high byte of split FAT entry
+split_fat	rb	1		; 0/FFh to indicate split entry
+
+eject
+	extrn	adrive:byte
+	EXTRN	chdblk:WORD
+	EXTRN	clsize:WORD
+	EXTRN	cur_dma:WORD
+	EXTRN	cur_dma_seg:WORD
+	extrn	dosfat:WORD
+	EXTRN	fatadd:WORD
+	extrn	lastcl:word
+	EXTRN	mult_sec:WORD
+	EXTRN	nfatrecs:WORD
+	EXTRN	nfats:WORD
+	extrn	pblock:dword
+	extrn	physical_drv:byte
+	extrn	psecsiz:word
+	extrn	rwmode:byte		; data/directory/FAT, read/write
+	extrn	secperclu:word
+	extrn	bcb_root:dword		; PCMODE disk buffer root
+	extrn	deblock_seg:word
+
+BDOS_CODE	cseg
+
+	extrn	clus2sec:near
+	extrn	discard_dirbuf:near
+	extrn	fdos_error:near
+	extrn	flush_dirbuf:near
+	extrn	hshdscrd:near
+	extrn	read_block:near
+	extrn	select_adrive:near	; select drive AL
+	extrn	write_block:near
+
+	public	alloc_cluster		; allocate data block
+	public	alloc_chain		; allocate a chain
+	public	buffers_check		; check if buffers exist for this drive
+	PUBLIC	delfat			; release data blocks
+	PUBLIC	discard_all		; discard all buffers on ADRIVE
+	public	discard_dir		; discard directory buffers on ADRIVE
+	public	discard_dirty		; discard directory buffers on ADRIVE
+	PUBLIC	fixfat			; set value of FAT entry
+	public	flush_drive		; flush buffers to disk
+	public	locate_buffer		; locate a buffer
+	PUBLIC	update_dat		; flush write pending buffers
+	public	update_ddsc_free	; count free blocks on drive
+	PUBLIC	update_dir		; update directory entry
+	PUBLIC	update_fat		; write out modified FAT records
+	public	zeroblk			; zero cluster (MKDIR)
+if DELWATCH
+	public	allocate_cluster	; allocate free cluster on adrive
+	public	change_fat_entry	; write a new value into the FAT
+endif
+
+
+
+
+update_ddsc_free:
+;----------------
+; make sure DDSC_FREE is up to date
+; a by-product of this is to checksum the FAT, so we can spot changes
+; of removable media
+	push	es
+	les	bx,ss:current_ddsc
+	mov	cx,es:DDSC_FREE[bx]	; get current free space
+	 jcxz	update_ddsc_free30	; if none recount to make sure
+	inc	cx			; is count uninitialised ? (=FFFF)
+	 jz	update_ddsc_free30	; if so better count the free space
+update_ddsc_free10:
+	pop	es
+	ret
+
+update_ddsc_free30:
+; rebuild our free space count
+	xor	ax,ax			; assume no free space yet
+	lea	di,DDSC_BLOCK[bx]	; ES:DI -> DDSC_BLOCK
+	stosw				; DDSC_BLOCK = 0
+	stosw				; DDSC_FREE = 0
+	inc	ax			; skip reserved block #'s 0 and 1
+update_ddsc_free40:
+	inc	ax			; move to next data block #
+	cmp	ax,lastcl		; are we beyond end of disk
+	 ja	update_ddsc_free10	; stop if all free blocks counted
+	push	ax			; save current index
+	call	getblk			; get contents of FAT entry, update ZF
+	pop	ax			; restore current FAT index
+	 jnz	update_ddsc_free40	; try next block if not free
+	inc	es:DDSC_FREE[bx]	; one more free block
+	jmps	update_ddsc_free40	; try next block
+
+
+
+discard_dirty:
+;-------------
+;	This gets called after a write-protect error is returned
+
+	mov	ah,BF_DIRTY		; discard dirty FAT, dir & data
+	jmps	discard_buffers
+
+discard_all:
+;-----------
+	mov	ah,BF_ISFAT+BF_ISDIR+BF_ISDAT
+	jmps	discard_buffers		; discard all the buffers
+
+discard_dir:
+;-----------
+	mov	ah,BF_ISDIR		; dir only, leave data and FAT
+;	jmps	discard_buffers	
+
+discard_buffers:
+;---------------
+;	entry:	adrive = drive to discard
+;		AH = flags for type to discard i.e. BF_ISFAT, etc.
+
+	mov	al,adrive		; get the work drive
+	call	discard_dirbuf		; discard 32-byte directory buffer
+	call	hshdscrd		; discard hashing info for drive
+	les	si,bcb_root		; get first buffer
+discard_buffers10:
+	cmp	al,es:BCB_DRV[si]	; does the drive match?
+	 jne	discard_buffers20	; try next one if not
+	test	ah,es:BCB_FLAGS[si]	; does the type match?
+	 jz	discard_buffers20	; try next one if not
+	mov	es:BCB_DRV[si],0FFh	; else discard the buffer
+	mov	es:BCB_FLAGS[si],0
+discard_buffers20:
+if DOS5
+	mov	si,es:BCB_NEXT[si]	; get next buffer address
+	cmp	si,word ptr bcb_root
+else
+	les	si,es:BCB_NEXT[si]	; get next buffer address
+	cmp	si,0ffffh
+endif
+	 jne	discard_buffers10	; and repeat until all done
+discard_buffers30:
+	push	ds ! pop es		; restore ES and return
+	ret
+
+
+;-------------
+buffers_check:
+;-------------
+;	entry:	AL = drive to check (preserved)
+;		AH = flags
+;	exit:	ZF = 1 if all buffers clean on this drive
+
+	push	ds			; we use DS here cause it's quicker...
+	lds	si,ss:bcb_root		; start with most recently used
+buffers_check10:
+	cmp	al,BCB_DRV[si]		; check if for different drive
+	 jne	buffers_check20		;   skip if not our problem
+	test	ah,BCB_FLAGS[si]	; test if its one we are looking for
+	 jnz	buffers_check30		;   return with non-zero condition
+buffers_check20:
+if DOS5
+	mov	si,BCB_NEXT[si]		; get next buffer address
+	cmp	si,ss:word ptr bcb_root
+else
+	lds	si,BCB_NEXT[si]		; get next buffer address
+	cmp	si,0ffffh
+endif
+	 jne	buffers_check10		; loop back if more to do
+	xor	dx,dx			; set ZF = 1
+buffers_check30:
+	pop	ds			; restore DS after BCBs done
+	ret
+
+
+eject
+
+;	entry:	AX = first block to release
+;	exit:	AX and following released
+
+delfat:			; release chain of clusters
+;------
+	cmp	ax,2			; is block number too small?
+	 jb	delfat10		; yes, then stop it
+	cmp	ax,lastcl		; is block number too large?
+	 ja	delfat10		; yes, then stop it
+	push	ax			; else save the number
+	call	getblk			; get the next link
+	xchg	ax,cx			; CX = link
+	pop	ax			; AX = this block
+	sub	bx,bx			; set it to 0000
+	push	cx			; save the link for next pass
+	call	fixfat			; release the block
+	pop	ax			; AX = next block or end
+	jmps	delfat			; try again until all released
+delfat10:				; all blocks in chain freed
+	ret
+
+
+; On Entry:
+;	AX = block to read
+; On Exit:
+;	AX = next FAT block index
+;
+	Public	getnblk
+
+getnblk:				;UWORD getnblk(blk);
+;-------
+;
+	push	ax
+	call	getblk			; get current setting
+	pop	bx
+	 jz	getnblk10		; return if something there
+	ret
+getnblk10:
+	mov	ax,dosfat		; if unallocated then allocate it
+	push	ax
+	xchg	ax,bx			; AX = blk, BX = i
+	call	fixfat
+	pop	ax
+	mov	dx,ax			; DX = end of chain
+	xor	cx,cx			; no blocks follow this one
+	ret
+
+; On Entry:
+;	AX = block to read
+; On Exit:
+;	AX = contents
+;	ZF = 1 if AX == 0000h (disk full)
+
+	Public	getblk
+
+;------
+getblk:
+;------
+	push	es ! push bx
+	call	fatptr			; get address of block AX in buffer
+	mov	ax,es:[bx]		; get the word from FAT
+	 jnz	getblk10		; skip if on odd address (must be 12 bit)
+	cmp	dosfat,FAT12		; else check if 16 or 12 bit
+	 je	getblk20		; skip if even 12 bit
+	pop	bx ! pop es
+	test	ax,ax			; update ZF
+	ret
+
+getblk10:
+	shr	ax,1			; shift top 12 bits down
+	shr	ax,1
+	shr	ax,1
+	shr	ax,1
+getblk20:
+	and	ax,0FFFh		; leave bottom 12 bits only
+	pop	bx ! pop es
+	ret
+
+
+
+alloc_cluster:
+;-------------
+; On Entry:
+;	AX = previous cluster (hint for desired start)
+; On Exit:
+;	AX = start of chain
+;	CY set on failure
+;
+	mov	cx,1
+;	jmp	alloc_chain
+
+alloc_chain:
+;-----------
+; On Entry:
+;	AX = previous cluster (hint for desired start)
+;	CX = # clusters wanted
+; On Exit:
+;	AX = start of chain, 0 on failure
+;	CY set on failure
+;
+; We want to allocate a chain of CX clusters, AX was previous cluster
+; We return with CY clear and AX = 1st cluster in chain on success,
+; CY set on failure
+;
+; When allocating a new chain we first ask SSTOR how much physical space is
+; present on the disk. Until SSTOR reports at least 2 clusters free we
+; repeatedly call DELWATCH to purge files and recover space. If DELWATCH is
+; unable to free space we return "disk full".
+;
+; When allocating a block we normally are normally given a target block to
+; start searching from. We allow DELWATCH to alter this value when it frees
+; space to optimise the search.
+;
+	push ax ! push cx		; save entry parameters
+	call	update_ddsc_free	; make sure DDSC_FREE is correct
+if DELWATCH
+alloc_chain10:
+	pop dx ! push dx		; DX = clusters wanted
+	les	bx,ss:current_ddsc
+	mov	cx,es:DDSC_FREE[bx]	; CX = clusters available
+	mov	al,adrive		; AL = current drive
+	cmp	cx,dx			; do we have enough room in the FAT ?
+	 jb	alloc_chain20		; if not ask DELWATCH to purge
+	mov	ah,SSTOR_SPACE		; does Superstore have room for data?
+	callf	ss:fdos_stub		; call stub routine
+	test	cx,cx			; are we out of space ?
+	 jnz	alloc_chain40		; no, go ahead and allocate the chain
+	mov	es:DDSC_FREE[bx],cx	; SSTOR says there's none, lets agree
+	call	update_fat		; flush FAT to bring SSTOR up to date
+	jmps	alloc_chain10		; go round again and ask DELWATCH to
+					;  free up some more space
+					; we loop until either SSTOR says OK
+					;  or DELWATCH frees all it can
+alloc_chain20:
+	mov	ah,DELW_FREECLU		; ask DELWATCH to purge a file
+	callf	ss:fdos_stub		; call stub routine
+	cmp	cx,es:DDSC_FREE[bx]	; can DELWATCH free up any space ?
+	 jne	alloc_chain10		; yes, go and try again
+alloc_chain30:
+	pop cx ! pop ax			; failure, restore stack
+	jmps	alloc_chain80		;  and exit in failure
+
+alloc_chain40:
+endif
+	pop cx ! pop ax			; restore entry parameters
+	push	cx			; save # required
+	call	allocate_cluster	; try to allocate 1st cluster
+	pop	cx			; recover # required
+	test	ax,ax			; could we ?
+	 jz	alloc_chain80
+	dec	cx			; one less to allocate
+
+	push	ax			; save head of chain
+	 jcxz	alloc_chain60
+alloc_chain50:
+	push	cx
+
+	push	ax			; save current end of chain
+	call	allocate_cluster	; allocate another cluster
+	pop	bx			; BX = end of chain
+
+	test	ax,ax			; could we allocate anything ?
+	 jz	alloc_chain70		; no, bail out and free partial chain
+
+	xchg	ax,bx			; AX = previous cluster, link cluster
+	push	bx			;  BX to end of the chain
+	call	fixfat
+	pop	ax			; AX = new end of chain
+
+	pop	cx
+	loop	alloc_chain50
+alloc_chain60:
+	pop	ax			; return the start of the chain as it's
+	clc				;  long enough now...
+	ret
+
+alloc_chain70:
+; We haven't enough free clusters - lets free what we allocated so far
+	pop	cx			; discard count
+	pop	ax			; AX = start of chain
+	call	delfat			; release the chain
+alloc_chain80:
+	xor	ax,ax
+	stc				; we couldn't manage it
+	ret
+
+allocate_cluster:
+;----------------
+; On Entry:
+;	AX = cluster to start from (AX = none known)
+; On Exit:
+;	AX = cluster allocated
+;
+	test	ax,ax			; previous block known?
+	 jnz	alloc_cl10		; skip if it is
+	push	ds
+	lds	bx,ss:current_ddsc
+	mov	ax,ds:DDSC_BLOCK[bx]	; else continue from last allocated block
+	pop	ds
+alloc_cl10:
+	mov	bx,lastcl		; highest block number on current disk
+	cmp	ax,bx			; is it within disk size?
+	 jb	alloc_cl20		; skip if it is
+	sub	ax,ax			; start at the beginning
+
+alloc_cl20:
+	mov	si,ax			; remember start of search
+	test	ax,ax			; is this the 1st block?
+	 jnz	alloc_cl30		; no
+	inc	ax			; start at beginning
+alloc_cl30:				; main loop:
+	inc	ax			; skip to block after current
+	push	ax ! push si		; quick save
+	call	getblk			; get the content of this block
+	pop	si ! pop ax
+	 jz	alloc_cl50		; return if free
+	cmp	ax,bx			; are we at the end yet?
+	 jb	alloc_cl30		; no, try next block
+	xor	ax,ax			; wrap to start of disk
+	mov	bx,si			; remember starting position last time
+	test	bx,bx			; have we been all the way round ?
+	 jnz	alloc_cl20		;  no, lets search from start
+	push	ds
+	lds	bx,ss:current_ddsc
+	mov	ds:DDSC_FREE[bx],ax	; we definitely have none left
+	pop	ds
+	ret				; return (0);
+
+alloc_cl50:
+	push	ds			; block # AX is available
+	lds	bx,ss:current_ddsc
+	mov	ds:DDSC_BLOCK[bx],ax	; remember for next time
+	pop	ds
+
+	push	ax
+	mov	bx,dosfat		; mark this block as end of file
+	call	fixfat			; for convenience
+	pop	ax
+
+	test	ax,ax			; update ZF from AX
+	ret				; return block number
+
+
+
+
+
+if DELWATCH
+
+; Update a FAT entry with a new value
+
+change_fat_entry:
+;----------------
+; On Entry:
+;	AX = block number to change
+;	DX = new value
+; On Exit:
+;	None
+;
+	mov	bx,dx
+;	jmps	fixfat
+endif
+
+;	entry:	AX = block number to change
+;		BX = new value
+;	exit:	DS,ES = sysdat
+
+;------
+fixfat:
+;------
+	push	bx			; save new value
+	push	ax
+	call	update_ddsc_free	; make sure DDSC_FREE is correct
+	pop	ax
+	cmp	dosfat,FAT16		; check if 16-bit FAT
+	 jne	fixfat30		; skip if 12 bit FAT
+	call	fatptr			; ES:BX -> FAT word to modify
+	pop	ax			; restore new value
+	xor	dx,dx			; get a zero (no change of space)
+	test	ax,ax			; are we setting to 0 or non-zero?
+	xchg	ax,es:[bx]		; set the word in the buffer
+	 jnz	fixfat10		; skip if releasing block
+	test	ax,ax			; check if word was 0 before
+	 jz	fixfat20		; skip if setting 0 to 0
+	inc	dx			; DX = 0001h, one free cluster more
+	jmps	fixfat15
+fixfat10:				; allocating or fixing block
+	test	ax,ax			; check if word was 0 before
+	 jnz	fixfat20		; skip if setting non-0 to non-0
+	dec	dx			; one free cluster less now
+fixfat15:				; DX = change in free space (-1,1)
+	les	si,current_ddsc
+	add	es:DDSC_FREE[si],dx	; update free space count
+fixfat20:
+	les	si,bcb_root		; ES:SI -> buffer control block
+	or	es:BCB_FLAGS[si],BF_DIRTY
+					; mark the buffer as dirty
+	push	ds ! pop es		; ES back to local DS
+	ret
+
+
+	; We're dealing with a 12-bit FAT...
+
+fixfat30:				; changing 12-bit FAT entry
+	call	fatptr			; get address of block AX in ES:BX
+	pop	cx			; get new value
+	mov	dx,es:[bx]		; get old value
+	 jz	fixfat40		; skip if even word
+	mov	ax,0FFF0h		; set mask for new value
+	add	cx,cx			; else shift new value into top bits
+	add	cx,cx
+	add	cx,cx
+	add	cx,cx
+	jmps	fixfat50		; set the new word
+fixfat40:
+	mov	ax,00FFFh		; set mask for new value
+	and	cx,ax
+fixfat50:				; AX = mask, CX = new, DX = old
+	mov	si,0			; assume space doesn't change
+	 jnz	fixfat60		; skip if new value is zero
+	test	dx,ax			; test if old value was zero as well
+	 jz	fixfat70		; yes, no change in free space
+	inc	si			; else one more block available
+	jmps	fixfat70
+fixfat60:				; new value is non-zero
+	test	dx,ax			; is old value non-zero as well?
+	 jnz	fixfat70		; yes, no change in free space
+	dec	si			; else one block less free now
+fixfat70:
+	not	ax			; flip the mask bits around
+	and	dx,ax			; zero out old value
+	or	dx,cx			; combine old & new value
+	mov	es:[bx],dx		; update the FAT
+	xchg	ax,si			; AX = free space change (-1, 0 , 1)
+	les	si,current_ddsc
+	add	es:DDSC_FREE[si],ax	; update free space count
+	les	si,bcb_root		; get buffer control block
+	or	es:BCB_FLAGS[si],BF_DIRTY
+					; mark the buffer as dirty
+	cmp	split_fat,0		; is 12-bit entry split across sectors
+	 je	fixfat80		; need some magic if so
+					; handle a split FAT update
+	mov	dx,fatrec		; lower sector number
+	inc	dx			; get the upper sector
+	call	locate_fat		; find the buffer
+	or	es:BCB_FLAGS[si],BF_DIRTY
+					; mark buffer as write pending
+	mov	al,fatbyth		; get the high byte
+	mov	es:BCB_DATA[si],al	; store the high byte at the beginning
+	mov	dx,fatrec		; get the previous sector
+	call	locate_fat		; read into memory
+	or	es:BCB_FLAGS[si],BF_DIRTY
+					; mark buffer as write pending
+	mov	bx,psecsiz
+	dec	bx			; BX = sector size - 1
+	mov	al,fatbytl		; get the low byte
+	mov	es:BCB_DATA[si+bx],al
+
+fixfat80:
+	push	ds ! pop es		; ES back to local DS
+	ret
+
+
+; On Entry:
+;	AX = cluster number
+; On Exit:
+;	AX preserved
+;	ES:BX -> address of word
+;	BCBSEG = segment of FAT FCB
+;	ZF = 1 if word on even address
+;	SPLIT_FAT = 0FFh if xing sector boundary
+;	
+;	CX = entries left in sector (if FAT16 - performance optimisation)
+;
+
+	Public	fatptr
+fatptr:
+;------
+	push	ax			; save block number
+	mov	bx,ax
+	sub	dx,dx			; AX/DX = cluster #
+	cmp	dosfat,FAT16		; is it 16 bit FAT?
+	 je	fatptr10
+	shr	ax,1			; shift for 1 1/2 byte, else 2 byte
+fatptr10:
+	add	ax,bx			; AX = offset into FAT
+	adc	dx,0			; AX/DX = 32 bit offset
+	mov	cx,psecsiz		; CX = sector size
+	div	cx			; AX = sector offset
+	dec	cx			; CX = sector size - 1
+	push	dx			; DX = offset within FAT sector
+	push	cx
+	add	ax,fatadd		; make it absolute sector address
+	mov	fatrec,ax		; save FAT sector for FIXFAT
+	xchg	ax,dx			; DX = FAT sector
+	call	locate_fat		; locate the sector
+	pop	cx			; CX = sector size - 1
+	pop	bx			; restore offset within FAT sector
+	pop	ax			; restore cluster #
+	sub	cx,bx			; CX = bytes left in sector - 1
+	lea	bx,BCB_DATA[si+bx]	; ES:BX -> buffer data
+	cmp	dosfat,FAT16		; is it 16 bit media
+	 jne	fatptr20		; skip if 12 bit media
+	shr	cx,1			; CX = extra entries left in sector
+	cmp	ax,ax			; always set ZF = 1
+	ret				; return ES:BX -> word in FAT
+
+fatptr20:				; it's a 12 bit FAT, is it a split FAT?
+	mov	split_fat,0		; assume no boundary crossing
+	 jcxz	fatptr30		; end of sector, it's a split FAT
+	test	al,1			; ZF = 1 if even cluster
+	ret				; return ES:BX -> word in FAT buffer
+
+fatptr30:				; block split across two sectors
+	push	ax
+	mov	split_fat,0FFh		; yes, the difficult case
+	mov	al,es:[bx]		; get the low byte from 1st sector
+	mov	fatbytl,al		; save it for later
+	mov	dx,fatrec		; get the FAT record is
+	inc	dx			; get 2nd sector
+	call	locate_fat		; read the 2nd sector
+	sub	bx,bx
+	lea	bx,BCB_DATA[si+bx]	; ES:BX -> buffer data
+	mov	al,es:[bx]		; get 1st byte from next sector
+	mov	fatbyth,al		; save the high byte
+	push	ds			; ES = local DS
+	pop	es
+	mov	bx,offset fatbytl	; ES:BX -> <fatbytl,fatbyh>
+	pop	ax
+	test	al,1			; set non-zero condition, odd word
+	ret
+
+
+if DOS5
+
+;	entry:	DX = sector number to read
+;	exit:	ES:SI = BCB
+
+locate_fat:
+;----------
+	mov	ah,0			; set sector address overflow = 0
+	mov	cx,0ff00h+BF_ISFAT	; request a FAT buffer w/ preread
+locate_buffer:
+;-------------
+; On Entry:
+;	AH:DX = sector to locate
+;	adrive = driver
+;	CH = 0FFh if preread required
+;	CL = buffer type
+; On Exit:
+;	ES:SI -> BCB_
+;
+
+	mov	al,adrive		; get our drive number
+	les	si,bcb_root		; get it from the right buffer list
+locate10:
+	cmp	dx,es:BCB_REC[si]	; does our sector address match?
+	 jne	locate20		; skip if it doesn't
+	cmp	ah,es:BCB_REC2[si]	; does record address overflow match?
+	 jne	locate20		; skip if not
+	cmp	al,es:BCB_DRV[si]	; does the drive match?
+	 je	locate30		; found if it all matches
+locate20:				; MRU buffer doesn't match
+	mov	si,es:BCB_NEXT[si]	; try the next
+	cmp	si,word ptr bcb_root	; while there are more buffers
+	 jne	locate10
+
+	push	ax ! push cx ! push dx	; save all registers
+	mov	si,es:BCB_PREV[si]	; recycle least recently used buffer
+	call	flush_buffer		; write buffer to disk
+	pop	dx ! pop cx ! pop ax	; restore all registers
+
+	mov	es:BCB_DRV[si],al	; fill in the BCB: drive
+	mov	es:BCB_REC[si],dx	; 		  record low,middle
+	mov	es:BCB_REC2[si],ah	; 		  record high
+	mov	es:BCB_FLAGS[si],cl	; mark as clean, ISFAT,ISDIR or ISDAT
+	test	ch,ch			; is preread required?
+	 jz	locate30		; skip if it isn't
+	call	fill_buffer		; read it from disk
+locate30:
+	cmp	si,word ptr bcb_root	; are we already at the head ?
+	 jne	locate40		;  if not move ourself there
+	ret
+locate40:
+	mov	bx,es:BCB_NEXT[si]	; BX = next buffer
+	mov	di,es:BCB_PREV[si]	; DI = previous buffer
+	mov	es:BCB_NEXT[di],bx	; unlink buffer from the
+	mov	es:BCB_PREV[bx],di	;  chain
+	mov	bx,si
+	xchg	bx,word ptr bcb_root	; become the new head, BX = old head
+	mov	es:BCB_NEXT[si],bx	; old chain follow us
+	mov	di,si
+	xchg	di,es:BCB_PREV[bx]	; back link to our buffer, DI = LRU buffer
+	mov	es:BCB_PREV[si],di	; link ourselves to LRU buffer
+	mov	es:BCB_NEXT[di],si	; forward link to our buffer
+	ret
+
+
+;	Flush all dirty FAT buffers for drive AL
+;	entry:	AL = drive to flush (0-15)
+;	exit:	CY = 0 if no error
+;		ax,bx,cx,dx,es preserved
+
+flush_fat:
+;---------
+;	entry:	AL = drive for FAT flush
+
+	mov	ah,BF_ISFAT		; flush all dirty FAT buffers
+	jmps	flush_drive		; shared code for all flushes
+
+;----------
+update_dir:
+;----------
+	call	flush_dirbuf		; flush local dirbuf to buffers
+;---------
+flush_dir:
+;---------
+	mov	ah,BF_ISDIR		; write out dirty directories
+	jmps	flush_adrive		; update the disk
+
+
+;----------
+update_dat:
+;----------
+	mov	ah,BF_ISDAT		; write out dirty data
+	jmps	flush_adrive		; update the disk
+
+;----------
+update_fat:		;write out modified FAT buffers
+;----------
+	mov	ah,BF_ISFAT		; flush all dirty FAT buffers
+;	jmp	flush_adrive		; update the disk if dirty
+
+flush_adrive:
+;------------
+	mov	al,adrive		; AL = currently selected drive
+;	jmp	flush_drive
+
+;	Write out all dirty data buffers for a given drive
+;	entry:	AL = drive to be flushed
+;		AH = mask of buffer types to be flushed
+;	exit:	AX,DX preserved
+;	Note:	sector buffers will be written in the
+;		sequence in which they appear on disk (low to high)
+
+flush_drive:
+;-----------
+	push	es
+	push	si
+flush_drive10:
+	les	si,bcb_root		; start with the first buffer
+	mov	bx,0FFFFh		; assume no buffer found
+flush_drive20:
+	test	es:BCB_FLAGS[si],BF_DIRTY
+					; has buffer been written to?
+	 jz	flush_drive40		; no, do the next one
+	test	es:BCB_FLAGS[si],ah	; is it one of these buffers?
+	 jz	flush_drive40		; no, do the next one
+	cmp	al,es:BCB_DRV[si]	; does the drive match?
+	 jne	flush_drive40		; skip if wrong drive
+					; we've found a buffer to flush
+	cmp	bx,0FFFFh		; first buffer ever found in list?
+	 jz	flush_drive30		; yes, save as new best candidate
+					; else check if < previous lowest addr
+	mov	dx,es:BCB_REC[si]
+	sub	dx,ds:BCB_REC[bx]
+	mov	dl,es:BCB_REC2[si]	; compare the disk addresss
+	sbb	dl,ds:BCB_REC2[bx]
+	 jnb	flush_drive40		; CY = 0 if new BCB higher
+flush_drive30:				; else ES = best BCB so far
+	mov	bx,si			; save it for later
+flush_drive40:
+	mov	si,es:BCB_NEXT[si]	; get next buffer address
+	cmp	si,ss:word ptr bcb_root
+	 jne	flush_drive20
+	cmp	bx,0FFFFh		; did we find a dirty buffer?
+	 jz	flush_drive50		; no, all buffers cleaned
+	mov	si,bx			; ES:SI -> BCB to flush
+	call	flush_buffer		; write sector to disk
+	jmps	flush_drive10		; check if more dirty buffers
+flush_drive50:
+	pop	si
+	pop	es
+	ret
+
+else    
+;	entry:	DX = sector number to read
+;	exit:	ES:SI = BCB
+
+locate_fat:
+;----------
+	mov	ah,0			; set sector address overflow = 0
+	mov	cx,0ff00h+BF_ISFAT	; request a FAT buffer w/ preread
+locate_buffer:
+;-------------
+; On Entry:
+;	AH:DX = sector to locate
+;	adrive = driver
+;	CH = 0FFh if preread required
+;	CL = buffer type
+; On Exit:
+;	ES:SI -> BCB_
+;
+
+
+	mov	al,adrive		; get our drive number
+	les	si,bcb_root		; get it from the right buffer list
+	mov	bx,0FFFFh		; no previous buffers yet
+locate1:
+	cmp	dx,es:BCB_REC[si]	; does our sector address match?
+	 jne	locate2			; skip if it doesn't
+	cmp	ah,es:BCB_REC2[si]	; does record address overflow match?
+	 jne	locate2			; skip if not
+	cmp	al,es:BCB_DRV[si]	; does the drive match?
+	 je	locate6			; found if it all matches
+locate2:				; MRU buffer doesn't match
+	cmp	es:BCB_LINK_OFF[si],0FFFFh
+	 je	locate3			; are there more buffers?
+	push es ! pop ds
+	mov	bx,si			; remember previous buffer
+	les	si,es:BCB_NEXT[si]	; move on to next buffer
+	jmps	locate1
+
+locate3:				; we found the LRU buffer
+	push	ax ! push cx ! push dx	; save all registers
+
+	call	pick_cheapest		; determine cheapest buffer
+					; ES:SI -> cheapest buffer
+					; DS:BX -> previous link
+	test	es:BCB_FLAGS[si],BF_DIRTY
+	 jz	locate5			; skip if buffer not dirty
+
+	mov	al,es:BCB_DRV[si]	; get the buffer's drive
+	mov	ah,es:BCB_FLAGS[si]	; flush all buffers of same type
+	and	ah,BF_ISFAT+BF_ISDIR+BF_ISDAT
+	push ss ! pop ds
+	call	flush_drive		; gives us burst mode behaviour
+					;   but might re-arrange buffers
+	call	find_prev		; find preceding BCB for re-link
+					; so DS:BX -> BCB_LINK == ES:SI
+locate5:
+	pop	dx ! pop cx ! pop ax	; restore all registers
+	mov	es:BCB_DRV[si],al	; fill in the BCB: drive
+	mov	es:BCB_REC[si],dx	; 		  record low,middle
+	mov	es:BCB_REC2[si],ah	; 		  record high
+
+	mov	es:BCB_FLAGS[si],cl	; mark as clean, ISFAT,ISDIR or ISDAT
+	test	ch,ch			; is preread required?
+	 jz	locate6			; skip if it isn't
+
+	push es ! push si
+	push ds ! push bx		; save the previous buffer segment
+	push ss ! pop ds		;    for unlinking our buffer
+
+	call	fill_buffer		; read it from disk, don't return
+					;    on physical errors
+	pop bx ! pop ds
+	pop si ! pop es
+locate6:
+	cmp	bx,0FFFFh		; are we the MRU buffer
+	 jz	locate9			; yes, leave it at the head
+locate8:				; arrive here if found as not 1st
+	mov	ax,es:BCB_LINK_OFF[si]
+	mov	BCB_LINK_OFF[bx],ax
+	mov	ax,es:BCB_LINK_SEG[si]
+	mov	BCB_LINK_SEG[bx],ax	; unlink this buffer
+
+					; we now want to attach the
+	push ss ! pop ds		;   BCB at ES:BX to the root
+	mov	ax,ds:word ptr bcb_root
+	mov	es:BCB_LINK_OFF[si],ax
+	mov	ax,ds:word ptr bcb_root+2
+	mov	es:BCB_LINK_SEG[si],ax
+	mov	ds:word ptr bcb_root,si	; insert the new entry
+	mov	ds:word ptr bcb_root+2,es
+locate9:
+	push ss ! pop ds		; DS back to normal
+	ret
+
+
+pick_cheapest:		; find cheapest replacement sector
+;-------------
+;	entry:	ES:SI = least recently used BCB
+;		DS:BX = previous buffer
+;	exit:	ES, BX unmodified if LRU buffer marked as cheap
+;		       or no other cheap buffer found
+;			-or-
+;		ES:SI, DS:BX modified to cheapest buffer and previous buffer
+
+	test	es:BCB_FLAGS[si],BF_DIRTY
+					; is this buffer very expensive?
+	 jz	pck_chp5		; return if it is cheapest "cheap" buffer
+					; else is cheapest "expensive" buffer
+					; find the cheapest "cheap" buffer
+	les	si,ss:bcb_root		; as we start at the root with
+	mov	ax,0FFFFh		;  no previous buffer
+pck_chp1:				; check if buffer at DS is cheap
+	test	es:BCB_FLAGS[si],BF_ISFAT+BF_ISDIR+BF_DIRTY
+					; check the "not cheap" flag
+	 jnz	pck_chp2		; skip if expensive buffer
+	mov	ds,dx
+	mov	bx,ax			; remember previous buffer
+pck_chp2:
+	mov	dx,es			; remember this buffer
+	mov	ax,si			;  when we move onto next one
+	les	si,es:BCB_NEXT[si]	; get next buffer
+	cmp	si,0FFFFh		; end of the line ?
+	 jne	pck_chp1		; go again if still buffers
+pck_chp3:				; done all buffers
+	cmp	bx,0FFFFh		; did we find the root ?
+	 jne	pck_chp4
+	les	si,ss:bcb_root		; return ES:SI -> root
+	ret
+
+pck_chp4:
+	les	si,ds:BCB_NEXT[bx]	; ES:SI = cheapest buffer
+pck_chp5:				; ES:SI = cheapest buffer
+	ret				; DS:BX = previous
+
+
+find_prev:
+;---------
+;	entry:	ES:SI = BCB to find previous buffer for
+;	exit:	DS:BX = predecessor, BX = FFFF if first
+;
+	mov	ax,es
+	mov	dx,si			; AX:DX -> buffer we want to find link for
+	mov	bx,0FFFFh		; assume it's the first buffer
+	les	si,ss:bcb_root		; we start at the root with
+find_prv1:
+	mov	cx,es
+	cmp	dx,si			; does offset match ?
+	 jne	find_prv2
+	cmp	ax,cx			; does segment match ?
+	 je	find_prv3		; yes, return this one then
+find_prv2:
+	mov	ds,cx			; remember previous link
+	mov	bx,si
+	les	si,es:BCB_NEXT[si]	; else have a go at the next one
+	jmps	find_prv1		; and repeat until match
+find_prv3:
+	ret
+
+;	Flush all dirty FAT buffers for drive AL
+;	entry:	AL = drive to flush (0-15)
+;	exit:	CY = 0 if no error
+;		ax,bx,cx,dx,es preserved
+
+flush_fat:
+;---------
+;	entry:	AL = drive for FAT flush
+
+	mov	ah,BF_ISFAT		; flush all dirty FAT buffers
+	jmps	flush_drive		; shared code for all flushes
+
+;----------
+update_dir:
+;----------
+	call	flush_dirbuf		; flush local dirbuf to buffers
+;---------
+flush_dir:
+;---------
+	mov	ah,BF_ISDIR		; write out dirty directories
+	jmps	flush_adrive		; update the disk
+
+
+;----------
+update_dat:
+;----------
+	mov	ah,BF_ISDAT		; write out dirty data
+	jmps	flush_adrive		; update the disk
+
+;----------
+update_fat:		;write out modified FAT buffers
+;----------
+	mov	ah,BF_ISFAT		; flush all dirty FAT buffers
+;	jmp	flush_adrive		; update the disk if dirty
+
+flush_adrive:
+;------------
+	mov	al,adrive		; AL = currently selected drive
+;	jmp	flush_drive
+
+;	Write out all dirty data buffers for a given drive
+;	entry:	AL = drive to be flushed
+;		AH = mask of buffer types to be flushed
+;	exit:	AX,DX preserved
+;	Note:	sector buffers will be written in the
+;		sequence in which they appear on disk (low to high)
+
+flush_drive:
+;-----------
+	push	ds
+	push	es
+	push	bx			; save registers
+	push	si
+flush_dr0:
+	les	si,ss:bcb_root		; start with the first buffer
+	mov	bx,0FFFFh		; assume no buffer found
+flush_dr1:
+	test	es:BCB_FLAGS[si],BF_DIRTY
+					; has buffer been written to?
+	 jz	flush_dr3		; no, do the next one
+	test	es:BCB_FLAGS[si],ah	; is it one of these buffers?
+	 jz	flush_dr3		; no, do the next one
+	cmp	al,es:BCB_DRV[si]	; does the drive match?
+	 jne	flush_dr3		; skip if wrong drive
+					; we've found a buffer to flush
+	cmp	bx,0FFFFh		; first buffer ever found in list?
+	 jz	flush_dr2		; yes, save as new best candidate
+					; else check if < previous lowest addr
+	mov	dl,es:BCB_REC2[si]	; compare the disk addresss
+	sub	dl,ds:BCB_REC2[bx]
+	mov	dx,es:BCB_REC[si]
+	sbb	dx,ds:BCB_REC[bx]
+	 jnb	flush_dr3		; CY = 0 if old BCB lower
+flush_dr2:				; else ES = best BCB so far
+	push	es
+	pop	ds
+	mov	bx,si			; save it for later
+flush_dr3:
+	les	si,es:BCB_NEXT[si]	; get next buffer address
+	cmp	si,0ffffh
+	 jne	flush_dr1
+flush_dr4:				; DS:BX = best BCB
+	cmp	bx,0FFFFh		; did we find a dirty buffer?
+	 jz	flush_dr5		; no, all buffers cleaned
+	mov	si,bx			; ES:SI -> BCB to flush
+	push ds ! pop es
+	push ss ! pop ds
+	call	flush_buffer		; write sector to disk
+	jmps	flush_dr0		; check if more dirty buffers
+flush_dr5:
+	pop	si
+	pop	bx
+	pop	es
+	pop	ds			; restore registers
+	ret
+
+endif   
+
+flush_buffer:
+;------------
+;	entry:	ES:SI = address of BCB
+;	exit:	buffer flushed if BCB_FLAGS & BF_DIRTY
+
+;	note:	preserves AX,BX,CX,DX,ES
+
+	test	es:BCB_FLAGS[si],BF_DIRTY
+					; is the buffer dirty?
+	 jz	flush_buf9		; skip update if not modified
+flush_buf1:
+	push es  !  push si
+	push ax  !  push bx		; else save all registers
+	push cx  !  push dx
+	mov	al,es:BCB_DRV[si]	; get the buffer drive
+	cmp	al,adrive		; same as the selected drive?
+	 je	flush_buf2		; skip if already selected
+	push	es			; save the BCB
+	push	si
+	push	ds ! pop es		; ES = SYSDAT
+	call	select_adrive		; select drive AL, ZF = 1 if logged in
+	pop	si
+	pop	es			; recover BCB
+	 jc	flush_buf5		; don't flush to bad drive
+flush_buf2:
+	mov	cx,nfats		; else FAT sectors written CX times
+	mov	al,0000$0011b		; mark as FAT write
+	test	es:BCB_FLAGS[si],BF_ISFAT
+	 jnz	flush_buf3		; go ahead
+	mov	cx,1			; directory/data written once only
+	mov	al,0000$0101b		; mark as directory write
+	test	es:BCB_FLAGS[si],BF_ISDIR
+	 jnz	flush_buf3		; if not dir, must be data
+	mov	al,0000$0111b		; mark as data buffer write
+flush_buf3:				; CX = # of times to write sector
+	mov	rwmode,al
+	sub	ax,ax			; offset for write = 0
+flush_buf4:				; loop back to here for other copies
+	push	ax
+	push	cx			; save loop variables
+	call	setup_rwx		; compute disk address
+	call	write_buff		; write the sector
+	pop	cx
+	pop	ax
+	add	ax,nfatrecs		; move to next FAT copy
+	loop	flush_buf4		; repeat for all FAT copies
+flush_buf5:
+	and	es:BCB_FLAGS[si],not BF_DIRTY
+					; mark it as no longer dirty
+	mov	al,physical_drv		; work drive for BDOS function
+	cmp	al,adrive		; drive from last IO_SELDSK
+	 je	flush_buf6		; skip if flush to work drive
+					; else reselect BDOS drive after flush
+	push	ds ! pop es		; ES = SYSDAT
+	call	select_adrive		; reselect the work drive
+flush_buf6:
+	pop dx  !  pop cx		; restore all registers
+	pop bx  !  pop ax
+	pop si  !  pop es
+flush_buf9:				; all done, CY = 0 if O.K.
+	ret
+
+
+;-------
+zeroblk:				; AX = blk
+;-------
+	xor	bx,bx			; Start at begining of cluster
+	call	clus2sec		; translate to sector address
+	xchg	ax,dx			; DX = low 16 bits of address
+	mov	ah,al			; AH:DX = 24 bit sector address
+	mov	cx,secperclu		; CX == sectors/cluster
+zeroblk10:				; repeat for all sectors in cluster
+	push	ax
+	push	cx
+	push	dx
+	mov	cx,BF_ISDIR		; locate directory sector w/o preread
+	call	locate_buffer		; this will find the cheapest buffer
+	or	es:BCB_FLAGS[si],BF_DIRTY
+	lea	di,BCB_DATA[si]		; ES:DI -> disk buffer
+	mov	cx,psecsiz		; CX = byte count for REP STOSB
+	xor	ax,ax
+	rep	stosb			; zero the whole data buffer
+	pop	dx
+	pop	cx
+	pop	ax
+	add	dx,1			; onto the next block
+	adc	ah,0
+	loop	zeroblk10		; repeat for all sectors in cluster
+	jmp	flush_dir
+
+
+
+
+fill_buffer:
+;-----------
+; On Entry:
+;	ES:SI = address of BCB to be filled
+; On Exit:
+;	ES:SI preserved
+;	data read into buffer
+;
+	test	es:BCB_FLAGS[si],BF_ISFAT
+					; are we reading a FAT sector?
+	 jz	fill_buf1		; skip if directory/data
+	mov	al,es:BCB_DRV[si]	; get the drive
+	call	flush_fat		; write out all dirty buffers
+	mov	al,0000$0010b		; reading from FAT area
+	jmps	fill_buf3		; go ahead
+fill_buf1:
+	mov	al,0000$0100b		; else mark as directory
+	test	es:BCB_FLAGS[si],BF_ISDIR; test if directory read
+	jnz	fill_buf3		; go ahead
+fill_buf2:				; neither FAT nor directory => data
+	mov	al,0000$0110b		; mark read as data buffer read
+fill_buf3:
+	mov	rwmode,al
+	push	cx
+	xor	cx,cx
+	cmp	al,0000$0010b
+	 jne	fill_buf4
+	mov	cx,nfats
+	dec	cx
+fill_buf4:
+	mov	es:BCB_DRV[si],0FFh	; discard in case of error
+	sub	ax,ax			; no offset for 2nd copy yet
+fill_buf5:
+	push	ax
+	call	setup_rwx		; compute disk address
+	call	read_buff		; read the sector
+	pop	ax
+	 jns	fill_buf6
+; we can end here only if CX was non-zero above and we failed to read a
+; FAT copy while there is still another one we could use
+	add	ax,nfatrecs
+	dec	cx
+	jmps	fill_buf5
+fill_buf6:
+	pop	cx
+	mov	al,adrive		; restore the drive
+	mov	es:BCB_DRV[si],al	; set the drive #
+	ret
+
+read_buff:
+;---------
+	push	es
+	push	si			; save BCB_
+	push	cur_dma_seg
+	push	cur_dma			; save DMA address
+	push	cx
+	mov	cx,ss:deblock_seg
+	 jcxz	read_buff10
+	mov	cur_dma_seg,cx
+	mov	cur_dma,0		; xfer via deblocking buffer
+read_buff10:
+	pop	cx
+	call	read_block
+	pop	cur_dma			; restore DMA address
+	pop	cur_dma_seg
+	 js	read_buff20		; can happen only on FAT read
+	mov	cx,ss:deblock_seg	; if deblocked, copy data
+	 jcxz	read_buff20
+	les	di,dword ptr cur_dma	; point to destination
+	mov	cx,psecsiz		; CX = sector size
+	shr	cx,1			; CX = words per sector
+	push	ds
+	mov	ds,ss:deblock_seg
+	xor	si,si			; DS:SI = source
+	rep	movsw			; copy the data
+	pop	ds
+read_buff20:				; SF still indicating error here
+	pop	si			; recover BCB_
+	pop	es
+	ret
+
+write_buff:
+;----------
+	push	es
+	push	si
+	push	cur_dma_seg
+	push	cur_dma
+	mov	cx,ss:deblock_seg	; if deblocking we have to
+	 jcxz	write_buff10		;  copy the data first
+	push	ds			; save SYSDAT
+	les	si,dword ptr cur_dma	; ES:SI -> source
+	push	es			; save source seg 
+	mov	es,cx
+	xor	di,di			; ES:DI -> deblocking buffer
+	mov	cur_dma_seg,es
+	mov	cur_dma,di		; do xfer via deblocking buffer
+	mov	cx,psecsiz		; CX = sector size
+	shr	cx,1			; CX = words per sector
+	pop	ds			; DS:SI -> source
+	rep	movsw			; copy to deblocking buffer
+	pop	ds			; restore SYSDAT
+write_buff10:
+	call	write_block
+	pop	cur_dma
+	pop	cur_dma_seg
+	pop	si
+	pop	es
+	ret
+
+setup_rwx:
+;---------
+;	entry:	AX = sector offset (multiple FAT writes)
+;		ES:SI = BCB, BCB_REC filled in
+;	exit:	all values set up for RWXIOSIF
+
+	mov	cur_dma_seg,es		; segment = BCB_SEGMENT
+	lea	dx,BCB_DATA[si]
+	mov	cur_dma,dx		; offset
+	xor	dx,dx
+	add	ax,es:BCB_REC[si]
+	adc	dl,es:BCB_REC2[si]
+	mov	word ptr pblock,ax	; xfer starts at this block
+	mov	word ptr pblock+WORD,dx
+	mov	mult_sec,1		; single sector transfer
+	ret
+
+	END

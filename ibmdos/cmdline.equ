@@ -1,0 +1,70 @@
+;    File              : $CMDLINE.EQU$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+
+RL_INPUT	equ	word ptr -2[bp]		; READ_LINE Input Handle
+RL_OUTPUT	equ	word ptr -4[bp]		; READ_LINE Output Handle
+RL_BUFSEG	equ	word ptr -6[bp]		; Retained line Segment
+RL_BUFOFF	equ	word ptr -8[bp]		; Retained line Offset
+RL_BUFPTR	equ	dword ptr -8[bp]	; Retained line Buffer
+RL_INICOL	equ	word ptr -10[bp]	; initial column
+RL_FLAGS	equ	word ptr -12[bp]	; Control Flags
+RL_MAXLEN	equ	word ptr -14[bp]	; Maximum Buffer Size
+RL_KANJI	equ	word ptr -16[bp]		; Kanji Character Buffer
+RL_SAVMAX	equ	word ptr -18[bp]	; Size of retained data
+RL_SAVPOS	equ	word ptr -20[bp]	; Current Position in data
+RL_HIST_RECL	equ	word ptr -22[bp]	; We recall from here
+RL_HIST_SAVE	equ	word ptr -24[bp]	; We save to here
+RL_HIST_SIZE	equ	word ptr -26[bp]	; buffer is this big
+RL_HIST_SEG	equ	word ptr -28[bp]	; buffer is at this segment
+RL_LENGTH	equ	28
+
+RLF_ENHANCED	equ	0000$0001b		; Enhanced features are on
+RLF_INS		equ	0000$0010b		; Insert Flag
+RLF_SEARCH	equ	0000$0100b		; Search mode on
+RLF_MATCH	equ	0000$1000b		; We are matching a command
+RLF_RECALLED	equ	0001$0000b		; Line already recalled
+RLF_DIRTY	equ	0010$0000b		; Partial line needs saved
+RLF_KANJI	equ	0100$0000b		; RL_KANJI is valid
+RLF_INROOT	equ	1000$0000b		; In root
+
+CHAR_SPACE	equ	0000$0001b	; Space Character
+CHAR_TAB	equ	0000$0010b	; Tab Character
+CHAR_CTL	equ	0000$0100b	; Control Character expanded to "^X"
+CHAR_KANJI	equ	0000$1000b	; Japanese Kanji character
+CHAR_ALPHAN	equ	0001$0000b	; Alpha/Numeric
+CHAR_OTHER	equ	0010$0000b	; Non AlphaNumeric
+CHAR_STD	equ	1000$0000b	; Stored as a Byte displayed in 1 Col
+
+CHAR_SIZE	equ	CHAR_STD or CHAR_KANJI or CHAR_TAB or CHAR_CTL
+CHAR_ONECOL	equ	CHAR_SPACE or CHAR_OTHER or CHAR_ALPHAN

@@ -1,0 +1,827 @@
+title 'DIRS - dos directory support'
+;    File              : $DIRS.A86$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$   
+;    DIRS.A86 1.13 94/12/01 13:16:24
+;    changed error code if directory entry cannot be allocated;    
+;    DIRS.A86 1.12 93/08/27 18:49:04
+;    hash code fixup on previously unused entries resets hash count
+;    pcformat bug where an extra (zero-length) command.com was left on disk
+;    ENDLOG
+;
+;	Date	   Who	Modification
+;	---------  ---	---------------------------------------
+;   19 Aug 91 Initial version created for VLADIVAR
+
+eject
+
+include	bdos.equ
+include i:mserror.equ
+include	i:fdos.equ
+
+eject
+PCMODE_DATA	dseg
+if DELWATCH
+	extrn	fdos_stub:dword		; for calling delwatch TSR
+endif
+
+BDOS_DATA	dseg	word
+	extrn	adrive:byte
+	EXTRN	clsize:WORD
+	extrn	diradd:word
+	extrn	dirinroot:word
+	EXTRN	dirperclu:WORD
+	EXTRN	dosfat:WORD
+	extrn	hashroot:dword
+	extrn	hashmax:word
+	EXTRN	info_fcb:BYTE
+	extrn 	lastcl:word
+	extrn	psecsiz:word
+
+eject
+
+hash		rw	2		; hash code work area
+
+; The dirbcb says what is in the local dirbuf
+
+dirbcb		db	0ffh		; drive of dirbuf entry
+dirbcb_cl	dw	0		; cluster of dirbuf entry
+dirbcb_dcnt	dw	0		; directory index of dirbuf entry
+dirbcb_block	rw	2		; block of dirbuf entry
+dirbcb_offset	dw	0		; byte offset in block of dirbuf entry
+
+
+	public	dirbuf
+dirbuf		rb	32		; local directory buffer
+
+	public	dirp
+dirp		dw	0		; directory entry pointer
+
+	public	dcnt
+dcnt	dw	0			; directory index count
+
+	public	finddfcb_mask
+finddfcb_mask	dw	0800h		; hi byte = reject DA_VOLUME attribs
+					; lo byte = accept non-0 start clusters
+					; 00FF = include labels, but not
+					;	pending deletes
+					; 0000 = include everything
+	public	chdblk
+chdblk		dw	0		; current cluster # of directory
+
+
+BDOS_CODE	cseg
+	extrn	alloc_cluster:NEAR
+	extrn	clus2sec:near
+	extrn	hdsblk:near		; get current directory block
+	extrn	fdos_error:NEAR
+	extrn	fixfat:NEAR
+	extrn	getnblk:NEAR
+	extrn	locate_buffer:near
+	extrn	update_dir:NEAR
+	extrn	update_fat:NEAR
+	extrn	zeroblk:near
+
+eject
+
+
+	public	allocdir
+	public	discard_dirbuf
+	public	finddfcb
+	public	finddfcbf
+	public	fill_dirbuf
+	public	flush_dirbuf
+	public	getdir
+	public	hshdscrd
+	public	mkhsh
+	public	setenddir
+eject
+
+;----------
+fill_dirbuf:	;get 32 byte directory entry
+;----------
+; On Entry:
+;	AX = cluster to read (0=root)
+;	BX = dir within cluster
+; On Exit:
+;	DI -> dirbuf entry
+
+	call	discard_dirbuf		; invalidate block in case of error
+	mov	dirbcb_cl,ax		; remember which cluster
+	mov	dirbcb_dcnt,bx		;  and dir entry we want
+	test	ax,ax			; are we in the root ?
+	 jz	fill_dirbuf10
+	mov	cl,FCBSHF
+	shl	bx,cl			; BX = byte offset in cluster
+	call	clus2sec		; DX:AX -> sector
+	jmps	fill_dirbuf20		; BX = offset in sector
+fill_dirbuf10:
+	mov	ax,FCBLEN
+	mul	bx			; DX:AX = byte offset
+	div	psecsiz			; AX = sector offset, DX = byte offset
+	mov	bx,dx			; BX = byte offset in sector
+	xor	dx,dx
+	add	ax,diradd		; add in start of root dir
+	adc	dx,dx
+fill_dirbuf20:
+	mov	dirbcb_block,ax		; we want this sector
+	mov	dirbcb_block+WORD,dx
+	mov	dirbcb_offset,bx
+	xchg	ax,dx			; DX = low word of sector
+	mov	ah,al			; AH = low byte of high word
+	push	bx			; save byte offset in sector
+	mov	cx,0FF00h+BF_ISDIR	; locate directory sector
+	call	locate_buffer		; ES:SI -> BCB_
+	pop	bx			; BX = offset within sector
+	push es ! pop ds		; DS:SI -> buffer control block
+	lea	si,BCB_DATA[si+bx]	; DS:SI -> data in buffer
+	push ss ! pop es
+	mov	di,offset dirbuf	; ES:DI -> dir buffer
+	push	di
+	mov	cx,32/WORD		; copy into local buffer
+	rep	movsw
+	pop	di			; DI -> dir buffer
+	push ss ! pop ds
+	mov	al,adrive		; remember where we are
+	mov	dirbcb,al		;  so we can write it back
+	ret
+
+
+;------------
+flush_dirbuf:
+;------------
+	mov	al,0FFh
+	xchg	al,dirbcb		; do we have anything to flush ?
+	cmp	al,adrive
+	 jne	flush_dir20		; skip if invalid contents
+	mov	si,offset dirbcb_block
+	lodsw				; get low word of block
+	xchg	ax,dx			; put it in DX where it belongs
+	lodsw				; get high word of block
+	mov	ah,al			; AH:DX -> block to find
+	mov	cx,0FF00h+BF_ISDIR	; look for directory
+	call	locate_buffer		; locate physical sector
+	or	es:BCB_FLAGS[si],BF_DIRTY; mark this buffer as modified
+	mov	bx,dirbcb_offset	; BX = offset within buffer
+	lea	di,BCB_DATA[si+bx]	; ES:DI -> offset in buffer
+
+	mov	al,es:[di]		; AL = 1st character of dir entry
+
+	mov	si,offset dirbuf	; get CP/M buffer address
+	mov	cx,32/WORD
+	rep	movsw			; copy modified entry back
+
+	push	ax
+	xor	dh,dh			; we only want HCB_ if it's there
+	mov	cx,dirbcb_cl		;  and it's this cluster
+	call	find_hcb		; does an HCB_ exist for this entry ?
+	pop	ax
+	 jc	flush_dir20		; no, skip update
+	mov	di,dirbcb_dcnt		; we want this dir entry
+	cmp	di,es:HCB_CNT[bx]	; is this within the hashed entries ?
+	 jae	flush_dir20		;  no, skip the fixup
+
+	test	al,al			; are we using a never used entry ?
+	 jnz	flush_dir10		; if so don't trust subsequent hash
+	inc	di			;  codes as they have never been read.
+	mov	es:HCB_CNT[bx],di	; Truncate table to force a read of the
+	dec	di			;  next dir entry (which will normally
+flush_dir10:				;  also be never used)
+	shl	di,1			; DI = offset of hashed entry
+	lea	di,HCB_DATA[bx+di]
+	mov	si,offset dirbuf	; this is the dir entry
+	call	mkhsh			; AX = hash code of our entry
+	stosw				; update hash code for dir entry
+flush_dir20:
+	push	ds ! pop es		; ES = local data segment
+	ret
+
+;--------------
+discard_dirbuf:
+;--------------
+	mov	dirbcb,0FFh		; invalidate dirbuf
+	ret
+
+
+;--------
+rd_pcdir:
+;--------
+;	Exit:	AX = offset of directory entry
+;		   = 0 if end of directory
+
+
+	mov	bx,dcnt
+	inc	bx
+	mov	dcnt,bx		; dcnt=dcnt+1
+	call	hdsblk		; AX = current directory block
+	 jz	rd_pcdir40	; skip if we're at the root
+
+; we we in a subdirectory - lets follow the chain
+
+	xchg	ax,cx		; keep subdir cluster in CX
+	mov	ax,FCBLEN	; AX = size of dir entry
+	mul	bx		; DX:AX = offset of set entry we want
+	div	clsize		; AX = # clusters to skip, DX = offset in cluster
+	xchg	ax,dx		; DX = # to skip, AX = offset in cluster
+	xchg	ax,cx		; AX = start of chain, CX = offset in cluster
+	xchg	bx,cx		; BX = offset in cluster, CX = dcnt
+	 jcxz	rd_pcdir20	; 1st subdir entry, we are already there
+	mov	cx,chdblk	; do we already know where we are ?
+	 jcxz	rd_pcdir10	;  if not trace from start of chain
+	xchg	ax,cx		; AX = cluster of last dir entry
+	test	bx,bx		; have we moved onto next cluster?
+	 jnz	rd_pcdir20	; no, trust me..
+	mov	dx,1		; move on to next entry in the chain
+rd_pcdir10:
+	or	dx,dx		; skip along chain until we arrive
+	 jz	rd_pcdir20	;  at the destination cluster
+	dec	dx
+	push	bx
+	push	dx
+	call	getnblk		; AX = next cluster in chain
+	pop	dx
+	pop	bx
+	cmp	ax,lastcl	; have we fallen off the end of the chain ?
+	 jbe	rd_pcdir10
+	jmps	rd_pcdir30	; yes, set end of directory
+rd_pcdir20:
+	mov	chdblk,ax	; remember this cluster for next time
+	mov	cl,FCBSHF	; to divide by fcb size
+	shr	bx,cl		; BX = dir offset in cluster
+	jmps	rd_pcdir50	;  now go and find the entry
+
+rd_pcdir30:
+	call	setenddir	; yes, set dcnt to end of directory
+	jmps	rd_pcdir60
+
+rd_pcdir40:
+; we are in the root directory
+	cmp	bx,dirinroot	; end of the root directory ?
+	 jae	rd_pcdir30
+rd_pcdir50:
+	call	fill_dirbuf	;locate directory entry
+	xchg	ax,di		; AX -> dir entry
+	cmp	dcnt,ENDDIR
+	 jnz	rd_pcdir70
+rd_pcdir60:
+	xor	ax,ax		; return 0 if endofdir
+rd_pcdir70:
+	mov	bx,ax
+	ret
+
+
+;---------
+setenddir:	;set dcnt to the end of directory (dcnt = 0ffffh)
+;---------
+	mov	dcnt,ENDDIR
+	mov	chdblk,0
+	ret
+
+
+chk_wild:	;check fcb for ? marks
+;--------
+; On Entry:
+;	bx -> FCB
+; On Exit:
+;	ZF set if ? found
+;	BX preserved
+	push	ds ! pop es		; ES -> SYSDAT
+	lea	di,byte ptr FNAME[bx]	; ES:DI -> name to scan
+	mov	cx,11
+	mov	al,'?'			; scan for wild cards
+	repne	scasb
+	ret
+
+eject
+
+eject
+;---------
+finddfcbf:	; Find matching directory fcb(dfcb) from beginning of directory
+;---------
+	call	setenddir	; set up for search first
+
+;--------
+finddfcb:	; Find matching directory fcb(dfcb)
+;--------
+	mov	cx,2
+
+;------
+getdir:
+;------
+;	entry:	CH  =	offset info_fcb	(always 0 except from rename)
+;		CL  = 	search length
+;			0 = return next fcb
+;			1 = return empty fcb
+;			2 = find match  (Based on info_fcb)
+;			3 = find match?  Based on info_fcb
+;
+;	exit:	AX,BX,DIRP = pointer to dfcb
+;			     0 = no match (end of directory)
+;			     other = offset of requested directory entry
+;		ZF = zero flag is set based on AX
+;
+
+;	Note:	The most common call for this function is with CX =
+;		2 (match with name, not extent)  with 'dcnt' set to
+;		0FFFFh  (search  from  beginning  of the  directory
+;		(e.g.   open,  create,   delate,   rename,   etc.).
+;		Therefore  we try  to optimize  directory  searches
+;		using a dynamic hash table...
+
+					;struct dirfcb *getdir(offset,srchl);
+
+	cmp	dcnt,0FFFFh		;if ((dcnt == 0xffff) &&
+	 jne	gtd_next
+	mov	hash+2,cx		; Save off calling option
+	xor	ax,ax			; hash code 0 for free entry
+	cmp	cx,1			; what kind of search?
+	 je	gtdo15			; CL=1: find free entry (AX=0)
+	 jb	gtd_next		; CL=0: find any entry (unhashed)
+	or	ch,ch			; name in INFO_FCB+1?
+	 jnz	gtd_next		; no, unhashed search
+	mov	bx,offset info_fcb
+	call	chk_wild		; wildcards used in search?
+	 jz	unhshd1			; yes, can't use hashing
+	mov	si,offset info_fcb+1	; else compute hash code
+	call	mkhsh			;    for name to find
+gtdo15:
+	mov	hash,ax			; save it for search
+	call	hdsblk			; get directory block
+gtdo3:
+	push	ax			; save dir block for later
+	call	hashsrch		; try and use hashing to find a match
+	 jnc	gtdo4			; look closer if we get possible match
+	add	dcnt,ax			;  else skip known non-matches
+	pop	ax			; recover current dir block
+	test	ax,ax			; if we are in the root
+	 jz	unhashed		;  we must search the hard way
+	xchg	ax,bx
+	mov	ax,dcnt			; should we go onto next cluster ?
+	inc	ax			; only if next entry is the start
+	xor	dx,dx			;  of a cluster
+	div	dirperclu
+	xchg	ax,bx
+	test	dx,dx			; at start of cluster ?
+	 jnz	unhashed
+	call	getnblk			; onto next cluster until we are
+	cmp	ax,lastcl		;  at the end of the chain
+	 jbe	gtdo3
+	jmps	unhashed		; out of luck
+gtdo4:
+	add	dcnt,ax			; we have found a match, so start
+	pop	ax			;  search here
+;	jmps	unhashed
+unhashed:				;   /* locate entry */
+	mov	chdblk,0
+unhshd1:
+	mov	cx,hash+2		;}
+gtd_next:
+;--------
+	push	cx
+	call	rd_pcdir		; Get Next DFCB
+	pop	cx
+gtd_exit:
+	mov	dirp,ax			; assume this is the one
+	mov	bx,ax
+	or	ax,ax			; should we exit with not found ?
+	 jz	gtd2
+	cmp	cl,NEXT			; Caller wishes next dfcb?
+	 jne	gtd3			; NO
+gtd2:
+	mov	ax,bx			; return BX (DIRP or NULLPTR)
+	or	ax,ax			; return ZF (1 = not found)
+	ret
+
+gtd3:
+	cmp	cl,EMPTY		; Caller wishes an empty dfcb?
+	 jne	gtd4			; NO
+	mov	al,DNAME[bx]		; Get directory type
+	or	al,al			; Is it free?
+	 jz	gtd2			; YES		(00 -> never used)
+	cmp	al,0E5h			; Is the dfcb empty?
+	 je	gtd2			; YES		 (E5 -> erased)
+	jmps	gtd_next		; NO, try the next
+
+gtd4:					; looking for particular entry
+	call	hdsblk			; Are we at the root?
+	 jnz	gtd5			; skip if not
+	mov	ax,dcnt			; check for end of directory
+	cmp	ax,dirinroot		; have we reached end of root?
+	mov	ax,0			; assume we have
+	 jae	gtd_exit		; exit if we have
+gtd5:
+	mov	al,DNAME[bx]		; Get dfcb type
+	cbw
+	or	ax,ax			; Are we at End Of Directory(EOD)
+	 jz	gtd_exit		; YES
+	cmp	al,0E5h			; Is this a free fcb?
+	 je	gtd_next		; Yes, try again
+	mov	ax,finddfcb_mask	; do we want labels/pending deletes
+	test	DATTS[bx],ah		; filter out volume labels?
+	 jnz	gtd_next		;  we normally reject them
+if DELWATCH
+	cbw				; we want labels - do we want
+	test	word ptr DBLOCK1[bx],ax	;  DELWATCH pending deletes
+	 jnz	gtd_next		;  ie. labels with fat chain
+endif
+	push	cx			; we are interested - but does
+	mov	al,ch			;  the name match ?
+	cbw
+	add	ax,offset info_fcb+1
+	xor	si,si			; we want SI = entry to match and
+	xchg	ax,si			;   AL = 0 indicating assumed match
+	mov	cx,11			; 11 chars in filename
+	mov	di,bx			; ES:DI -> directory entry
+match3:
+	 jcxz	match4			; stop if we have done all 11
+	repe	cmpsb			; compare if 11 bytes the same
+	 je	match4			;  skip if all bytes the same
+	cmp	byte ptr 0-1[si],'?'	; else was INFO_FCB byte = '?'
+	 je	match3			;  in that case it matches too
+	inc	ax			; else we didn't match (AL<>0)
+match4:
+	pop	cx
+	or	al,al			; did we match ?
+	 jnz	gtd_next		; no, try for another
+	mov	bx,dirp			; Return (BX)
+	jmp	gtd2
+
+
+eject
+find_hcb:				; find HCB_ for given drive
+;--------
+; On Entry:
+;	CX = cluster we are looking for
+;	DH = 00 if exact match required
+;	     FF if we want to recyle oldest HCB_
+; On Exit:
+;	CY set, AX=0 if HCB_ not found
+;	CY clear ES:BX = offset of HCB_ (moved to head of list)
+;	(AX/DX trashed, All other regs preserved)
+;
+
+	les	bx,hashroot		; get our hashing pointer
+	mov	ax,es
+	or	ax,bx			; is hashing enabled ?
+	 jz	find_hcb30
+	mov	dl,adrive		; look for this drive
+	cmp	cx,es:HCB_CLU[bx]	; does cluster match?
+	 jne	find_hcb10		; goto next if not
+	cmp	dl,es:HCB_DRV[bx]	; does drive match?
+	 jne	find_hcb10		; goto next if not
+;	clc
+	ret				; we have a match on the 1st one
+
+find_hcb10:
+; no match, so look futher along the chain
+	mov	ax,es:HCB_LINK[bx]	; onto the next entry
+	test	ax,ax			; is there one ?
+	 jz	find_hcb20
+	xchg	ax,bx			; AX = previous entry, BX = current
+	cmp	cx,es:HCB_CLU[bx]	; does cluster match?
+	 jne	find_hcb10		; goto next if not
+	cmp	dl,es:HCB_DRV[bx]	; does drive match?
+	 jne	find_hcb10		; goto next if not
+; we have a match, but it's not the first so recycle it
+	mov	dx,es:HCB_LINK[bx]	; get link to the rest of the chain
+	xchg	ax,bx			; BX = previous entry
+	mov	es:HCB_LINK[bx],dx	; unlink ourselves from chain
+	mov	bx,ax			; BX = current entry
+	xchg	ax,word ptr hashroot	; put current entry at the head
+	mov	es:HCB_LINK[bx],ax	;  and relink the rest of the chain
+;	clc
+	ret
+
+find_hcb20:
+; we have been all along the chain with no luck
+	xor	ax,ax
+	test	dh,dh			; no HCB_ - do we want to recyle ?
+	 jz	find_hcb30		;  if not skip
+	mov	es:HCB_CNT[bx],ax	; we need to recycle oldest HCB_
+	mov	es:HCB_CLU[bx],cx	;  so mark as us, but with nothing
+	mov	es:HCB_DRV[bx],dl	;  in it
+;	clc
+	ret
+
+find_hcb30:
+	stc				; return failure
+	ret
+
+
+eject
+;-----
+mkhsh:
+;-----
+;
+;	entry:	SI = 11 byte FCB to convert to hash code
+;	exit:	AX = 1..FFFF is hash code (00/E5 == 0)
+;	uses:	DX
+;	saves:	BX,CX,DI,BP
+;
+;	used for hashing the INFO_FCB &
+;	directory entries for DOS media
+
+	xor	dx,dx			;assume hash code is 0000
+	lodsb
+	cmp	al,0E5h			;if deleted file
+	 je	mkhsh2			;   or
+	cmp	al,0			;if virgin entry
+	 je	mkhsh2			;then hash code = 0;
+	push	cx			;else save CX
+	and	al,7fh
+	mov	dh,al			;initialize hash code MSB
+	mov	cx,10			;involve other 10 characters
+mkhsh1:
+	lodsb				;get next character
+	rol	dx,1			;rotate hash code by one bit
+	and	al,7fh			;strip top bit off character
+	xor	dl,al			;XOR the character into the hash code
+	loop	mkhsh1			;repeat for all characters
+	pop	cx			;restore CX
+	test	dx,dx			;test if zero by any chance
+	 jnz	mkhsh2			;skip if non-zero
+	inc	dx			;else force it to 1
+mkhsh2:					;return hash code in AX
+	xchg	ax,dx
+	ret
+
+
+eject
+if DELWATCH
+	Public	fixup_hashing
+;
+; update hashing for current drive if DELWATCH changes a directory entry
+;
+fixup_hashing:
+;-------------
+; On Entry:
+;	AX =	segment of dir buffer
+;	CX =	cluster to fixup (0 = root)
+;	DI =	directory entry index (clipped to cluster if subdir)
+;	AX:SI->	dir entry (single entry for hashing)
+;
+; On Exit:
+;	None
+;
+	push	ds
+	push	es
+
+	xor	dh,dh			; we only want HCB_ if it's there
+	push	ax			; save seg of dir entry
+	call	find_hcb		; does an HCB_ exist for this entry ?
+	pop	ds			; DS:SI -> entry to hash
+	 jc	fixup_ck10		; not hashed, skip update
+	cmp	di,es:HCB_CNT[bx]	; is this within the hashed entries ?
+	 jae	fixup_ck10		;  no, skip the fixup
+	call	mkhsh			; AX = hash code of our entry
+
+	shl	di,1			; DI = offset of hashed entry
+	lea	di,HCB_DATA[bx+di]
+	stosw				; update hash code for dir entry
+
+fixup_ck10:
+	pop	es
+	pop	ds
+	ret				; no
+endif
+
+
+eject
+
+hashsrch:
+;--------
+;	entry:	AX = starting cluster of directory
+;	exit:	AX is possible match index
+;
+	mov	dh,0FFh			; we want HCB_ even if it's recycled
+	xchg	ax,cx			;  and this block
+	call	find_hcb		; does an HCB_ exist for this entry ?
+;	mov	ax,0			; assume unhashed search required
+	 jc	hashsrch20		;  start one if no hashing
+hashsrch10:
+	mov	cx,es:HCB_CNT[bx]	; we have this many entries hashed
+	 jcxz	hashsrch30		; skip if nothing hashed yet
+	mov	ax,hash			; look for this hash code
+	lea	di,HCB_DATA[bx]		; DI = offset of start of search
+	repne	scasw			; try to find a match
+	 jne	hashsrch30		; skip if no match found
+	lea	ax,HCB_DATA+2[bx]	; find word offset of match
+	xchg	ax,di			; return matching index
+	sub	ax,di
+	shr	ax,1			; make dir offset
+hashsrch20:
+	push ds ! pop es
+	clc				; we have found it
+	ret
+
+hashsrch30:
+	call	rehash_entry		; try and hash another entry
+	 jnc	hashsrch10		;  look again if we succeeded
+
+	mov	ax,es:HCB_CNT[bx]	; failure, so return # to skip
+	push ds ! pop es
+;	stc				;  for quicker search
+	ret
+
+
+rehash_entry:
+;------------
+;	entry:	ES:BX -> HCB
+;		AX = hash cluster number
+
+	call	hash_entries_to_do	; how many entries still to hash ?
+	 jcxz	rehash_entry40		; if we have hashed them all exit
+
+	push	dcnt			; save directory count
+
+	mov	ax,dcnt			; get previous position
+	inc	ax			; we start looking here
+	xor	dx,dx
+	div	dirperclu		; mask to start of cluster
+	mul	dirperclu
+	add	ax,es:HCB_CNT[bx]	; skip entries we already have
+	dec	ax			; make previous entry BEFORE this
+	mov	dcnt,ax
+	mov	chdblk,0		; non-sequential access
+	cmp	cx,512/32		; don't try reading more than 512 bytes
+	 jb	rehash_entry20		;  at a time - then with 512 byte secs
+	mov	cx,512/32		;  we only read when we
+rehash_entry20:
+	push	es
+	push	bx			; save hash control pointer
+	push	cx			; save # entries to do
+	push ds ! pop es		; back to small model
+	xor	cx,cx			; return any entry
+	call	gtd_next		; unhashed search
+	pop	cx			; restore # entries to do
+	pop	bx			; restore hash control pointer
+	pop	es
+	test	ax,ax			; anything found
+	 jz	rehash_entry30		; end of directory
+	xchg	ax,si			; else get directory pointer
+	mov	di,es:HCB_CNT[bx]
+	shl	di,1			; DI -> 1st new entry
+	lea	di,HCB_DATA[bx+di]
+	push	si
+	call	mkhsh			; else calculate hash into AX
+	stosw				; add it to hash table
+	inc	es:HCB_CNT[bx]		; remember we did
+	pop	si
+	lodsb				; get 1st byte of hashed entry
+	test	al,al			; is it zero (ie. never used)?
+	loopne	rehash_entry20		; get all hash codes
+	 jcxz	rehash_entry30		; all done ?
+	call	hash_entries_to_do	; how many entries still to hash ?
+	add	es:HCB_CNT[bx],cx	;  we will do them all..
+	rep	stosw			; zap rest of cluster
+rehash_entry30:	
+	pop	dcnt			; restore count
+	mov	chdblk,0		; non-sequential access
+	clc				; we have new hashing codes
+	ret				; HCB updated with new cluster
+
+rehash_entry40:
+	stc				; cannot hash no more...
+	ret
+
+hash_entries_to_do:
+;------------------
+; On Entry:
+;	ES:BX -> HCB_
+; On Exit:
+;	CX = maximum possible entries we still need to hash for HCB_
+;	(All other regs preserved)
+;
+	mov	cx,dirinroot		; assume root dir
+	cmp	es:HCB_CLU[bx],0	; was it ?
+	 je	hash_etd10
+	mov	cx,dirperclu		; subdir, so cluster limit
+hash_etd10:
+	cmp	cx,hashmax		; do we support this many ?
+	 jb	hash_etd20		;   yes, skip it
+	mov	cx,hashmax		; else limit it to this many
+hash_etd20:
+	sub	cx,es:HCB_CNT[bx]	; subtract number we have already done
+	ret
+
+
+
+eject
+hshdscrd:
+;--------
+;	purge hash blocks for physical drive
+;	On Entry:
+;		AL = drive to discard (FF = all drives)
+;	On Exit:
+;		None (All regs preserved)
+
+	push	ds
+	push	bx
+	lds	bx,hashroot		; get root of hash codes
+hshdsc1:
+	test	bx,bx
+	 jz	hshdsc4			; all blocks done
+	cmp	al,0FFh			; FF means discard all drives
+	 je	hshdsc2
+	cmp	al,ds:HCB_DRV[bx]	; check if matching drive
+	 jne	hshdsc3
+hshdsc2:
+	mov	ds:HCB_DRV[bx],0ffh	;	h->hd = 0xff;
+hshdsc3:
+	mov	bx,ds:HCB_LINK[bx]	; get next hash code block
+	jmps	hshdsc1
+hshdsc4:
+	pop	bx
+	pop	ds
+	ret
+
+
+eject
+
+enlarge_root:
+if DELWATCH
+	mov	ah,DELW_FREERD		; lets ask DELWATCH if it can
+	mov	al,adrive		; free a root directory entry
+	callf	ss:fdos_stub		;  for this drive
+	 jnc	allocdir		; it says it has so try again
+endif
+allocdir_err:
+	pop	ax			; discard return address
+	mov	ax,ED_MAKE
+	jmp	fdos_error		; return "cannot make dir entry"
+
+
+;--------
+allocdir:			; Called by rename and MAKE
+;--------
+	call	setenddir		; search for first match
+	mov	cx,1			; return empty fcb
+	call	getdir			; is there an empty fcb?
+	 jz	allocdir10		; if so use that
+	ret
+allocdir10:
+	call	hdsblk			; Are we at the root?
+	 jz	enlarge_root		; YES -- Report error(no room)
+
+	; We are in a subdirectory so enlarge it
+	; AX has 1st block of subdirectory   NOTE -- AX is never
+	; above 'lastcl' on entry.
+allocdir20:
+	cmp	ax,lastcl		; Are we at end of subdirectory?
+	 ja	allocdir30		; YES
+	push	ax
+	call	getnblk			; NO -- get next block then
+        pop	bx
+	jmps	allocdir20
+
+allocdir30:
+	push	bx			; save last block number
+	xchg	ax,bx			; Get a new block (start from old)
+	call	alloc_cluster
+	pop	bx
+	 jc	allocdir_err		; Report Error(no room on disk)
+	push	ax			; save new block
+	xchg	ax,bx
+	call	fixfat			; Update fat (AX,BX) old last block
+					;  points to new last block
+	pop	ax			; Get new last block
+	push	ax
+	mov	bx,dosfat		; 12 or 16 bit fat
+	call	fixfat			; Update fat (AX,BX)  new last block
+					;  has end of cluster marker
+	call	update_fat		; Write out to disk
+	pop	ax			; Get new last block
+	call	zeroblk			; Zero it out
+        call	setenddir		; Set up for search first
+	mov	cx,1			; Find empty fcb
+	jmp	getdir			; Can not return with not found error
+
+	END

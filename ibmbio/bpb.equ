@@ -1,0 +1,50 @@
+;    File              : $BPB.EQU$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;    ENDLOG
+
+BPB		struc
+BPB_SECSIZ	dw	?	; # of bytes per sector 
+BPB_ALLOCSIZ	db	?	; # of sectors per allocation unit
+BPB_FATADD	dw	?	; # of reserved sectors (1)
+BPB_NFATS	db	?	; # of fats
+BPB_DIRMAX	dw	?	; # of directory entries
+BPB_TOTSEC	dw	?	; # of sectors total in image
+BPB_FATID	db	?	;  holds a copy of the fat id byte
+BPB_FATSEC	dw	?	; # of sectors in a fat
+BPB_SPT		dw	?	; # of sectors per track
+BPB_HEADS	dw	?	; # of heads
+BPB_HIDDEN	dd	?	; disk offset (32 bit)
+BPB_SIZE	dd	?	; disk size (32 bit)
+BPB_RESRVD2	db	6 dup (?)
+BPB		ends
+
+BPB_LENGTH	equ	size BPB

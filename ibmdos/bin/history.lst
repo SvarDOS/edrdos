@@ -1,0 +1,1064 @@
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page   1
+
+
+=  0001                   __RASM__        EQU     1
+
+                          ;    File              : $HISTORY.A86$
+                          ;
+                          ;    Description       :
+                          ;
+                          ;    Original Author   : DIGITAL RESEARCH
+                          ;
+                          ;    Last Edited By    : $CALDERA$
+                          ;
+                          ;-----------------------------------------------------------------------;
+                          ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+                          ;      
+                          ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+                          ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+                          ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+                          ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+                          ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+                          ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+                          ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+                          ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+                          ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+                          ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+                          ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+                          ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+                          ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+                          ;    CIVIL LIABILITY.
+                          ;-----------------------------------------------------------------------;
+                          ;
+                          ;    *** Current Edit History ***
+                          ;    *** End of Current Edit History ***
+                          ;
+                          ;    $Log$
+                          ;    ENDLOG
+                          ;
+                          ;       DOSPLUS Command Line Editor Routines
+                          ;
+
+=                                 include pcmode.equ
+=                         ;    File              : $PCMODE.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page   2
+
+
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ;       This file contains all the general purpose definitions
+=                         ;       and equates used by the PCMODE Module.
+=                         ;
+=
+=  FFFF                   TRUE            equ     0FFFFh          ; value of TRUE
+=  0000                   FALSE           equ     0               ; value of FALSE
+=
+=  0006                   TRUE_VERSION    equ     6
+=
+=  FFFF                   IDLE_DETECT     equ     TRUE            ; Check for IDLE Process's
+=
+=                         if IDLE_DETECT
+=  0001                   IDLE_COMMAND    equ     0001h           ; Command Processor Active
+=  0002                   IDLE_DOSFUNC    equ     0002h           ; DOS Function Called
+=  0004                   IDLE_INT28      equ     0004h           ; INT 28 Called
+=
+=  4000                   IDLE_ON         equ     4000h           ; ReSet when Idle Checking Enabled
+=  8000                   IDLE_INIT       equ     8000h           ; ReSet when $IDLE$ Loaded and Active
+=  C000                   IDLE_DISABLE    equ     IDLE_INIT + IDLE_ON 
+=
+=  0001                   PROC_IDLE       equ     0001            ; Process is IDLE
+=  0002                   PROC_INT28      equ     0002            ; INT28 Polling Loop
+=  0003                   PROC_KEYIN      equ     0003            ; Keyboard Input
+=  0004                   PROC_DEVIN      equ     0004            ; Device Input Routine
+=                         endif
+=
+=
+=  00C0                   STACK_SIZE      equ     192             ; Local Stack Size (Levels)
+=  0050                   MAX_PATHLEN     equ     80              ; Maximum Path length
+=  000D                   MAX_FILELEN     equ     13
+=
+=                         ;
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page   3
+
+
+=                         ;       DOS process termination Codes
+=                         ;
+=  0000                   TERM_NORMAL     equ     0               ; Normal Termination
+=  0001                   TERM_BREAK      equ     1               ; Termination by Control Break
+=  0002                   TERM_ERROR      equ     2               ; Termination by Critical Error
+=  0003                   TERM_RESIDENT   equ     3               ; Terminate and Stay Resident
+=
+=                         ;
+=                         ;       Critical Error responses from the default INT 24 handler and
+=                         ;       the DO_INT24 routine.
+=                         ;
+=  0000                   ERR_IGNORE      equ     0               ; Ignore Error
+=  0001                   ERR_RETRY       equ     1               ; Retry the Operation
+=  0002                   ERR_ABORT       equ     2               ; Terminate the Process
+=  0003                   ERR_FAIL        equ     3               ; Fail Function
+=                         ;
+=  0008                   OK_FAIL         equ     0000$1000b      ; Fail is a Valid Response
+=  0010                   OK_RETRY        equ     0001$0000b      ; Retry is a Valid Response
+=  0020                   OK_IGNORE       equ     0010$0000b      ; Ignore is a valid Response
+=  0038                   OK_RIF          equ     0011$1000b      ; All Responsese are Valid
+=  0030                   OK_RI           equ     0011$0000b      ; Retry and Ignore are Valid
+=  0018                   OK_RF           equ     0001$1000b      ; Retry and Fail are Valid
+=                         ;
+=  0040                   NO_CRIT_ERRORS  equ     0100$0000b      ; critical error shouldn't be generated
+=                                                                 ; warning - must match FDOS.A86
+=                         ;
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page   4
+
+
+=                         eject
+=                         ;       The following equates define the format in which the users registers
+=                         ;       are saved on the stack. This format is also seen by an application
+=                         ;       when a critical error occurs.
+=                         ;
+=                         CodeMacro       POP$DOS         ; Pop User Registers a la MS-DOS
+=                                 db 058h ! db 05Bh       ; pop AX ! pop BX
+=                                 db 059h ! db 05Ah       ; pop BX ! pop CX
+=                                 db 05Eh ! db 05Fh       ; pop SI ! pop DI
+=                                 db 05Dh                 ; pop BP
+=                                 db 01Fh ! db 007h       ; pop DS ! pop ES
+=                         EndM
+=
+=                         CodeMacro   PUSH$DOS    ; Push User Registers
+=                                 db 006h ! db 01Eh       ; push ES ! push DS
+=                                 db 055h                 ; push BP
+=                                 db 057h ! db 056h       ; push DI ! push SI
+=                                 db 052h ! db 051h       ; push DX ! push CX
+=                                 db 053h ! db 050h       ; push BX ! push AX
+=                         EndM
+=
+=  0000                   reg_AX          equ     word ptr .00
+=  0000                   reg_AL          equ     byte ptr .00
+=  0001                   reg_AH          equ     byte ptr .01
+=
+=  0002                   reg_BX          equ     word ptr .02
+=  0002                   reg_BL          equ     byte ptr .02
+=  0003                   reg_BH          equ     byte ptr .03
+=
+=  0004                   reg_CX          equ     word ptr .04
+=  0004                   reg_CL          equ     byte ptr .04
+=  0005                   reg_CH          equ     byte ptr .05
+=
+=  0006                   reg_DX          equ     word ptr .06
+=  0006                   reg_DL          equ     byte ptr .06
+=  0007                   reg_DH          equ     byte ptr .07
+=
+=  0008                   reg_SI          equ     word ptr .08
+=  000A                   reg_DI          equ     word ptr .10
+=  000C                   reg_BP          equ     word ptr .12
+=
+=  000E                   reg_DS          equ     word ptr .14
+=  0010                   reg_ES          equ     word ptr .16
+=
+=  0012                   reg_IP          equ     word ptr .18
+=  0014                   reg_CS          equ     word ptr .20
+=  0016                   reg_FLAGS       equ     word ptr .22
+=
+=                         ; Processor Flags
+=  0001                   CARRY_FLAG      equ     0001h           ; Carry Flag
+=  0040                   ZERO_FLAG       equ     0040h           ; Zero Flag
+=  0080                   SIGN_FLAG       equ     0080h           ; Sign Flag
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page   5
+
+
+=  0200                   INT_FLAG        equ     0200h           ; Interrupt Flag
+=  0400                   DIR_FLAG        equ     0400h           ; Direction Flag
+=  0800                   OFLW_FLAG       equ     0800h           ; OverFlow Flag
+=
+=  0000                   DMD_ID          equ     es:byte ptr .0  ; id code ('M' or 'Z')
+=  0001                   DMD_PSP         equ     es:word ptr .1  ; owner of memory block
+=  0003                   DMD_LEN         equ     es:word ptr .3  ; length of memory block
+=  0006                   DMD_IDLE_FLAGS  equ es:word ptr .6  ; idle flags live here
+=  0008                   DMD_NAME        equ     es:byte ptr .8  ; ASCIIZ name field
+=  0008                   DMD_NAME_LEN    equ     8               ;  8 Bytes long
+=  004D                   IDM             equ     'M'             ; not last id code
+=  005A                   IDZ             equ     'Z'             ; last id code
+=
+=                         PCMCODE         GROUP   PCM_HEADER, PCM_CODE, BDOS_CODE, PCM_RODATA
+=                         PCMCODE         GROUP   PCM_HISTORY, PCM_ICODE, PCM_CODEND
+=
+=                         PCM_HEADER      CSEG    PARA
+=                         PCM_CODE        CSEG    BYTE
+=                         PCM_RODATA      CSEG    WORD
+=                         BDOS_CODE       CSEG    WORD
+=                         PCM_HISTORY     CSEG    BYTE
+=                         PCM_ICODE       CSEG    BYTE
+=                         PCM_CODEND      CSEG    PARA
+=
+=
+=                         PCMDATA         GROUP   PCMODE_DATA, FDOS_DSEG, FIXED_DOS_DATA
+=                         PCMDATA         GROUP   PCMODE_CODE, GLOBAL_DATA, BDOS_DATA, PCMODE_DSIZE
+=
+=                         PCMODE_DATA     DSEG    WORD            ; DOS Data
+=                         FDOS_DSEG       DSEG    WORD COMMON     ; FDOS Parameter Block  
+=0000                     fdos_data       rw      7
+=                         FIXED_DOS_DATA  CSEG    WORD    'DATA'  ; Fixed DOS Data Area
+=                         PCMODE_CODE     CSEG    WORD    'DATA'  ; DATA relative CODE
+=                         GLOBAL_DATA     DSEG    WORD            ; GLOBAL DOS DATA (Process Independant)
+=                         BDOS_DATA       DSEG    WORD            ; BDOS Data Area
+=                         PCMODE_DSIZE    DSEG    PARA            ; End of DOS Data Area
+
+=                                 include i:msdos.equ
+=                         ;    File              : $MSDOS.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page   6
+
+
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=
+=  0000                   MS_P_TERMCPM    equ     00H
+=  0001                   MS_C_READ       equ     01H
+=  0002                   MS_C_WRITE      equ     02H
+=  0003                   MS_A_READ       equ     03H
+=  0004                   MS_A_WRITE      equ     04H
+=  0005                   MS_L_WRITE      equ     05H
+=  0006                   MS_C_RAWIO      equ     06H
+=  0007                   MS_C_RAWIN      equ     07H
+=  0008                   MS_C_NOECHO     equ     08H
+=  0009                   MS_C_WRITESTR   equ     09H
+=  000A                   MS_C_READSTR    equ     0aH
+=  000B                   MS_C_STAT       equ     0bH
+=  000C                   MS_C_FLUSH      equ     0cH
+=  000D                   MS_DRV_ALLRESET equ     0dH
+=  000E                   MS_DRV_SET      equ     0eH
+=  000F                   MS_F_OPEN       equ     0fH
+=  0010                   MS_F_CLOSE      equ     10H
+=  0011                   MS_F_SFIRST     equ     11H
+=  0012                   MS_F_SNEXT      equ     12H
+=  0013                   MS_F_DELETE     equ     13H
+=  0014                   MS_F_READ       equ     14H
+=  0015                   MS_F_WRITE      equ     15H
+=  0016                   MS_F_MAKE       equ     16H
+=  0017                   MS_F_RENAME     equ     17H
+=  0019                   MS_DRV_GET      equ     19H
+=  001A                   MS_F_DMAOFF     equ     1aH
+=  001B                   MS_DRV_ALLOC    equ     1bH
+=  001C                   MS_DRV_ALLOCSPEC equ    1cH
+=  0021                   MS_F_READRAND   equ     21H
+=  0022                   MS_F_WRITERAND  equ     22H
+=  0023                   MS_F_SIZE       equ     23H
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page   7
+
+
+=  0024                   MS_F_RANDREC    equ     24H
+=  0025                   MS_S_SETINT     equ     25H
+=  0026                   MS_P_MKPSP      equ     26H
+=  0027                   MS_F_READBLK    equ     27H
+=  0028                   MS_F_WRITEBLK   equ     28H
+=  0029                   MS_F_PARSE      equ     29H
+=  002A                   MS_T_GETDATE    equ     2aH
+=  002B                   MS_T_SETDATE    equ     2bH
+=  002C                   MS_T_GETTIME    equ     2cH
+=  002D                   MS_T_SETTIME    equ     2dH
+=  002E                   MS_F_VERIFY     equ     2eH
+=  002F                   MS_F_DMAGET     equ     2fH
+=  0030                   MS_S_BDOSVER    equ     30H
+=  0031                   MS_P_TERMKEEP   equ     31H
+=  0033                   MS_S_BREAK      equ     33H
+=  0035                   MS_S_GETINT     equ     35H
+=  0036                   MS_DRV_SPACE    equ     36H
+=  0038                   MS_S_COUNTRY    equ     38H
+=  0039                   MS_X_MKDIR      equ     39H
+=  003A                   MS_X_RMDIR      equ     3aH
+=  003B                   MS_X_CHDIR      equ     3bH
+=  003C                   MS_X_CREAT      equ     3cH
+=  003D                   MS_X_OPEN       equ     3dH
+=  003E                   MS_X_CLOSE      equ     3eH
+=  003F                   MS_X_READ       equ     3fH
+=  0040                   MS_X_WRITE      equ     40H
+=  0041                   MS_X_UNLINK     equ     41H
+=  0042                   MS_X_LSEEK      equ     42H
+=  0043                   MS_X_CHMOD      equ     43H
+=  0044                   MS_X_IOCTL      equ     44H
+=  0045                   MS_X_DUP        equ     45H
+=  0046                   MS_X_DUP2       equ     46H
+=  0047                   MS_X_CURDIR     equ     47H
+=  0048                   MS_M_ALLOC      equ     48H
+=  0049                   MS_M_FREE       equ     49H
+=  004A                   MS_M_SETBLOCK   equ     4aH
+=  004B                   MS_X_EXEC       equ     4bH
+=  004C                   MS_X_EXIT       equ     4cH
+=  004D                   MS_X_WAIT       equ     4dH
+=  004E                   MS_X_FIRST      equ     4eH
+=  004F                   MS_X_NEXT       equ     4fH
+=  0050                   MS_P_SETPSP     equ     50H
+=  0054                   MS_F_GETVERIFY  equ     54H
+=  0056                   MS_X_RENAME     equ     56H
+=  0057                   MS_X_DATETIME   equ     57H
+=  0058                   MS_M_STRATEGY   equ     58h
+=  0059                   MS_F_ERROR      equ     59H
+=  005A                   MS_X_MKTEMP     equ     5aH
+=  005B                   MS_X_MKNEW      equ     5bH
+=  005C                   MS_F_LOCK       equ     5cH
+=  0060                   MS_X_EXPAND     equ     60H
+=  0062                   MS_P_GETPSP     equ     62H
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page   8
+
+
+=  6601                   MS_X_GETCP      equ     6601h
+=  6602                   MS_X_SETCP      equ     6602h
+=  0067                   MS_X_SETHC      equ     67h
+=  0068                   MS_X_COMMIT     equ     68h
+=
+=  0021                   DOS_INT     equ 21h ; DOS Entry Point
+=                         ;
+=  0000                   STDIN           equ     0       ; Standard Console Input Handle
+=  0001                   STDOUT          equ     1       ; Standard Console Output Handle
+=  0002                   STDERR          equ     2       ; Standard Error Output
+=  0003                   STDAUX          equ     3       ; Auxilary Device Handle
+=  0004                   STDPRN          equ     4       ; Printer Device Handle
+
+=                                 include i:char.def
+=                         ;    File              : $CHAR.DEF$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ;************************************************;
+=                         ;*                                              *;
+=                         ;*            Character Definitions             *;
+=                         ;*                                              *;
+=                         ;************************************************;
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page   9
+
+
+=
+=  0001                   CTLA            equ     'A' - '@'
+=  0002                   CTLB            equ     'B' - '@'
+=  0003                   CTLC            equ     'C' - '@'
+=  0004                   CTLD            equ     'D' - '@'
+=  0005                   CTLE            equ     'E' - '@'
+=  0006                   CTLF            equ     'F' - '@'
+=  0007                   CTLG            equ     'G' - '@'
+=  0007                   BELL            equ     'G' - '@'
+=  0008                   CTLH            equ     'H' - '@'
+=  0009                   CTLI            equ     'I' - '@'
+=  0009                   TAB             equ     'I' - '@'
+=  000A                   CTLJ            equ     'J' - '@'
+=  000A                   LF              equ     'J' - '@'
+=  000B                   CTLK            equ     'K' - '@'
+=  000D                   CTLM            equ     'M' - '@'
+=  000D                   CR              equ     'M' - '@'
+=  0010                   CTLP            equ     'P' - '@'
+=  0011                   CTLQ            equ     'Q' - '@'
+=  0012                   CTLR            equ     'R' - '@'
+=  0013                   CTLS            equ     'S' - '@'
+=  0014                   CTLT            equ     'T' - '@'
+=  0015                   CTLU            equ     'U' - '@'
+=  0016                   CTLV            equ     'V' - '@'
+=  0017                   CTLW            equ     'W' - '@'
+=  0018                   CTLX            equ     'X' - '@'
+=  0019                   CTLY            equ     'Y' - '@'
+=  001A                   CTLZ            equ     'Z' - '@'
+=  001B                   ESC             equ     '[' - '@'
+=  001C                   CTLBS           equ     '\' - '@'
+=  001F                   CTLUB           equ     '_' - '@'
+=  001E                   CTLUP           equ     '^' - '@'
+=  007F                   DEL             equ     07Fh
+=  007F                   RUBOUT          equ     DEL
+=
+=  005E                   CTL             equ     '^'
+
+=                                 include i:cmdline.equ
+=                         ;    File              : $CMDLINE.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page  10
+
+
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=  FFFE                   RL_INPUT        equ     word ptr -2[bp]         ; READ_LINE Input Handle
+=  FFFC                   RL_OUTPUT       equ     word ptr -4[bp]         ; READ_LINE Output Handle
+=  FFFA                   RL_BUFSEG       equ     word ptr -6[bp]         ; Retained line Segment
+=  FFF8                   RL_BUFOFF       equ     word ptr -8[bp]         ; Retained line Offset
+=  FFF8                   RL_BUFPTR       equ     dword ptr -8[bp]        ; Retained line Buffer
+=  FFF6                   RL_INICOL       equ     word ptr -10[bp]        ; initial column
+=  FFF4                   RL_FLAGS        equ     word ptr -12[bp]        ; Control Flags
+=  FFF2                   RL_MAXLEN       equ     word ptr -14[bp]        ; Maximum Buffer Size
+=  FFF0                   RL_KANJI        equ     word ptr -16[bp]                ; Kanji Character Buffer
+=  FFEE                   RL_SAVMAX       equ     word ptr -18[bp]        ; Size of retained data
+=  FFEC                   RL_SAVPOS       equ     word ptr -20[bp]        ; Current Position in data
+=  FFEA                   RL_HIST_RECL    equ     word ptr -22[bp]        ; We recall from here
+=  FFE8                   RL_HIST_SAVE    equ     word ptr -24[bp]        ; We save to here
+=  FFE6                   RL_HIST_SIZE    equ     word ptr -26[bp]        ; buffer is this big
+=  FFE4                   RL_HIST_SEG     equ     word ptr -28[bp]        ; buffer is at this segment
+=  001C                   RL_LENGTH       equ     28
+=
+=  0001                   RLF_ENHANCED    equ     0000$0001b              ; Enhanced features are on
+=  0002                   RLF_INS         equ     0000$0010b              ; Insert Flag
+=  0004                   RLF_SEARCH      equ     0000$0100b              ; Search mode on
+=  0008                   RLF_MATCH       equ     0000$1000b              ; We are matching a command
+=  0010                   RLF_RECALLED    equ     0001$0000b              ; Line already recalled
+=  0020                   RLF_DIRTY       equ     0010$0000b              ; Partial line needs saved
+=  0040                   RLF_KANJI       equ     0100$0000b              ; RL_KANJI is valid
+=  0080                   RLF_INROOT      equ     1000$0000b              ; In root
+=
+=  0001                   CHAR_SPACE      equ     0000$0001b      ; Space Character
+=  0002                   CHAR_TAB        equ     0000$0010b      ; Tab Character
+=  0004                   CHAR_CTL        equ     0000$0100b      ; Control Character expanded to "^X"
+=  0008                   CHAR_KANJI      equ     0000$1000b      ; Japanese Kanji character
+=  0010                   CHAR_ALPHAN     equ     0001$0000b      ; Alpha/Numeric
+=  0020                   CHAR_OTHER      equ     0010$0000b      ; Non AlphaNumeric
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page  11
+
+
+=  0080                   CHAR_STD        equ     1000$0000b      ; Stored as a Byte displayed in 1 Col
+=
+=  008E                   CHAR_SIZE       equ     CHAR_STD or CHAR_KANJI or CHAR_TAB or CHAR_CTL
+=  0031                   CHAR_ONECOL     equ     CHAR_SPACE or CHAR_OTHER or CHAR_ALPHAN
+
+
+
+
+                          PCM_HISTORY     CSEG
+
+                                  public  init_history, save_history
+                                  public  del_history_buffers, del_cur_history_buffer
+                                  public  prev_cmd, next_cmd, match_cmd, search_cmd
+                                  public  prev_word, next_word, match_word
+                                  public  goto_eol
+                                  public  del_bol
+                                  public  deln_word
+
+                                  extrn   next_char:near
+                                  extrn   save_line:near
+                                  extrn   space_out:near
+                                  extrn   bs_out:near
+                                  extrn   goto_bol:near
+                                  extrn   del_eol:near
+                                  extrn   del_line:near
+                                  extrn   char_info:near
+                                  extrn   put_string:near
+                                  extrn   prev_w20:near
+                                  extrn   deln_w10:near
+
+                          init_history:
+                          ;------------
+                          ; On Entry:
+                          ;       SS:BP -> history structure
+                          ; On Exit:
+                          ;       SS:SP filled in with appropriate history buffer
+                          ;       Preserve DX
+                          ;
+ 0000 1E                          push    ds
+ 0001 06                          push    es
+ 0002 16                          push    ss
+ 0003 07                          pop     es
+ 0004 8D7EE4                      lea     di,RL_HIST_SEG          ; point at history buffer variables
+ 0007 BE0000       E              mov     si,offset histbuf1      ; assume root buffer
+ 000A F746F48000                  test    RL_FLAGS,RLF_INROOT     ; root task after all?
+ 000F 7503           0014          jnz    init_history10          ; if not we need to switch
+ 0011 BE0000       E              mov     si,offset histbuf2      ;  application buffer
+                          init_history10:
+ 0014 A5                          movsw                           ; copy the seg
+ 0015 AD                          lodsw                           ; get overall length
+ 0016 2D0400                      sub     ax,2*WORD               ; last two words contain pointers
+ 0019 AB                          stosw                           ; save the working length
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page  12
+
+
+ 001A 96                          xchg    ax,si                   ; SI -> saved buffer positions
+ 001B 8E5EE4                      mov     ds,RL_HIST_SEG          ;  in the buffer segment
+ 001E A5                          movsw                           ; update save and
+ 001F A5                          movsw                           ;  recall positions
+ 0020 07                          pop     es
+ 0021 1F                          pop     ds
+ 0022 C3                          ret
+
+
+                          save_history:
+                          ;------------
+                          ; We are exiting from READLINE - if line has been modified save the
+                          ; current line and update our pointers.
+                          ;
+ 0023 85D2                        test    dx,dx                   ; skip update of sav/recall pointers
+ 0025 7421           0048          jz     save_history30          ;  if empty line
+ 0027 E83700         0061         call    save_current            ; save away current command line
+ 002A 8B7EE8                      mov     di,RL_HIST_SAVE         ; start with the old one
+ 002D E89F01         01CF         call    find_current_hist       ; wrap it if we need to
+ 0030 E86701         019A         call    find_next_null          ; find end of "new" command
+ 0033 47                          inc     di                      ; onto next character
+ 0034 3B7EE6                      cmp     di,RL_HIST_SIZE         ; do we need to wrap ?
+ 0037 7202           003B          jb     save_history10
+ 0039 33FF                        xor     di,di                   ; wrap the line
+                          save_history10:
+ 003B 897EE8                      mov     RL_HIST_SAVE,di         ; update "save" pointer
+ 003E F746F42000                  test    RL_FLAGS,RLF_DIRTY      ; if a line has been changed we'd
+ 0043 7403           0048          jz     save_history30          ;  better update "recall" pointer
+ 0045 897EEA                      mov     RL_HIST_RECL,di         ;  too
+                          save_history30:
+ 0048 1E                          push    ds
+ 0049 06                          push    es
+ 004A 161F                        push ss ! pop ds
+ 004C 8D76E8                      lea     si,RL_HIST_SAVE         ; point at history buffer variables
+ 004F 8E46E4                      mov     es,RL_HIST_SEG
+ 0052 8B7EE6                      mov     di,RL_HIST_SIZE
+ 0055 A5                          movsw                           ; save the "save" pointer
+ 0056 A5                          movsw                           ;  and the "recall" one
+ 0057 07                          pop     es
+ 0058 1F                          pop     ds
+ 0059 C3                          ret
+
+                          save_current_if_dirty:
+                          ;---------------------
+ 005A F746F42000                  test    RL_FLAGS,RLF_DIRTY      ; if data is dirty (ie. user modified)
+ 005F 7436           0097          jz     save_current20          ;  then save it
+                          save_current:
+                          ;------------
+                          ; Copy current buffer contents to next free location in history buffer
+                          ;
+ 0061 56                          push    si
+ 0062 57                          push    di
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page  13
+
+
+ 0063 52                          push    dx
+ 0064 3B56E6                      cmp     dx,RL_HIST_SIZE         ; is history buffer big enough ?
+ 0067 732B           0094          jae    save_current10          ;  no, skip saving this line
+ 0069 E81201         017E         call    find_free_hist          ; Find the next bit of space
+ 006C 5951                        pop cx ! push cx                ; CX = chars to save
+ 006E E324           0094          jcxz   save_current10          ; none, forget about it
+ 0070 1E                          push    ds
+ 0071 06                          push    es
+ 0072 C576F8                      lds     si,RL_BUFPTR
+ 0075 8E46E4                      mov     es,RL_HIST_SEG
+ 0078 F3A4                        rep     movsb                   ; and save the data.  
+ 007A 33C0                        xor     ax,ax                   ; Null terminate it.
+ 007C AA                          stosb
+ 007D 07                          pop     es
+ 007E 1F                          pop     ds
+ 007F 57                          push    di
+ 0080 E81701         019A         call    find_next_null          ; Find the end of the entry we just
+ 0083 8BCF                        mov     cx,di                   ;  overwrote - if any remains zap it
+ 0085 5F                          pop     di
+ 0086 FC                          cld
+ 0087 33C0                        xor     ax,ax                   ; Null terminate this entry
+ 0089 2BCF                        sub     cx,di                   ; Figure out number of zeros to write
+ 008B 7607           0094          jbe    save_current10
+ 008D 06                          push    es
+ 008E 8E46E4                      mov     es,RL_HIST_SEG
+ 0091 F3AA                        rep     stosb                   ; and pad to the next entry     
+ 0093 07                          pop     es
+                          save_current10:
+ 0094 5A                          pop     dx
+ 0095 5F                          pop     di
+ 0096 5E                          pop     si
+                          save_current20:
+ 0097 C3                          ret
+
+
+                          ;
+                          ; Here is the code to deal with history buffers
+                          ;
+                          ; match_cmd     Does a string search based on what the user has typed so far
+                          ; search_cmd    Matches string, but doesn't change match state
+                          ; prev_cmd      Retrieves the previous command from the history buffer
+                          ; next_cmd           "     "  next       "      "     "    "      "
+                          ;
+                          match_cmd:
+ 0098 A00000       E              mov     al,@hist_flg            ; is matching enabled ?
+ 009B 250800                      and     ax,RLF_MATCH
+ 009E 7408           00A8          jz     search_cmd              ; no, always match
+ 00A0 3146F4                      xor     RL_FLAGS,ax             ; toggle match bit
+ 00A3 8546F4                      test    RL_FLAGS,ax             ; turning matching off ?
+ 00A6 7458           0100          jz     match30                 ;  then just exit
+                          search_cmd:
+ 00A8 8976EC                      mov     RL_SAVPOS,si            ; any chars to save ?
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page  14
+
+
+ 00AB 85F6                        test    si,si
+ 00AD 7452           0101          jz     prev_cmd                ; blank line - just get previous
+ 00AF E8A8FF         005A         call    save_current_if_dirty   ; save current line if it needs saving
+ 00B2 56                          push    si                      ; save current offset in line
+ 00B3 57                          push    di
+ 00B4 52                          push    dx                      ; Save index to end of current line
+ 00B5 8BD6                        mov     dx,si                   ; discard rest of line if no match
+ 00B7 8B7EEA                      mov     di,RL_HIST_RECL         ; Point to the current entry
+                          match_loop:
+ 00BA E8ED00         01AA         call    find_prev_hist          ; DI-> previous cmd in buffer
+ 00BD 57                          push    di                      ; save this command position
+ 00BE 8B7EEA                      mov     di,RL_HIST_RECL         ; get starting position
+ 00C1 E80B01         01CF         call    find_current_hist       ;  handle any wrapping
+ 00C4 5E                          pop     si                      ; recover previous command
+ 00C5 3BFE                        cmp     di,si                   ; have we been all round ?
+ 00C7 7414           00DD          je     match_error             ; YES - We've looped so no match found
+ 00C9 1E                          push    ds
+ 00CA 56                          push    si                      ; save this entry
+ 00CB 8E5EE4                      mov     ds,RL_HIST_SEG
+ 00CE 8B7EF8                      mov     di,RL_BUFOFF            ; ES:DI -> match string
+ 00D1 8B4EEC                      mov     cx,RL_SAVPOS            ; try to match CX characters
+ 00D4 F3A6                        repe    cmpsb
+ 00D6 5F                          pop     di                      ; recover this entry
+ 00D7 1F                          pop     ds
+ 00D8 75E0           00BA          jne    match_loop              ; try again if we didn't match
+ 00DA E86C00         0149         call    copy_from_hist          ; if it did match copy it
+                          match_error:
+ 00DD 59                          pop     cx                      ; Get end of displayed line
+ 00DE 5F                          pop     di                      ; user's buffer
+ 00DF 5E                          pop     si
+ 00E0 56                          push    si                      ; save current position in lines
+ 00E1 E80000       E              call    space_out               ; Rub the displayed line out
+ 00E4 E80000       E              call    bs_out                  ; And backspace to it's start
+ 00E7 E84E00         0138         call    goto_eol                ; display the line
+ 00EA E80000       E              call    goto_bol                ; Move cursor to begining
+ 00ED 59                          pop     cx                      ; CX = end of matched portion
+ 00EE 894EEC                      mov     RL_SAVPOS,cx            ; CX = Current position in command
+ 00F1 E307           00FA          jcxz   match20
+                          match10:                                ; Move cursor forward to current
+ 00F3 51                          push    cx                      ;  position
+ 00F4 E80000       E              call    next_char               ; next_char destroys our loop count
+ 00F7 59                          pop     cx                      ;  so keep it
+ 00F8 E2F9           00F3         loop    match10
+                          match20:
+ 00FA 8B4EEE                      mov     cx,RL_SAVMAX            ; we can't copy any more
+ 00FD 894EEC                      mov     RL_SAVPOS,cx
+                          match30:
+ 0100 C3                          ret
+
+
+                          prev_cmd:
+                          ; Get the previous command from the buffer
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page  15
+
+
+ 0101 F746F41000                  test    RL_FLAGS,RLF_RECALLED   ; is this the 1st recall ?
+ 0106 750D           0115          jnz    prev_cmd10
+ 0108 51                          push    cx
+ 0109 57                          push    di
+ 010A 8B7EE8                      mov     di,RL_HIST_SAVE         ; get existing "save" ptr
+ 010D E8BF00         01CF         call    find_current_hist       ; wrap it if we need to
+ 0110 897EEA                      mov     RL_HIST_RECL,di         ;  and update "recall" pointer
+ 0113 5F                          pop     di
+ 0114 59                          pop     cx
+                          prev_cmd10:
+ 0115 E842FF         005A         call    save_current_if_dirty   ; save current line if it needs saving
+ 0118 E80000       E              call    del_line                ;  then delete it
+ 011B 56                          push    si
+ 011C 57                          push    di
+ 011D 8B7EEA                      mov     di,RL_HIST_RECL         ; point to the current entry
+ 0120 E88700         01AA         call    find_prev_hist          ; DI -> previous entry
+ 0123 EB0E           0133         jmps    found_cmd               ; now go and copy it to the user buffer
+
+                          next_cmd:
+                          ; Get the next command from the buffer
+ 0125 E832FF         005A         call    save_current_if_dirty   ; save current line if it needs saving
+ 0128 E80000       E              call    del_line                ;  then delete it
+ 012B 56                          push    si
+ 012C 57                          push    di
+ 012D 8B7EEA                      mov     di,RL_HIST_RECL         ; point to the current entry
+ 0130 E89600         01C9         call    find_next_hist          ; DI -> next entry
+                          ;       jmps    found_cmd               ; now go and copy it to the user buffer
+
+                          found_cmd:
+ 0133 E81300         0149         call    copy_from_hist          ; Copy from history to user buffer
+ 0136 5F                          pop     di
+ 0137 5E                          pop     si
+                          ;       jmp     goto_eol                ; Display new line.
+
+                          goto_eol:                               ; Move the cursor to the end of the
+ 0138 8BCA2BCE                    mov cx,dx ! sub cx,si           ; displayed line
+ 013C E30A           0148          jcxz   goto_e10                ; Already at the EOL
+ 013E 0376F8                      add     si,RL_BUFOFF            ; Get the Offset in the buffer
+ 0141 E80000       E              call    put_string              ; Output the sub_string
+ 0144 03F9                        add     di,cx                   ; Update the local variables
+ 0146 8BF2                        mov     si,dx                   ; and return
+                          goto_e10:
+ 0148 C3                          ret
+
+                          ; DI-> Current entry in history buffer
+                          ;
+                          copy_from_hist:
+ 0149 814EF41000                  or      RL_FLAGS,RLF_RECALLED   ; remember we have recalled something
+ 014E 8166F4DFFF                  and     RL_FLAGS,not RLF_DIRTY  ; this entry is already in buffers
+ 0153 897EEA                      mov     RL_HIST_RECL,di         ; update pointer for next time
+ 0156 E84100         019A         call    find_next_null          ; how big is this entry ?
+ 0159 8BCF                        mov     cx,di
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page  16
+
+
+ 015B 8B76EA                      mov     si,RL_HIST_RECL
+ 015E 2BCE                        sub     cx,si                   ; (CX-SI)=No of bytes to copy
+ 0160 3B4EF2                      cmp     cx,RL_MAXLEN            ; is the line bigger than our buffer ?
+ 0163 7203           0168          jb     copy_from_hist1         ; if so we want to clip it
+ 0165 8B4EF2                      mov     cx,RL_MAXLEN            ; to the maximum possible value
+                          copy_from_hist1:
+ 0168 8BD1                        mov     dx,cx
+ 016A 1E                          push    ds
+ 016B 8E5EE4                      mov     ds,RL_HIST_SEG
+ 016E 8B7EF8                      mov     di,RL_BUFOFF
+ 0171 F3A4                        rep     movsb                   ; copy to line buffer
+ 0173 1F                          pop     ds
+ 0174 E80000       E              call    save_line               ; save the line
+ 0177 8B4EEE                      mov     cx,RL_SAVMAX            ; we can't copy any more
+ 017A 894EEC                      mov     RL_SAVPOS,cx
+ 017D C3                          ret
+
+                          ; Some primitives for history buffer handling:
+                          ;
+                          ; find_free_hist        Find the next free entry in the history buffer
+                          ; find_next_null        Finds the end of the current entry
+                          ; find_prev_hist        Finds the start of the previous entry
+                          ; find_next_hist        Finds the start of the next entry
+                          ; find_current_hist     Finds the start of current entry
+
+                          ;
+                          ; Make DI-> next entry of sufficient length for the current cmd buffer
+                          ; If we can't fit at the end zero the remainder of the buffer then wrap
+                          ; back to the start.
+                          ;
+
+                          find_free_hist:
+ 017E 8B7EE8                      mov     di,RL_HIST_SAVE         ; Point at current last entry
+ 0181 57                          push    di                      ; Will DX bytes fit?
+ 0182 03FA                        add     di,dx
+ 0184 3B7EE6                      cmp     di,RL_HIST_SIZE         ; Did we run out of buffer?
+ 0187 5F                          pop     di
+ 0188 720F           0199          jb     find_free_hist20
+ 018A 33C0                        xor     ax,ax                   ; doesn't fit, so zero to end of buffer
+                          find_free_hist10:
+ 018C 06                          push    es
+ 018D 8E46E4                      mov     es,RL_HIST_SEG
+ 0190 AA                          stosb                           ; keep on zeroing
+ 0191 07                          pop     es
+ 0192 3B7EE6                      cmp     di,RL_HIST_SIZE
+ 0195 72F5           018C          jb     find_free_hist10
+ 0197 33FF                        xor     di,di                   ; wrap back to start of history buffer
+                          find_free_hist20:
+ 0199 C3                          ret
+
+                          ; Entry DI-> entry in the history buffer
+                          ; Make DI-> next NULL in the history buffer ( end of current entry )
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page  17
+
+
+                          ;
+                          find_next_null:
+ 019A 8B4EE6                      mov     cx,RL_HIST_SIZE
+ 019D 2BCF                        sub     cx,di                   ; Calc no of bytes left
+ 019F 33C0                        xor     ax,ax                   ; Look for next terminator
+ 01A1 06                          push    es
+ 01A2 8E46E4                      mov     es,RL_HIST_SEG
+ 01A5 F2AE                        repnz   scasb   
+ 01A7 4F                          dec     di                      ; point at the NUL
+ 01A8 07                          pop     es
+ 01A9 C3                          ret
+
+                          ; Entry DI-> entry in the history buffer
+                          ; Make DI-> previous entry in the history buffer
+                          ; Preserve CX
+                          find_prev_hist:
+ 01AA E82200         01CF         call    find_current_hist       ; handle any wrapping
+ 01AD 8BC7                        mov     ax,di                   ; AX = entry we want previous for
+                          find_prev_hist10:
+ 01AF 50                          push    ax                      ; save current offset
+ 01B0 57                          push    di                      ; save initial offset
+ 01B1 97                          xchg    ax,di                   ; find next from here until
+ 01B2 E81400         01C9         call    find_next_hist          ;  we get back where we started
+ 01B5 97                          xchg    ax,di                   ; AX = current offset
+ 01B6 5F                          pop     di                      ; recover initial value
+ 01B7 5B                          pop     bx                      ; recover previous offset
+ 01B8 3BC7                        cmp     ax,di                   ; have we wrapped yet ?
+ 01BA 740A           01C6          je     find_prev_hist20        ; yes, BX = previous entry
+ 01BC 77F1           01AF          ja     find_prev_hist10        ; we are above target so continue
+ 01BE 3BDF                        cmp     bx,di                   ; we are below target - if previous
+ 01C0 73ED           01AF          jae    find_prev_hist10        ;  was above target we are OK
+ 01C2 3BC3                        cmp     ax,bx                   ; if new below previous then we
+ 01C4 73E9           01AF          jnb    find_prev_hist10        ;  have ERROR wrap, so stop
+                          find_prev_hist20:
+ 01C6 8BFB                        mov     di,bx                   ; DI -> Previous entry
+ 01C8 C3                          ret
+
+                          find_next_hist: 
+ 01C9 E80300         01CF         call    find_current_hist       ; handle any wrapping
+ 01CC E8CBFF         019A         call    find_next_null          ; point to end of current entry
+                          ;       jmp     find_current_hist       ; handle any wrapping
+
+                          find_current_hist:
+                          ; This routine is complicated by the need to handle switchers, where
+                          ;  our buffers and pointers may get out of step
+ 01CF 06                          push    es
+ 01D0 33C0                        xor     ax,ax
+ 01D2 8E46E4                      mov     es,RL_HIST_SEG          ; now work backwards to start of line
+                          find_current_hist10:
+ 01D5 83FF01                      cmp     di,1                    ; are we at the start of the buffer
+ 01D8 7211           01EB          jb     find_current_hist30     ;  then don't wrap
+ 01DA FD                          std
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page  18
+
+
+ 01DB AE                          scasb                           ; is previous char a NUL ?
+ 01DC FC                          cld                             ;  (it should be!)
+ 01DD 75F6           01D5          jne    find_current_hist10
+ 01DF 47                          inc     di                      ; ES:DI -> 1st char of line
+                          find_current_hist20:
+ 01E0 8B4EE6                      mov     cx,RL_HIST_SIZE
+ 01E3 2BCF                        sub     cx,di                   ; CX= Remaining no: of bytes in buffer
+ 01E5 7604           01EB          jbe    find_current_hist30
+ 01E7 F3AE                        repe    scasb                   ; skip over zero's
+ 01E9 7503           01EE          jne    find_current_hist40
+                          find_current_hist30:
+ 01EB BF0100                      mov     di,1                    ; wrap to start of buffer
+                          find_current_hist40:
+ 01EE 4F                          dec     di
+ 01EF 07                          pop     es
+ 01F0 C3                          ret
+
+                          del_history_buffers:
+                          ;-------------------
+                          ; Delete contents of both history buffers
+                          ;
+ 01F1 A10000       E              mov     ax,histbuf1             ; Segment of 1st history buffer
+ 01F4 8B0E0000     E              mov     cx,histsiz1             ; End of 1st history buffer
+ 01F8 E80F00         020A         call    zap_buffer
+ 01FB A10000       E              mov     ax,histbuf2             ; Segment of 2nd history buffer
+ 01FE 8B0E0000     E              mov     cx,histsiz2             ; End of 2nd history buffer
+ 0202 EB06           020A         jmps    zap_buffer
+                                  
+                          del_cur_history_buffer:
+                          ;----------------------
+                          ; Delete contents of the current history buffer
+                          ;
+ 0204 8B46E4                      mov     ax,RL_HIST_SEG          ; zero the current buffer
+ 0207 8B4EE6                      mov     cx,RL_HIST_SIZE
+                          zap_buffer:
+ 020A 06                          push    es                      ; zero fill CX bytes at AX:0
+ 020B 57                          push    di
+ 020C 8EC0                        mov     es,ax
+ 020E 33C0                        xor     ax,ax
+ 0210 8946EA                      mov     RL_HIST_RECL,ax
+ 0213 8946E8                      mov     RL_HIST_SAVE,ax
+ 0216 33FF                        xor     di,di
+ 0218 F3AA                        rep     stosb                   ; zero fill the buffer
+ 021A 5F                          pop     di
+ 021B 07                          pop     es
+ 021C E80000       E              call    del_line                ; then delete current line
+ 021F E90000       E              jmp     save_line
+
+
+                          next_word:
+ 0222 8BCA                        mov     cx,dx                   ; Calculate the number of bytes
+ 0224 2BCE                        sub     cx,si                   ; left to scan
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page  19
+
+
+ 0226 E314           023C         jcxz    next_w10                ; Skip if at the EOL
+ 0228 56                          push    si                      ; Save the current Index
+ 0229 8BF7                        mov     si,di                   ; Scan from the current location
+ 022B E80F00         023D         call    match_word              ; Get the next word boundary
+ 022E 8BCE                        mov     cx,si
+ 0230 2BCF                        sub     cx,di                   ; Calculate the string length
+ 0232 8BF7                        mov     si,di                   ; to be displayed from the current
+ 0234 E80000       E              call    put_string              ; location and output the data
+ 0237 5E                          pop     si
+ 0238 03F1                        add     si,cx                   ; Update the Index and Offset pointers
+ 023A 03F9                        add     di,cx
+                          next_w10:
+ 023C C3                          ret
+
+                          ;
+                          ;       MATCH_WORD scans the buffer at ES:SI for word boundaries
+                          ;       and returns to the calling routine whenever it detects such
+                          ;       a boundary.
+                          ;
+                          ;       On Entry:       ES:SI   Buffer Address
+                          ;                       CX      Maximum No of bytes to Scan
+                          ;
+                          ;       On Exit:        ES:SI   Next Word Boundary
+                          ;
+                          match_word:
+ 023D E80000       E              call    char_info
+ 0240 F6C418                      test    ah,CHAR_ALPHAN or CHAR_KANJI
+ 0243 E0F8           023D         loopnz  match_word              ; scan the rest of the current word
+ 0245 E314           025B          jcxz   match_w30               ; end of word or kanji ?
+
+ 0247 52                          push    dx
+                          match_w10:
+ 0248 8BD6                        mov     dx,si
+ 024A E80000       E              call    char_info
+ 024D F6C418                      test    ah,CHAR_ALPHAN or CHAR_KANJI
+ 0250 E1F6           0248         loopz   match_w10
+ 0252 7406           025A          jz     match_w20
+ 0254 2BF2                        sub     si,dx                   ; Correct the count in CX
+ 0256 03CE                        add     cx,si                   ; and return the location of the
+ 0258 8BF2                        mov     si,dx                   ; word boundary
+
+                          match_w20:
+ 025A 5A                          pop     dx
+                          match_w30:
+ 025B C3                          ret
+
+                          prev_word:
+ 025C 8BCEE3FB       025B         mov cx,si ! jcxz match_w30      ; Initialize the count
+ 0260 525657                      push dx ! push si ! push di
+ 0263 8B76F8                      mov     si,RL_BUFOFF            ; Scan from the begining of the buffer
+ 0266 8BD6                        mov     dx,si                   ; keeping the last match in DX
+                          prev_w10:
+PC-DOS RASM-86 1.4a  Source: HISTORY.A86                                                                     Page  20
+
+
+ 0268 E8D2FF         023D         call    match_word              ; Find the next word boundary
+ 026B E304           0271         jcxz    prev_w15                ; Stop when we get to the current offset
+ 026D 8BD6                        mov     dx,si                   ; Save current location
+ 026F EBF7           0268         jmps    prev_w10                ; and repeat
+                          prev_w15:
+ 0271 E90000       E              jmp     prev_w20
+
+                          del_bol:                                ; Delete to the begining of the line
+ 0274 0BF6740C       0284         or si,si ! jz del_bol10         ; Ignore if at the begining
+ 0278 0BD27408       0284         or dx,dx ! jz del_bol10         ; Or the line is empty
+ 027C 57                          push    di                      ; Save the current index
+ 027D E80000       E              call    goto_bol                ; Move to the start of the line
+ 0280 59                          pop     cx                      ; Restore the current offset
+ 0281 E90000       E              jmp     deln_w10                ; and jump to common code
+                          del_bol10:
+ 0284 C3                          ret
+
+                          deln_word:
+ 0285 8BCA                        mov     cx,dx                   ; Calculate the number of bytes
+ 0287 2BCE                        sub     cx,si                   ; left to scan
+ 0289 E3F9           0284         jcxz    del_bol10               ; Skip if at the EOL
+ 028B 56                          push    si                      ; Save the current Index
+ 028C 8BF7                        mov     si,di                   ; Scan from the current location
+ 028E E8ACFF         023D         call    match_word              ; Get the next word boundary
+ 0291 8BCE                        mov     cx,si
+ 0293 5E                          pop     si
+ 0294 E90000       E              jmp     deln_w10
+
+                          PCMODE_DATA     DSEG    WORD
+
+                                  extrn   @hist_flg:byte          ; To select between histbufs 1 or 2
+
+                          GLOBAL_DATA     dseg    word
+
+                                  extrn   histbuf1:word, histsiz1:word, histbuf2:word, histsiz2:word
+
+                                  end
+
+
+End of assembly.  Number of errors:   0.  Use factor: 15%
+                  pop     si
+ 0294 E90000      

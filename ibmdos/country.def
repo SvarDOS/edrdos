@@ -1,0 +1,73 @@
+;    File              : $COUNTRY.DEF$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+
+US_DATE		equ	0		; American Date Format mm/dd/yy
+EURO_DATE	equ	1		; European Date Format dd/mm/yy
+JAP_DATE	equ	2		; Japanese Date Format yy/mm/dd
+
+CLOCK_12	equ	0		; 12 Hour Clock Time Format
+CLOCK_24	equ	1		; 24 Hour Clock Time Format
+
+CI_CODE		equ	word ptr 0FFFCh		; Country Code
+CI_CODEPAGE	equ	word ptr 0FFFEh		; Code page
+CI_DATEFMT	equ	word ptr 0		; Date Format
+CI_CURRENCY	equ	byte ptr 2		; Currency Symbols
+CI_THOUSANDS	equ	byte ptr 7		; Thousands Separator
+CI_DECIMAL	equ	byte ptr 9		; Decimal Separator
+CI_DATESEP	equ	byte ptr 11		; Date Separator
+CI_TIMESEP	equ	byte ptr 13		; Time Separator
+CI_CURFMT	equ	byte ptr 15		; Currency Format
+CI_CURDIGITS	equ	byte ptr 16		; Significant Currency Digits
+CI_TIMEFMT	equ	byte ptr 17		; Time Format
+CI_CASEOFF	equ	word ptr 18		; Case Translation Offset
+CI_CASESEG	equ	word ptr 20		; Case Translation Segment
+CI_DATASEP	equ	byte ptr 22		; Data List Separator
+CI_STATICLEN	equ	24			; Static Country Data Length
+CI_LENGTH	equ	32			; Total Country Data Length
+
+EXI_ID		equ	byte ptr 0		; Information ID
+EXI_TBLOFF	equ	word ptr 1		; Table Offset
+EXI_TBLSEG	equ	word ptr 3		; Table Segment
+
+EXI_ID1		equ	byte ptr 0		; 6501 Info ID (why move it?!)
+EXI_LENGTH	equ	word ptr 1		; 6501 Table Length
+EXI_DATA_LEN	equ	3			; 6501 Country Data
+
+EXCI_CUR_COUNTRY equ	word ptr 0		; Current Country
+EXCI_CUR_CP	equ	word ptr 2		; Current Codepage
+EXCI_CI_DATAOFF	equ	4			; Start of CI_ data
+
+EXCI_STATLEN	equ	CI_STATICLEN+4			; Static Ext Country Info
+EXCI_MAXLEN	equ	EXCI_STATLEN+10+EXI_DATA_LEN	; Max Ext Country Info
+

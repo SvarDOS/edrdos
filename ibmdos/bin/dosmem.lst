@@ -1,0 +1,1024 @@
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page   1
+
+
+=  0001                   __RASM__        EQU     1
+
+                          ;    File              : $DOSMEM.A86$
+                          ;
+                          ;    Description       :
+                          ;
+                          ;    Original Author   : DIGITAL RESEARCH
+                          ;
+                          ;    Last Edited By    : $CALDERA$
+                          ;
+                          ;-----------------------------------------------------------------------;
+                          ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+                          ;      
+                          ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+                          ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+                          ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+                          ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+                          ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+                          ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+                          ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+                          ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+                          ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+                          ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+                          ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+                          ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+                          ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+                          ;    CIVIL LIABILITY.
+                          ;-----------------------------------------------------------------------;
+                          ;
+                          ;    *** Current Edit History ***
+                          ;    *** End of Current Edit History ***
+                          ;    $Log$
+                          ;    DOSMEM.A86 1.13 94/12/01 10:05:21
+                          ;    now freeing UMBs also during program termination
+                          ;    DOSMEM.A86 1.12 93/07/20 22:46:25
+                          ;    dmd_upper_root defaults to FFFF
+                          ;    DOSMEM.A86 1.10 93/06/18 21:00:11
+                          ;    Remove historic CDOS comment
+                          ;    ENDLOG
+                          ;
+=                                 include pcmode.equ
+=                         ;    File              : $PCMODE.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page   2
+
+
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ;       This file contains all the general purpose definitions
+=                         ;       and equates used by the PCMODE Module.
+=                         ;
+=
+=  FFFF                   TRUE            equ     0FFFFh          ; value of TRUE
+=  0000                   FALSE           equ     0               ; value of FALSE
+=
+=  0006                   TRUE_VERSION    equ     6
+=
+=  FFFF                   IDLE_DETECT     equ     TRUE            ; Check for IDLE Process's
+=
+=                         if IDLE_DETECT
+=  0001                   IDLE_COMMAND    equ     0001h           ; Command Processor Active
+=  0002                   IDLE_DOSFUNC    equ     0002h           ; DOS Function Called
+=  0004                   IDLE_INT28      equ     0004h           ; INT 28 Called
+=
+=  4000                   IDLE_ON         equ     4000h           ; ReSet when Idle Checking Enabled
+=  8000                   IDLE_INIT       equ     8000h           ; ReSet when $IDLE$ Loaded and Active
+=  C000                   IDLE_DISABLE    equ     IDLE_INIT + IDLE_ON 
+=
+=  0001                   PROC_IDLE       equ     0001            ; Process is IDLE
+=  0002                   PROC_INT28      equ     0002            ; INT28 Polling Loop
+=  0003                   PROC_KEYIN      equ     0003            ; Keyboard Input
+=  0004                   PROC_DEVIN      equ     0004            ; Device Input Routine
+=                         endif
+=
+=
+=  00C0                   STACK_SIZE      equ     192             ; Local Stack Size (Levels)
+=  0050                   MAX_PATHLEN     equ     80              ; Maximum Path length
+=  000D                   MAX_FILELEN     equ     13
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page   3
+
+
+=
+=                         ;
+=                         ;       DOS process termination Codes
+=                         ;
+=  0000                   TERM_NORMAL     equ     0               ; Normal Termination
+=  0001                   TERM_BREAK      equ     1               ; Termination by Control Break
+=  0002                   TERM_ERROR      equ     2               ; Termination by Critical Error
+=  0003                   TERM_RESIDENT   equ     3               ; Terminate and Stay Resident
+=
+=                         ;
+=                         ;       Critical Error responses from the default INT 24 handler and
+=                         ;       the DO_INT24 routine.
+=                         ;
+=  0000                   ERR_IGNORE      equ     0               ; Ignore Error
+=  0001                   ERR_RETRY       equ     1               ; Retry the Operation
+=  0002                   ERR_ABORT       equ     2               ; Terminate the Process
+=  0003                   ERR_FAIL        equ     3               ; Fail Function
+=                         ;
+=  0008                   OK_FAIL         equ     0000$1000b      ; Fail is a Valid Response
+=  0010                   OK_RETRY        equ     0001$0000b      ; Retry is a Valid Response
+=  0020                   OK_IGNORE       equ     0010$0000b      ; Ignore is a valid Response
+=  0038                   OK_RIF          equ     0011$1000b      ; All Responsese are Valid
+=  0030                   OK_RI           equ     0011$0000b      ; Retry and Ignore are Valid
+=  0018                   OK_RF           equ     0001$1000b      ; Retry and Fail are Valid
+=                         ;
+=  0040                   NO_CRIT_ERRORS  equ     0100$0000b      ; critical error shouldn't be generated
+=                                                                 ; warning - must match FDOS.A86
+=                         ;
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page   4
+
+
+=                         eject
+=                         ;       The following equates define the format in which the users registers
+=                         ;       are saved on the stack. This format is also seen by an application
+=                         ;       when a critical error occurs.
+=                         ;
+=                         CodeMacro       POP$DOS         ; Pop User Registers a la MS-DOS
+=                                 db 058h ! db 05Bh       ; pop AX ! pop BX
+=                                 db 059h ! db 05Ah       ; pop BX ! pop CX
+=                                 db 05Eh ! db 05Fh       ; pop SI ! pop DI
+=                                 db 05Dh                 ; pop BP
+=                                 db 01Fh ! db 007h       ; pop DS ! pop ES
+=                         EndM
+=
+=                         CodeMacro   PUSH$DOS    ; Push User Registers
+=                                 db 006h ! db 01Eh       ; push ES ! push DS
+=                                 db 055h                 ; push BP
+=                                 db 057h ! db 056h       ; push DI ! push SI
+=                                 db 052h ! db 051h       ; push DX ! push CX
+=                                 db 053h ! db 050h       ; push BX ! push AX
+=                         EndM
+=
+=  0000                   reg_AX          equ     word ptr .00
+=  0000                   reg_AL          equ     byte ptr .00
+=  0001                   reg_AH          equ     byte ptr .01
+=
+=  0002                   reg_BX          equ     word ptr .02
+=  0002                   reg_BL          equ     byte ptr .02
+=  0003                   reg_BH          equ     byte ptr .03
+=
+=  0004                   reg_CX          equ     word ptr .04
+=  0004                   reg_CL          equ     byte ptr .04
+=  0005                   reg_CH          equ     byte ptr .05
+=
+=  0006                   reg_DX          equ     word ptr .06
+=  0006                   reg_DL          equ     byte ptr .06
+=  0007                   reg_DH          equ     byte ptr .07
+=
+=  0008                   reg_SI          equ     word ptr .08
+=  000A                   reg_DI          equ     word ptr .10
+=  000C                   reg_BP          equ     word ptr .12
+=
+=  000E                   reg_DS          equ     word ptr .14
+=  0010                   reg_ES          equ     word ptr .16
+=
+=  0012                   reg_IP          equ     word ptr .18
+=  0014                   reg_CS          equ     word ptr .20
+=  0016                   reg_FLAGS       equ     word ptr .22
+=
+=                         ; Processor Flags
+=  0001                   CARRY_FLAG      equ     0001h           ; Carry Flag
+=  0040                   ZERO_FLAG       equ     0040h           ; Zero Flag
+=  0080                   SIGN_FLAG       equ     0080h           ; Sign Flag
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page   5
+
+
+=  0200                   INT_FLAG        equ     0200h           ; Interrupt Flag
+=  0400                   DIR_FLAG        equ     0400h           ; Direction Flag
+=  0800                   OFLW_FLAG       equ     0800h           ; OverFlow Flag
+=
+=  0000                   DMD_ID          equ     es:byte ptr .0  ; id code ('M' or 'Z')
+=  0001                   DMD_PSP         equ     es:word ptr .1  ; owner of memory block
+=  0003                   DMD_LEN         equ     es:word ptr .3  ; length of memory block
+=  0006                   DMD_IDLE_FLAGS  equ es:word ptr .6  ; idle flags live here
+=  0008                   DMD_NAME        equ     es:byte ptr .8  ; ASCIIZ name field
+=  0008                   DMD_NAME_LEN    equ     8               ;  8 Bytes long
+=  004D                   IDM             equ     'M'             ; not last id code
+=  005A                   IDZ             equ     'Z'             ; last id code
+=
+=                         PCMCODE         GROUP   PCM_HEADER, PCM_CODE, BDOS_CODE, PCM_RODATA
+=                         PCMCODE         GROUP   PCM_HISTORY, PCM_ICODE, PCM_CODEND
+=
+=                         PCM_HEADER      CSEG    PARA
+=                         PCM_CODE        CSEG    BYTE
+=                         PCM_RODATA      CSEG    WORD
+=                         BDOS_CODE       CSEG    WORD
+=                         PCM_HISTORY     CSEG    BYTE
+=                         PCM_ICODE       CSEG    BYTE
+=                         PCM_CODEND      CSEG    PARA
+=
+=
+=                         PCMDATA         GROUP   PCMODE_DATA, FDOS_DSEG, FIXED_DOS_DATA
+=                         PCMDATA         GROUP   PCMODE_CODE, GLOBAL_DATA, BDOS_DATA, PCMODE_DSIZE
+=
+=                         PCMODE_DATA     DSEG    WORD            ; DOS Data
+=                         FDOS_DSEG       DSEG    WORD COMMON     ; FDOS Parameter Block  
+=0000                     fdos_data       rw      7
+=                         FIXED_DOS_DATA  CSEG    WORD    'DATA'  ; Fixed DOS Data Area
+=                         PCMODE_CODE     CSEG    WORD    'DATA'  ; DATA relative CODE
+=                         GLOBAL_DATA     DSEG    WORD            ; GLOBAL DOS DATA (Process Independant)
+=                         BDOS_DATA       DSEG    WORD            ; BDOS Data Area
+=                         PCMODE_DSIZE    DSEG    PARA            ; End of DOS Data Area
+
+=                                 include i:msdos.equ
+=                         ;    File              : $MSDOS.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page   6
+
+
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=
+=  0000                   MS_P_TERMCPM    equ     00H
+=  0001                   MS_C_READ       equ     01H
+=  0002                   MS_C_WRITE      equ     02H
+=  0003                   MS_A_READ       equ     03H
+=  0004                   MS_A_WRITE      equ     04H
+=  0005                   MS_L_WRITE      equ     05H
+=  0006                   MS_C_RAWIO      equ     06H
+=  0007                   MS_C_RAWIN      equ     07H
+=  0008                   MS_C_NOECHO     equ     08H
+=  0009                   MS_C_WRITESTR   equ     09H
+=  000A                   MS_C_READSTR    equ     0aH
+=  000B                   MS_C_STAT       equ     0bH
+=  000C                   MS_C_FLUSH      equ     0cH
+=  000D                   MS_DRV_ALLRESET equ     0dH
+=  000E                   MS_DRV_SET      equ     0eH
+=  000F                   MS_F_OPEN       equ     0fH
+=  0010                   MS_F_CLOSE      equ     10H
+=  0011                   MS_F_SFIRST     equ     11H
+=  0012                   MS_F_SNEXT      equ     12H
+=  0013                   MS_F_DELETE     equ     13H
+=  0014                   MS_F_READ       equ     14H
+=  0015                   MS_F_WRITE      equ     15H
+=  0016                   MS_F_MAKE       equ     16H
+=  0017                   MS_F_RENAME     equ     17H
+=  0019                   MS_DRV_GET      equ     19H
+=  001A                   MS_F_DMAOFF     equ     1aH
+=  001B                   MS_DRV_ALLOC    equ     1bH
+=  001C                   MS_DRV_ALLOCSPEC equ    1cH
+=  0021                   MS_F_READRAND   equ     21H
+=  0022                   MS_F_WRITERAND  equ     22H
+=  0023                   MS_F_SIZE       equ     23H
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page   7
+
+
+=  0024                   MS_F_RANDREC    equ     24H
+=  0025                   MS_S_SETINT     equ     25H
+=  0026                   MS_P_MKPSP      equ     26H
+=  0027                   MS_F_READBLK    equ     27H
+=  0028                   MS_F_WRITEBLK   equ     28H
+=  0029                   MS_F_PARSE      equ     29H
+=  002A                   MS_T_GETDATE    equ     2aH
+=  002B                   MS_T_SETDATE    equ     2bH
+=  002C                   MS_T_GETTIME    equ     2cH
+=  002D                   MS_T_SETTIME    equ     2dH
+=  002E                   MS_F_VERIFY     equ     2eH
+=  002F                   MS_F_DMAGET     equ     2fH
+=  0030                   MS_S_BDOSVER    equ     30H
+=  0031                   MS_P_TERMKEEP   equ     31H
+=  0033                   MS_S_BREAK      equ     33H
+=  0035                   MS_S_GETINT     equ     35H
+=  0036                   MS_DRV_SPACE    equ     36H
+=  0038                   MS_S_COUNTRY    equ     38H
+=  0039                   MS_X_MKDIR      equ     39H
+=  003A                   MS_X_RMDIR      equ     3aH
+=  003B                   MS_X_CHDIR      equ     3bH
+=  003C                   MS_X_CREAT      equ     3cH
+=  003D                   MS_X_OPEN       equ     3dH
+=  003E                   MS_X_CLOSE      equ     3eH
+=  003F                   MS_X_READ       equ     3fH
+=  0040                   MS_X_WRITE      equ     40H
+=  0041                   MS_X_UNLINK     equ     41H
+=  0042                   MS_X_LSEEK      equ     42H
+=  0043                   MS_X_CHMOD      equ     43H
+=  0044                   MS_X_IOCTL      equ     44H
+=  0045                   MS_X_DUP        equ     45H
+=  0046                   MS_X_DUP2       equ     46H
+=  0047                   MS_X_CURDIR     equ     47H
+=  0048                   MS_M_ALLOC      equ     48H
+=  0049                   MS_M_FREE       equ     49H
+=  004A                   MS_M_SETBLOCK   equ     4aH
+=  004B                   MS_X_EXEC       equ     4bH
+=  004C                   MS_X_EXIT       equ     4cH
+=  004D                   MS_X_WAIT       equ     4dH
+=  004E                   MS_X_FIRST      equ     4eH
+=  004F                   MS_X_NEXT       equ     4fH
+=  0050                   MS_P_SETPSP     equ     50H
+=  0054                   MS_F_GETVERIFY  equ     54H
+=  0056                   MS_X_RENAME     equ     56H
+=  0057                   MS_X_DATETIME   equ     57H
+=  0058                   MS_M_STRATEGY   equ     58h
+=  0059                   MS_F_ERROR      equ     59H
+=  005A                   MS_X_MKTEMP     equ     5aH
+=  005B                   MS_X_MKNEW      equ     5bH
+=  005C                   MS_F_LOCK       equ     5cH
+=  0060                   MS_X_EXPAND     equ     60H
+=  0062                   MS_P_GETPSP     equ     62H
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page   8
+
+
+=  6601                   MS_X_GETCP      equ     6601h
+=  6602                   MS_X_SETCP      equ     6602h
+=  0067                   MS_X_SETHC      equ     67h
+=  0068                   MS_X_COMMIT     equ     68h
+=
+=  0021                   DOS_INT     equ 21h ; DOS Entry Point
+=                         ;
+=  0000                   STDIN           equ     0       ; Standard Console Input Handle
+=  0001                   STDOUT          equ     1       ; Standard Console Output Handle
+=  0002                   STDERR          equ     2       ; Standard Error Output
+=  0003                   STDAUX          equ     3       ; Auxilary Device Handle
+=  0004                   STDPRN          equ     4       ; Printer Device Handle
+
+=                                 include i:mserror.equ
+=                         ;    File              : $MSERROR.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=  FFFF                   ED_FUNCTION     equ     -01             ; invalid function number
+=  FFFE                   ED_FILE         equ     -02             ; file not found
+=  FFFD                   ED_PATH         equ     -03             ; path not found
+=  FFFC                   ED_HANDLE       equ     -04             ; too many open files
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page   9
+
+
+=  FFFB                   ED_ACCESS       equ     -05             ; file access denied
+=  FFFA                   ED_H_MATCH      equ     -06             ; invalid handle number
+=  FFF9                   ED_DMD          equ     -07             ; memory descriptor destroyed
+=  FFF8                   ED_MEMORY       equ     -08             ; insufficient memory
+=  FFF7                   ED_BLOCK        equ     -09             ; invalid memory block addr
+=  FFF6                   ED_ENVIRON      equ     -10             ; invalid environment
+=  FFF5                   ED_FORMAT       equ     -11             ; invalid format
+=  FFF4                   ED_ACC_CODE     equ     -12             ; invalid access code
+=  FFF3                   ED_DATA         equ     -13             ; invalid data
+=  FFF1                   ED_DRIVE        equ     -15             ; invalid drive specified
+=  FFF0                   ED_DIR          equ     -16             ; can't remove current dir
+=  FFEF                   ED_DEVICE       equ     -17             ; not same device
+=  FFEE                   ED_ROOM         equ     -18             ; no more files
+=
+=  FFED                   ED_PROTECT      equ     -19             ; disk write protected
+=  FFEC                   ED_BADUNIT      equ     -20             ; invalid drive specified
+=  FFEB                   ED_NOTREADY     equ     -21             ; drive doesn't respond
+=  FFEA                   ED_BADCMD       equ     -22             ; invalid command to driver
+=  FFE9                   ED_BADDATA      equ     -23             ; data CRC error
+=  FFE8                   ED_BADRHLEN     equ     -24             ; (shouldn't happen)
+=  FFE7                   ED_BADSEEK      equ     -25             ; can't seek to track
+=  FFE6                   ED_BADMEDIA     equ     -26             ; unrecognizable medium
+=  FFE5                   ED_RNF          equ     -27             ; record/sector not found
+=  FFE4                   ED_NOPAPER      equ     -28             ; printer error
+=  FFE3                   ED_WRFAIL       equ     -29             ; write failed
+=  FFE2                   ED_RDFAIL       equ     -30             ; read failed
+=  FFE1                   ED_GENFAIL      equ     -31             ; anything failed
+=  FFE0                   ED_SHAREFAIL    equ     -32             ; sharing conflict
+=  FFDF                   ED_LOCKFAIL     equ     -33             ; locking conflict
+=  FFDE                   ED_DISKCHG      equ     -34             ; invalid disk change
+=  FFDD                   ED_NOFCBS       equ     -35             ; FCB table exhausted
+=  FFDC                   ED_NOLOCKS      equ     -36             ; lock list items exhausted
+=  FFCE                   ED_NET          equ     -50             ; Network Request Not Supported
+=
+=  FFBF                   ED_NETACCESS    equ     -65             ; file access denied
+=
+=  FFB7                   ED_NETPWD       equ     -73             ; Server Password Error
+=  FFB6                   ED_NETVER       equ     -74             ; Incorrect Server version
+=  FFB5                   ED_NETREQ       equ     -75             ; No Local Network Resources
+=  FFB4                   ED_NETTIME      equ     -76             ; Network Time Out Error
+=  FFB3                   ED_NETCOMM      equ     -77             ; Network Communications Error
+=  FFB2                   ED_NETSRVR      equ     -78             ; No Server Network Resources 
+=  FFB1                   ED_NETLOG       equ     -79             ; Server Not Logged In
+=
+=  FFB0                   ED_EXISTS       equ     -80             ; file already exists
+=  FFAE                   ED_MAKE         equ     -82             ; Cannot Make (Files ??)
+=  FFAD                   ED_FAIL         equ     -83             ; FAIL code returned from INT 24
+=  FFAC                   ED_STRUCT       equ     -84             ; Out of Structures
+=  FFAB                   ED_ASSIGN       equ     -85             ; Already Assigned
+=  FFAA                   ED_PASSWORD     equ     -86             ; Invalid Password
+=  FFA9                   ED_PARAM        equ     -87             ; Invalid Parameter
+=  FFA8                   ED_NETWRITE     equ     -88             ; Network write fault
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page  10
+
+
+=  FFA7                   ED_NETFUNC      equ     -89             ; Function not supported on network
+=  FFA6                   ED_COMPONENT    equ     -90             ; system component not installed
+=  FFA6                   ED_LASTERROR    equ     -90             ; Last Error Number Used
+=
+=
+=  0001                   CLASS_RESOURCE  equ     1       ; Out of Resource
+=  0002                   CLASS_TEMP      equ     2       ; Temporary Situation
+=  0003                   CLASS_AUTHOR    equ     3       ; Authorization Error
+=  0004                   CLASS_INTERNAL  equ     4       ; Internal System Software Error
+=  0005                   CLASS_HARDWARE  equ     5       ; Hardware Failure
+=  0006                   CLASS_SYSTEM    equ     6       ; Serious System Failure
+=  0007                   CLASS_APPLIC    equ     7       ; Application Program Error
+=  0008                   CLASS_LOST      equ     8       ; File/Item Not Found
+=  0009                   CLASS_FORMAT    equ     9       ; File/Item Illegal Format 
+=  000A                   CLASS_LOCKED    equ     10      ; File/Item Locked
+=  000B                   CLASS_MEDIA     equ     11      ; Media Failure
+=  000C                   CLASS_EXISTS    equ     12      ; Item Already Exists
+=  000D                   CLASS_UNKNOWN   equ     13      ; Unknown Classification
+=
+=  0001                   ACT_RETRY       equ     1       ; Retry a few times then prompt user
+=  0002                   ACT_DELAY       equ     2       ; Delay then as ACT_RETRY
+=  0003                   ACT_USER        equ     3       ; Prompt user to re-enter data
+=  0004                   ACT_ABORT       equ     4       ; Clean Up then ABORT the process
+=  0005                   ACT_TERM        equ     5       ; Terminate immeadiately NO CLEAN UP
+=  0006                   ACT_IGNORE      equ     6       ; Ignore the Error
+=  0007                   ACT_URETRY      equ     7       ; Retry the error after user intervention
+=
+=  0001                   LOC_UNKNOWN     equ     1       ; Unknown error location
+=  0002                   LOC_BLOCK       equ     2       ; Block Device Failure
+=  0003                   LOC_NET         equ     3       ; Network Failure
+=  0004                   LOC_CHAR        equ     4       ; Related to Serial/Character devices
+=  0005                   LOC_MEMORY      equ     5       ; Failure related to Memory 
+
+                                  
+   0001                   BEST_FIT        equ     01h             ; allocate BEST match memory block
+   0002                   LAST_FIT        equ     02h             ; allocate LAST matching memory block
+   0080                   UPPER_FIT       equ     80h             ; preferably allocate from upper memory
+   0040                   UPPER_ONLY_FIT  equ     40h             ; only allocate from upper memory
+
+   0004                   FIRST_FIT       equ     04h             ; we use this internally...
+
+                          PCM_CODE        CSEG    BYTE
+                                  extrn   error_exit:near         ; Standard Error Handler
+                                  extrn   return_AX_CLC:near
+                                  extrn   return_BX:near
+                                  extrn   reload_ES:near
+                                  extrn   toupper:near
+
+                          ;       *****************************
+                          ;       ***    DOS Function 48    ***
+                          ;       *** Allocate Memory Block ***
+                          ;       *****************************
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page  11
+
+
+                          ;
+                                  Public  func48
+                          func48:                                 ; bx = request size
+ 0000 FF1E0000     E              callf   lock_tables             ; lock global tables
+ 0004 E85201         0159         call    search_mem              ; look for block bx or bigger
+ 0007 724F           0058          jc     memory_avbl_error       ;  skip on error
+ 0009 F606000002   E              test    mem_strategy,LAST_FIT   ; is it last fit ?
+ 000E 740E           001E          jz     f48_10                  ; no, use from begining
+ 0010 8BC1                        mov     ax,cx                   ; work out how much we have
+ 0012 2BC3                        sub     ax,bx                   ;  to leave free
+ 0014 7408           001E          je     f48_10
+ 0016 48                          dec     ax
+ 0017 8BD8                        mov     bx,ax
+ 0019 E8FF01         021B         call    make_dmd                ; allocate this DMD as free
+ 001C 8BD9                        mov     bx,cx                   ; real block is the next one
+                          f48_10:
+ 001E A10000       E              mov     ax,current_psp          ; Change the Owner
+ 0021 26A30100                    mov     DMD_PSP,ax              ; we now own this block
+
+ 0025 06                          push    es
+ 0026 E8F201         021B         call    make_dmd                ; make new DMD for allocated mem
+ 0029 58                          pop     ax
+ 002A 40                          inc     ax                      ; return starting segment
+ 002B EB24           0051         jmps    memory_exit             ; unlock global tables
+
+
+                          ;       *****************************
+                          ;       ***    DOS Function 49    ***
+                          ;       ***   Free Memory Block   ***
+                          ;       *****************************
+                          ;
+                                  Public  func49
+                          func49:
+ 002D FF1E0000     E              callf   lock_tables             ; lock global tables
+ 0031 E81302         0247         call    get_dmd                 ; es -> dmd
+ 0034 7227           005D          jc     memory_error            ; skip if block invalid
+ 0036 26A10100                    mov     ax,DMD_PSP              ; get owner field
+ 003A 3B060000     E              cmp     ax,dmd_owner
+ 003E 8CC0                        mov     ax,es                   ; return DMD address in AX
+ 0040 7208           004A          jb     func49_10
+ 0042 8B160000     E              mov     dx,dmd_address          ; nothing below this block get's freed
+ 0046 3BC2                        cmp     ax,dx                   ; should we free it ?
+ 0048 7202           004C          jb     func49_20               ; no, give it a new owner
+                          func49_10:
+ 004A 33D2                        xor     dx,dx                   ; yes, owner = 0 means free block
+                          func49_20:
+ 004C 2689160100                  mov     DMD_PSP,dx              ; free/set new owner
+                          ;       jmps    memory_exit
+
+                          ; centralised exit point to unlock system tables
+
+                          memory_exit:
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page  12
+
+
+                          ;-----------
+                          ; On Entry:
+                          ;       AX = return value
+                          ; On Exit
+                          ;       None
+                          ;
+ 0051 FF1E0000     E              callf   unlock_tables           ; unlock global tables
+ 0055 E90000       E              jmp     return_AX_CLC           ; return DMD address
+
+                          memory_avbl_error:
+ 0058 8BD9                        mov     bx,cx
+ 005A E80000       E              call    return_BX               ; return biggest block available
+                          memory_error:
+ 005D FF1E0000     E              callf   unlock_tables           ; unlock global tables
+ 0061 C606000005   E              mov     locus,LOC_MEMORY
+ 0066 E90000       E              jmp     error_exit              ; Jump to error handler
+
+
+                          ;       *****************************
+                          ;       ***    DOS Function 4A    ***
+                          ;       ***   Alter Memory Block  ***
+                          ;       *****************************
+                          ;
+                                  Public  func4A
+                          func4A:
+ 0069 FF1E0000     E              callf   lock_tables             ; lock global tables
+ 006D E8D701         0247         call    get_dmd                 ; es -> dmd
+ 0070 72EB           005D          jc     memory_error            ; skip if block invalid
+
+ 0072 26FF360300                  push    DMD_LEN                 ; save the current DMD length
+ 0077 E87301         01ED         call    merge_mem               ; pick up unallocated blocks
+ 007A 58                          pop     ax                      ; return original DMD length
+ 007B 72E0           005D          jc     memory_error            ; if dmd's destroyed
+
+ 007D B8F8FF                      mov     ax,ED_MEMORY            ; assume insufficient mem
+ 0080 268B0E0300                  mov     cx,DMD_LEN              ; cx = available size
+ 0085 3BCB                        cmp     cx,bx                   ; if avail < req, then
+ 0087 72CF           0058          jb     memory_avbl_error       ; return maximum possible
+
+ 0089 A10000       E              mov     ax,current_psp          ; Force this block to be owned by the
+ 008C 26A30100                    mov     DMD_PSP,ax              ; current PSP. MACE Utilities
+
+ 0090 E88801         021B         call    make_dmd                ; new block on top
+ 0093 E80000       E          call    reload_ES       
+ 0096 8CC0                        mov     ax,es
+ 0098 EBB7           0051         jmps    memory_exit
+
+                          ;       *****************************
+                          ;       ***    DOS Function 58    ***
+                          ;       *** Get/Set Alloc Strategy***
+                          ;       *****************************
+                          ;
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page  13
+
+
+                          ;               On Entry:-      AL == 0 Get Allocation Strategy
+                          ;                               AL == 1 Set Allocation Strategy
+                          ;                               AL == 2 Get Upper Memory Link
+                          ;                               AL == 3 Set Upper Memory Link
+                                  Public  func58
+
+                          func58:
+ 009A FF1E0000     E              callf   lock_tables             ; lock global tables
+ 009E 3C03                        cmp     al,3
+ 00A0 770E           00B0          ja     f58_error               ; Range Check Sub-Function
+ 00A2 98                          cbw                             ; AH = 0
+ 00A3 8BF0                        mov     si,ax
+ 00A5 03F6                        add     si,si                   ; SI = word offset of sub-function
+ 00A7 2EFF94B500   R              call    cs:f58_tbl[si]          ; execute the sub-function
+ 00AC 73A3           0051          jnc    memory_exit             ; return the result
+ 00AE EBAD           005D         jmps    memory_error            ;  or the error
+                                  
+
+                          f58_error:
+ 00B0 B8FFFF                      mov     ax,ED_FUNCTION
+ 00B3 EBA8           005D         jmps    memory_error
+
+ 00B5 BD00         R      f58_tbl dw      f58_get_strategy
+ 00B7 C100         R              dw      f58_set_strategy
+ 00B9 C800         R              dw      f58_get_link
+ 00BB CE00         R              dw      f58_set_link
+
+                          f58_get_strategy:
+                          ;       mov     ah,0                    ; AX = subfunction = 0-3
+ 00BD A00000       E              mov     al,mem_strategy
+                          ;       clc
+ 00C0 C3                          ret
+
+                          f58_set_strategy:
+ 00C1 B458                        mov     ah,MS_M_STRATEGY
+ 00C3 881E0000     E              mov     mem_strategy,bl
+                          ;       clc
+ 00C7 C3                          ret
+
+                          f58_get_link:
+ 00C8 B458                        mov     ah,MS_M_STRATEGY
+ 00CA A00000       E              mov     al,dmd_upper_link
+                          ;       clc
+ 00CD C3                          ret
+
+                          f58_set_link:
+ 00CE B8FFFF                      mov     ax,ED_FUNCTION          ; return function not implemented
+ 00D1 8B0E0000     E              mov     cx,dmd_upper_root       ;  if no upper memory chain 
+ 00D5 41                          inc     cx                      ; CX = FFFF
+ 00D6 F9                          stc
+ 00D7 E328           0101          jcxz   f58_set_link20
+ 00D9 49                          dec     cx
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page  14
+
+
+ 00DA 881E0000     E              mov     dmd_upper_link,bl       ; set link field
+ 00DE A10000       E              mov     ax,dmd_root             ; now find dmd before upper memory root
+ 00E1 B24D                        mov     dl,IDM                  ; assume we want to link
+ 00E3 84DB                        test    bl,bl                   ; do we want to link/unlink UMBs?
+ 00E5 7502           00E9          jnz    f58_set_link10
+ 00E7 B25A                        mov     dl,IDZ                  ; no, we want to unlink
+                          f58_set_link10:
+ 00E9 8EC0                        mov     es,ax                   ; point to DMD
+ 00EB E86101         024F         call    check_dmd_id            ; stop if id is invalid
+ 00EE 7211           0101          jc     f58_set_link20          ;  and return an error
+ 00F0 06                          push    es
+ 00F1 E8EE00         01E2         call    next_dmd                ; does the next DMD match our
+ 00F4 07                          pop     es
+ 00F5 3BC1                        cmp     ax,cx                   ; upper memory chain ?
+ 00F7 75F0           00E9          jne    f58_set_link10
+ 00F9 2688160000                  mov     DMD_ID,dl               ; set appropriate link type
+ 00FE B80358                      mov     ax,(MS_M_STRATEGY*256)+3; return AX unchanged
+                          ;       clc
+                          f58_set_link20:
+ 0101 C3                          ret
+
+
+
+
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page  15
+
+
+                          eject
+                          ;****************************************
+                          ;*                                      *
+                          ;*      Memory Function Subroutines     *
+                          ;*                                      *
+                          ;****************************************
+                          ;
+                          ;       FREE_ALL takes the PSP passed in the BX register and free's all 
+                          ;       memory associated with that PSP.
+                          ; 
+                          ;       entry:          bx = requested PSP
+                          ;
+                          ;       exit:
+                          ;
+                                  Public  free_all
+                          free_all:
+ 0102 8E060000     E              mov     es,dmd_root             ; es -> first dmd
+
+                          free_all_loop:
+ 0106 E84601         024F         call    check_dmd_id            ; if block is invalid
+ 0109 722C           0137         jc      free_all_fail           ;   then quit now
+
+ 010B 8AD0                        mov     dl,al                   ; dl = id code
+ 010D 26391E0100                  cmp     DMD_PSP,bx              ; if block is owned by another
+ 0112 7507           011B         jnz     free_all_next           ;   then check next
+
+ 0114 268126010000                and     DMD_PSP,0               ; Free this partition
+      00
+
+                          free_all_next:
+ 011B 06                          push    es
+ 011C E8C300         01E2         call    next_dmd                ; es -> next block up
+ 011F 58                          pop     ax
+ 0120 80FA4D                      cmp     dl,IDM                  ; if previous block wasn't last
+ 0123 74E1           0106         jz      free_all_loop           ;   then keep going
+ 0125 39060000     E              cmp     dmd_upper_root,ax
+ 0129 760A           0135         jbe     free_all_end
+ 012B A10000       E              mov     ax,dmd_upper_root       ; free UMBs as well
+ 012E 3DFFFF                      cmp     ax,-1                   ; if UMB head is valid
+ 0131 8EC0                        mov     es,ax
+ 0133 75D1           0106         jne     free_all_loop
+                          free_all_end:
+ 0135 33C0                        xor     ax,ax                   ; Otherwise Stop
+
+                          free_all_fail:
+ 0137 C3                          ret
+
+                          ;
+                          ;       SET_OWNER allows the OWNING PSP to specify the new owner of
+                          ;       the partition. An error is returned if an incorrect partition address
+                          ;       is given or the partition is not owned by the current PSP.
+                          ;
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page  16
+
+
+                          ;       Entry:- AX == New PSP
+                          ;               BX == Partition Start
+                          ;
+                          ;       Exit:-
+                          ;               no carry        AX == Unknown
+                          ;               carry           AX == Error Code
+                          ;
+                                  Public  set_owner
+                          set_owner:
+ 0138 06                          push    es
+ 0139 4B                          dec     bx
+ 013A 8EC3                        mov     es,bx                   ; ES points at DMD (We Hope)
+ 013C 93                          xchg    ax,bx                   ; Save the New PSP address in BX
+ 013D E80F01         024F         call    check_dmd_id            ; Check for a valid DMD
+ 0140 7215           0157          jc     s_o20
+ 0142 A10000       E              mov     ax,current_psp
+ 0145 263B060100                  cmp     ax,DMD_PSP              ; Check the Current PSP owns the memory
+ 014A 7507           0153          jnz    s_o10
+ 014C 26891E0100                  mov     DMD_PSP,bx              ; Set the new owner and return  
+ 0151 EB04           0157         jmps    s_o20
+
+                          s_o10:
+ 0153 B8F7FF                      mov     ax,ED_BLOCK
+ 0156 F9                          stc
+                          s_o20:
+ 0157 07                          pop     es
+ 0158 C3                          ret
+
+                          ;
+                          ;       Search for a free memory block at least as big as bx
+                          ;       entry:          bx = requested size
+                          ;       success exit:   cf clear, es -> dmd
+                          ;                       cx = block size
+                          ;       failure exit:   cf set, ax = error code
+                          ;                       cx = biggest block available
+
+                          search_mem:
+ 0159 B8F9FF                      mov     ax,ED_DMD               ; assume bad DMD chain
+ 015C 8B0E0000     E              mov     cx,dmd_root             ; start at the bottom
+ 0160 E366           01C8          jcxz   search_mem_exit
+ 0162 8EC1                        mov     es,cx                   ; lets clean up memory list
+ 0164 800E000004   E              or      mem_strategy,FIRST_FIT  ; grab 1st block we come to
+                          search_mem_init:
+ 0169 33F6                        xor     si,si                   ; si = max mem available
+ 016B BFFFFF                      mov     di,0FFFFh               ; di = size of candiate (FFFF=none)
+                                                                  ; dx = dmd of candidate
+                          search_mem_loop:
+ 016E E8DE00         024F         call    check_dmd_id            ; if block is invalid
+ 0171 7255           01C8          jc     search_mem_exit         ;   then quit now
+
+ 0173 26833E010000                cmp     DMD_PSP,0               ; if block is owned
+ 0179 752F           01AA          jnz    search_mem_next         ;   then check another
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page  17
+
+
+
+ 017B E86F00         01ED         call    merge_mem               ; group with unallocated blocks
+
+ 017E 8CC0                        mov     ax,es                   ; AX = current DMD
+ 0180 268B0E0300                  mov     cx,DMD_LEN              ; cx = block length
+
+ 0185 3BCE                        cmp     cx,si                   ; is it the biggest block we
+ 0187 7202           018B          jb     search_mem40            ;   have found so far ?
+ 0189 8BF1                        mov     si,cx                   ;  if so then save the new size
+                          search_mem40:
+
+ 018B 3BCB                        cmp     cx,bx                   ; if it's not long enough
+ 018D 721B           01AA          jb     search_mem_next         ;  then try the next block
+
+ 018F F606000006   E              test    mem_strategy,FIRST_FIT+LAST_FIT
+ 0194 750B           01A1          jnz    search_mem50            ; grab this block ?
+
+ 0196 F606000001   E              test    mem_strategy,BEST_FIT   ; if BEST FIT then we only save this
+ 019B 740D           01AA          jz     search_mem_next         ;  candidate if the previous
+ 019D 3BCF                        cmp     cx,di                   ;  candidate was bigger
+ 019F 7309           01AA          jae    search_mem_next
+                          search_mem50:
+ 01A1 8CC2                        mov     dx,es                   ; save this DMD candidate
+ 01A3 8BF9                        mov     di,cx                   ;  along with it's length
+ 01A5 80260000FB   E              and     mem_strategy,not FIRST_FIT
+                          search_mem_next:
+ 01AA E82D00         01DA         call    search_next_dmd         ; try for another DMD
+ 01AD B8F8FF                      mov     ax,ED_MEMORY            ; assume insufficient mem
+ 01B0 7216           01C8          jc     search_mem_exit         ; stop if it's true
+
+ 01B2 8CC0                        mov     ax,es
+ 01B4 3B060000     E              cmp     ax,dmd_upper_root       ; if we reach the dmd upper root
+ 01B8 75B4           016E          jne    search_mem_loop         ;  then we have a special case
+ 01BA 800E000004   E              or      mem_strategy,FIRST_FIT  ; grab 1st high memory block we find
+ 01BF F606000040   E              test    mem_strategy,UPPER_ONLY_FIT
+ 01C4 75A3           0169          jnz    search_mem_init         ; upper only is another special case
+ 01C6 EBA6           016E         jmps    search_mem_loop 
+
+                          search_mem_exit:
+ 01C8 80260000FB   E              and     mem_strategy,not FIRST_FIT
+ 01CD 8BCF                        mov     cx,di                   ; DX&DI contain our best candidate
+ 01CF 47                          inc     di                      ; if DI=FFFF then we don't have one
+ 01D0 7404           01D6          je     search_mem_bad          ;  else we return with CX = size
+ 01D2 8EC2                        mov     es,dx                   ;  and ES = DMD
+ 01D4 F8                          clc                             ; clear the error flag
+ 01D5 C3                          ret
+
+                          search_mem_bad:
+ 01D6 8BCE                        mov     cx,si                   ; no allocation made, so return
+                          search_mem_error:                       ;  biggest block and flag the error
+ 01D8 F9                          stc
+ 01D9 C3                          ret
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page  18
+
+
+
+                          search_next_dmd:
+                          ; On Entry:
+                          ;       ES = current DMD
+                          ; On Exit:
+                          ;       ES = AX = next DMD
+                          ;       DX/DI preserved
+                          ;
+ 01DA 26803E00004D                cmp     DMD_ID,IDM              ; do we have any more blocks ?
+ 01E0 75F6           01D8          jne    search_mem_error        ;  no, return CY set
+                          ;       jmp     next_dmd                ; else try next DMD
+
+                          ;       Point to next DOS Memory Descriptor (dmd) in the chain
+                          ;       entry:  es -> current dmd
+                          ;       exit:   es -> next dmd
+
+                          next_dmd:
+ 01E2 8CC0                        mov     ax,es
+ 01E4 2603060300                  add     ax,DMD_LEN
+ 01E9 40                          inc     ax                      ; allow for dmd itself
+ 01EA 8EC0                        mov     es,ax
+ 01EC C3                          ret
+
+                          ;       Increase the size of the current mem block
+                          ;       by gobbling all adjacent unallocated blocks
+                          ;       entry:  es -> dmd
+                          ;       exit:   cf = 1, al = 7 if chain is broken
+                          ;               ES,SI,DI,DX,BX preserved
+
+                          merge_mem:
+ 01ED 06                          push    es
+ 01EE 26803E00004D                cmp     DMD_ID,IDM              ; if no more dmd's
+ 01F4 7522           0218          jnz    merge_mem_done          ;   then just quit
+
+ 01F6 E8E9FF         01E2         call    next_dmd
+ 01F9 E85300         024F         call    check_dmd_id            ; if id is invalid
+ 01FC 721B           0219          jc     merge_mem_quit          ;   then return an error
+
+ 01FE 26833E010000                cmp     DMD_PSP,0               ; if next dmd is owned
+ 0204 7512           0218          jnz    merge_mem_done          ;   then done
+
+ 0206 268B0E0300                  mov     cx,DMD_LEN              ; if free, grab its length
+ 020B 07                          pop     es                      ; restore base dmd
+
+ 020C 26A20000                    mov     DMD_ID,al               ; use next's id (in case of last)
+ 0210 41                          inc     cx
+ 0211 26010E0300                  add     DMD_LEN,cx              ; add new memory to base
+ 0216 EBD5           01ED         jmps    merge_mem               ;   and try again
+
+                          merge_mem_done:
+ 0218 F8                          clc                             ; clear error flag
+                          merge_mem_quit:
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page  19
+
+
+ 0219 07                          pop     es                      ; restore base dmd
+ 021A C3                          ret                             ; with cf and error flag
+
+
+                          ;       If needed, create a new dmd on top of allocated memory
+                          ;       entry:  es -> current block
+                          ;               bx = requested block size
+                          ;               cx = current block size
+
+                          make_dmd:
+ 021B 3BD9                        cmp     bx,cx                   ; if request and size match
+ 021D 7427           0246          jz     make_dmd_done           ;   then that's all we need
+
+ 021F 268A160000                  mov     dl,DMD_ID               ; get current block id
+ 0224 26891E0300                  mov     DMD_LEN,bx              ; else shrink this block
+ 0229 26C60600004D                mov     DMD_ID,IDM              ; not the last now
+ 022F E8B0FF         01E2         call    next_dmd
+ 0232 2688160000                  mov     DMD_ID,dl               ; our old id for the new dmd
+ 0237 26C706010000                mov     DMD_PSP,0               ; new block is free
+      00
+ 023E 2BCB                        sub     cx,bx
+ 0240 49                          dec     cx
+ 0241 26890E0300                  mov     DMD_LEN,cx              ; length is whatever is left
+
+                          make_dmd_done:
+ 0246 C3                          ret
+
+                          ;       Get passed value of memory block
+                          ;       exit:   es -> dmd
+                          ;               al = DMD_ID, cf cleared if valid
+                          ;               al = 7, cf set if invalid
+
+                          get_dmd:
+ 0247 E80000       E              call    reload_ES
+ 024A 8CC0                        mov     ax,es
+ 024C 48                          dec     ax                      ; back up to dmd
+ 024D 8EC0                        mov     es,ax
+                          ;       jmps    check_dmd_id            ; fall through
+
+                          ;       Check first byte in the dmd for a valid id code
+                          ;       entry:  es -> dmd
+                          ;       exit:   al = DMD_ID, cf cleared if valid
+                          ;               al = 7, cf set if invalid
+
+                                  Public  check_dmd_id
+
+                          check_dmd_id:
+ 024F 26A00000                    mov     al,DMD_ID
+ 0253 3C4D                        cmp     al,IDM                  ; if not last
+ 0255 7408           025F         jz      check_dmd_done          ;   then good
+ 0257 3C5A                        cmp     al,IDZ                  ; if last
+ 0259 7404           025F         jz      check_dmd_done          ;   also good
+PC-DOS RASM-86 1.4a  Source: DOSMEM.A86                                                                      Page  20
+
+
+
+ 025B B8F7FF                      mov     ax,ED_BLOCK             ; Invalid DMD
+                          check_dmd_error:
+ 025E F9                          stc                             ; flag the error
+                          check_dmd_done:
+ 025F C3                          ret
+
+                                  
+                          PCMODE_DATA     DSEG
+
+                                  extrn   lock_tables:dword
+                                  extrn   unlock_tables:dword
+
+                                  extrn   dmd_address:word        ; don't free DMD's with segment under this value
+                                  extrn   dmd_owner:word          ; don't free DMD's with owner under this value
+                                  extrn   dmd_upper_root:word
+                                  extrn   dmd_upper_link:byte
+                                  extrn   current_psp:word
+                                  extrn   locus:byte
+                                  extrn   mem_strategy:byte
+                                  extrn   dmd_root:word
+
+                                  end
+
+
+End of assembly.  Number of errors:   0.  Use factor: 16%
+ ; don't free DMD's with owner under this value
+                                  extrn   dm

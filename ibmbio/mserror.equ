@@ -1,0 +1,121 @@
+;    File              : $MSERROR.EQU$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+
+ED_FUNCTION	equ	-01		; invalid function number
+ED_FILE		equ	-02		; file not found
+ED_PATH		equ	-03		; path not found
+ED_HANDLE	equ	-04		; too many open files
+ED_ACCESS	equ	-05		; file access denied
+ED_H_MATCH	equ	-06		; invalid handle number
+ED_DMD		equ	-07		; memory descriptor destroyed
+ED_MEMORY	equ	-08		; insufficient memory
+ED_BLOCK	equ	-09		; invalid memory block addr
+ED_ENVIRON	equ	-10		; invalid environment
+ED_FORMAT	equ	-11		; invalid format
+ED_ACC_CODE	equ	-12		; invalid access code
+ED_DATA		equ	-13		; invalid data
+ED_DRIVE	equ	-15		; invalid drive specified
+ED_DIR		equ	-16		; can't remove current dir
+ED_DEVICE	equ	-17		; not same device
+ED_ROOM		equ	-18		; no more files
+
+ED_PROTECT	equ	-19		; disk write protected
+ED_BADUNIT	equ	-20		; invalid drive specified
+ED_NOTREADY	equ	-21		; drive doesn't respond
+ED_BADCMD	equ	-22		; invalid command to driver
+ED_BADDATA	equ	-23		; data CRC error
+ED_BADRHLEN	equ	-24		; (shouldn't happen)
+ED_BADSEEK	equ	-25		; can't seek to track
+ED_BADMEDIA	equ	-26		; unrecognizable medium
+ED_RNF		equ	-27		; record/sector not found
+ED_NOPAPER	equ	-28		; printer error
+ED_WRFAIL	equ	-29		; write failed
+ED_RDFAIL	equ	-30		; read failed
+ED_GENFAIL	equ	-31		; anything failed
+ED_SHAREFAIL	equ	-32		; sharing conflict
+ED_LOCKFAIL	equ	-33		; locking conflict
+ED_DISKCHG	equ	-34		; invalid disk change
+ED_NOFCBS	equ	-35		; FCB table exhausted
+ED_NOLOCKS	equ	-36		; lock list items exhausted
+ED_NET		equ	-50		; Network Request Not Supported
+
+ED_NETACCESS	equ	-65		; file access denied
+
+ED_NETPWD	equ	-73		; Server Password Error
+ED_NETVER	equ	-74		; Incorrect Server version
+ED_NETREQ	equ	-75		; No Local Network Resources
+ED_NETTIME	equ	-76		; Network Time Out Error
+ED_NETCOMM	equ	-77		; Network Communications Error
+ED_NETSRVR	equ	-78		; No Server Network Resources 
+ED_NETLOG	equ	-79		; Server Not Logged In
+
+ED_EXISTS	equ	-80		; file already exists
+ED_MAKE		equ	-82		; Cannot Make (Files ??)
+ED_FAIL		equ	-83		; FAIL code returned from INT 24
+ED_STRUCT	equ	-84		; Out of Structures
+ED_ASSIGN	equ	-85		; Already Assigned
+ED_PASSWORD	equ	-86		; Invalid Password
+ED_PARAM	equ	-87		; Invalid Parameter
+ED_NETWRITE	equ	-88		; Network write fault
+ED_NETFUNC	equ	-89		; Function not supported on network
+ED_COMPONENT	equ	-90		; system component not installed
+ED_LASTERROR	equ	-90		; Last Error Number Used
+
+CLASS_RESOURCE	equ	1	; Out of Resource
+CLASS_TEMP	equ	2	; Temporary Situation
+CLASS_AUTHOR	equ	3	; Authorization Error
+CLASS_INTERNAL	equ	4	; Internal System Software Error
+CLASS_HARDWARE	equ	5	; Hardware Failure
+CLASS_SYSTEM	equ	6	; Serious System Failure
+CLASS_APPLIC	equ	7	; Application Program Error
+CLASS_LOST	equ	8	; File/Item Not Found
+CLASS_FORMAT	equ	9	; File/Item Illegal Format 
+CLASS_LOCKED	equ	10	; File/Item Locked
+CLASS_MEDIA	equ	11	; Media Failure
+CLASS_EXISTS	equ	12	; Item Already Exists
+CLASS_UNKNOWN	equ	13	; Unknown Classification
+
+ACT_RETRY	equ	1	; Retry a few times then prompt user
+ACT_DELAY	equ	2	; Delay then as ACT_RETRY
+ACT_USER	equ	3	; Prompt user to re-enter data
+ACT_ABORT	equ	4	; Clean Up then ABORT the process
+ACT_TERM	equ	5	; Terminate immeadiately NO CLEAN UP
+ACT_IGNORE	equ	6	; Ignore the Error
+ACT_URETRY	equ	7	; Retry the error after user intervention
+
+LOC_UNKNOWN	equ	1	; Unknown error location
+LOC_BLOCK	equ	2	; Block Device Failure
+LOC_NET		equ	3	; Network Failure
+LOC_CHAR	equ	4	; Related to Serial/Character devices
+LOC_MEMORY	equ	5	; Failure related to Memory 

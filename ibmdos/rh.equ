@@ -1,0 +1,134 @@
+;    File              : $RH.EQU$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+;
+;	Request command equates
+
+CMD_INIT		equ	 0	; Initialize the Device Driver
+CMD_MEDIA_CHECK		equ	 1	; Request Media Check
+CMD_BUILD_BPB		equ	 2	; Build Drive BPB
+CMD_INPUT_IOCTL		equ	 3	; IOCTL input
+CMD_INPUT		equ	 4	; Input
+CMD_INPUT_NOWAIT	equ	 5	; Non destructive input no wait
+CMD_INPUT_STATUS	equ	 6	; Input status
+CMD_INPUT_FLUSH		equ	 7	; Input flush
+CMD_OUTPUT		equ	 8	; Output
+CMD_OUTPUT_VERIFY	equ	 9	; Output with verify
+CMD_OUTPUT_STATUS	equ	10	; Output status
+CMD_OUTPUT_FLUSH	equ	11	; Output flush
+CMD_OUTPUT_IOCTL	equ	12	; IOCTL output
+CMD_DEVICE_OPEN		equ	13	; Device OPEN
+CMD_DEVICE_CLOSE	equ	14	; Device CLOSE
+CMD_FIXED_MEDIA		equ	15	; Removeable Media Check
+CMD_GENERIC_IOCTL	equ	19	; Generic IOCTL
+CMD_GET_DEVICE		equ	23	; Get the Logical Device
+CMD_SET_DEVICE		equ	24	; Set the Logical Device
+
+;	Request header definition
+
+RH_LEN		equ	byte ptr 0
+RH_UNIT		equ	byte ptr 1
+RH_CMD		equ	byte ptr 2
+RH_STATUS	equ	word ptr 3
+  RHS_DONE	equ	0100h
+  RHS_BUSY	equ	0200h
+  RHS_RM	equ	0800h
+  RHS_ERROR	equ	8000h
+
+;******
+;* No longer safe to use - some device drivers trample on them....
+;*
+;* RH_STRATEGY	equ	dword ptr 5[bx]	; Device Strategy Routine
+;* RH_STRATOFF	equ	word ptr  5[bx]	; Strategy Offset
+;* RH_STRATSEG	equ	word ptr  7[bx]	; Strategy Segment
+;* RH_INTERRUPT	equ	dword ptr 9[bx]	; Device Interrupt Routine
+;* RH_INTOFF	equ	word ptr  9[bx]	; Intterupt Offset
+;* RH_INTSEG	equ	word ptr 11[bx]	; Interrupt Segment
+;*****
+
+;	Request header for media check
+
+RH1_MEDIA	equ	byte ptr 13	; BDOS: current media byte
+RH1_RETURN	equ	byte ptr 14	; driver: return code (00, 01, FF)
+RH1_VOLID	equ	dword ptr 15	; driver: volume label address
+
+
+;	Request header for "build BPB"
+
+RH2_MEDIA	equ	byte ptr 13	; BDOS or driver?
+RH2_BUFFER	equ	dword ptr 14	; BDOS: scratch buffer for driver use
+RH2_BPB		equ	dword ptr 18	; driver: address of new BPB
+
+
+;	Request header for input/output
+
+RH4_MEDIA	equ	byte ptr 13	; BDOS: current media byte
+RH4_BUFFER	equ	dword ptr 14	; BDOS: disk transfer address
+RH4_BUFOFF	equ	word ptr 14
+RH4_BUFSEG	equ	word ptr 16
+RH4_COUNT	equ	word ptr 18	; BDOS: sector count
+RH4_SECTOR	equ	word ptr 22	; BDOS: starting sector
+RH4_VOLID	equ	dword ptr 24	; driver: volume if illegal disk change
+
+;	Request Header for Non-Destructive Input
+
+RH5_CHAR	equ	byte ptr 13	; Character Read from Device
+
+;	Request header for generic IOCTL
+
+RH19_CATEGORY	equ	word ptr 13	; BDOS: major/minor function number
+RH19_GENPB	equ	word ptr 19	; BDOS: extra parameters
+
+;	Request header for get/set logical drive
+
+RH24_DRIVE	equ	byte ptr 13	; Set logical drive
+
+;	Request header lengths
+
+RH0_LEN		equ	22
+RH1_LEN		equ	15
+RH2_LEN		equ	24
+if DOS5
+RH4_LEN		equ	30
+else
+RH4_LEN		equ	22		; or 24 for big sectors
+endif
+RH4_CDEV_LEN	equ	22
+RH5_LEN		equ	14
+RH12_LEN	equ	22
+RH13_LEN	equ	13
+RH14_LEN	equ	13
+RH15_LEN	equ	13
+RH19_LEN	equ	23
+RH24_LEN	equ	21
+

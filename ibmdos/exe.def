@@ -1,0 +1,52 @@
+;    File              : $EXE.DEF$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+;
+;   This file defines the DOS .EXE file Header
+
+
+EXE_SIGNATURE	equ	word ptr 0		; 0000 Valid EXE contains 'MZ'
+EXE_FINAL	equ	word ptr EXE_SIGNATURE+2; 0002 Image Length MOD 512
+EXE_SIZE	equ	word ptr EXE_FINAL+2	; 0004 Image Length DIV 512
+EXE_RELCNT	equ	word ptr EXE_SIZE+2	; 0006 No. of Relocation Items
+EXE_HEADER	equ	word ptr EXE_RELCNT+2	; 0008 Header Size in paragraphs
+EXE_MINPARA	equ	word ptr EXE_HEADER+2	; 000A Minimum No extra paragraphs
+EXE_MAXPARA	equ	word ptr EXE_MINPARA+2	; 000C Maximum No of extra paragraphs
+EXE_SS		equ	word ptr EXE_MAXPARA+2	; 000E Displacment of Stack Segment
+EXE_SP		equ	word ptr EXE_SS+2	; 0010 Initial SP
+EXE_CHECKSUM	equ	word ptr EXE_SP+2	; 0012 Negative CheckSum
+EXE_IP		equ	word ptr EXE_CHECKSUM+2	; 0014 Initial IP
+EXE_CS		equ	word ptr EXE_IP+2	; 0016 Code Segment displacement
+EXE_RELOFF	equ	word ptr EXE_CS+2	; 0018 Byte Offset of First REL item
+EXE_OVERLAY	equ	word ptr EXE_RELOFF+2	; 001A Overlay Number (0 == Resident)
+EXE_LENGTH	equ	001Ch

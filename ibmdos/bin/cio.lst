@@ -1,0 +1,2496 @@
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page   1
+
+
+=  0001                   __RASM__        EQU     1
+
+                          ;    File              : $CIO.A86$
+                          ;
+                          ;    Description       :
+                          ;
+                          ;    Original Author   : DIGITAL RESEARCH
+                          ;
+                          ;    Last Edited By    : $CALDERA$
+                          ;
+                          ;-----------------------------------------------------------------------;
+                          ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+                          ;      
+                          ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+                          ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+                          ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+                          ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+                          ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+                          ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+                          ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+                          ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+                          ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+                          ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+                          ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+                          ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+                          ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+                          ;    CIVIL LIABILITY.
+                          ;-----------------------------------------------------------------------;
+                          ;
+                          ;    *** Current Edit History ***
+                          ;    *** End of Current Edit History ***
+                          ;    $Log: $
+                          ;    CIO.A86 1.20 94/12/01 10:05:21
+                          ;    Made cooked_write and is_device aware of FCB writes;    
+                          ;    CIO.A86 1.19 94/06/28 12:21:07
+                          ;    Fix last_key_ext bug
+                          ;    CIO.A86 1.18 94/05/12 14:06:22
+                          ;    The routine cooked_status now sets a flag last_key_ext if the keycode is 0
+                          ;    On entry, it checks this flag to see if the last one was 0, and if so does
+                          ;    not do the checks for the control keys. In this way, Alt-R and Alt-Q can
+                          ;    be distinguished from Ctrl-S and Ctrl-P.
+                          ;    CIO.A86 1.17 93/12/21 17:58:15
+                          ;    Preserve BX round clock read
+                          ;    Update char_error so DS:SI -> device driver header itself
+                          ;    CIO.A86 1.10 93/05/06 19:28:03
+                          ;    Move int 23/28 support to CIO.
+                          ;    Read the clock in idle_dev, not int 28 loop.
+                          ;    CIO.A86 1.9 93/05/05 23:30:44
+                          ;    int 2A/84 is now only generated on input-and-wait functions
+                          ;    CIO.A86 1.8 93/03/25 15:05:56
+                          ;    tweak console block output
+                          ;    ENDLOG
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page   2
+
+
+                          ;
+                          ;       This module contains all the Character I/O functions used by PCMODE
+                          ;
+                          ; 12 Nov 87 Disable Control-Break when the Console Output mode is RAW
+                          ; 24 Feb 88 Display Control characters correctly. ie "^X"
+                          ; 23 May 88 Support ^S to Pause screen output.
+                          ; 25 May 88 Support Control-P for Cooked_Write and remove Kanji Character
+                          ;           check.
+                          ; 26 May 88 Check for CTLC on CON_DEV when character input is redirected.
+                          ;           Correctly detect EOF on redirected input.
+                          ; 17 Aug 88 Call PRN device with Open/Close on ^P
+                          ; 30 Aug 88 Jump to correct exit when Open/Close is not supported by a 
+                          ;           device driver for ^P.
+                          ; 14 Sep 88 Break checking should only be carried out when the INDOS_FLAG
+                          ;           is 1. (Novell and Cntrl-C).
+                          ; 03 Sep 88 Return the character output by INT21/04,05,06 in AL.
+                          ; 10 Nov 88 Preserve ES when calling any Device Driver (Revalation DEVDRVR)
+                          ; 15 Dec 88 Check STDERR for Control-C if it is a Device.
+                          ; 15 Mar 89 Check for CTLC during Cooked Write.
+                          ; 16 Mar 89 Explicitly allow INT 28 during char reads (SmartNotes bug)
+                          ; 25 Apr 89 Execute break_check after getting the console status INT21/0B
+                          ;  2 May 89 Save Device driver STRAT and INT address's on the stack
+                          ; 10 May 89 Now check keyboard more often during cooked write
+                          ; 25 May 89 Move INT28 flag to PCMIF.PCM
+                          ;  6 Sep 89 Enter/Exit critical region round device request
+                          ; 26 Oct 89 saving some bytes again...
+                          ; 25 Jan 90 Insert IDLE Detection Code
+                          ; 29 Jan 90 Int 2A critical section support added to device_callf
+                          ;  7 Mar 90 Convert to register preserved function calls
+                          ; 27 Mar 90 cooked_write checks STD_OUT for ctl-s ctl-p etc (STD_IN may
+                          ;           have been redirected)
+                          ; 29 Mar 90 preserve BX round device_callf (3+Share CLOCK$ bug)
+                          ; 12 Jun 90 get_doshndl parameter BX not AX
+                          ; 15 Oct 90 Added support for Return Interim Character flag (see PSP_RIC).
+                          ; 26 Oct 90 handle PSP=0 (ie. FCB device I/O)
+                          ;  1 mar 91 break_check now goes to con_device, not STDERR
+                          ; 17 jun 91 ij  fix to cooked_out to avoid status checks if STDOUT redirected
+
+=                                 include pcmode.equ
+=                         ;    File              : $PCMODE.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page   3
+
+
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ;       This file contains all the general purpose definitions
+=                         ;       and equates used by the PCMODE Module.
+=                         ;
+=
+=  FFFF                   TRUE            equ     0FFFFh          ; value of TRUE
+=  0000                   FALSE           equ     0               ; value of FALSE
+=
+=  0006                   TRUE_VERSION    equ     6
+=
+=  FFFF                   IDLE_DETECT     equ     TRUE            ; Check for IDLE Process's
+=
+=                         if IDLE_DETECT
+=  0001                   IDLE_COMMAND    equ     0001h           ; Command Processor Active
+=  0002                   IDLE_DOSFUNC    equ     0002h           ; DOS Function Called
+=  0004                   IDLE_INT28      equ     0004h           ; INT 28 Called
+=
+=  4000                   IDLE_ON         equ     4000h           ; ReSet when Idle Checking Enabled
+=  8000                   IDLE_INIT       equ     8000h           ; ReSet when $IDLE$ Loaded and Active
+=  C000                   IDLE_DISABLE    equ     IDLE_INIT + IDLE_ON 
+=
+=  0001                   PROC_IDLE       equ     0001            ; Process is IDLE
+=  0002                   PROC_INT28      equ     0002            ; INT28 Polling Loop
+=  0003                   PROC_KEYIN      equ     0003            ; Keyboard Input
+=  0004                   PROC_DEVIN      equ     0004            ; Device Input Routine
+=                         endif
+=
+=
+=  00C0                   STACK_SIZE      equ     192             ; Local Stack Size (Levels)
+=  0050                   MAX_PATHLEN     equ     80              ; Maximum Path length
+=  000D                   MAX_FILELEN     equ     13
+=
+=                         ;
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page   4
+
+
+=                         ;       DOS process termination Codes
+=                         ;
+=  0000                   TERM_NORMAL     equ     0               ; Normal Termination
+=  0001                   TERM_BREAK      equ     1               ; Termination by Control Break
+=  0002                   TERM_ERROR      equ     2               ; Termination by Critical Error
+=  0003                   TERM_RESIDENT   equ     3               ; Terminate and Stay Resident
+=
+=                         ;
+=                         ;       Critical Error responses from the default INT 24 handler and
+=                         ;       the DO_INT24 routine.
+=                         ;
+=  0000                   ERR_IGNORE      equ     0               ; Ignore Error
+=  0001                   ERR_RETRY       equ     1               ; Retry the Operation
+=  0002                   ERR_ABORT       equ     2               ; Terminate the Process
+=  0003                   ERR_FAIL        equ     3               ; Fail Function
+=                         ;
+=  0008                   OK_FAIL         equ     0000$1000b      ; Fail is a Valid Response
+=  0010                   OK_RETRY        equ     0001$0000b      ; Retry is a Valid Response
+=  0020                   OK_IGNORE       equ     0010$0000b      ; Ignore is a valid Response
+=  0038                   OK_RIF          equ     0011$1000b      ; All Responsese are Valid
+=  0030                   OK_RI           equ     0011$0000b      ; Retry and Ignore are Valid
+=  0018                   OK_RF           equ     0001$1000b      ; Retry and Fail are Valid
+=                         ;
+=  0040                   NO_CRIT_ERRORS  equ     0100$0000b      ; critical error shouldn't be generated
+=                                                                 ; warning - must match FDOS.A86
+=                         ;
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page   5
+
+
+=                         eject
+=                         ;       The following equates define the format in which the users registers
+=                         ;       are saved on the stack. This format is also seen by an application
+=                         ;       when a critical error occurs.
+=                         ;
+=                         CodeMacro       POP$DOS         ; Pop User Registers a la MS-DOS
+=                                 db 058h ! db 05Bh       ; pop AX ! pop BX
+=                                 db 059h ! db 05Ah       ; pop BX ! pop CX
+=                                 db 05Eh ! db 05Fh       ; pop SI ! pop DI
+=                                 db 05Dh                 ; pop BP
+=                                 db 01Fh ! db 007h       ; pop DS ! pop ES
+=                         EndM
+=
+=                         CodeMacro   PUSH$DOS    ; Push User Registers
+=                                 db 006h ! db 01Eh       ; push ES ! push DS
+=                                 db 055h                 ; push BP
+=                                 db 057h ! db 056h       ; push DI ! push SI
+=                                 db 052h ! db 051h       ; push DX ! push CX
+=                                 db 053h ! db 050h       ; push BX ! push AX
+=                         EndM
+=
+=  0000                   reg_AX          equ     word ptr .00
+=  0000                   reg_AL          equ     byte ptr .00
+=  0001                   reg_AH          equ     byte ptr .01
+=
+=  0002                   reg_BX          equ     word ptr .02
+=  0002                   reg_BL          equ     byte ptr .02
+=  0003                   reg_BH          equ     byte ptr .03
+=
+=  0004                   reg_CX          equ     word ptr .04
+=  0004                   reg_CL          equ     byte ptr .04
+=  0005                   reg_CH          equ     byte ptr .05
+=
+=  0006                   reg_DX          equ     word ptr .06
+=  0006                   reg_DL          equ     byte ptr .06
+=  0007                   reg_DH          equ     byte ptr .07
+=
+=  0008                   reg_SI          equ     word ptr .08
+=  000A                   reg_DI          equ     word ptr .10
+=  000C                   reg_BP          equ     word ptr .12
+=
+=  000E                   reg_DS          equ     word ptr .14
+=  0010                   reg_ES          equ     word ptr .16
+=
+=  0012                   reg_IP          equ     word ptr .18
+=  0014                   reg_CS          equ     word ptr .20
+=  0016                   reg_FLAGS       equ     word ptr .22
+=
+=                         ; Processor Flags
+=  0001                   CARRY_FLAG      equ     0001h           ; Carry Flag
+=  0040                   ZERO_FLAG       equ     0040h           ; Zero Flag
+=  0080                   SIGN_FLAG       equ     0080h           ; Sign Flag
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page   6
+
+
+=  0200                   INT_FLAG        equ     0200h           ; Interrupt Flag
+=  0400                   DIR_FLAG        equ     0400h           ; Direction Flag
+=  0800                   OFLW_FLAG       equ     0800h           ; OverFlow Flag
+=
+=  0000                   DMD_ID          equ     es:byte ptr .0  ; id code ('M' or 'Z')
+=  0001                   DMD_PSP         equ     es:word ptr .1  ; owner of memory block
+=  0003                   DMD_LEN         equ     es:word ptr .3  ; length of memory block
+=  0006                   DMD_IDLE_FLAGS  equ es:word ptr .6  ; idle flags live here
+=  0008                   DMD_NAME        equ     es:byte ptr .8  ; ASCIIZ name field
+=  0008                   DMD_NAME_LEN    equ     8               ;  8 Bytes long
+=  004D                   IDM             equ     'M'             ; not last id code
+=  005A                   IDZ             equ     'Z'             ; last id code
+=
+=                         PCMCODE         GROUP   PCM_HEADER, PCM_CODE, BDOS_CODE, PCM_RODATA
+=                         PCMCODE         GROUP   PCM_HISTORY, PCM_ICODE, PCM_CODEND
+=
+=                         PCM_HEADER      CSEG    PARA
+=                         PCM_CODE        CSEG    BYTE
+=                         PCM_RODATA      CSEG    WORD
+=                         BDOS_CODE       CSEG    WORD
+=                         PCM_HISTORY     CSEG    BYTE
+=                         PCM_ICODE       CSEG    BYTE
+=                         PCM_CODEND      CSEG    PARA
+=
+=
+=                         PCMDATA         GROUP   PCMODE_DATA, FDOS_DSEG, FIXED_DOS_DATA
+=                         PCMDATA         GROUP   PCMODE_CODE, GLOBAL_DATA, BDOS_DATA, PCMODE_DSIZE
+=
+=                         PCMODE_DATA     DSEG    WORD            ; DOS Data
+=                         FDOS_DSEG       DSEG    WORD COMMON     ; FDOS Parameter Block  
+=0000                     fdos_data       rw      7
+=                         FIXED_DOS_DATA  CSEG    WORD    'DATA'  ; Fixed DOS Data Area
+=                         PCMODE_CODE     CSEG    WORD    'DATA'  ; DATA relative CODE
+=                         GLOBAL_DATA     DSEG    WORD            ; GLOBAL DOS DATA (Process Independant)
+=                         BDOS_DATA       DSEG    WORD            ; BDOS Data Area
+=                         PCMODE_DSIZE    DSEG    PARA            ; End of DOS Data Area
+
+=                                 include i:driver.equ
+=                         ;    File              : $DRIVER.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page   7
+
+
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ; Device driver header offsets.
+=
+=
+=  0000                   DH_NEXT         equ     es:dword ptr 0          ; Dword Pointer to Next DEV
+=  0000                   DH_NEXTOFF      equ     es:word ptr 0           ; Offset of next device
+=  0002                   DH_NEXTSEG      equ     es:word ptr 2           ; Segment of next device
+=  0004                   DH_ATTRIB       equ     es:word ptr 4           ; device attribute bits
+=  0006                   DH_STRATEGY     equ     es:word ptr 6           ; offset of strategy entry
+=  0008                   DH_INTERRUPT    equ     es:word ptr 8           ; offset of interupt entry
+=  000A                   DH_NAME         equ     es:byte ptr 10          ; 8-BYTE device name
+=
+=  8000                   DA_CHARDEV      equ     8000h           ; 1=character device, 0=block device
+=  4000                   DA_IOCTL        equ     4000h           ; device supports IOCTL string I/O
+=  2000                   DA_NONIBM       equ     2000h           ; dosen't require FAT for login
+=  2000                   DA_OTILBSY      equ     2000h           ; supports "output until busy"
+=  0800                   DA_REMOVE       equ     0800h           ; supports "removable media" check
+=  0080                   DA_QUERY        equ     0080h           ; supports query ioctl
+=  0040                   DA_GETSET       equ     0040h           ; supports 3.2 level functionality
+=  0010                   DA_SPECIAL      equ     0010h           ; fast console ouput via INT 29h
+=  0008                   DA_ISCLK        equ     0008h           ; device is current clock device
+=  0004                   DA_ISNUL        equ     0004h           ; device is NUL device (reserved)
+=  0002                   DA_BIGDRV       equ     0002h           ; supports > 65535 sector per drive
+=  0002                   DA_ISCOT        equ     0002h           ; device is standard output device
+=  0001                   DA_ISCIN        equ     0001h           ; device is standard input device
+=
+=  0029                   FASTCON_INT     equ     29h             ; fast console output interrupt
+=
+
+=                                 include i:reqhdr.equ
+=                         ;    File              : $REQHDR.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page   8
+
+
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=  0000                   CMD_INIT                equ      0      ; Initialize the Device Driver
+=  0001                   CMD_MEDIA_CHECK         equ      1      ; Request Media Check
+=  0002                   CMD_BUILD_BPB           equ      2      ; Build Drive BPB
+=  0003                   CMD_INPUT_IOCTL         equ      3      ; IOCTL input
+=  0004                   CMD_INPUT               equ      4      ; Input
+=  0005                   CMD_INPUT_NOWAIT        equ      5      ; Non destructive input no wait
+=  0006                   CMD_INPUT_STATUS        equ      6      ; Input status
+=  0007                   CMD_INPUT_FLUSH         equ      7      ; Input flush
+=  0008                   CMD_OUTPUT              equ      8      ; Output
+=  0009                   CMD_OUTPUT_VERIFY       equ      9      ; Output with verify
+=  000A                   CMD_OUTPUT_STATUS       equ     10      ; Output status
+=  000B                   CMD_OUTPUT_FLUSH        equ     11      ; Output flush
+=  000C                   CMD_OUTPUT_IOCTL        equ     12      ; IOCTL output
+=  000D                   CMD_DEVICE_OPEN         equ     13      ; Device OPEN
+=  000E                   CMD_DEVICE_CLOSE        equ     14      ; Device CLOSE
+=  000F                   CMD_FIXED_MEDIA         equ     15      ; Removeable Media Check
+=  0013                   CMD_GENERIC_IOCTL       equ     19      ; Generic IOCTL
+=  0017                   CMD_GET_DEVICE          equ     23      ; Get the Logical Device
+=  0018                   CMD_SET_DEVICE          equ     24      ; Set the Logical Device
+=  0019                   CMD_QUERY_IOCTL         equ     25      ; query ioctl support
+=
+=                         ;       Generic Request Header Format
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page   9
+
+
+=
+=  0000                   RH_LEN          equ     es:byte ptr 0[bx]
+=  0001                   RH_UNIT         equ     es:byte ptr 1[bx]
+=  0002                   RH_CMD          equ     es:byte ptr 2[bx]
+=  0003                   RH_STATUS       equ     es:word ptr 3[bx]
+=  0100                     RHS_DONE      equ     0100h
+=  0200                     RHS_BUSY      equ     0200h
+=  0400                     RHS_IC        equ     0400h                   ; Interim Character
+=  0800                     RHS_RM        equ     0800h
+=  8000                     RHS_ERROR     equ     8000h
+=
+=                         ;******
+=                         ;* No longer safe to use - some device drivers trample on them....
+=                         ;*
+=                         ;* RH_STRATEGY  equ     es:dword ptr 5[bx]      ; Device Strategy Routine
+=                         ;* RH_STRATOFF  equ     es:word ptr  5[bx]      ; Strategy Offset
+=                         ;* RH_STRATSEG  equ     es:word ptr  7[bx]      ; Strategy Segment
+=                         ;* RH_INTERRUPT equ     es:dword ptr 9[bx]      ; Device Interrupt Routine
+=                         ;* RH_INTOFF    equ     es:word ptr  9[bx]      ; Intterupt Offset
+=                         ;* RH_INTSEG    equ     es:word ptr 11[bx]      ; Interrupt Segment
+=                         ;*****
+=
+=                         ;       Request header for initialization
+=
+=  000D                   RH0_NUNITS      equ     es:byte ptr 13[bx]
+=  000E                   RH0_RESIDENT    equ     es:word ptr 14[bx]
+=  0012                   RH0_BPBOFF      equ     es:word ptr 18[bx]
+=  0014                   RH0_BPBSEG      equ     es:word ptr 20[bx]
+=  0016                   RH0_DRIVE       equ     es:byte ptr 22[bx]
+=  0016                   RH0_LEN         equ     22
+=
+=                         ;       Request header for media check
+=
+=  000D                   RH1_MEDIA       equ     es:byte ptr 13[bx]      ; BDOS: current media byte
+=  000E                   RH1_RETURN      equ     es:byte ptr 14[bx]      ; driver: return code (00, 01, FF)
+=  000F                   RH1_VOLID       equ     es:dword ptr 15[bx]     ; driver: volume label address
+=  000F                   RH1_LEN         equ     15
+=
+=                         ;       Request header for "build BPB"
+=
+=  000D                   RH2_MEDIA       equ     es:byte ptr 13[bx]      ; BDOS or driver?
+=  000E                   RH2_BUFFER      equ     es:dword ptr 14[bx]     ; BDOS: scratch buffer for driver use
+=  0012                   RH2_BPB         equ     es:dword ptr 18[bx]     ; same as the following:
+=  0012                   RH2_BPBOFF      equ     es:word ptr 18[bx]      ; driver: address of new BPB
+=  0014                   RH2_BPBSEG      equ     es:word ptr 20[bx]
+=  0018                   RH2_LEN         equ     24
+=
+=                         ;       Request header for input/output
+=
+=  000D                   RH4_MEDIA       equ     es:byte ptr 13[bx]      ; BDOS: current media byte
+=  000D                   RH4_RIC         equ     es:byte ptr 13[bx]      ; BDOS: Return Interim Char flg
+=  000E                   RH4_BUFFER      equ     es:dword ptr 14[bx]     ; BDOS: disk transfer address
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  10
+
+
+=  000E                   RH4_BUFOFF      equ     es:word ptr 14[bx]      ; BDOS: Buffer Offset
+=  0010                   RH4_BUFSEG      equ     es:word ptr 16[bx]      ; BDOS: Buffer Segment
+=  0012                   RH4_COUNT       equ     es:word ptr 18[bx]      ; BDOS: sector count
+=  0014                   RH4_SECTOR      equ     es:word ptr 20[bx]      ; BDOS: starting sector
+=  0016                   RH4_VOLID       equ     es:dword ptr 22[bx]     ; driver: volume if illegal disk change
+=  001A                   RH4_BIGSECTOR   equ es:dword ptr 26[bx] 
+=  001A                   RH4_BIGSECTORLO equ     es:word ptr 26[bx]
+=  001C                   RH4_BIGSECTORHI equ     es:word ptr 28[bx]
+=
+=  001E                   RH4_LEN         equ     30
+=
+=                         ;       Request Header for Non-Destructive Input
+=
+=  000D                   RH5_CHAR        equ     es:byte ptr 13[bx]      ; Character Read from Device
+=  000D                   RH5_RIC         equ     es:byte ptr 13[bx]      ; BDOS: Return Interim Char flg
+=  000E                   RH5_LEN         equ     14
+=
+=                         ;       Request Header for Device Open
+=
+=  000D                   RH13_LEN        equ     13
+=
+=                         ;       Request Header for Device Close
+=
+=  000D                   RH14_LEN        equ     13
+=
+=                         ;       Request header for generic IOCTL
+=
+=  000D                   RH19_CATEGORY   equ     es:word ptr 13[bx]      ; BDOS: major/minor function number
+=  000D                   RH19_MAJOR      equ     es:byte ptr 13[bx]      ; BDOS: Major Function Number
+=  000E                   RH19_MINOR      equ     es:byte ptr 14[bx]      ; BDOS: Minor Function Number
+=  000F                   RH19_SI         equ     es:word ptr 15[bx]      ; BDOS: User SI 
+=  0011                   RH19_DI         equ     es:word ptr 17[bx]      ; BDOS: User DI 
+=  0013                   RH19_GENPB      equ     es:dword ptr 19[bx]     ; BDOS: extra parameters
+=  0017                   RH19_LEN        equ     23
+=
+=  0040                   RQ19_SET        equ     40h             ; set device parameters
+=  0060                   RQ19_GET        equ     60h             ; get device parameters
+=  0041                   RQ19_WRITE      equ     41h             ; write tracks
+=  0061                   RQ19_READ       equ     61h             ; read tracks
+=  0042                   RQ19_FORMAT     equ     42h             ; format tracks
+=  0062                   RQ19_VERIFY     equ     62h             ; verify tracks
+=
+=  004C                   RQ19_PRP_START  equ     4Ch             ; start of codepage prepare
+=  004D                   RQ19_PRP_END    equ     4Dh             ; end of codepage prepare
+=  004A                   RQ19_SELECT     equ     4Ah             ; select code page
+=  006A                   RQ19_QRY_SEL    equ     6Ah             ; query selected code page
+=  006B                   RQ19_QRY_PRP    equ     6Bh             ; query prepared code page(s)
+=  005F                   RQ19_DSP_SET    equ     5Fh             ; set display information
+=  007F                   RQ19_DSP_GET    equ     7Fh             ; get display information
+=
+=                         ;       Request header for get/set drive
+=
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  11
+
+
+=  000E                   RH24_CMD        equ     es:byte ptr 14[bx]      ; BDOS: Command Code
+=  000F                   RH24_STATUS     equ     es:word ptr 15[bx]      ; BDOS: Status
+=  0011                   RH24_RESVD      equ     es:dword ptr 17[bx]     ; BDOS: Reserved
+=  0015                   RH24_LEN        equ     21
+=
+=  001E                   RH_SIZE         equ     30              ; maximum size of request header
+
+=                                 include i:msdos.equ
+=                         ;    File              : $MSDOS.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=
+=  0000                   MS_P_TERMCPM    equ     00H
+=  0001                   MS_C_READ       equ     01H
+=  0002                   MS_C_WRITE      equ     02H
+=  0003                   MS_A_READ       equ     03H
+=  0004                   MS_A_WRITE      equ     04H
+=  0005                   MS_L_WRITE      equ     05H
+=  0006                   MS_C_RAWIO      equ     06H
+=  0007                   MS_C_RAWIN      equ     07H
+=  0008                   MS_C_NOECHO     equ     08H
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  12
+
+
+=  0009                   MS_C_WRITESTR   equ     09H
+=  000A                   MS_C_READSTR    equ     0aH
+=  000B                   MS_C_STAT       equ     0bH
+=  000C                   MS_C_FLUSH      equ     0cH
+=  000D                   MS_DRV_ALLRESET equ     0dH
+=  000E                   MS_DRV_SET      equ     0eH
+=  000F                   MS_F_OPEN       equ     0fH
+=  0010                   MS_F_CLOSE      equ     10H
+=  0011                   MS_F_SFIRST     equ     11H
+=  0012                   MS_F_SNEXT      equ     12H
+=  0013                   MS_F_DELETE     equ     13H
+=  0014                   MS_F_READ       equ     14H
+=  0015                   MS_F_WRITE      equ     15H
+=  0016                   MS_F_MAKE       equ     16H
+=  0017                   MS_F_RENAME     equ     17H
+=  0019                   MS_DRV_GET      equ     19H
+=  001A                   MS_F_DMAOFF     equ     1aH
+=  001B                   MS_DRV_ALLOC    equ     1bH
+=  001C                   MS_DRV_ALLOCSPEC equ    1cH
+=  0021                   MS_F_READRAND   equ     21H
+=  0022                   MS_F_WRITERAND  equ     22H
+=  0023                   MS_F_SIZE       equ     23H
+=  0024                   MS_F_RANDREC    equ     24H
+=  0025                   MS_S_SETINT     equ     25H
+=  0026                   MS_P_MKPSP      equ     26H
+=  0027                   MS_F_READBLK    equ     27H
+=  0028                   MS_F_WRITEBLK   equ     28H
+=  0029                   MS_F_PARSE      equ     29H
+=  002A                   MS_T_GETDATE    equ     2aH
+=  002B                   MS_T_SETDATE    equ     2bH
+=  002C                   MS_T_GETTIME    equ     2cH
+=  002D                   MS_T_SETTIME    equ     2dH
+=  002E                   MS_F_VERIFY     equ     2eH
+=  002F                   MS_F_DMAGET     equ     2fH
+=  0030                   MS_S_BDOSVER    equ     30H
+=  0031                   MS_P_TERMKEEP   equ     31H
+=  0033                   MS_S_BREAK      equ     33H
+=  0035                   MS_S_GETINT     equ     35H
+=  0036                   MS_DRV_SPACE    equ     36H
+=  0038                   MS_S_COUNTRY    equ     38H
+=  0039                   MS_X_MKDIR      equ     39H
+=  003A                   MS_X_RMDIR      equ     3aH
+=  003B                   MS_X_CHDIR      equ     3bH
+=  003C                   MS_X_CREAT      equ     3cH
+=  003D                   MS_X_OPEN       equ     3dH
+=  003E                   MS_X_CLOSE      equ     3eH
+=  003F                   MS_X_READ       equ     3fH
+=  0040                   MS_X_WRITE      equ     40H
+=  0041                   MS_X_UNLINK     equ     41H
+=  0042                   MS_X_LSEEK      equ     42H
+=  0043                   MS_X_CHMOD      equ     43H
+=  0044                   MS_X_IOCTL      equ     44H
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  13
+
+
+=  0045                   MS_X_DUP        equ     45H
+=  0046                   MS_X_DUP2       equ     46H
+=  0047                   MS_X_CURDIR     equ     47H
+=  0048                   MS_M_ALLOC      equ     48H
+=  0049                   MS_M_FREE       equ     49H
+=  004A                   MS_M_SETBLOCK   equ     4aH
+=  004B                   MS_X_EXEC       equ     4bH
+=  004C                   MS_X_EXIT       equ     4cH
+=  004D                   MS_X_WAIT       equ     4dH
+=  004E                   MS_X_FIRST      equ     4eH
+=  004F                   MS_X_NEXT       equ     4fH
+=  0050                   MS_P_SETPSP     equ     50H
+=  0054                   MS_F_GETVERIFY  equ     54H
+=  0056                   MS_X_RENAME     equ     56H
+=  0057                   MS_X_DATETIME   equ     57H
+=  0058                   MS_M_STRATEGY   equ     58h
+=  0059                   MS_F_ERROR      equ     59H
+=  005A                   MS_X_MKTEMP     equ     5aH
+=  005B                   MS_X_MKNEW      equ     5bH
+=  005C                   MS_F_LOCK       equ     5cH
+=  0060                   MS_X_EXPAND     equ     60H
+=  0062                   MS_P_GETPSP     equ     62H
+=  6601                   MS_X_GETCP      equ     6601h
+=  6602                   MS_X_SETCP      equ     6602h
+=  0067                   MS_X_SETHC      equ     67h
+=  0068                   MS_X_COMMIT     equ     68h
+=
+=  0021                   DOS_INT     equ 21h ; DOS Entry Point
+=                         ;
+=  0000                   STDIN           equ     0       ; Standard Console Input Handle
+=  0001                   STDOUT          equ     1       ; Standard Console Output Handle
+=  0002                   STDERR          equ     2       ; Standard Error Output
+=  0003                   STDAUX          equ     3       ; Auxilary Device Handle
+=  0004                   STDPRN          equ     4       ; Printer Device Handle
+
+=                                 include i:fdos.equ
+=                         ;    File              : $FDOS.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  14
+
+
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ;
+=                         ;                  Structure of Buffer Control Blocks
+=                         ;                  ----------------------------------
+=                         ;       These BCBs immediately preceed the data buffers. BCBs are
+=                         ;       always  shared  for all drives and therefore  must be big
+=                         ;       enough for the largest drive.
+=                         ;
+=
+=  0000                   BCB_NEXT        equ     word ptr  00h   ; link to next buffer
+=  0002                   BCB_PREV        equ     word ptr  02h   ; link to previous buffer
+=  0004                   BCB_DRV         equ     byte ptr  04h   ; drive of this buffer or 0FFh
+=  0005                   BCB_FLAGS       equ     byte ptr  05h   ; buffer flags
+=  0006                   BCB_REC         equ     word ptr  06h   ; low 16 bits of sector address
+=  0008                   BCB_REC2        equ     byte ptr  08h   ; top 8 bits of record address
+=  000A                   BCB_COPIES      equ     byte ptr  0Ah   ; number of copies to write
+=  000B                   BCB_SEPARATION  equ     word ptr  0Bh   ; # sectors copies are apart
+=  000D                   BCB_DDSC        equ     dword ptr 0Dh   ; DWORD ptr to DDSC_
+=  0011                   BCB_REMOTE      equ     word ptr  11h   ; remote in-use count
+=  0014                   BCB_DATA        equ     byte ptr  14h   ; buffer data
+=
+=  0002                   BF_ISFAT        equ     0002h           ; buffer marked as FAT sector
+=  0004                   BF_ISDIR        equ     0004h           ; buffer marked as Directory sector
+=  0008                   BF_ISDAT        equ     0008h           ; buffer marked as Data sector
+=  0040                   BF_DIRTY        equ     0040h           ; buffer marked as modified
+=  0080                   BF_REMOTE       equ     0080h           ; buffer is remote
+=
+=  0FF6                   MAX12           equ     0FF6h           ; max. disk size w/ 12-bit media
+=
+=                         ;                    Structure of Hash Control Block
+=                         ;                    -------------------------------
+=                         ;       Each hash control  block refers  to the hash codes of one
+=                         ;       disrectory cluster or a root directory.
+=
+=  0000                   HCB_LINK        equ     word ptr 0      ; link to next control block
+=  0002                   HCB_DRV         equ     byte ptr 2      ; drive for this entry or 0FFh
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  15
+
+
+=  0004                   HCB_CLU         equ     word ptr 4      ; cluster number or 0000 if root
+=  0006                   HCB_CNT         equ     word ptr 6      ; number of hashed entries
+=  0008                   HCB_DATA        equ     word ptr 8      ; hash buffer data
+=
+=
+=                         ;                     Structure of DOS FCB
+=                         ;                     --------------------
+=                         ;       This is hopefully  consistent  with what DOS stores in an
+=                         ;       open file control block for DOS 1.x functions
+=
+=  0000                   MSF_EXTFLG      equ     byte ptr 0      ; if this is 0xFF, skip 1st 7 byte
+=  0006                   MSF_ATTRIB      equ     byte ptr 6      ; file attributes if MSF_EXTFLG
+=  0000                   MSF_DRIVE       equ     byte ptr 0      ; 1st byte normally drive code
+=  0001                   MSF_NAME        equ     byte ptr 1      ; 8-bit ASCII file name, 11 characters
+=  000C                   MSF_BLOCK       equ     word ptr 12     ; current block number
+=  000E                   MSF_RECSIZE     equ     word ptr 14     ; current logical record size
+=  0010                   MSF_SIZE        equ     word ptr 16     ; 32-bit file size
+=  0014                   MSF_DATE        equ     word ptr 20     ; last date stamp
+=  0016                   MSF_TIME        equ     word ptr 22     ; last time stamp
+=  0018                   MSF_IFN         equ     byte ptr 24     ;; internal file number
+=  0019                   MSF_IOCTL       equ     byte ptr 25     ;; file status
+=  001A                   MSF_BLOCK1      equ     word ptr 26     ;; 1st block of file
+=  001C                   MSF_DBLK        equ     word ptr 28     ;; directory block
+=  001C                   MSF_DEVPTR      equ     dword ptr 28    ;; address of device driver
+=  001E                   MSF_DCNT        equ     word ptr 30     ;; directory count
+=  0020                   MSF_CR          equ     byte ptr 32     ; current sequential record
+=  0021                   MSF_RR          equ     word ptr 33     ; random record address (3 or 4 byte)
+=  0023                   MSF_RR2         equ     byte ptr 35     ; random record overflow
+=
+=
+=                         ;                     Structure of DOS DPB
+=                         ;                     --------------------
+=                         ;       The  layout  of  this  structure  is  a  guess  based  on
+=                         ;       examples.  It is returned by PC MODE on functions 1Fh and
+=                         ;       32h  and is required  by various  disk-related  utilities
+=                         ;       like disk editors and CHKDSK.
+=
+=  0000                   DDSC_UNIT       equ     byte ptr 0              ; absolute drive number
+=  0001                   DDSC_RUNIT      equ     byte ptr 1              ; relative unit number
+=  0002                   DDSC_SECSIZE    equ     word ptr 2              ; sector size in bytes
+=  0004                   DDSC_CLMSK      equ     byte ptr 4              ; sectors/cluster - 1
+=  0005                   DDSC_CLSHF      equ     byte ptr 5              ; log2 (sectors/cluster)
+=  0006                   DDSC_FATADDR    equ     word ptr 6              ; sector address of FAT
+=  0008                   DDSC_NFATS      equ     byte ptr 8              ; # of FAT copies
+=  0009                   DDSC_DIRENT     equ     word ptr 9              ; size of root directory
+=  000B                   DDSC_DATADDR    equ     word ptr 11             ; sector address of cluster #2
+=  000D                   DDSC_NCLSTRS    equ     word ptr 13             ; # of clusters on disk
+=  000F                   DDSC_NFATRECS   equ     word ptr 15             ; # of sectors per FAT
+=  0011                   DDSC_DIRADDR    equ     word ptr 17             ; sector address of root dir
+=  0013                   DDSC_DEVHEAD    equ     dword ptr 19            ; device driver header
+=  0013                   DDSC_DEVOFF     equ     word ptr 19
+=  0015                   DDSC_DEVSEG     equ     word ptr 21
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  16
+
+
+=  0017                   DDSC_MEDIA      equ     byte ptr 23             ; current media byte
+=  0018                   DDSC_FIRST      equ     byte ptr 24             ; "drive never accessed" flag
+=  0019                   DDSC_LINK       equ     dword ptr 25            ; next drive's DDSC
+=  001D                   DDSC_BLOCK      equ     word ptr 29             ; next block to allocate
+=  001F                   DDSC_FREE       equ     word ptr 31             ; total free clusters on drive
+=  0021                   DDSC_LEN        equ     33
+=
+=
+=
+=                         ;               DELWATCH hooks called by OS
+=
+=  0000                   DELW_RDMASK     equ     0                       ; delete dir search mask
+=  0002                   DELW_DELETE     equ     2                       ; delete this dir entry
+=  0003                   DELW_FREECLU    equ     3                       ; free some clusters
+=  0004                   DELW_FREERD     equ     4                       ; free root dir entry
+=  0005                   DELW_SPACE      equ     5                       ; add "deletes" to free space
+=  0007                   DELW_NEWDISK    equ     7                       ; new disk logged in
+=  000E                   DELW_PURGE      equ     14                      ; perge pd file
+=  000F                   DELW_UNDEL      equ     15                      ; undelete pd file
+=
+=                         ;               SuperStore hook called by OS
+=
+=  0010                   SSTOR_SPACE     equ     10h                     ; enquire # physical free space
+=
+=                         ;               Password hooks called by OS
+=
+=  0020                   PASSWD_CREAT    equ     20h                     ; initialise an entry
+=  0021                   PASSWD_CHMOD    equ     21h                     ; change an entry
+=  0022                   PASSWD_CHECK    equ     22h                     ; check an entry
+=
+=                         ;       Share hooks in PCMODE data segment
+=                         ;
+=                         ; These point to a stub which does a "STC, RETF"
+=                         ;
+=
+=  000F                   NUM_SHARE_STUB_ENTRIES  equ     15
+=
+=  0000                   S_LOCKS         equ     DWORD*0         ; share lock/unlock region
+=  0004                   S_UPDATE        equ     DWORD*1         ; update DHNDL from share
+=  0008                   S_RECORD        equ     DWORD*2         ; update share from DHNDL
+=  000C                   S_FDOSRW        equ     DWORD*3         ; validate proposed operation
+=  0010                   S_DISCARD       equ     DWORD*4         ; discard all files on drive
+=  0014                   S_OPEN          equ     DWORD*5         ; files is opening, remember it
+=  0018                   S_CLOSE         equ     DWORD*6         ; files is closing, forget it
+=  001C                   S_OM_COMPAT     equ     DWORD*7         ; check open mode compatible
+=  0020                   S_CLOSE_IF_OPEN equ     DWORD*8         ; close if compat open, else deny
+=  0024                   S_DENY_IF_OPEN  equ     DWORD*9         ; deny if open shared/by others
+=  0028                   S_GET_LIST_ENTRY equ    DWORD*10        ; get open file list entry
+=  002C                   S_CLOSE_FILES   equ     DWORD*11        ; close all files for given PSP/UID
+=
+=                         ; struct dirfcb
+=
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  17
+
+
+=  0000                   DNAME           equ     byte ptr 0      ;file name & type
+=  000B                   DATTS       equ byte ptr 11 
+=  0001                     DA_RO         equ     01h             ; 0x01 - read/only
+=  0002                     DA_HIDDEN     equ     02h             ; 0x02 - hidden
+=  0004                     DA_SYSTEM     equ     04h             ; 0x04 - system
+=  0008                     DA_VOLUME     equ     08h             ; 0x08 - volume label
+=  0010                     DA_DIR        equ     10h             ; 0x10 - sub-directory
+=  0020                     DA_ARCHIVE    equ     20h             ; 0x20 - archive
+=  0080                     DA_CLUSTER    equ     80h             ; 0x80 - return starting cluster from search (API ex
+                          tenti
+=  0080                     DA_DELWATCH   equ     80h             ; 0x88 - return pending delete files
+=  00D8                     DA_FIXED      equ     11011000b       ; can't CHMOD label, dir, unused bits
+=  FF27                     DA_CHANGE     equ     not DA_FIXED    ; all others are changeable
+=
+=                         ;DATTS2         equ     12              ;CP/M attributes
+=                         ;                                       ; 0x80 - f1' modify default open rules
+=                         ;                                       ; 0x40 - f2' partial close default
+=                         ;                                       ; 0x20 - f3' ignore close checksum errors
+=                         ;                                       ; 0x10 - f4' disable checksums
+=                         ;                                       ; 0x08 - (reserved)
+=                         ;                                       ; 0x04 - DELETE password
+=                         ;                                       ; 0x02 - WRITE password
+=                         ;                                       ; 0x01 - READ password
+=  000D                   DUNDEL          equ     13              ;1st letter of deleted file
+=  000E                   DPWD            equ     word ptr 14     ;16-bit password hash code
+=  0010                   DMODTIME        equ     word ptr 16     ;delwatch time (hhhhhmmmmmmsssss)
+=  0012                   DMODDATE        equ     word ptr 18     ;delwatch date (yyyyyyymmmmddddd)
+=                         ;DRECSIZE       equ     16              ;FlexOS record size
+=                         ;DUSER          equ     18              ;FlexOS user ID of creator
+=                         ;DGROUP         equ     19              ;FlexOS group ID of creator
+=  0014                   DPWM            equ     word ptr 20     ;FlexOS access rights
+=  0016                   DTIME           equ     22              ;time (hhhhhmmmmmmsssss)
+=  0018                   DDATE           equ     24              ;date (yyyyyyymmmmddddd)
+=  001A                   DBLOCK1         equ     26              ;first block in file
+=  001C                   DSIZE           equ     28              ;current file size
+=
+=                         ;                DOS Media Password Definitions
+=                         ;                ------------------------------
+=
+=  000F                   PWM_OWNER       equ     000Fh                   ; PWD Owner mask
+=  00F0                   PWM_GROUP       equ     00F0h                   ; PWD Group mask
+=  0F00                   PWM_WORLD       equ     0F00h                   ; PWD World mask
+=  0888                   PWM_R           equ     0888h                   ; PWD required for reading
+=  0444                   PWM_W           equ     0444h                   ; PWD required for writing
+=  0222                   PWM_E           equ     0222h                   ; PWD req'd for executing
+=  0111                   PWM_D           equ     0111h                   ; PWD required for deleting
+=  0DDD                   PWM_ANY         equ     PWM_R+PWM_W+PWM_D       ; PWD required for anything
+=
+=
+=                         ;       literal constants
+=
+=  0FFF                   FAT12           equ     00fffh          ; 12 bit fat
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  18
+
+
+=  FFFF                   FAT16           equ     0ffffh          ; 16 bit fat
+=
+=  FFFF                   ENDDIR          equ     0ffffh          ;end of directory
+=
+
+=                                 include i:psp.def
+=                         ;    File              : $PSP.DEF$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ;
+=                         ;                        Program Segment Prefix
+=                         ;                        ----------------------
+=                         ;       This structure holds vital information for DOS programs
+=                         ;
+=                         ;******************************************************************************
+=                         ;*
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=                         ;*         00   |  int 20   |  memory   | *** | jmpf|longjmp off|
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=                         ;*         08   |longjmp seg| int22 Off | int22 Seg | int22 Off |
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=                         ;*         10   | int22 Seg | int24 Off | int24 Seg |   Parent  |
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  19
+
+
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=                         ;*         18   |               Default Handle Table            |
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=                         ;*         20   |                 XFT (20 entries)              |
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=                         ;*         28   |       XFT contd.      |  Environ  |  User SP  |
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=                         ;*         30   |  User SS  |  xfnmax   |  xftoff   |  xftseg   |
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=                         ;*         38   |    res1   |    res2   | ric | *** | ********* |
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=                         ;*         40   |  version  | ********* | ********* | ********* |
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=                         ;*         48   | ********* | ********* | ********* | ********* |
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=                         ;*         50   |  int 21   | retf| *** | ********* | ********* |
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=                         ;*         58   | ********* | ********* |       PSP fcb 1       |
+=                         ;*              +-----+-----+-----+-----+-----+-----+-----+-----+
+=
+=  0000                   PSP_INT20       equ     es:word ptr .0000h
+=  0002                   PSP_MEMORY      equ     es:word ptr .0002h
+=                         ;PSP_???        equ     es:byte ptr .0004h
+=  0005                   PSP_LONGCALL    equ     es:byte ptr .0005h
+=  0006                   PSP_LONGOFF     equ     es:word ptr .0006h
+=  0008                   PSP_LONGSEG     equ     es:word ptr .0008h
+=  000A                   PSP_TERM_IP     equ     es:word ptr .000Ah
+=  000C                   PSP_TERM_CS     equ     es:word ptr .000Ch
+=  000E                   PSP_BREAK_IP    equ     es:word ptr .000Eh
+=  0010                   PSP_BREAK_CS    equ     es:word ptr .0010h
+=  0012                   PSP_ERROR_IP    equ     es:word ptr .0012h
+=  0014                   PSP_ERROR_CS    equ     es:word ptr .0014h
+=  0016                   PSP_PARENT      equ     es:word ptr .0016h
+=  0018                   PSP_XFT         equ     es:byte ptr .0018h
+=                         ;
+=                         ;       The Default Handle Table is HERE !!
+=                         ;
+=  002C                   PSP_ENVIRON     equ     es:word ptr .002ch
+=  002E                   PSP_USERSP      equ     es:word ptr .002eh
+=  0030                   PSP_USERSS      equ     es:word ptr .0030h
+=  0032                   PSP_XFNMAX      equ     es:word ptr .0032h
+=  0034                   PSP_XFTPTR      equ     es:dword ptr .0034h
+=  0034                   PSP_XFTOFF      equ     es:word ptr .0034h
+=  0036                   PSP_XFTSEG      equ     es:word ptr .0036h
+=  0038                   PSP_RES1        equ     es:word ptr .0038h      ; DOS Reserved 0FFFFh
+=  003A                   PSP_RES2        equ     es:word ptr .003Ah      ; DOS Reserved 0FFFFh
+=  003C                   PSP_RIC         equ     es:byte ptr .003Ch      ; Return Interim Character flag
+=  0040                   PSP_VERSION     equ     es:word ptr .0040h      ; DOS version number
+=
+=
+=  0050                   PSP_DOSCALL     equ     es:word ptr .0050h
+=  0052                   PSP_DOSRETF     equ     es:byte ptr .0052h
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  20
+
+
+=
+=  005C                   PSP_FCB1        equ     es:byte ptr .005Ch
+=  006C                   PSP_FCB2        equ     es:byte ptr .006Ch
+=  0080                   PSP_COMLEN      equ     es:byte ptr .0080h
+=  0081                   PSP_COMLINE     equ     es:byte ptr .0081h
+=
+=  0014                   XFNMAX          equ     20
+=
+=  0100                   PSPLEN          equ     100h
+=  0060                   PSPILEN         equ     60h
+
+=                                 include i:mserror.equ
+=                         ;    File              : $MSERROR.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=  FFFF                   ED_FUNCTION     equ     -01             ; invalid function number
+=  FFFE                   ED_FILE         equ     -02             ; file not found
+=  FFFD                   ED_PATH         equ     -03             ; path not found
+=  FFFC                   ED_HANDLE       equ     -04             ; too many open files
+=  FFFB                   ED_ACCESS       equ     -05             ; file access denied
+=  FFFA                   ED_H_MATCH      equ     -06             ; invalid handle number
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  21
+
+
+=  FFF9                   ED_DMD          equ     -07             ; memory descriptor destroyed
+=  FFF8                   ED_MEMORY       equ     -08             ; insufficient memory
+=  FFF7                   ED_BLOCK        equ     -09             ; invalid memory block addr
+=  FFF6                   ED_ENVIRON      equ     -10             ; invalid environment
+=  FFF5                   ED_FORMAT       equ     -11             ; invalid format
+=  FFF4                   ED_ACC_CODE     equ     -12             ; invalid access code
+=  FFF3                   ED_DATA         equ     -13             ; invalid data
+=  FFF1                   ED_DRIVE        equ     -15             ; invalid drive specified
+=  FFF0                   ED_DIR          equ     -16             ; can't remove current dir
+=  FFEF                   ED_DEVICE       equ     -17             ; not same device
+=  FFEE                   ED_ROOM         equ     -18             ; no more files
+=
+=  FFED                   ED_PROTECT      equ     -19             ; disk write protected
+=  FFEC                   ED_BADUNIT      equ     -20             ; invalid drive specified
+=  FFEB                   ED_NOTREADY     equ     -21             ; drive doesn't respond
+=  FFEA                   ED_BADCMD       equ     -22             ; invalid command to driver
+=  FFE9                   ED_BADDATA      equ     -23             ; data CRC error
+=  FFE8                   ED_BADRHLEN     equ     -24             ; (shouldn't happen)
+=  FFE7                   ED_BADSEEK      equ     -25             ; can't seek to track
+=  FFE6                   ED_BADMEDIA     equ     -26             ; unrecognizable medium
+=  FFE5                   ED_RNF          equ     -27             ; record/sector not found
+=  FFE4                   ED_NOPAPER      equ     -28             ; printer error
+=  FFE3                   ED_WRFAIL       equ     -29             ; write failed
+=  FFE2                   ED_RDFAIL       equ     -30             ; read failed
+=  FFE1                   ED_GENFAIL      equ     -31             ; anything failed
+=  FFE0                   ED_SHAREFAIL    equ     -32             ; sharing conflict
+=  FFDF                   ED_LOCKFAIL     equ     -33             ; locking conflict
+=  FFDE                   ED_DISKCHG      equ     -34             ; invalid disk change
+=  FFDD                   ED_NOFCBS       equ     -35             ; FCB table exhausted
+=  FFDC                   ED_NOLOCKS      equ     -36             ; lock list items exhausted
+=  FFCE                   ED_NET          equ     -50             ; Network Request Not Supported
+=
+=  FFBF                   ED_NETACCESS    equ     -65             ; file access denied
+=
+=  FFB7                   ED_NETPWD       equ     -73             ; Server Password Error
+=  FFB6                   ED_NETVER       equ     -74             ; Incorrect Server version
+=  FFB5                   ED_NETREQ       equ     -75             ; No Local Network Resources
+=  FFB4                   ED_NETTIME      equ     -76             ; Network Time Out Error
+=  FFB3                   ED_NETCOMM      equ     -77             ; Network Communications Error
+=  FFB2                   ED_NETSRVR      equ     -78             ; No Server Network Resources 
+=  FFB1                   ED_NETLOG       equ     -79             ; Server Not Logged In
+=
+=  FFB0                   ED_EXISTS       equ     -80             ; file already exists
+=  FFAE                   ED_MAKE         equ     -82             ; Cannot Make (Files ??)
+=  FFAD                   ED_FAIL         equ     -83             ; FAIL code returned from INT 24
+=  FFAC                   ED_STRUCT       equ     -84             ; Out of Structures
+=  FFAB                   ED_ASSIGN       equ     -85             ; Already Assigned
+=  FFAA                   ED_PASSWORD     equ     -86             ; Invalid Password
+=  FFA9                   ED_PARAM        equ     -87             ; Invalid Parameter
+=  FFA8                   ED_NETWRITE     equ     -88             ; Network write fault
+=  FFA7                   ED_NETFUNC      equ     -89             ; Function not supported on network
+=  FFA6                   ED_COMPONENT    equ     -90             ; system component not installed
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  22
+
+
+=  FFA6                   ED_LASTERROR    equ     -90             ; Last Error Number Used
+=
+=
+=  0001                   CLASS_RESOURCE  equ     1       ; Out of Resource
+=  0002                   CLASS_TEMP      equ     2       ; Temporary Situation
+=  0003                   CLASS_AUTHOR    equ     3       ; Authorization Error
+=  0004                   CLASS_INTERNAL  equ     4       ; Internal System Software Error
+=  0005                   CLASS_HARDWARE  equ     5       ; Hardware Failure
+=  0006                   CLASS_SYSTEM    equ     6       ; Serious System Failure
+=  0007                   CLASS_APPLIC    equ     7       ; Application Program Error
+=  0008                   CLASS_LOST      equ     8       ; File/Item Not Found
+=  0009                   CLASS_FORMAT    equ     9       ; File/Item Illegal Format 
+=  000A                   CLASS_LOCKED    equ     10      ; File/Item Locked
+=  000B                   CLASS_MEDIA     equ     11      ; Media Failure
+=  000C                   CLASS_EXISTS    equ     12      ; Item Already Exists
+=  000D                   CLASS_UNKNOWN   equ     13      ; Unknown Classification
+=
+=  0001                   ACT_RETRY       equ     1       ; Retry a few times then prompt user
+=  0002                   ACT_DELAY       equ     2       ; Delay then as ACT_RETRY
+=  0003                   ACT_USER        equ     3       ; Prompt user to re-enter data
+=  0004                   ACT_ABORT       equ     4       ; Clean Up then ABORT the process
+=  0005                   ACT_TERM        equ     5       ; Terminate immeadiately NO CLEAN UP
+=  0006                   ACT_IGNORE      equ     6       ; Ignore the Error
+=  0007                   ACT_URETRY      equ     7       ; Retry the error after user intervention
+=
+=  0001                   LOC_UNKNOWN     equ     1       ; Unknown error location
+=  0002                   LOC_BLOCK       equ     2       ; Block Device Failure
+=  0003                   LOC_NET         equ     3       ; Network Failure
+=  0004                   LOC_CHAR        equ     4       ; Related to Serial/Character devices
+=  0005                   LOC_MEMORY      equ     5       ; Failure related to Memory 
+
+=                                 include i:char.def
+=                         ;    File              : $CHAR.DEF$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  23
+
+
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ;************************************************;
+=                         ;*                                              *;
+=                         ;*            Character Definitions             *;
+=                         ;*                                              *;
+=                         ;************************************************;
+=
+=  0001                   CTLA            equ     'A' - '@'
+=  0002                   CTLB            equ     'B' - '@'
+=  0003                   CTLC            equ     'C' - '@'
+=  0004                   CTLD            equ     'D' - '@'
+=  0005                   CTLE            equ     'E' - '@'
+=  0006                   CTLF            equ     'F' - '@'
+=  0007                   CTLG            equ     'G' - '@'
+=  0007                   BELL            equ     'G' - '@'
+=  0008                   CTLH            equ     'H' - '@'
+=  0009                   CTLI            equ     'I' - '@'
+=  0009                   TAB             equ     'I' - '@'
+=  000A                   CTLJ            equ     'J' - '@'
+=  000A                   LF              equ     'J' - '@'
+=  000B                   CTLK            equ     'K' - '@'
+=  000D                   CTLM            equ     'M' - '@'
+=  000D                   CR              equ     'M' - '@'
+=  0010                   CTLP            equ     'P' - '@'
+=  0011                   CTLQ            equ     'Q' - '@'
+=  0012                   CTLR            equ     'R' - '@'
+=  0013                   CTLS            equ     'S' - '@'
+=  0014                   CTLT            equ     'T' - '@'
+=  0015                   CTLU            equ     'U' - '@'
+=  0016                   CTLV            equ     'V' - '@'
+=  0017                   CTLW            equ     'W' - '@'
+=  0018                   CTLX            equ     'X' - '@'
+=  0019                   CTLY            equ     'Y' - '@'
+=  001A                   CTLZ            equ     'Z' - '@'
+=  001B                   ESC             equ     '[' - '@'
+=  001C                   CTLBS           equ     '\' - '@'
+=  001F                   CTLUB           equ     '_' - '@'
+=  001E                   CTLUP           equ     '^' - '@'
+=  007F                   DEL             equ     07Fh
+=  007F                   RUBOUT          equ     DEL
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  24
+
+
+=
+=  005E                   CTL             equ     '^'
+
+=                                 include i:redir.equ
+=                         ;    File              : $REDIR.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ; Int 2F AH=11 msnet redirector hook equates
+=
+=  1100                   I2F_PRESCENCE   equ     1100h
+=  1101                   I2F_RMDIR       equ     1101h
+=  1103                   I2F_MKDIR       equ     1103h
+=  1105                   I2F_CHDIR       equ     1105h
+=  1106                   I2F_CLOSE       equ     1106h
+=  1107                   I2F_COMMIT      equ     1107h
+=  1108                   I2F_READ        equ     1108h
+=  1109                   I2F_WRITE       equ     1109h
+=  110A                   I2F_LOCK        equ     110Ah
+=  110B                   I2F_UNLOCK      equ     110Bh
+=  110C                   I2F_SPACE       equ     110Ch
+=  110E                   I2F_SET_ATTR    equ     110Eh
+=  110F                   I2F_GET_ATTR    equ     110Fh
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  25
+
+
+=  1111                   I2F_REN         equ     1111h
+=  1113                   I2F_DEL         equ     1113h
+=  1116                   I2F_OPEN        equ     1116h
+=  1117                   I2F_CREATE      equ     1117h
+=  1118                   I2F_XCREATE     equ     1118h
+=  1119                   I2F_XSFIRST     equ     1119h
+=  111B                   I2F_SFIRST      equ     111Bh
+=  111C                   I2F_SNEXT       equ     111Ch
+=  111D                   I2F_PCLOSE      equ     111Dh
+=  111E                   I2F_REDIR_5F    equ     111Eh
+=  111F                   I2F_REDIR_5E    equ     111Fh
+=  1120                   I2F_FLUSH       equ     1120h
+=  1121                   I2F_LSEEK       equ     1121h
+=  1122                   I2F_PTERM       equ     1122h
+=  1123                   I2F_PPATH       equ     1123h
+=  1124                   I2F_CTLP_ERR    equ     1124h
+=  1125                   I2F_REDIR_5D    equ     1125h
+=  1126                   I2F_CTLP        equ     1126h
+=
+
+=                                 include i:doshndl.def
+=                         ;    File              : $DOSHNDL.DEF$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  26
+
+
+=                         ;
+=                         ;    ENDLOG
+=
+=  0000                   DCNTRL_DSADD    equ dword ptr 0000h  
+=  0000                   DCNTRL_DSOFF    equ  word ptr 0000h  
+=  0002                   DCNTRL_DSSEG    equ  word ptr 0002h  
+=  0004                   DCNTRL_COUNT    equ  word ptr 0004h  
+=  0006                   DCNTRL_LEN      equ     6
+=
+=  0000                   DHNDL_COUNT     equ     word ptr 00h            ; 00 - Usage Count
+=  0002                   DHNDL_MODE      equ     word ptr 02h            ; 02 - File Mode
+=
+=  8000                   DHM_FCB         equ     8000h                   ; marks as FCB
+=  4000                   DHM_COMMIT      equ     4000h                   ; auto-commit file
+=  2000                   DHM_NOCRIT      equ     2000h                   ; no critical errors
+=  0080                   DHM_LOCAL       equ     10000000b               ; file is not inherited
+=  0070                   DHM_SHAREMSK    equ     01110000b               ; sharing bits
+=  0000                   DHM_COMPAT      equ     00000000b
+=  0010                   DHM_DENY_ALL    equ     00010000b               ; exclusive - deny all
+=  0020                   DHM_DENY_WRITE  equ     00100000b
+=  0030                   DHM_DENY_READ   equ     00110000b
+=  0040                   DHM_DENY_NONE   equ     01000000b
+=  000F                   DHM_RWMSK       equ     00001111b               ; read write bits
+=  0002                   DHM_RW          equ     00000010b               ; file opened read/write
+=  0001                   DHM_WO          equ     00000001b               ; file opened write only
+=  0000                   DHM_RO          equ     00000000b               ; file opened read only
+=
+=                         ;
+=                         ;       01h to 03h To be Determined
+=                         ;
+=  0004                   DHNDL_DATRB     equ     byte ptr 04h            ; Disk attribute byte
+=  0005                   DHNDL_ATTR      equ     byte ptr 05h            ; Attribute Byte
+=  0005                   DHNDL_WATTR     equ     word ptr 05h            ; Attribute Word
+=
+=  8000                   DHAT_REMOTE     equ     8000h                   ; set if file remote
+=  4000                   DHAT_TIMEOK     equ     4000h                   ; set if timestamp up to date
+=  1000                   DHAT_LOCAL      equ     1000h                   ; file is not inherited
+=  0800                   DHAT_NETPRN     equ     0800h                   ; device is networked printer
+=  0080                   DHAT_DEV        equ     0080h                   ; device/file bit
+=  0040                   DHAT_READY      equ     0040h                   ; ready/not ready bit
+=  0040                   DHAT_CLEAN      equ     0040h                   ; this bit CLEAR if dirty
+=  0020                   DHAT_BIN        equ     0020h                   ; raw/cooked bit
+=  001F                   DHAT_DRVMSK     equ     001Fh                   ; drive in bottom bits
+=  0008                   DHAT_CLK        equ     0008h                   ; -reserved-
+=  0004                   DHAT_NUL        equ     0004h                   ; handle is null device
+=  0002                   DHAT_COT        equ     0002h                   ; handle is console output device
+=  0001                   DHAT_CIN        equ     0001h                   ; handle is console input device
+=
+=  0007                   DHNDL_DEVPTR    equ     dword ptr 07h           ; 07 - pointer to device
+=  0007                   DHNDL_DEVOFF    equ     word ptr 07h            ; 07 - offset of device
+=  0009                   DHNDL_DEVSEG    equ     word ptr 09h            ; 09 - segment of device
+=  000B                   DHNDL_BLK1      equ     word ptr 0Bh            ; 0B - first cluster in file
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  27
+
+
+=  000D                   DHNDL_TIME      equ     word ptr 0Dh            ; 0D - file time stamp
+=  000F                   DHNDL_DATE      equ     word ptr 0Fh            ; 0F - file date stamp
+=  0011                   DHNDL_SIZE      equ     dword ptr 11h           ; 11 - file length
+=  0011                   DHNDL_SIZELO    equ     word ptr 11h
+=  0013                   DHNDL_SIZEHI    equ     word ptr 13h
+=  0015                   DHNDL_POS       equ     dword ptr 15h           ; 15 - current file position
+=  0015                   DHNDL_POSLO     equ     word ptr 15h
+=  0017                   DHNDL_POSHI     equ     word ptr 17h
+=  0019                   DHNDL_IDX       equ     word ptr 19h            ; 19 - relative cluster within file of last 
+                          read
+=  001B                   DHNDL_DBLK      equ     word ptr 1Bh            ; 1B - cluster # of dir entry
+=  001E                   DHNDL_DCNTHI    equ     byte ptr 1Eh            ; 1E - dir offset # within cluster
+=  001F                   DHNDL_DCNTLO    equ     byte ptr 1Fh            ; 1F - dir offset # within cluster
+=  0020                   DHNDL_NAME      equ     byte ptr 20h            ; 20 - File/Device Name
+=  0028                   DHNDL_EXT       equ     byte ptr 28h            ; 28 - File extension
+=  002B                   DHNDL_SFT       equ     dword ptr 2Bh           ; 2B - pointer to previous SFT
+=  002F                   DHNDL_UID       equ     word ptr 2Fh            ; 2F - Owning Machine ID
+=  0031                   DHNDL_PSP       equ     word ptr 31h            ; 31 - Owning PSP
+=  0033                   DHNDL_SHARE     equ     word ptr 33h            ; 33 - Offset of sharing record
+=  0035                   DHNDL_BLK       equ     word ptr 35h            ; 35 - absolute cluster of last read
+=                                                                         ; 37 - dword reserved for IFS
+=  003B                   DHNDL_LEN       equ     3Bh
+=
+=                         ; With DOS 3 structures _DBLK is a 16 bit
+=
+=
+=                         ; Logical Drive Table format
+=  0000                   LDT_NAME        equ     byte ptr 00h            ; 00 - Ascii Name field
+=  0043                   LDT_FLAGS       equ     word ptr 43h            ; 43 - Flag field
+=  0045                   LDT_PDT         equ     dword ptr 45h           ; 45 - PDT for this drive
+=  0049                   LDT_BLK         equ     word ptr 49h            ; 49 - directory sector 
+=  004B                   LDT_ROOT    equ word ptr 4bh        ; 4B - virtual block root
+=  004D                   LDT_DRV     equ byte ptr 4dh        ; 4D - physical drive 
+=  004F                   LDT_ROOTLEN     equ     word ptr 4fh            ; 4F - Length of root portion
+=  0058                   LDT_LEN         equ     58h
+=
+=  8000                   LFLG_NETWRKD    equ     8000h
+=  4000                   LFLG_PHYSICAL   equ     4000h
+=  2000                   LFLG_JOINED     equ     2000h
+=  1000                   LFLG_SUBST      equ     1000h
+
+
+   0001                   CIO_CTLP        equ     0000$0001b      ; Printer Echo State
+   0002                   CIO_HANDLE      equ     0000$0010b      ; use handle rather than Int 29
+   0004                   CIO_RAW         equ     0000$0100b      ; no "cooked_status" checks
+
+   0050                   CHECK_EVERY     equ     80              ; check keyboard every "n" characters
+
+                          PCM_CODE        CSEG    BYTE
+                                  extrn   char_error:near
+                                  extrn   device_driver:near
+                                  extrn   dos_entry:near
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  28
+
+
+                                  extrn   get_dseg:near
+                                  extrn   ifn2dhndl:near
+                                  extrn   int21_entry:near
+                                  extrn   int21_func:near
+                                  extrn   read_line:near
+                                  extrn   ReadTimeAndDate:near
+                                  extrn   reload_registers:near
+
+                          ;       *****************************
+                          ;       ***    DOS Function 01    ***
+                          ;       ***  Keybd Input W/Echo   ***
+                          ;       *****************************
+                          ;
+                                  Public  func01
+                          func01:
+                          ;
+                          ; Entry:
+                          ;       AH  ==  01h
+                          ; Exit:
+                          ;       AL  ==  char
+                          ;
+ 0000 E85E00         0061         call    func08                  ; Read 1 character from Standard Input
+                                                                  ; and check for Control-C
+ 0003 92                          xchg    ax,dx                   ; echo using common code
+
+                          ;       *****************************
+                          ;       ***    DOS Function 02    ***
+                          ;       ***     Display Output    ***
+                          ;       *****************************
+                          ;
+                                  Public  func02
+                          func02:
+                          ;
+                          ; Entry:
+                          ;       AH  ==  02h
+                          ;       DL  ==  char to display
+                          ;
+ 0004 52                          push    dx                      ; char on stack
+ 0005 1607                        push ss ! pop es
+ 0007 8BF4                        mov     si,sp                   ; ES:DX -> character
+ 0009 B90100                      mov     cx,1
+ 000C E8C801         01D7         call    stdout_cooked_write     ; write character
+ 000F 58                          pop     ax                      ; recover char
+ 0010 C3                          ret
+
+                          ;       *****************************
+                          ;       ***    DOS Function 03    ***
+                          ;       ***    Auxiliary Input    ***
+                          ;       *****************************
+                          ;
+                                  Public  func03
+                          func03:
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  29
+
+
+                          ;
+                          ; Entry:
+                          ;       AH  ==  03h
+                          ; Exit:
+                          ;       AL  ==  Char
+                          ;
+ 0011 BB0300                      mov     bx,STDAUX               ; Read 1 character from Standard AUX
+                          f03_10:
+ 0014 E99301         01AA         jmp     raw_read
+
+                          ;       *****************************
+                          ;       ***    DOS Function 04    ***
+                          ;       ***    Auxiliary Output   ***
+                          ;       *****************************
+                          ;
+                                  Public  func04
+                          func04:
+                          ;
+                          ; Entry:
+                          ;       AH  ==  04h
+                          ;       DL  ==  Character to output
+                          ;
+ 0017 BB0300                      mov     bx,STDAUX               ; write the character passed in DL
+ 001A EB03           001F         jmps    f456common              ;  to the STDAUX Handle
+
+                          ;       *****************************
+                          ;       ***    DOS Function 05    ***
+                          ;       ***    Printer Output     ***
+                          ;       *****************************
+                          ;
+                                  Public  func05
+                          func05:
+                          ;
+                          ; Entry:
+                          ;       AH  ==  05h
+                          ;       DL  ==  character to output to printer
+                          ;
+ 001C BB0400                      mov     bx,STDPRN               ; write the character passed in DL
+                          ;       jmp     f456common              ;  to the STDPRN Handle
+
+                          f456common:
+ 001F 92                          xchg    ax,dx                   ; character in AL
+                          ;       jmp     hndl_write
+
+                          hndl_write:
+                          ;----------
+                          ; On Entry:
+                          ;       AL = character to write
+                          ;       BX = handle
+                          ; On Exit:
+                          ;       AL preserved
+                          ;
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  30
+
+
+ 0020 E8B203         03D5         call    is_device               ; Does this handle refer to a device
+ 0023 720B           0030          jc     hndl_w10
+ 0025 26F744041000                test    es:DH_ATTRIB[si],DA_SPECIAL
+ 002B 7403           0030          jz     hndl_w10                ; Fast Console Output Using Int 29?
+ 002D CD29                        int     29h                     ; This device supports FAST console
+ 002F C3                          ret                             ;  output so write this using Int29
+
+                          hndl_w10:
+ 0030 50                          push    ax                      ; character on stack
+ 0031 8BD4                        mov     dx,sp                   ; SS:DX -> char
+ 0033 B90100                      mov     cx,1                    ; do a single character
+ 0036 7205           003D          jc     hndl_w20                ; was it a file ?
+ 0038 E8AF02         02EA         call    device_write            ; send to device driver
+ 003B EB07           0044         jmps    hndl_w30
+                          hndl_w20:
+ 003D 1607                        push ss ! pop es                ; ES:DX -> character
+ 003F B440                        mov     ah,MS_X_WRITE           ; otherwise call the FDOS to do all
+ 0041 E80000       E              call    dos_entry               ;  the hard work
+                          hndl_w30:
+ 0044 58                          pop     ax
+ 0045 C3                          ret
+
+
+                          ;       *****************************
+                          ;       ***    DOS Function 06    ***
+                          ;       ***   Direct Console I/O  ***
+                          ;       *****************************
+                          ;
+                                  Public  func06
+                          func06:
+                          ;
+                          ; Entry:
+                          ;       AH  ==  06h
+                          ;       DL  ==  0FFh or Output char
+                          ; Exit:
+                          ;       AL  ==  Input char, if DL was 0FFh on input
+                          ;
+ 0046 BB0100                      mov     bx,STDOUT                       ; Assume output DL to console
+ 0049 80FAFF                      cmp     dl,0FFH                         ; or is it input ?
+ 004C 75D1           001F          jne    f456common
+ 004E 4B                          dec     bx
+                          ;       mov     bx,STDIN                        ; is there a character ready
+ 004F E8D302         0325         call    char_check                      ;  to be input
+ 0052 7405           0059          jz     func07
+ 0054 B80004                      mov     ax,RHS_IC                       ; set AL=0 and also set ZF on
+ 0057 EB0E           0067         jmps    funcICexit                      ;  exit as incomplete char
+
+
+                          ;       *****************************
+                          ;       ***    DOS Function 07    ***
+                          ;       ***   Raw Input w/o echo  ***
+                          ;       *****************************
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  31
+
+
+                          ;
+                                  Public  func07
+                          func07:
+                          ;
+                          ; Entry:
+                          ;       AH  ==  07h
+                          ; Exit:
+                          ;       AL  ==  character
+                          ;
+ 0059 BB0000                      mov     bx,STDIN
+ 005C E84B01         01AA         call    raw_read                        ; extra status call made
+ 005F EB06           0067         jmps    funcICexit                      ; set incomplete char
+                                  
+                          ;       *****************************
+                          ;       ***    DOS Function 08    ***
+                          ;       ***    Input w/o echo     ***
+                          ;       *****************************
+                          ;
+                                  Public  func08
+                          func08:
+                          ;
+                          ; Entry:
+                          ;       AH  ==  08h
+                          ; Exit:
+                          ;       AL  ==  character
+                          ;
+ 0061 BB0000                      mov     bx,STDIN                ; Read 1 character from Standard Input
+ 0064 E84D01         01B4         call    cooked_read
+                          funcICexit:
+                          ; exit point for incomplete character support
+                          ; On Entry:
+                          ;       AL = character
+                          ;       AH = request header status (RHS_IC as on return from device driver)
+                          ; On Exit:
+                          ;       AL = character
+                          ;       dos_FLAGS ZF set if incomplete character
+                          ;
+ 0067 C43E0000     E              les     di,int21regs_ptr                ; point to callers registers
+ 006B 26816516BFFF                and     es:reg_FLAGS[di],not ZERO_FLAG  ; clear ZF
+ 0071 F6C404                      test    ah,RHS_IC/256                   ; is it an incomplete char ?
+ 0074 7406           007C          jz     funcIC10                        ;  no - exit
+ 0076 26814D164000                or      es:reg_FLAGS[di],ZERO_FLAG      ;  yes - set ZF
+                          funcIC10:
+ 007C C3                          ret
+
+                          ;       *****************************
+                          ;       ***    DOS Function 09    ***
+                          ;       ***     Print String      ***
+                          ;       *****************************
+                          ;
+                                  Public  func09
+                          func09:
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  32
+
+
+                          ;
+                          ; Entry:
+                          ;       AH  ==  09h
+                          ;    DS:DX  ==  address of character string
+                          ;
+
+ 007D B024                        mov     al,'$'                  ; it's terminated with a '$'
+ 007F 8BFA                        mov     di,dx                   ; locate the end of the string 
+ 0081 B9FFFF                      mov     cx,0FFFFh               ; and calculate its length
+ 0084 F2AE                        repnz   scasb
+ 0086 F7D1                        not     cx
+ 0088 49                          dec     cx                      ; CX is the character count
+ 0089 8BF2                        mov     si,dx
+ 008B E84901         01D7         call    stdout_cooked_write     ; ES:SI -> character buffer
+ 008E B024                    mov al,'$'          
+ 0090 C3                      ret
+
+
+                          ;       *****************************
+                          ;       ***    DOS Function 0A    ***
+                          ;       ***      Read String      ***
+                          ;       *****************************
+                          ;
+                                  Public  func0A
+                          func0A:
+                          ;
+                          ; Entry:
+                          ;       AH  ==  0Ah
+                          ;    DS:DX  ==  pointer to input buffer
+                          ;
+ 0091 BB0000                      mov     bx,STDIN                ; Read the editted line from STDIN
+ 0094 B90100                      mov     cx,STDOUT               ; and display the results on STDOUT
+ 0097 E90000       E              jmp     read_line               ; Read the Line
+
+                          ;       *****************************
+                          ;       ***    DOS Function 0B    ***
+                          ;       ***    Console Status     ***
+                          ;       *****************************
+                          ;
+                                  Public  func0B
+                          func0B:
+                          ;
+                          ; Entry:
+                          ;       AH  ==  0Bh
+                          ; Exit:
+                          ;       AL  ==  0FFh if char available
+                          ;           ==   00h otherwise
+                          ;
+ 009A BB0000                      mov     bx,STDIN
+ 009D E8AD00         014D         call    cooked_status           ; Get the current handle status
+ 00A0 B0FF                        mov     al,0FFh                 ; Assume that the handle is ready
+ 00A2 7402           00A6          jz     f0B_exit                ; and return 0FFh in AL
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  33
+
+
+ 00A4 B000                        mov     al,00                   ; Not Ready
+                          f0B_exit:
+ 00A6 EBBF           0067         jmps    funcICexit              ; exit thru incomplete char support
+
+
+
+                          ;       *****************************
+                          ;       ***    DOS Function 0C    ***
+                          ;       ***    Flush and Execute  ***
+                          ;       *****************************
+                          ;
+                                  Public  func0C
+                          func0C:
+                          ;
+                          ; Entry:
+                          ;       AH  ==  0Ch
+                          ;       AL  ==  function to execute:  1,6,7,8 or A
+                          ; Exit:
+                          ;       AL = 0 if function in AL is invalid
+                          ;
+ 00A8 50                          push    ax                      ; save sub-function
+ 00A9 BB0000                      mov     bx,STDIN                ; Is this Standard Input Handle a
+ 00AC E82603         03D5         call    is_device               ;  file or device. Do not flush the 
+ 00AF 720A           00BB          jc     f0C_20                  ;  buffer contents for a FILE
+                          f0C_10:
+ 00B1 E8DB02         038F         call    hndl_instat             ; check if any characters are left
+ 00B4 7505           00BB          jnz    f0C_20                  ;  and quit when buffer empty
+ 00B6 E8F100         01AA         call    raw_read                ; read the character
+ 00B9 EBF6           00B1         jmps    f0C_10                  ; loop till the buffer is empty
+
+                          f0C_20:
+ 00BB 58                          pop     ax
+ 00BC 3C01740C       00CC         cmp al,01h ! je al_ok           ; is legal for this command
+ 00C0 3C0A7408       00CC         cmp al,0ah ! je al_ok
+ 00C4 3C06720C       00D4         cmp al,06h ! jb al_nogo
+ 00C8 3C087708       00D4         cmp al,08h ! ja al_nogo
+
+                          al_ok:                                  ; Valid function so now execute
+ 00CC E80000       E              call    reload_registers        ; all register reloaded as per entry
+ 00CF 8AE0                        mov     ah,al                   ; Get the requested sub-function in AH
+ 00D1 E90000       E              jmp     int21_func              ; execute the function
+
+                          al_nogo:                                ; Illegal command to execute
+ 00D4 33C0                        xor     ax,ax                   ; from this function so return error
+ 00D6 C3                          ret
+
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  34
+
+
+                          eject
+                          ;
+                          ;       BREAK_CHECK checks for a CNTRL-C and is called by functions 01h to 
+                          ;       0Ch. Or by the entry code if the break flag is non zero.
+                          ;
+                                  Public  break_check
+                          break_check:
+ 00D7 803E000001   E              cmp     indos_flag,01           ; Skip the check if we are
+ 00DC 7513           00F1          jnz    break_c15               ; already in the emulator
+ 00DE 50                          push    ax
+ 00DF 06                          push    es
+ 00E0 56                          push    si
+ 00E1 C4360000     E              les     si,con_device
+ 00E5 E8B502         039D         call    device_instat           ; get the input status
+ 00E8 5E                          pop     si
+ 00E9 07                          pop     es
+ 00EA 7504           00F0          jnz    break_c10               ; No Character Ready
+ 00EC 3C03                        cmp     al,CTLC                 ; Is the character a Control-C
+ 00EE 7402           00F2          jz     break_c20               ; Yes
+                          break_c10:
+ 00F0 58                          pop     ax
+                          break_c15:
+ 00F1 C3                          ret
+
+                          break_c20:                              ; The User has Typed Control-C so flush
+ 00F2 BBFFFF                      mov     bx,0FFFFh               ;  input buffer (FFFF=con_device)
+ 00F5 E8C400         01BC         call    char_get
+                          go_int23:
+ 00F8 0E07                        push cs ! pop es                ; ES:DX -> Character Buffer
+ 00FA BE0000       R              mov     si,offset cntrl_c_msg   ; Message Offset
+ 00FD B90400                      mov     cx,length cntrl_c_msg   ; Message Length
+ 0100 E8D400         01D7         call    stdout_cooked_write     ; write the ^C String to console
+                          ;
+                          ;       Prepare to execute an Interrupt 23 (Break Check) and process
+                          ;       the return values. If the called routine returns with an IRET
+                          ;       or with a RETF and the carry flag reset continue the function
+                          ;       otherwise Abort.
+                          ;
+ 0103 8E060000     E              mov     es,current_psp          ; Get the Entry SS and SP
+ 0107 26A12E00                    mov     ax,PSP_USERSP           ; Get the Users Stack Pointer
+ 010B 051000                      add     ax,18 - 2               ; Compensate for the User Registers
+ 010E A30000       E              mov     break_sp,ax             ; and save for RETF check
+ 0111 FA                          cli
+ 0112 FE0E0000     E              dec     indos_flag              ; Exit the PCDOS emulator
+ 0116 268E163000                  mov     ss,PSP_USERSS           ; Switch to the Users Stack
+ 011B 268B262E00                  mov     sp,PSP_USERSP           ; and Restore the registers
+
+ 0120 585B595A5E5F                POP$DOS                         ; Update the registers then
+      5D1F07
+                                                                  ; set the flags and return
+                                                                  ; to the user
+ 0129 F8                          clc                             ; Default to continue function
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  35
+
+
+ 012A CD23                        int     23h                     ; Call the Break Handler
+ 012C FA                          cli                             ; Check the Flag State
+ 012D 730D           013C          jnc    do23_10                 ; If CARRY then Abort this process
+ 012F E80000       E              call    get_dseg                ; Get our data segment
+ 0132 C606000001   E              mov     exit_type,TERM_BREAK    ; Force EXIT_TYPE to TERM_BREAK
+ 0137 B8004C                      mov     ax,4C00h                ; "Good-Bye Cruel World" 
+ 013A EB0B           0147     jmps    do23_20
+                              do23_10:
+ 013C 1E                          push    ds                      ; Otherwise restart the aborted func
+ 013D E80000       E              call    get_dseg
+ 0140 3B260000     E              cmp     sp,break_sp
+ 0144 1F                          pop     ds                      ; Restore the the USER DS correct
+ 0145 7403           014A          jz     do23_30                 ; Did we Use a RETF or Not
+                          do23_20:
+ 0147 83C402                      add     sp,2                    ; Yes so correct the stack pointer
+                          do23_30:                                ; and restart the aborted function
+ 014A E90000       E              jmp     int21_entry             ; re-start the function call
+
+
+
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  36
+
+
+                          eject
+                          ;
+                          ; cooked_status is called on input or output and looks for live keys ^C,^P,^S.
+                          ; If any of these are found they are dealt with.
+                          ; If ^P is encountered it is swallowed.
+                          ; If ^C is encountered we always do an Int23.
+                          ; If ^S is pressed we swallow it, and the next character (checking for ^C, but
+                          ; not for ^P), then say a character is ready.
+                          ; Note that this can lead to status calls (func0B) hanging inside the OS,
+                          ; or the return of ^S characters from input calls (func01), but this is
+                          ; intentional.
+                          ;
+
+                          cooked_status:
+                          ;-------------
+                          ; check input
+                          ; On Entry:
+                          ;       BX = handle to check
+                          ; On Exit:
+                          ;       ZF set if character available
+                          ;       AL = character
+                          ;       AH = RHS_IC
+                          ;
+ 014D E887FF         00D7         call    break_check             ; check for a ^C on console
+ 0150 E8D201         0325         call    char_check              ; is there a character ready
+ 0153 7542           0197          jnz    cooked_s50              ;  no so keep scanning
+
+ 0155 803E000000   E              cmp     last_key_ext,0          ; was last char an zero ?
+ 015A C606000000   E              mov     last_key_ext,0          ; (clear flag for next time)
+ 015F 752B           018C          jne    cooked_s40              ; skip ^P,^S,^C checks if so
+                                  
+ 0161 3C10                        cmp     al,CTLP                 ; has the user typed ^P
+ 0163 750F           0174          jne    cooked_s10              ;  flush the buffer and
+ 0165 8036000001   E              xor     cio_state,CIO_CTLP      ;  toggle ^P flag
+ 016A E84F00         01BC         call    char_get                ;  flush the character from buffer
+ 016D E8A302         0413         call    open_or_close_prn       ;  open/close printer device
+ 0170 85C0                        test    ax,ax                   ; ZF clear, ie. no char available
+ 0172 EB23           0197         jmps    cooked_s50
+
+                          cooked_s10:
+ 0174 3C03                        cmp     al,CTLC
+ 0176 7506           017E          jnz    cooked_s30              ; has the user typed ^C
+ 0178 E84100         01BC         call    char_get                ; so get the RAW character
+                          cooked_s20:
+ 017B E97AFF         00F8         jmp     go_int23                ; and terminate the function
+
+                          cooked_s30:
+ 017E 3C13                        cmp     al,CTLS                 ; pause if the user has typed
+ 0180 750A           018C          jnz    cooked_s40              ;  a ^S
+ 0182 E83700         01BC         call    char_get                ; remove ^S and resume when
+ 0185 E81F00         01A7         call    raw_read_wait           ; the next character is typed
+ 0188 3C03                        cmp     al,CTLC
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  37
+
+
+ 018A 74EF           017B          je     cooked_s20              ; has the user typed ^C
+                          cooked_s40:
+ 018C 3C00                        cmp     al,0
+ 018E 7505           0195          jne    cooked_s45
+ 0190 C606000001   E              mov     last_key_ext,1
+                          cooked_s45:
+ 0195 3BC0                        cmp     ax,ax                   ; ZF set, ie. char available
+                          cooked_s50:
+ 0197 C3                          ret
+                                  
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  38
+
+
+                          eject
+                          ;
+                          ;       The COOKED, CMDLINE and RAW Read functions are basically the same
+                          ;       except in their treatment of 'live' characters ^C,^P, and ^S.
+                          ;       COOKED will look for and act upon all three live characters.
+                          ;       CMDLINE will look for and act upon ^C and ^P, but ^S will be returned
+                          ;       so we can use it as a line editing key.
+                          ;       RAW will not check for any live keys.
+                          ;
+                                  public  cmdline_read, raw_read  ; for CMDLINE.PCM
+
+                          cmdline_read_wait:                      ; Waiting for a device to become
+ 0198 E81701         02B2         call    idle_dev                ; ready. So call IDLE routines to
+                                                                  ; put the processor to sleep.
+                          cmdline_read:
+ 019B E839FF         00D7         call    break_check             ; check for a ^C on console
+ 019E E88401         0325         call    char_check              ; is there a character ready
+ 01A1 75F5           0198          jnz    cmdline_read_wait       ;  no so keep scanning
+ 01A3 3C13                        cmp     al,CTLS                 ; if the user has typed ^S
+ 01A5 750D           01B4          jne    cooked_read             ;  we have to do a raw read
+                          ;       jmps    raw_read                ;  else we do a cooked read
+
+                          raw_read_wait:                          ; Waiting for a device to become
+ 01A7 E80801         02B2         call    idle_dev                ; ready. So call IDLE routines to
+                                                                  ; put the processor to sleep.
+                          raw_read:
+ 01AA E87801         0325         call    char_check              ; Is there a character Ready
+ 01AD 75F8           01A7          jnz    raw_read_wait           ; loop until character available
+ 01AF EB0B           01BC         jmps    char_get
+
+                          cooked_read_wait:                       ; Waiting for a device to become
+ 01B1 E8FE00         02B2         call    idle_dev                ; ready. So call IDLE routines to
+                                                                  ; put the processor to sleep.
+                          cooked_read:
+ 01B4 E820FF         00D7         call    break_check             ; check for a ^C on console
+ 01B7 E893FF         014D         call    cooked_status           ; check for a ^S,^P,^C on handle BX
+ 01BA 75F5           01B1          jnz    cooked_read_wait        ; wait until char is available
+                          ;       jmps    char_get                ;  else get the character
+
+                          char_get:
+ 01BC 0650                        push es ! push ax               ; Input one character and
+ 01BE 8BD4                        mov     dx,sp                   ;  return it in AL
+ 01C0 E81202         03D5         call    is_device               ; Does this handle refer to a device
+ 01C3 B90100                      mov     cx,1
+ 01C6 7206           01CE          jc     char_get30              ; if it's a device then
+ 01C8 E81B01         02E6         call    device_read             ;  use device_read
+                          char_get20:
+ 01CB 5807                        pop ax ! pop es
+ 01CD C3                          ret
+
+                          char_get30:
+                          ; We are redirected, so call to the FDOS to get a character
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  39
+
+
+ 01CE 1607                        push ss ! pop es                ; EX:DX -> character to read
+ 01D0 B43F                        mov     ah,MS_X_READ            ; call the FDOS to do all
+ 01D2 E80000       E              call    dos_entry               ;  the hard work
+ 01D5 EBF4           01CB         jmps    char_get20
+
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  40
+
+
+                          eject
+
+                          stdout_cooked_write:
+ 01D7 BB0100                      mov     bx,STDOUT               ; output to the console device
+                          ;       jmp     cooked_write
+
+                          ;
+                          ;       The COOKED_WRITE routine will expand TABS etc in the string
+                          ;       passed passed by the calling routine. 
+                          ;
+                          ;       On Entry:
+                          ;               ES:SI           Buffer Address
+                          ;               CX              Character Count
+                          ;               BX              Output Handle
+                          ;       On Exit:
+                          ;               AL = last char written
+                          ;
+                                  Public cooked_write
+                          cooked_write:
+ 01DA 06                          push    es
+ 01DB 53                          push    bx
+ 01DC 8A260000     E              mov     ah,cio_state            ; get CIO_CTLP status
+ 01E0 80CC06                      or      ah,CIO_RAW+CIO_HANDLE   ; assume we will want raw handle output
+ 01E3 8AC3                        mov     al,bl
+ 01E5 F606010080   E              test    byte ptr remote_call+1,DHM_FCB/100h
+ 01EA 7513           01FF          jnz    cook_w03
+ 01EC 8E060000     E              mov     es,current_psp          ; get our PSP
+ 01F0 263B1E3200                  cmp     bx,PSP_XFNMAX           ; range check our handle
+ 01F5 7333           022A          jae    cook_w05
+ 01F7 26C43E3400                  les     di,PSP_XFTPTR
+ 01FC 268A01                      mov     al,es:byte ptr [bx+di]  ; AL = Internal File Handle
+                          cook_w03:
+ 01FF E80000       E              call    ifn2dhndl               ; ES:BX -> DHNDL_
+ 0202 7226           022A          jc     cook_w05                ; skip if bad handle
+ 0204 268B5705                    mov     dx,es:DHNDL_WATTR[bx]   ; get handle attributes
+ 0208 81E2A380                    and     dx,DHAT_DEV+DHAT_CIN+DHAT_COT+DHAT_BIN+DHAT_REMOTE
+ 020C 81FAA300                    cmp     dx,DHAT_DEV+DHAT_CIN+DHAT_COT+DHAT_BIN
+ 0210 7409           021B          je     cook_w04                ; accept binary console device
+ 0212 81FA8300                    cmp     dx,DHAT_DEV+DHAT_CIN+DHAT_COT
+ 0216 7512           022A          jne    cook_w05                ; skip if not cooked console device
+ 0218 80E4FB                      and     ah,not CIO_RAW          ; we want cooked output
+                          cook_w04:
+ 021B 26C45F07                    les     bx,es:DHNDL_DEVPTR[bx]  ; its the console - but is it FAST ?
+ 021F 26F747041000                test    es:DH_ATTRIB[bx],DA_SPECIAL
+ 0225 7403           022A          jz     cook_w05                ; skip if not
+ 0227 80E4FD                      and     ah,not CIO_HANDLE       ; don't use handle functions
+                          cook_w05:
+ 022A 5B                          pop     bx
+ 022B 07                          pop     es
+ 022C E34F           027D      jcxz   cook_w80        
+                          cook_w10:
+ 022E 26AC                        lods    es:al                   ; Read the next character
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  41
+
+
+ 0230 3C7F7444       0278         cmp al,DEL ! je cook_w60        ; DEL is a NON Printing Character
+ 0234 3C20733C       0274         cmp al,' ' ! jae cook_w50       ; Space and Above are Normal
+ 0238 3C0A743C       0278         cmp al,LF  ! je cook_w60        ; Just print LineFeeds
+ 023C 3C1B7438       0278         cmp al,ESC ! je cook_w60        ; Just print Escape
+ 0240 3C077434       0278         cmp al,BELL! je cook_w60        ; Just ring the Bell
+ 0244 3C0D750C       0254         cmp al,CR  ! jne cook_w20       ; CR zeros the column number
+ 0248 C606000000   E              mov     column,0
+ 024D C606000001   E              mov     char_count,1            ; check for ^S etc NOW
+ 0252 EB24           0278         jmps    cook_w60
+                          cook_w20:
+ 0254 3C087506       025E         cmp al,CTLH ! jne cook_w30      ; BackSpace decrements the
+ 0258 FE0E0000     E              dec     column                  ; column count by one
+ 025C EB1A           0278         jmps    cook_w60
+                          cook_w30:
+ 025E 3C097516       0278         cmp al,TAB ! jne cook_w60       ; is it a TAB ?
+                          cook_w40:
+ 0262 B020                        mov     al,' '                  ;  spaces
+ 0264 E81700         027E         call    cooked_out              ; output a space char
+ 0267 FE060000     E              inc     column
+ 026B F606000007   E              test    column,7                ; are we at a TAB stop yet ?
+ 0270 75F0           0262          jnz    cook_w40
+ 0272 EB07           027B         jmps    cook_w70
+                          cook_w50:
+ 0274 FE060000     E              inc     column                  ; Update the column count and
+                          cook_w60:
+ 0278 E80300         027E         call    cooked_out              ;  output the character
+                          cook_w70:
+ 027B E2B1           022E         loop    cook_w10                ; onto the next character
+                          cook_w80:
+ 027D C3                          ret
+
+                          cooked_out:
+                          ; On Entry:
+                          ;       AH = handle status
+                          ;       AL = character
+                          ;       BX = handle
+                          ; On Exit:
+                          ;       AX, BX, CX, ES:SI preserved
+                          ;
+ 027E FE0E0000     E              dec     char_count              ; time to check keyboard input ?
+ 0282 7408           028C          jz     cooked_o10              ;  no, skip status check
+ 0284 F6C403                      test    ah,CIO_HANDLE+CIO_CTLP  ; is it complicated ?
+ 0287 7503           028C          jnz    cooked_o10
+ 0289 CD29                        int     29h                     ; This device supports FAST console
+ 028B C3                          ret
+
+                          cooked_o10:
+ 028C 06                          push    es
+ 028D 50                          push    ax
+ 028E 51                          push    cx
+ 028F 56                          push    si
+ 0290 E88DFD         0020         call    hndl_write              ; display the character
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  42
+
+
+ 0293 F6C401                      test    ah,CIO_CTLP             ; Check for Printer Echo
+ 0296 7408           02A0          jz     cooked_o20              ; Off so No Echo
+ 0298 53                          push    bx                      ; Save Output Handle
+ 0299 BB0400                      mov     bx,STDPRN               ; and output the same data to the
+ 029C E881FD         0020         call    hndl_write              ; to the Printer Handle
+ 029F 5B                          pop     bx
+                          cooked_o20:
+ 02A0 F6C404                      test    ah,CIO_RAW              ; is it a cooked console ?
+ 02A3 7508           02AD          jnz    cooked_o30              ; skip check if not
+ 02A5 E8A5FE         014D         call    cooked_status           ; look for keyboard input
+ 02A8 C606000050   E              mov     char_count,CHECK_EVERY  ; look again in a while
+                          cooked_o30:
+ 02AD 5E                          pop     si
+ 02AE 59                          pop     cx
+ 02AF 58                          pop     ax
+ 02B0 07                          pop     es
+ 02B1 C3                          ret
+
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  43
+
+
+                          eject
+                          ;       IDLE_DEV is called when the PCMODE is waiting for a character.
+                          ;       This routine must determine if the request is for a device or not
+                          ;       and call the IDLE interface for device requests to the system can be
+                          ;       put to sleep until a character is ready.
+                          ;
+                          ;       On Entry:-      BX Handle Number
+                          ;       
+                          idle_dev:
+ 02B2 53                          push    bx                      ; preserve handle
+ 02B3 B80084                      mov     ax,8400h
+ 02B6 CD2A                        int     2ah                     ; Server hook for idle
+ 02B8 FE0E0000     R              dec     clock_count
+ 02BC 7503           02C1          jnz    idle_dev10              ; Zero if NO skip delay and execute
+ 02BE E80000       E              call    ReadTimeAndDate         ; for PC BIOS's who must read every day
+                          idle_dev10:
+                          if IDLE_DETECT
+ 02C1 F706000000C0 E              test    idle_flags,IDLE_DISABLE ; Has Idle Checking been enabled
+ 02C7 751B           02E4          jnz    idle_dev40              ; Skip if NO
+ 02C9 0656                        push es ! push si
+ 02CB E80701         03D5         call    is_device               ; The requested handle a file or device
+ 02CE 7212           02E2          jc     idle_dev30              ; File Access skip IDLE
+ 02D0 B80300                      mov     ax,PROC_KEYIN           ; Assume this is the REAL Console
+ 02D3 26F744040100                test    es:DH_ATTRIB[si],DA_ISCIN; Test Attribute Bits
+ 02D9 7503           02DE          jnz    idle_dev20              ; Yes this is Default Console Device
+ 02DB B80400                      mov     ax,PROC_DEVIN           ; Input from Another Device
+                          idle_dev20:
+ 02DE FF1E0000     E              callf   idle_vec                ; Call the IDLE Handler
+                          idle_dev30:
+ 02E2 5E07                        pop si ! pop es
+                          idle_dev40:
+                          endif
+ 02E4 5B                          pop     bx                      ; recover handle
+ 02E5 C3                          ret
+
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  44
+
+
+                          eject
+                          ;       The following routine reads CX bytes from the device whose address 
+                          ;       is held in the DWORD pointer passed by DS:SI. A Request Header 
+                          ;       is built on the stack and the command is executed.
+                          ;
+                          ;       On Entry:
+                          ;               ES:SI           DWORD Pointer to Device Header
+                          ;               SS:DX           Buffer Address
+                          ;               CX              Character Count
+                          ;
+                          ;       On Exit:
+                          ;               AX              Request Header Status
+                          ;               Zero            No Error
+                          ;
+                                  Public  device_read
+                          device_read:
+ 02E6 B004                        mov     al,CMD_INPUT            ; we want input
+ 02E8 EB02           02EC         jmps    device_common           ; now use common code
+
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  45
+
+
+                          eject
+                          ;       The following routine writes CX bytes to the device whose address 
+                          ;       is held in the DWORD pointer passed by DS:SI. A Request Header 
+                          ;       is built on the stack and the command is executed.
+                          ;
+                          ;       On Entry:
+                          ;               ES:SI           DWORD Pointer to Device Header
+                          ;               SS:DX           Buffer Address
+                          ;               CX              Character Count
+                          ;
+                          ;       On Exit:
+                          ;               AX              Request Header Status
+                          ;               Zero            No Error
+                          ;
+                                  Public  device_write
+                          device_write:
+ 02EA B008                        mov     al,CMD_OUTPUT           ; we want output
+                          device_common:
+ 02EC 53                          push    bx
+ 02ED 83EC1E                      sub     sp,RH4_LEN              ; reserve space on the stack
+ 02F0 8BDC                        mov     bx,sp                   ; request header offset
+ 02F2 36C6071E                    mov     ss:RH_LEN,RH4_LEN       ; request header length
+ 02F6 3689570E                    mov     ss:RH4_BUFOFF,dx        ; buffer offset
+ 02FA 368C5710                    mov     ss:RH4_BUFSEG,ss        ; buffer segment
+                          device_common10:
+ 02FE 36894F12                    mov     ss:RH4_COUNT,cx         ; character count
+ 0302 E8B300         03B8         call    device_req              ; execute command
+ 0305 7916           031D          jns    device_common20         ; if no errors return to the caller
+ 0307 362B4F12                    sub     cx,ss:RH4_COUNT         ; CX = chars remaining
+ 030B 50                          push    ax                      ; save the error code
+ 030C E80000       E              call    char_error              ; ask int 24 what to do
+ 030F 3C01                        cmp     al,ERR_RETRY            ; should we retry the operation ?
+ 0311 58                          pop     ax                      ; recover the error code
+ 0312 7709           031D          ja     device_common20         ; Fail/Abort return error
+ 0314 368A4702                    mov     al,ss:RH_CMD            ; reload the command
+ 0318 74E4           02FE          je     device_common10         ; Retry, re-issue the device request
+ 031A B80001                      mov     ax,RHS_DONE             ; Ignore, pretend no errors
+                          device_common20:
+ 031D 83C41E                      add     sp,RH4_LEN              ; restore the stack to its normal
+ 0320 A90080                      test    ax,RHS_ERROR            ;  state and return the status. 
+ 0323 5B                          pop     bx
+ 0324 C3                          ret
+
+
+                          char_check:
+                          ; On Entry:
+                          ;       BX = handle to check
+                          ; On Exit:
+                          ;       ZF set if character ready
+                          ;       AL = character (if device handle)
+                          ;       AH = RIC status
+                          ;
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  46
+
+
+ 0325 53                          push    bx                      ; Save the current handle status
+                          if IDLE_DETECT
+ 0326 F706000000C0 E              test    idle_flags,IDLE_DISABLE ; Has Idle Checking been enabled
+ 032C 7513           0341          jnz    char_check10            ; Skip if NO
+ 032E FF0E0000     E              dec     int28_delay             ; Has the INT28 Loop count reached
+ 0332 750D           0341          jnz    char_check10            ; Zero if NO skip delay and execute
+ 0334 A10000       E              mov     ax,int28_reload         ; INT28. Otherwise DELAY/DISPATCH
+ 0337 A30000       E              mov     int28_delay,ax
+ 033A B80200                      mov     ax,PROC_INT28           ; Process is IDLE
+ 033D FF1E0000     E              callf   idle_vec                ; Call the IDLE Handler
+                          char_check10:
+                          endif
+ 0341 803E000001   E              cmp     indos_flag,1            ; Only execute an INT 28
+ 0346 7546           038E          jnz    char_check20            ; when the INDOS flag is 1
+ 0348 803E0000FF   E              cmp     int28_flag,TRUE         ; Only generate INT 28s for the
+ 034D 753F           038E          jnz    char_check20            ; selected functions
+                                  
+ 034F FF360000     E              push    remote_call
+ 0353 FF360000     E              push    machine_id
+ 0357 8E060000     E              mov     es,current_psp          ; Get the PSP
+ 035B 26FF362E00                  push    PSP_USERSP              ; Save the SS:SP pointer to 
+ 0360 26FF363000                  push    PSP_USERSS              ; the register image
+
+                          if IDLE_DETECT                          ; Set IDLE_INT28 so $IDLE$ knows
+ 0365 810E00000400 E              or      idle_flags,IDLE_INT28   ; that we are nolonger inside DOS
+                          endif
+ 036B CD28                        int     28h                     ; Execute an INT 28 for SideKick and
+                                                                  ; the PRINT utility. INDOS flag is 1
+
+                          if IDLE_DETECT                          ; Reset IDLE_INT28 so $IDLE$ knows
+ 036D 81260000FBFF E              and     idle_flags,not IDLE_INT28; that we are back DOS
+                          endif
+ 0373 C6060000FF   E              mov     int28_flag,TRUE         ; Restore INT28_FLAG
+ 0378 8E060000     E              mov     es,current_psp          ; Get the PSP
+ 037C 268F063000                  pop     PSP_USERSS              ; Restore the SS:SP pointer to 
+ 0381 268F062E00                  pop     PSP_USERSP              ; the register image
+ 0386 8F060000     E              pop     machine_id
+ 038A 8F060000     E              pop     remote_call
+                          char_check20:
+ 038E 5B                          pop     bx
+                          ;       jmp     hndl_instat             ; Check Input Status. ZERO == Ready
+
+                          ;
+                          ;
+                          hndl_instat:
+ 038F E84300         03D5         call    is_device               ; Does this handle refer to a device
+ 0392 7309           039D          jnc    device_instat
+ 0394 B80644                      mov     ax,(MS_X_IOCTL shl 8)+6 ; Get the file status
+ 0397 E80000       E              call    dos_entry               ; for the specified handle
+ 039A 3CFF                        cmp     al,0FFh                 ; and return ZERO until the EOF
+ 039C C3                          ret
+
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  47
+
+
+                          ;       The following routine executes the Non Destructive Input
+                          ;       command to the device whose address passed in ES:SI.
+                          ;
+                          ;       On Entry:
+                          ;               ES:SI           DWORD Pointer to Device Header
+                          ;
+                          ;       On Exit:
+                          ;               Zero            Character Ready
+                          ;               AH              Top Byte Request Header Status
+                          ;               AL              Next Character if ZERO
+                          ;
+
+                          device_instat:
+ 039D 53                          push    bx
+ 039E 83EC0E                      sub     sp,RH5_LEN              ; Reserve Space on the Stack
+ 03A1 8BDC                        mov     bx,sp                   ; Request Header Offset
+ 03A3 36C6070E                    mov     ss:RH_LEN,RH5_LEN       ; Set Request Header Length
+ 03A7 B005                        mov     al,CMD_INPUT_NOWAIT     ; Command Number
+ 03A9 E80C00         03B8         call    device_req              ; Execute the Command
+ 03AC 368A470D                    mov     al,ss:RH5_CHAR          ; Assume a character is ready
+ 03B0 83C40E                      add     sp,RH5_LEN              ; Restore the Stack to its normal
+ 03B3 A90002                      test    ax,RHS_BUSY             ; state and return the status.  
+ 03B6 5B                          pop     bx                      ; Zero if a Character is ready
+ 03B7 C3                          ret
+
+                          ;       The following routine handles the low level device interface to
+                          ;       the character device drivers. All the generic Request Header 
+                          ;       initialization is carried out here.
+                          ;
+                          ;       On Entry:
+                          ;               AL              Command
+                          ;               ES:SI           Device Header
+                          ;               SS:BX           Current Request Header
+                          ;
+                          ;       On Exit:
+                          ;               AX              Request Header Status
+                          ;
+
+                          device_req:
+                          ;----------
+ 03B8 36884702                    mov     ss:RH_CMD,al            ; save the command
+ 03BC 1E                          push    ds
+ 03BD 06                          push    es
+ 03BE 061F                        push es ! pop ds                ; DS:SI -> device driver
+ 03C0 368E060000   E              mov     es,ss:current_psp       ; es = current PSP
+ 03C5 26A03C00                    mov     al,es:PSP_RIC           ; al = Return Interim Character flag
+ 03C9 3688470D                    mov     ss:RH4_RIC,al           ; Return Interim Char flag
+ 03CD 1607                        push ss ! pop es                ; ES:BX -> RH_
+ 03CF E80000       E              call    device_driver
+ 03D2 07                          pop     es
+ 03D3 1F                          pop     ds
+ 03D4 C3                          ret
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  48
+
+
+
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  49
+
+
+                          eject
+                          ;
+                          ;       IS_DEVICE checks the internal handle structures to determine
+                          ;       if the handle referenced in BX is a file or device. Invalid
+                          ;       handles all map to the default console device.
+                          ;
+                          ; On Entry:
+                          ;       BX      Handle Number
+                          ;
+                          ; On Exit:
+                          ;       CY set if handle is for a file
+                          ;       CY clear if handle is for device at ES:SI
+                          ;
+                          is_device:
+ 03D5 50                          push    ax
+ 03D6 53                          push    bx                      ; Convert the Standard Handle number
+ 03D7 8BC3                        mov     ax,bx                   ; get XFN in AL
+                          ;       mov     cx,current_psp          ; into an internal handle number
+                          ;        jcxz   is_dev10                ; no PSP, we have IFN already
+                          ;       mov     es,cx
+ 03D9 F606010080   E              test    byte ptr remote_call+1,DHM_FCB/100h; if FCB initiated access
+ 03DE 7513           03F3          jnz    is_dev10                ; we have IFN already
+ 03E0 8E060000     E              mov     es,current_psp
+ 03E4 263B1E3200                  cmp     bx,es:PSP_XFNMAX        ; Check if the handle is in range for
+ 03E9 7322           040D          jae    is_dev_bad              ; this PSP.
+ 03EB 26C4363400                  les     si,es:PSP_XFTPTR
+ 03F0 268A00                      mov     al,es:byte ptr [bx+si]  ; AL = Internal File Handle
+                          is_dev10:
+ 03F3 E80000       E              call    ifn2dhndl               ; ES:BX -> DHNDL_
+ 03F6 7215           040D          jc     is_dev_bad
+ 03F8 268B4705                    mov     ax,es:DHNDL_WATTR[bx]   ; get file attributes
+ 03FC 258080                      and     ax,DHAT_REMOTE+DHAT_DEV
+ 03FF 3D8000                      cmp     ax,DHAT_DEV             ; is it a local device ?
+ 0402 F9                          stc                             ; assume it's a file
+ 0403 7505           040A          jne    is_dev30
+ 0405 26C47707                    les     si,es:DHNDL_DEVPTR[bx]  ; its a device
+                          is_dev20:
+ 0409 F8                          clc
+                          is_dev30:
+ 040A 5B                          pop     bx
+ 040B 58                          pop     ax
+ 040C C3                          ret
+
+                          is_dev_bad:
+ 040D C4360000     E              les     si,con_device           ; bad handles map to console
+ 0411 EBF6           0409         jmps    is_dev20
+
+                          open_or_close_prn:
+                          ;-----------------
+                          ; called when CIO_CTLP toggled - call prn device with Open or Close as appropri
+                          ;
+ 0413 1E5053                      push ds ! push ax ! push bx
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  50
+
+
+ 0416 B81000                      mov     ax,CTLP
+ 0419 50                          push    ax                      ; ^P on stack
+ 041A 8B0E0000     E              mov     cx,current_psp          ; look in PSP
+ 041E E36C           048C          jcxz   oc_prn30                ; no PSP, forget it
+ 0420 8EC1                        mov     es,cx
+ 0422 263B1E3200                  cmp     bx,PSP_XFNMAX           ; Check if the handle is in range for
+ 0427 7363           048C          jae    oc_prn30                ; this PSP. 
+ 0429 26C4363400                  les     si,es:PSP_XFTPTR        ; for the internal handle number
+ 042E 268A4404                    mov     al,es:byte ptr STDPRN[si]
+ 0432 3CFF                        cmp     al,0FFh                 ; AL = Internal File Handle
+ 0434 7456           048C          je     oc_prn30                ;  skip if invalid Handle Number
+ 0436 E80000       E              call    ifn2dhndl               ; ES:BX -> doshndl
+ 0439 7251           048C          jc     oc_prn30
+ 043B 26F747050008                test    es:DHNDL_WATTR[bx],DHAT_NETPRN
+ 0441 7413           0456          jz     oc_prn10
+ 0443 B82611                      mov     ax,I2F_CTLP             ; turn on the network printer
+ 0446 CD2F                        int     2fh                     ; with a magic INT 2F call
+ 0448 730C           0456          jnc    oc_prn10
+ 044A 80260000FE   E              and     cio_state,not CIO_CTLP  ; make sure Printer Echo is off
+ 044F B82411                      mov     ax,I2F_CTLP_ERR
+ 0452 CD2F                        int     2fh
+ 0454 EB36           048C         jmps    oc_prn30
+                          oc_prn10:
+ 0456 268B4705                    mov     ax,es:DHNDL_WATTR[bx]   ; get file attributes
+ 045A 258080                      and     ax,DHAT_REMOTE+DHAT_DEV
+ 045D 3D8000                      cmp     ax,DHAT_DEV             ; is it a local device ?
+ 0460 752A           048C          jne    oc_prn30
+ 0462 B00D                        mov     al,CMD_DEVICE_OPEN      ; assume we've just opened
+ 0464 F606000001   E              test    cio_state,CIO_CTLP      ; Check for Printer Echo
+ 0469 7502           046D          jnz    oc_prn20                ; yes, skip next bit
+ 046B B00E                        mov     al,CMD_DEVICE_CLOSE     ; no, we must close
+                          oc_prn20:
+ 046D 26C47707                    les     si,es:DHNDL_DEVPTR[bx]  ; get the device driver address
+ 0471 26F744040008                test    es:DH_ATTRIB[si],DA_REMOVE
+ 0477 7413           048C          jz     oc_prn30                ; no, skip call if not supported
+ 0479 83EC0D                      sub     sp,RH13_LEN             ; Reserve Space on the Stack
+ 047C 8BDC                        mov     bx,sp                   ; and point to it
+ 047E 36C6070D                    mov     ss:RH_LEN,RH13_LEN      ; Set Request Header Length
+ 0482 36884702                    mov     ss:RH_CMD,al            ; Command Number
+ 0486 E80000       E              call    device_driver           ; issue the command
+ 0489 83C40D                      add     sp,RH13_LEN             ; Restore the Stack to its normal
+                          oc_prn30:
+ 048C 58                          pop     ax                      ; discard ^P from stack
+ 048D 5B581F                      pop bx ! pop ax ! pop ds
+ 0490 C3                          ret
+                                  
+                                  
+                          PCM_RODATA      CSEG    WORD
+
+ 0000 5E430D0A            cntrl_c_msg     db      '^C', CR, LF    ; Control-Break Message
+
+                          GLOBAL_DATA     dseg
+PC-DOS RASM-86 1.4a  Source: CIO.A86                                                                         Page  51
+
+
+
+ 0000 00                  clock_count     db      0
+
+                          PCMODE_DATA     DSEG    WORD
+
+                                  extrn   break_sp:word           ; For Control-Break handler
+                                  extrn   char_count:byte
+                                  extrn   cio_state:byte          ; Character I/O State
+                                  extrn   column:byte             ; Console Cursor Location
+                                  extrn   con_device:dword        ; Current Console Device
+                                  extrn   current_psp:word        ; Current PSP Address
+                                  extrn   exit_type:byte
+                                  extrn   last_key_ext:byte
+                                  extrn   indos_flag:byte         ; INDOS Count
+                                  extrn   int21regs_ptr:dword     ; pointer to callers registers
+                                  extrn   machine_id:word
+                                  extrn   remote_call:word
+                          if IDLE_DETECT
+                                  extrn   idle_flags:word         ; IDLE State Flags
+                                  extrn   idle_vec:dword          ; IDLE routine Vector
+                                  extrn   int28_delay:word
+                                  extrn   int28_reload:word
+                                  extrn   int28_flag:byte
+                          endif
+
+                                  end
+
+
+End of assembly.  Number of errors:   0.  Use factor: 37%
+   if IDLE_DETECT
+                                  extrn   idle_flags:word         ; IDLE Sta

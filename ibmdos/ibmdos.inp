@@ -1,0 +1,5 @@
+ibmdos.tmp=header.obj,pcmif.obj,cio.obj,disk.obj,ioctl.obj,misc.obj,support.obj,
+dosmem.obj,error.obj,process.obj,network.obj,int2f.obj,fdos.obj,cdevio.obj,fioctl.obj,
+fcbs.obj,redir.obj,dirs.obj,buffers.obj,bdevio.obj,cmdline.obj,history.obj
+[map, data[origin[0000]]]
+

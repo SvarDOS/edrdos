@@ -1,0 +1,1681 @@
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page   1
+
+
+=  0001                   __RASM__        EQU     1
+
+                          title 'FCB - DOS file system FCB support'
+                          ;    File              : $FCBS.A86$
+                          ;
+                          ;    Description       :
+                          ;
+                          ;    Original Author   : DIGITAL RESEARCH
+                          ;
+                          ;    Last Edited By    : $CALDERA$
+                          ;
+                          ;-----------------------------------------------------------------------;
+                          ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+                          ;      
+                          ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+                          ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+                          ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+                          ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+                          ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+                          ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+                          ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+                          ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+                          ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+                          ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+                          ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+                          ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+                          ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+                          ;    CIVIL LIABILITY.
+                          ;-----------------------------------------------------------------------;
+                          ;
+                          ;    *** Current Edit History ***
+                          ;    *** End of Current Edit History ***
+                          ;    $Log$
+                          ;    FCBS.A86 1.10 93/11/11 15:38:14
+                          ;    Chart Master fix - fcb_readblk over > 64k is truncated to 64k and
+                          ;    error 2 (Segment boundry overlap) is returned
+                          ;    FCBS.A86 1.9 93/10/18 17:37:06
+                          ;    fix for >255 open files (PNW Server)
+                          ;    ENDLOG
+
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page   2
+
+
+=                                 eject ! include i:fdos.equ
+=                         ;    File              : $FDOS.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=                         ;
+=                         ;                  Structure of Buffer Control Blocks
+=                         ;                  ----------------------------------
+=                         ;       These BCBs immediately preceed the data buffers. BCBs are
+=                         ;       always  shared  for all drives and therefore  must be big
+=                         ;       enough for the largest drive.
+=                         ;
+=
+=  0000                   BCB_NEXT        equ     word ptr  00h   ; link to next buffer
+=  0002                   BCB_PREV        equ     word ptr  02h   ; link to previous buffer
+=  0004                   BCB_DRV         equ     byte ptr  04h   ; drive of this buffer or 0FFh
+=  0005                   BCB_FLAGS       equ     byte ptr  05h   ; buffer flags
+=  0006                   BCB_REC         equ     word ptr  06h   ; low 16 bits of sector address
+=  0008                   BCB_REC2        equ     byte ptr  08h   ; top 8 bits of record address
+=  000A                   BCB_COPIES      equ     byte ptr  0Ah   ; number of copies to write
+=  000B                   BCB_SEPARATION  equ     word ptr  0Bh   ; # sectors copies are apart
+=  000D                   BCB_DDSC        equ     dword ptr 0Dh   ; DWORD ptr to DDSC_
+=  0011                   BCB_REMOTE      equ     word ptr  11h   ; remote in-use count
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page   3
+
+
+=  0014                   BCB_DATA        equ     byte ptr  14h   ; buffer data
+=
+=  0002                   BF_ISFAT        equ     0002h           ; buffer marked as FAT sector
+=  0004                   BF_ISDIR        equ     0004h           ; buffer marked as Directory sector
+=  0008                   BF_ISDAT        equ     0008h           ; buffer marked as Data sector
+=  0040                   BF_DIRTY        equ     0040h           ; buffer marked as modified
+=  0080                   BF_REMOTE       equ     0080h           ; buffer is remote
+=
+=  0FF6                   MAX12           equ     0FF6h           ; max. disk size w/ 12-bit media
+=
+=                         ;                    Structure of Hash Control Block
+=                         ;                    -------------------------------
+=                         ;       Each hash control  block refers  to the hash codes of one
+=                         ;       disrectory cluster or a root directory.
+=
+=  0000                   HCB_LINK        equ     word ptr 0      ; link to next control block
+=  0002                   HCB_DRV         equ     byte ptr 2      ; drive for this entry or 0FFh
+=  0004                   HCB_CLU         equ     word ptr 4      ; cluster number or 0000 if root
+=  0006                   HCB_CNT         equ     word ptr 6      ; number of hashed entries
+=  0008                   HCB_DATA        equ     word ptr 8      ; hash buffer data
+=
+=
+=                         ;                     Structure of DOS FCB
+=                         ;                     --------------------
+=                         ;       This is hopefully  consistent  with what DOS stores in an
+=                         ;       open file control block for DOS 1.x functions
+=
+=  0000                   MSF_EXTFLG      equ     byte ptr 0      ; if this is 0xFF, skip 1st 7 byte
+=  0006                   MSF_ATTRIB      equ     byte ptr 6      ; file attributes if MSF_EXTFLG
+=  0000                   MSF_DRIVE       equ     byte ptr 0      ; 1st byte normally drive code
+=  0001                   MSF_NAME        equ     byte ptr 1      ; 8-bit ASCII file name, 11 characters
+=  000C                   MSF_BLOCK       equ     word ptr 12     ; current block number
+=  000E                   MSF_RECSIZE     equ     word ptr 14     ; current logical record size
+=  0010                   MSF_SIZE        equ     word ptr 16     ; 32-bit file size
+=  0014                   MSF_DATE        equ     word ptr 20     ; last date stamp
+=  0016                   MSF_TIME        equ     word ptr 22     ; last time stamp
+=  0018                   MSF_IFN         equ     byte ptr 24     ;; internal file number
+=  0019                   MSF_IOCTL       equ     byte ptr 25     ;; file status
+=  001A                   MSF_BLOCK1      equ     word ptr 26     ;; 1st block of file
+=  001C                   MSF_DBLK        equ     word ptr 28     ;; directory block
+=  001C                   MSF_DEVPTR      equ     dword ptr 28    ;; address of device driver
+=  001E                   MSF_DCNT        equ     word ptr 30     ;; directory count
+=  0020                   MSF_CR          equ     byte ptr 32     ; current sequential record
+=  0021                   MSF_RR          equ     word ptr 33     ; random record address (3 or 4 byte)
+=  0023                   MSF_RR2         equ     byte ptr 35     ; random record overflow
+=
+=
+=                         ;                     Structure of DOS DPB
+=                         ;                     --------------------
+=                         ;       The  layout  of  this  structure  is  a  guess  based  on
+=                         ;       examples.  It is returned by PC MODE on functions 1Fh and
+=                         ;       32h  and is required  by various  disk-related  utilities
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page   4
+
+
+=                         ;       like disk editors and CHKDSK.
+=
+=  0000                   DDSC_UNIT       equ     byte ptr 0              ; absolute drive number
+=  0001                   DDSC_RUNIT      equ     byte ptr 1              ; relative unit number
+=  0002                   DDSC_SECSIZE    equ     word ptr 2              ; sector size in bytes
+=  0004                   DDSC_CLMSK      equ     byte ptr 4              ; sectors/cluster - 1
+=  0005                   DDSC_CLSHF      equ     byte ptr 5              ; log2 (sectors/cluster)
+=  0006                   DDSC_FATADDR    equ     word ptr 6              ; sector address of FAT
+=  0008                   DDSC_NFATS      equ     byte ptr 8              ; # of FAT copies
+=  0009                   DDSC_DIRENT     equ     word ptr 9              ; size of root directory
+=  000B                   DDSC_DATADDR    equ     word ptr 11             ; sector address of cluster #2
+=  000D                   DDSC_NCLSTRS    equ     word ptr 13             ; # of clusters on disk
+=  000F                   DDSC_NFATRECS   equ     word ptr 15             ; # of sectors per FAT
+=  0011                   DDSC_DIRADDR    equ     word ptr 17             ; sector address of root dir
+=  0013                   DDSC_DEVHEAD    equ     dword ptr 19            ; device driver header
+=  0013                   DDSC_DEVOFF     equ     word ptr 19
+=  0015                   DDSC_DEVSEG     equ     word ptr 21
+=  0017                   DDSC_MEDIA      equ     byte ptr 23             ; current media byte
+=  0018                   DDSC_FIRST      equ     byte ptr 24             ; "drive never accessed" flag
+=  0019                   DDSC_LINK       equ     dword ptr 25            ; next drive's DDSC
+=  001D                   DDSC_BLOCK      equ     word ptr 29             ; next block to allocate
+=  001F                   DDSC_FREE       equ     word ptr 31             ; total free clusters on drive
+=  0021                   DDSC_LEN        equ     33
+=
+=
+=
+=                         ;               DELWATCH hooks called by OS
+=
+=  0000                   DELW_RDMASK     equ     0                       ; delete dir search mask
+=  0002                   DELW_DELETE     equ     2                       ; delete this dir entry
+=  0003                   DELW_FREECLU    equ     3                       ; free some clusters
+=  0004                   DELW_FREERD     equ     4                       ; free root dir entry
+=  0005                   DELW_SPACE      equ     5                       ; add "deletes" to free space
+=  0007                   DELW_NEWDISK    equ     7                       ; new disk logged in
+=  000E                   DELW_PURGE      equ     14                      ; perge pd file
+=  000F                   DELW_UNDEL      equ     15                      ; undelete pd file
+=
+=                         ;               SuperStore hook called by OS
+=
+=  0010                   SSTOR_SPACE     equ     10h                     ; enquire # physical free space
+=
+=                         ;               Password hooks called by OS
+=
+=  0020                   PASSWD_CREAT    equ     20h                     ; initialise an entry
+=  0021                   PASSWD_CHMOD    equ     21h                     ; change an entry
+=  0022                   PASSWD_CHECK    equ     22h                     ; check an entry
+=
+=                         ;       Share hooks in PCMODE data segment
+=                         ;
+=                         ; These point to a stub which does a "STC, RETF"
+=                         ;
+=
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page   5
+
+
+=  000F                   NUM_SHARE_STUB_ENTRIES  equ     15
+=
+=  0000                   S_LOCKS         equ     DWORD*0         ; share lock/unlock region
+=  0004                   S_UPDATE        equ     DWORD*1         ; update DHNDL from share
+=  0008                   S_RECORD        equ     DWORD*2         ; update share from DHNDL
+=  000C                   S_FDOSRW        equ     DWORD*3         ; validate proposed operation
+=  0010                   S_DISCARD       equ     DWORD*4         ; discard all files on drive
+=  0014                   S_OPEN          equ     DWORD*5         ; files is opening, remember it
+=  0018                   S_CLOSE         equ     DWORD*6         ; files is closing, forget it
+=  001C                   S_OM_COMPAT     equ     DWORD*7         ; check open mode compatible
+=  0020                   S_CLOSE_IF_OPEN equ     DWORD*8         ; close if compat open, else deny
+=  0024                   S_DENY_IF_OPEN  equ     DWORD*9         ; deny if open shared/by others
+=  0028                   S_GET_LIST_ENTRY equ    DWORD*10        ; get open file list entry
+=  002C                   S_CLOSE_FILES   equ     DWORD*11        ; close all files for given PSP/UID
+=
+=                         ; struct dirfcb
+=
+=  0000                   DNAME           equ     byte ptr 0      ;file name & type
+=  000B                   DATTS       equ byte ptr 11 
+=  0001                     DA_RO         equ     01h             ; 0x01 - read/only
+=  0002                     DA_HIDDEN     equ     02h             ; 0x02 - hidden
+=  0004                     DA_SYSTEM     equ     04h             ; 0x04 - system
+=  0008                     DA_VOLUME     equ     08h             ; 0x08 - volume label
+=  0010                     DA_DIR        equ     10h             ; 0x10 - sub-directory
+=  0020                     DA_ARCHIVE    equ     20h             ; 0x20 - archive
+=  0080                     DA_CLUSTER    equ     80h             ; 0x80 - return starting cluster from search (API ex
+                          tenti
+=  0080                     DA_DELWATCH   equ     80h             ; 0x88 - return pending delete files
+=  00D8                     DA_FIXED      equ     11011000b       ; can't CHMOD label, dir, unused bits
+=  FF27                     DA_CHANGE     equ     not DA_FIXED    ; all others are changeable
+=
+=                         ;DATTS2         equ     12              ;CP/M attributes
+=                         ;                                       ; 0x80 - f1' modify default open rules
+=                         ;                                       ; 0x40 - f2' partial close default
+=                         ;                                       ; 0x20 - f3' ignore close checksum errors
+=                         ;                                       ; 0x10 - f4' disable checksums
+=                         ;                                       ; 0x08 - (reserved)
+=                         ;                                       ; 0x04 - DELETE password
+=                         ;                                       ; 0x02 - WRITE password
+=                         ;                                       ; 0x01 - READ password
+=  000D                   DUNDEL          equ     13              ;1st letter of deleted file
+=  000E                   DPWD            equ     word ptr 14     ;16-bit password hash code
+=  0010                   DMODTIME        equ     word ptr 16     ;delwatch time (hhhhhmmmmmmsssss)
+=  0012                   DMODDATE        equ     word ptr 18     ;delwatch date (yyyyyyymmmmddddd)
+=                         ;DRECSIZE       equ     16              ;FlexOS record size
+=                         ;DUSER          equ     18              ;FlexOS user ID of creator
+=                         ;DGROUP         equ     19              ;FlexOS group ID of creator
+=  0014                   DPWM            equ     word ptr 20     ;FlexOS access rights
+=  0016                   DTIME           equ     22              ;time (hhhhhmmmmmmsssss)
+=  0018                   DDATE           equ     24              ;date (yyyyyyymmmmddddd)
+=  001A                   DBLOCK1         equ     26              ;first block in file
+=  001C                   DSIZE           equ     28              ;current file size
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page   6
+
+
+=
+=                         ;                DOS Media Password Definitions
+=                         ;                ------------------------------
+=
+=  000F                   PWM_OWNER       equ     000Fh                   ; PWD Owner mask
+=  00F0                   PWM_GROUP       equ     00F0h                   ; PWD Group mask
+=  0F00                   PWM_WORLD       equ     0F00h                   ; PWD World mask
+=  0888                   PWM_R           equ     0888h                   ; PWD required for reading
+=  0444                   PWM_W           equ     0444h                   ; PWD required for writing
+=  0222                   PWM_E           equ     0222h                   ; PWD req'd for executing
+=  0111                   PWM_D           equ     0111h                   ; PWD required for deleting
+=  0DDD                   PWM_ANY         equ     PWM_R+PWM_W+PWM_D       ; PWD required for anything
+=
+=
+=                         ;       literal constants
+=
+=  0FFF                   FAT12           equ     00fffh          ; 12 bit fat
+=  FFFF                   FAT16           equ     0ffffh          ; 16 bit fat
+=
+=  FFFF                   ENDDIR          equ     0ffffh          ;end of directory
+=
+
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page   7
+
+
+=                                 eject ! include i:msdos.equ
+=                         ;    File              : $MSDOS.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=
+=  0000                   MS_P_TERMCPM    equ     00H
+=  0001                   MS_C_READ       equ     01H
+=  0002                   MS_C_WRITE      equ     02H
+=  0003                   MS_A_READ       equ     03H
+=  0004                   MS_A_WRITE      equ     04H
+=  0005                   MS_L_WRITE      equ     05H
+=  0006                   MS_C_RAWIO      equ     06H
+=  0007                   MS_C_RAWIN      equ     07H
+=  0008                   MS_C_NOECHO     equ     08H
+=  0009                   MS_C_WRITESTR   equ     09H
+=  000A                   MS_C_READSTR    equ     0aH
+=  000B                   MS_C_STAT       equ     0bH
+=  000C                   MS_C_FLUSH      equ     0cH
+=  000D                   MS_DRV_ALLRESET equ     0dH
+=  000E                   MS_DRV_SET      equ     0eH
+=  000F                   MS_F_OPEN       equ     0fH
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page   8
+
+
+=  0010                   MS_F_CLOSE      equ     10H
+=  0011                   MS_F_SFIRST     equ     11H
+=  0012                   MS_F_SNEXT      equ     12H
+=  0013                   MS_F_DELETE     equ     13H
+=  0014                   MS_F_READ       equ     14H
+=  0015                   MS_F_WRITE      equ     15H
+=  0016                   MS_F_MAKE       equ     16H
+=  0017                   MS_F_RENAME     equ     17H
+=  0019                   MS_DRV_GET      equ     19H
+=  001A                   MS_F_DMAOFF     equ     1aH
+=  001B                   MS_DRV_ALLOC    equ     1bH
+=  001C                   MS_DRV_ALLOCSPEC equ    1cH
+=  0021                   MS_F_READRAND   equ     21H
+=  0022                   MS_F_WRITERAND  equ     22H
+=  0023                   MS_F_SIZE       equ     23H
+=  0024                   MS_F_RANDREC    equ     24H
+=  0025                   MS_S_SETINT     equ     25H
+=  0026                   MS_P_MKPSP      equ     26H
+=  0027                   MS_F_READBLK    equ     27H
+=  0028                   MS_F_WRITEBLK   equ     28H
+=  0029                   MS_F_PARSE      equ     29H
+=  002A                   MS_T_GETDATE    equ     2aH
+=  002B                   MS_T_SETDATE    equ     2bH
+=  002C                   MS_T_GETTIME    equ     2cH
+=  002D                   MS_T_SETTIME    equ     2dH
+=  002E                   MS_F_VERIFY     equ     2eH
+=  002F                   MS_F_DMAGET     equ     2fH
+=  0030                   MS_S_BDOSVER    equ     30H
+=  0031                   MS_P_TERMKEEP   equ     31H
+=  0033                   MS_S_BREAK      equ     33H
+=  0035                   MS_S_GETINT     equ     35H
+=  0036                   MS_DRV_SPACE    equ     36H
+=  0038                   MS_S_COUNTRY    equ     38H
+=  0039                   MS_X_MKDIR      equ     39H
+=  003A                   MS_X_RMDIR      equ     3aH
+=  003B                   MS_X_CHDIR      equ     3bH
+=  003C                   MS_X_CREAT      equ     3cH
+=  003D                   MS_X_OPEN       equ     3dH
+=  003E                   MS_X_CLOSE      equ     3eH
+=  003F                   MS_X_READ       equ     3fH
+=  0040                   MS_X_WRITE      equ     40H
+=  0041                   MS_X_UNLINK     equ     41H
+=  0042                   MS_X_LSEEK      equ     42H
+=  0043                   MS_X_CHMOD      equ     43H
+=  0044                   MS_X_IOCTL      equ     44H
+=  0045                   MS_X_DUP        equ     45H
+=  0046                   MS_X_DUP2       equ     46H
+=  0047                   MS_X_CURDIR     equ     47H
+=  0048                   MS_M_ALLOC      equ     48H
+=  0049                   MS_M_FREE       equ     49H
+=  004A                   MS_M_SETBLOCK   equ     4aH
+=  004B                   MS_X_EXEC       equ     4bH
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page   9
+
+
+=  004C                   MS_X_EXIT       equ     4cH
+=  004D                   MS_X_WAIT       equ     4dH
+=  004E                   MS_X_FIRST      equ     4eH
+=  004F                   MS_X_NEXT       equ     4fH
+=  0050                   MS_P_SETPSP     equ     50H
+=  0054                   MS_F_GETVERIFY  equ     54H
+=  0056                   MS_X_RENAME     equ     56H
+=  0057                   MS_X_DATETIME   equ     57H
+=  0058                   MS_M_STRATEGY   equ     58h
+=  0059                   MS_F_ERROR      equ     59H
+=  005A                   MS_X_MKTEMP     equ     5aH
+=  005B                   MS_X_MKNEW      equ     5bH
+=  005C                   MS_F_LOCK       equ     5cH
+=  0060                   MS_X_EXPAND     equ     60H
+=  0062                   MS_P_GETPSP     equ     62H
+=  6601                   MS_X_GETCP      equ     6601h
+=  6602                   MS_X_SETCP      equ     6602h
+=  0067                   MS_X_SETHC      equ     67h
+=  0068                   MS_X_COMMIT     equ     68h
+=
+=  0021                   DOS_INT     equ 21h ; DOS Entry Point
+=                         ;
+=  0000                   STDIN           equ     0       ; Standard Console Input Handle
+=  0001                   STDOUT          equ     1       ; Standard Console Output Handle
+=  0002                   STDERR          equ     2       ; Standard Error Output
+=  0003                   STDAUX          equ     3       ; Auxilary Device Handle
+=  0004                   STDPRN          equ     4       ; Printer Device Handle
+
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  10
+
+
+=                                 eject ! include i:mserror.equ
+=                         ;    File              : $MSERROR.EQU$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=  FFFF                   ED_FUNCTION     equ     -01             ; invalid function number
+=  FFFE                   ED_FILE         equ     -02             ; file not found
+=  FFFD                   ED_PATH         equ     -03             ; path not found
+=  FFFC                   ED_HANDLE       equ     -04             ; too many open files
+=  FFFB                   ED_ACCESS       equ     -05             ; file access denied
+=  FFFA                   ED_H_MATCH      equ     -06             ; invalid handle number
+=  FFF9                   ED_DMD          equ     -07             ; memory descriptor destroyed
+=  FFF8                   ED_MEMORY       equ     -08             ; insufficient memory
+=  FFF7                   ED_BLOCK        equ     -09             ; invalid memory block addr
+=  FFF6                   ED_ENVIRON      equ     -10             ; invalid environment
+=  FFF5                   ED_FORMAT       equ     -11             ; invalid format
+=  FFF4                   ED_ACC_CODE     equ     -12             ; invalid access code
+=  FFF3                   ED_DATA         equ     -13             ; invalid data
+=  FFF1                   ED_DRIVE        equ     -15             ; invalid drive specified
+=  FFF0                   ED_DIR          equ     -16             ; can't remove current dir
+=  FFEF                   ED_DEVICE       equ     -17             ; not same device
+=  FFEE                   ED_ROOM         equ     -18             ; no more files
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  11
+
+
+=
+=  FFED                   ED_PROTECT      equ     -19             ; disk write protected
+=  FFEC                   ED_BADUNIT      equ     -20             ; invalid drive specified
+=  FFEB                   ED_NOTREADY     equ     -21             ; drive doesn't respond
+=  FFEA                   ED_BADCMD       equ     -22             ; invalid command to driver
+=  FFE9                   ED_BADDATA      equ     -23             ; data CRC error
+=  FFE8                   ED_BADRHLEN     equ     -24             ; (shouldn't happen)
+=  FFE7                   ED_BADSEEK      equ     -25             ; can't seek to track
+=  FFE6                   ED_BADMEDIA     equ     -26             ; unrecognizable medium
+=  FFE5                   ED_RNF          equ     -27             ; record/sector not found
+=  FFE4                   ED_NOPAPER      equ     -28             ; printer error
+=  FFE3                   ED_WRFAIL       equ     -29             ; write failed
+=  FFE2                   ED_RDFAIL       equ     -30             ; read failed
+=  FFE1                   ED_GENFAIL      equ     -31             ; anything failed
+=  FFE0                   ED_SHAREFAIL    equ     -32             ; sharing conflict
+=  FFDF                   ED_LOCKFAIL     equ     -33             ; locking conflict
+=  FFDE                   ED_DISKCHG      equ     -34             ; invalid disk change
+=  FFDD                   ED_NOFCBS       equ     -35             ; FCB table exhausted
+=  FFDC                   ED_NOLOCKS      equ     -36             ; lock list items exhausted
+=  FFCE                   ED_NET          equ     -50             ; Network Request Not Supported
+=
+=  FFBF                   ED_NETACCESS    equ     -65             ; file access denied
+=
+=  FFB7                   ED_NETPWD       equ     -73             ; Server Password Error
+=  FFB6                   ED_NETVER       equ     -74             ; Incorrect Server version
+=  FFB5                   ED_NETREQ       equ     -75             ; No Local Network Resources
+=  FFB4                   ED_NETTIME      equ     -76             ; Network Time Out Error
+=  FFB3                   ED_NETCOMM      equ     -77             ; Network Communications Error
+=  FFB2                   ED_NETSRVR      equ     -78             ; No Server Network Resources 
+=  FFB1                   ED_NETLOG       equ     -79             ; Server Not Logged In
+=
+=  FFB0                   ED_EXISTS       equ     -80             ; file already exists
+=  FFAE                   ED_MAKE         equ     -82             ; Cannot Make (Files ??)
+=  FFAD                   ED_FAIL         equ     -83             ; FAIL code returned from INT 24
+=  FFAC                   ED_STRUCT       equ     -84             ; Out of Structures
+=  FFAB                   ED_ASSIGN       equ     -85             ; Already Assigned
+=  FFAA                   ED_PASSWORD     equ     -86             ; Invalid Password
+=  FFA9                   ED_PARAM        equ     -87             ; Invalid Parameter
+=  FFA8                   ED_NETWRITE     equ     -88             ; Network write fault
+=  FFA7                   ED_NETFUNC      equ     -89             ; Function not supported on network
+=  FFA6                   ED_COMPONENT    equ     -90             ; system component not installed
+=  FFA6                   ED_LASTERROR    equ     -90             ; Last Error Number Used
+=
+=
+=  0001                   CLASS_RESOURCE  equ     1       ; Out of Resource
+=  0002                   CLASS_TEMP      equ     2       ; Temporary Situation
+=  0003                   CLASS_AUTHOR    equ     3       ; Authorization Error
+=  0004                   CLASS_INTERNAL  equ     4       ; Internal System Software Error
+=  0005                   CLASS_HARDWARE  equ     5       ; Hardware Failure
+=  0006                   CLASS_SYSTEM    equ     6       ; Serious System Failure
+=  0007                   CLASS_APPLIC    equ     7       ; Application Program Error
+=  0008                   CLASS_LOST      equ     8       ; File/Item Not Found
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  12
+
+
+=  0009                   CLASS_FORMAT    equ     9       ; File/Item Illegal Format 
+=  000A                   CLASS_LOCKED    equ     10      ; File/Item Locked
+=  000B                   CLASS_MEDIA     equ     11      ; Media Failure
+=  000C                   CLASS_EXISTS    equ     12      ; Item Already Exists
+=  000D                   CLASS_UNKNOWN   equ     13      ; Unknown Classification
+=
+=  0001                   ACT_RETRY       equ     1       ; Retry a few times then prompt user
+=  0002                   ACT_DELAY       equ     2       ; Delay then as ACT_RETRY
+=  0003                   ACT_USER        equ     3       ; Prompt user to re-enter data
+=  0004                   ACT_ABORT       equ     4       ; Clean Up then ABORT the process
+=  0005                   ACT_TERM        equ     5       ; Terminate immeadiately NO CLEAN UP
+=  0006                   ACT_IGNORE      equ     6       ; Ignore the Error
+=  0007                   ACT_URETRY      equ     7       ; Retry the error after user intervention
+=
+=  0001                   LOC_UNKNOWN     equ     1       ; Unknown error location
+=  0002                   LOC_BLOCK       equ     2       ; Block Device Failure
+=  0003                   LOC_NET         equ     3       ; Network Failure
+=  0004                   LOC_CHAR        equ     4       ; Related to Serial/Character devices
+=  0005                   LOC_MEMORY      equ     5       ; Failure related to Memory 
+
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  13
+
+
+=                                 eject ! include i:doshndl.def   ; DOS Handle Structures
+=                         ;    File              : $DOSHNDL.DEF$
+=                         ;
+=                         ;    Description       :
+=                         ;
+=                         ;    Original Author   : DIGITAL RESEARCH
+=                         ;
+=                         ;    Last Edited By    : $CALDERA$
+=                         ;
+=                         ;-----------------------------------------------------------------------;
+=                         ;    Copyright Work of Caldera, Inc. All Rights Reserved.
+=                         ;      
+=                         ;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+=                         ;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+=                         ;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+=                         ;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+=                         ;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+=                         ;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+=                         ;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+=                         ;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+=                         ;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+=                         ;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+=                         ;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+=                         ;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+=                         ;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+=                         ;    CIVIL LIABILITY.
+=                         ;-----------------------------------------------------------------------;
+=                         ;
+=                         ;    *** Current Edit History ***
+=                         ;    *** End of Current Edit History ***
+=                         ;
+=                         ;    $Log$
+=                         ;
+=                         ;    ENDLOG
+=
+=  0000                   DCNTRL_DSADD    equ dword ptr 0000h  
+=  0000                   DCNTRL_DSOFF    equ  word ptr 0000h  
+=  0002                   DCNTRL_DSSEG    equ  word ptr 0002h  
+=  0004                   DCNTRL_COUNT    equ  word ptr 0004h  
+=  0006                   DCNTRL_LEN      equ     6
+=
+=  0000                   DHNDL_COUNT     equ     word ptr 00h            ; 00 - Usage Count
+=  0002                   DHNDL_MODE      equ     word ptr 02h            ; 02 - File Mode
+=
+=  8000                   DHM_FCB         equ     8000h                   ; marks as FCB
+=  4000                   DHM_COMMIT      equ     4000h                   ; auto-commit file
+=  2000                   DHM_NOCRIT      equ     2000h                   ; no critical errors
+=  0080                   DHM_LOCAL       equ     10000000b               ; file is not inherited
+=  0070                   DHM_SHAREMSK    equ     01110000b               ; sharing bits
+=  0000                   DHM_COMPAT      equ     00000000b
+=  0010                   DHM_DENY_ALL    equ     00010000b               ; exclusive - deny all
+=  0020                   DHM_DENY_WRITE  equ     00100000b
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  14
+
+
+=  0030                   DHM_DENY_READ   equ     00110000b
+=  0040                   DHM_DENY_NONE   equ     01000000b
+=  000F                   DHM_RWMSK       equ     00001111b               ; read write bits
+=  0002                   DHM_RW          equ     00000010b               ; file opened read/write
+=  0001                   DHM_WO          equ     00000001b               ; file opened write only
+=  0000                   DHM_RO          equ     00000000b               ; file opened read only
+=
+=                         ;
+=                         ;       01h to 03h To be Determined
+=                         ;
+=  0004                   DHNDL_DATRB     equ     byte ptr 04h            ; Disk attribute byte
+=  0005                   DHNDL_ATTR      equ     byte ptr 05h            ; Attribute Byte
+=  0005                   DHNDL_WATTR     equ     word ptr 05h            ; Attribute Word
+=
+=  8000                   DHAT_REMOTE     equ     8000h                   ; set if file remote
+=  4000                   DHAT_TIMEOK     equ     4000h                   ; set if timestamp up to date
+=  1000                   DHAT_LOCAL      equ     1000h                   ; file is not inherited
+=  0800                   DHAT_NETPRN     equ     0800h                   ; device is networked printer
+=  0080                   DHAT_DEV        equ     0080h                   ; device/file bit
+=  0040                   DHAT_READY      equ     0040h                   ; ready/not ready bit
+=  0040                   DHAT_CLEAN      equ     0040h                   ; this bit CLEAR if dirty
+=  0020                   DHAT_BIN        equ     0020h                   ; raw/cooked bit
+=  001F                   DHAT_DRVMSK     equ     001Fh                   ; drive in bottom bits
+=  0008                   DHAT_CLK        equ     0008h                   ; -reserved-
+=  0004                   DHAT_NUL        equ     0004h                   ; handle is null device
+=  0002                   DHAT_COT        equ     0002h                   ; handle is console output device
+=  0001                   DHAT_CIN        equ     0001h                   ; handle is console input device
+=
+=  0007                   DHNDL_DEVPTR    equ     dword ptr 07h           ; 07 - pointer to device
+=  0007                   DHNDL_DEVOFF    equ     word ptr 07h            ; 07 - offset of device
+=  0009                   DHNDL_DEVSEG    equ     word ptr 09h            ; 09 - segment of device
+=  000B                   DHNDL_BLK1      equ     word ptr 0Bh            ; 0B - first cluster in file
+=  000D                   DHNDL_TIME      equ     word ptr 0Dh            ; 0D - file time stamp
+=  000F                   DHNDL_DATE      equ     word ptr 0Fh            ; 0F - file date stamp
+=  0011                   DHNDL_SIZE      equ     dword ptr 11h           ; 11 - file length
+=  0011                   DHNDL_SIZELO    equ     word ptr 11h
+=  0013                   DHNDL_SIZEHI    equ     word ptr 13h
+=  0015                   DHNDL_POS       equ     dword ptr 15h           ; 15 - current file position
+=  0015                   DHNDL_POSLO     equ     word ptr 15h
+=  0017                   DHNDL_POSHI     equ     word ptr 17h
+=  0019                   DHNDL_IDX       equ     word ptr 19h            ; 19 - relative cluster within file of last 
+                          read
+=  001B                   DHNDL_DBLK      equ     word ptr 1Bh            ; 1B - cluster # of dir entry
+=  001E                   DHNDL_DCNTHI    equ     byte ptr 1Eh            ; 1E - dir offset # within cluster
+=  001F                   DHNDL_DCNTLO    equ     byte ptr 1Fh            ; 1F - dir offset # within cluster
+=  0020                   DHNDL_NAME      equ     byte ptr 20h            ; 20 - File/Device Name
+=  0028                   DHNDL_EXT       equ     byte ptr 28h            ; 28 - File extension
+=  002B                   DHNDL_SFT       equ     dword ptr 2Bh           ; 2B - pointer to previous SFT
+=  002F                   DHNDL_UID       equ     word ptr 2Fh            ; 2F - Owning Machine ID
+=  0031                   DHNDL_PSP       equ     word ptr 31h            ; 31 - Owning PSP
+=  0033                   DHNDL_SHARE     equ     word ptr 33h            ; 33 - Offset of sharing record
+=  0035                   DHNDL_BLK       equ     word ptr 35h            ; 35 - absolute cluster of last read
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  15
+
+
+=                                                                         ; 37 - dword reserved for IFS
+=  003B                   DHNDL_LEN       equ     3Bh
+=
+=                         ; With DOS 3 structures _DBLK is a 16 bit
+=
+=
+=                         ; Logical Drive Table format
+=  0000                   LDT_NAME        equ     byte ptr 00h            ; 00 - Ascii Name field
+=  0043                   LDT_FLAGS       equ     word ptr 43h            ; 43 - Flag field
+=  0045                   LDT_PDT         equ     dword ptr 45h           ; 45 - PDT for this drive
+=  0049                   LDT_BLK         equ     word ptr 49h            ; 49 - directory sector 
+=  004B                   LDT_ROOT    equ word ptr 4bh        ; 4B - virtual block root
+=  004D                   LDT_DRV     equ byte ptr 4dh        ; 4D - physical drive 
+=  004F                   LDT_ROOTLEN     equ     word ptr 4fh            ; 4F - Length of root portion
+=  0058                   LDT_LEN         equ     58h
+=
+=  8000                   LFLG_NETWRKD    equ     8000h
+=  4000                   LFLG_PHYSICAL   equ     4000h
+=  2000                   LFLG_JOINED     equ     2000h
+=  1000                   LFLG_SUBST      equ     1000h
+
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  16
+
+
+                                  eject
+
+
+                          BDOS_DATA       dseg    word
+
+                          BDOS_CODE       cseg
+
+                                  extrn   ifn2dhndl:near
+                                  extrn   parse_one:near
+                                  extrn   fdos_entry:near
+
+                                  Public  fdos_exit
+
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  17
+
+
+                          eject
+                          ;       TERMINATE CHILD (EXIT)
+
+                          ;       +----+----+
+                          ;       |    24   |
+                          ;       +----+----+
+
+                          ;       entry:
+                          ;       ------
+                          ;       -none-
+
+                          ;       exit:
+                          ;       -----
+                          ;       -none-
+
+                          ; Close down all FCB handles associated with the current PSP
+                          ;
+                          fdos_exit:
+                          ;---------
+ 0000 1E                          push    ds
+ 0001 161F                        push ss ! pop ds                ; DS -> PCM_DSEG
+ 0003 2BC0                        sub     ax,ax                   ; start with first DHNDL_
+                          fdos_exit10:
+ 0005 E80000       E              call    ifn2dhndl               ; get DHNDL_
+ 0008 7238           0042          jc     fdos_exit40             ; stop if we have run out
+ 000A A30200       E              mov     fcb_pb+2,ax             ; we may close this IFN
+ 000D 50                          push    ax
+ 000E 268B0F                      mov     cx,es:DHNDL_COUNT[bx]   ; get the open count
+ 0011 E32A           003D          jcxz   fdos_exit30             ; skip if nothing to do
+ 0013 A10000       E              mov     ax,current_psp          ; get current PSP
+ 0016 263B4731                    cmp     ax,es:DHNDL_PSP[bx]     ; does it belong to this PSP
+ 001A 7521           003D          jne    fdos_exit30
+ 001C 36A10000     E              mov     ax,ss:machine_id        ; get current process
+ 0020 263B472F                cmp ax,es:DHNDL_UID[bx] 
+ 0024 7517           003D          jne    fdos_exit30
+ 0026 26F747020080                test    es:DHNDL_MODE[bx],DHM_FCB
+ 002C 740A           0038          jz     fdos_exit20             ; skip close if not FCB
+ 002E 06                          push    es
+ 002F 53                          push    bx                      ; save the DHNDL
+ 0030 B83E00                      mov     ax,MS_X_CLOSE
+ 0033 E8DB04         0511         call    fcb_fdos                ; make the FDOS do the work
+ 0036 5B                          pop     bx
+ 0037 07                          pop     es                      ; recover the DHNDL
+                          fdos_exit20:
+ 0038 26C7070000                  mov     es:DHNDL_COUNT[bx],0    ; always free the handle if it's ours
+                          fdos_exit30:
+ 003D 58                          pop     ax
+ 003E FEC0                        inc     al                      ; onto next IFN
+ 0040 75C3           0005          jnz    fdos_exit10
+                          fdos_exit40:
+ 0042 1F                          pop     ds
+ 0043 C3                          ret
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  18
+
+
+
+
+
+
+
+                                  Public  fdos_fcb
+                                          
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  19
+
+
+                          eject
+                          ;       GENERIC FCB FUNCTION (FCB)
+
+                          ;       +----+----+----+----+----+----+----+----+
+                          ;       |    22   |       fcbadr      |  count  |
+                          ;       +----+----+----+----+----+----+----+----+
+                          ;       |  func   |
+                          ;       +----+----+
+
+                          ;       entry:
+                          ;       ------
+                          ;       fcbadr: FCB address
+                          ;       count:  multi-sector count for read/write
+                          ;       func:   FCB sub-function
+
+                          ;       exit:
+                          ;       -----
+                          ;       AX:     return code or error code ( < 0)
+
+                          fdos_fcb:
+                          ;--------
+ 0044 8B5E02                      mov     bx,2[bp]                ; BX -> parameter block
+ 0047 8B5F08                      mov     bx,8[bx]                ; get subfunction code
+ 004A D1E3                        shl     bx,1                    ; make it word index
+ 004C 80EB1E                      sub     bl,15*WORD              ; adjust to base address
+ 004F 721E           006F          jc     fcb_error               ; reject if too low
+ 0051 80FB12                      cmp     bl,FCB_MAX1             ; is it in 1st block
+ 0054 720F           0065          jb     fdos_fcb10
+ 0056 80EB12                      sub     bl,(33-24)*WORD         ; adjust for gap
+ 0059 7214           006F          jc     fcb_error
+ 005B 80FB1A                      cmp     bl,FCB_MAX2             ; is it in 2nd block
+ 005E 7205           0065          jb     fdos_fcb10
+ 0060 80EB04                      sub     bl,(39-37)*WORD         ; adjust for gap
+ 0063 720A           006F          jc     fcb_error
+                          fdos_fcb10:
+ 0065 83FB1E                      cmp     bx,FCB_MAX3             ; check the range
+ 0068 7305           006F          jae    fcb_error               ; skip if invalid function
+ 006A 2EFFA77300   R              jmp     fcb_table[bx]           ; call the right function
+
+                          fcb_error:
+ 006F BBFFFF                      mov     bx,ED_FUNCTION
+ 0072 C3                          ret
+
+ 0073 9900         R      fcb_table       dw      fcb_open        ; 15-open file
+ 0075 3001         R                      dw      fcb_close       ; 16-close file
+ 0077 6001         R                      dw      fcb_first       ; 17-find first
+ 0079 6801         R                      dw      fcb_next        ; 18-find next
+ 007B 5801         R                      dw      fcb_delete      ; 19-delete file
+ 007D 9E01         R                      dw      fcb_read        ; 20-read from file
+ 007F 9901         R                      dw      fcb_write       ; 21-write to file
+ 0081 9100         R                      dw      fcb_make        ; 22-make file
+ 0083 4D01         R                      dw      fcb_rename      ; 23-rename file
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  20
+
+
+   0012                   FCB_MAX1        equ     (offset $ - offset fcb_table)
+ 0085 3102         R                      dw      fcb_readrand    ; 33-read from file
+ 0087 2C02         R                      dw      fcb_writerand   ; 34-write to file
+ 0089 9602         R                      dw      fcb_size        ; 35-compute file size
+ 008B 7901         R                      dw      fcb_setrecord   ; 36-set relative record
+   001A                   FCB_MAX2        equ     (offset $ - offset fcb_table)
+ 008D 5102         R                      dw      fcb_readblk     ; 39-read from file
+ 008F 4C02         R                      dw      fcb_writeblk    ; 40-write to file
+   001E                   FCB_MAX3        equ     (offset $ - offset fcb_table)
+
+                          fcb_make:
+                          ;--------
+ 0091 E8C302         0357         call    fcb_path_prep           ; build pathname
+ 0094 B83C00                      mov     ax,MS_X_CREAT
+ 0097 EB06           009F         jmps    fcb_open_make_common
+
+                          fcb_open:
+                          ;--------
+ 0099 E8BB02         0357         call    fcb_path_prep           ; build pathname
+ 009C B83D00                      mov     ax,MS_X_OPEN
+                          fcb_open_make_common:
+ 009F C70606000280 E              mov     fcb_pb+6,DHM_RW+DHM_FCB ; open as an FCB for read/write
+ 00A5 E86904         0511         call    fcb_fdos                ; lets try and open the file
+ 00A8 7301           00AB          jnc    fcb_open10              ; skip if we can't
+ 00AA C3                          ret
+                          fcb_open10:
+ 00AB E80000       E              call    ifn2dhndl               ; ES:BX -> DHNDL_ we have opened
+ 00AE 1E                          push    ds
+ 00AF 0653                        push es ! push bx               ; save DHNDL_
+ 00B1 E8E802         039C         call    fcb_point               ; ES:BX = FCB
+ 00B4 5E1F                        pop si ! pop ds                 ; DS:SI -> DHNDL_
+ 00B6 26884718                    mov     es:MSF_IFN[bx],al       ; store IFN away
+ 00BA 26C7470C0000                mov     es:MSF_BLOCK[bx],0      ; current block number
+ 00C0 26C7470E8000                mov     es:MSF_RECSIZE[bx],128  ; current logical record size
+ 00C6 E83900         0102         call    fcb_update              ; update misc changing fields
+ 00C9 8B4407                      mov     ax,ds:DHNDL_DEVOFF[si]
+ 00CC 2689471C                    mov     es:word ptr MSF_DEVPTR[bx],ax
+ 00D0 8B4409                      mov     ax,ds:DHNDL_DEVSEG[si]
+ 00D3 2689471E                    mov     es:word ptr MSF_DEVPTR+2[bx],ax
+ 00D7 8B440B                      mov     ax,ds:DHNDL_BLK1[si]
+ 00DA 2689471A                    mov     es:MSF_BLOCK1[bx],ax
+ 00DE 8A4405                      mov     al,ds:DHNDL_ATTR[si]
+ 00E1 26884719                    mov     es:MSF_IOCTL[bx],al
+ 00E5 268A07                      mov     al,es:MSF_DRIVE[bx]     ; get drive from FCB
+ 00E8 FEC8                        dec     al                      ; was absolute drive specified ?
+ 00EA 7904           00F0          jns    fcb_open20              ; if so use it
+ 00EC 36A00000     E              mov     al,ss:current_dsk       ; else use default drive
+                          fcb_open20:
+ 00F0 FEC0                        inc     al                      ; make drive 1 rather than 0 based
+ 00F2 268807                      mov     es:MSF_DRIVE[bx],al     ; drive code
+                          if 0
+                                  test    ds:DHNDL_DATRB[si],DA_VOLUME
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  21
+
+
+                          else
+ 00F5 36F706080008 E              test    ss:fcb_pb+8,DA_VOLUME
+      00           E
+                          endif
+ 00FC 1F                          pop     ds
+ 00FD 7531           0130          jnz    fcb_close               ; don't leave VOL label's open
+ 00FF 33DB                        xor     bx,bx                   ; no errors !
+ 0101 C3                          ret
+
+
+                          fcb_update:
+                          ;----------
+                          ; On Entry:
+                          ;       DS:SI -> DHNDL_
+                          ;       ES:BX -> FCB
+                          ; On Exit:
+                          ;       DATE/TIME/SIZE/DBLK/DCNT fields updated
+                          ;
+ 0102 8B440D                      mov     ax,ds:DHNDL_TIME[si]
+ 0105 26894716                    mov     es:MSF_TIME[bx],ax
+ 0109 8B440F                      mov     ax,ds:DHNDL_DATE[si]
+ 010C 26894714                    mov     es:MSF_DATE[bx],ax
+ 0110 8B4411                      mov     ax,ds:DHNDL_SIZELO[si]
+ 0113 26894710                    mov     es:MSF_SIZE[bx],ax
+ 0117 8B4413                      mov     ax,ds:DHNDL_SIZEHI[si]
+ 011A 26894712                    mov     es:MSF_SIZE+2[bx],ax
+ 011E 8B441B                      mov     ax,ds:DHNDL_DBLK[si]
+ 0121 2689471C                    mov     es:MSF_DBLK[bx],ax
+ 0125 8A441F                      mov     al,ds:DHNDL_DCNTLO[si]
+ 0128 8A641E                      mov     ah,ds:DHNDL_DCNTHI[si]
+ 012B 2689471E                    mov     es:MSF_DCNT[bx],ax
+ 012F C3                          ret
+
+                          fcb_close:
+                          ;---------
+                          ; close file (DOS function 10h)
+ 0130 E86902         039C         call    fcb_point               ; ES:BX -> FCB
+ 0133 B0FF                        mov     al,0FFh
+ 0135 263A4718                    cmp     al,es:MSF_IFN[bx]       ; is it a multiple close ?
+ 0139 740F           014A          je     fcb_fdos_common10       ;  don't re-open for this...
+ 013B E8A201         02E0         call    fcb_handle_vfy          ; verify we have a sensible handle
+ 013E 26884718                    mov     es:MSF_IFN[bx],al       ; mark FCB as closed (it will be)
+ 0142 B83E00                      mov     ax,MS_X_CLOSE           ; now close it
+                          ;       jmps    fcb_fdos_common
+
+                          fcb_fdos_common:
+                          ;---------------
+ 0145 E8C903         0511         call    fcb_fdos                ; make the FDOS do the work
+ 0148 7202           014C          jc     fcb_fdos_common20       ; return any error codes
+                          fcb_fdos_common10:
+ 014A 33DB                        xor     bx,bx                   ; else return zero
+                          fcb_fdos_common20:
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  22
+
+
+ 014C C3                          ret
+
+
+
+                          fcb_rename:
+                          ;----------
+ 014D E80702         0357         call    fcb_path_prep
+ 0150 E8EE01         0341         call    fcb_path2_prep
+ 0153 B85600                      mov     ax,MS_X_RENAME          ; it's a rename
+ 0156 EBED           0145         jmps    fcb_fdos_common
+
+                          fcb_delete:
+                          ;----------
+ 0158 E8FC01         0357         call    fcb_path_prep
+ 015B B84100                      mov     ax,MS_X_UNLINK          ; it's a delete
+ 015E EBE5           0145         jmps    fcb_fdos_common
+
+
+                          fcb_first:
+                          ;---------
+ 0160 E8F401         0357         call    fcb_path_prep           ; prepare pathname
+ 0163 B84E00                      mov     ax,MS_X_FIRST           ; we want to search 1st
+ 0166 EB06           016E         jmps    fcb_search_common
+
+                          fcb_next:
+                          ;--------
+ 0168 E88C03         04F7         call    fcb_restore_search_state
+ 016B B84F00                      mov     ax,MS_X_NEXT
+                          fcb_search_common:
+ 016E E8F502         0466         call    fcb_search              ; 0 of OK, otherwise ED_..
+ 0171 7205           0178          jc     fcb_search_common10
+ 0173 E81503         048B         call    fcb_save_search_state   ; save sucessful state
+ 0176 33DB                        xor     bx,bx                   ; return code in BX
+                          fcb_search_common10:
+ 0178 C3                          ret
+
+
+                          fcb_setrecord:
+                          ;-------------
+ 0179 E82002         039C         call    fcb_point               ; ES:BX -> FCB
+ 017C B88000                      mov     ax,128                  ; multiply current block by 128
+ 017F 26F7670C                    mul     es:MSF_BLOCK[bx]        ;  to give current record number
+ 0183 33C9                        xor     cx,cx
+ 0185 268A4F20                    mov     cl,es:MSF_CR[bx]        ; Add in the current record
+ 0189 03C1                        add     ax,cx                   ;  to DX:AX to give the
+ 018B 83D200                      adc     dx,0                    ;  relative record
+ 018E 26894721                    mov     es:MSF_RR[bx],ax        ; save the result
+ 0192 26885723                    mov     es:MSF_RR2[bx],dl
+ 0196 33DB                        xor     bx,bx                   ; we did OK
+ 0198 C3                          ret
+
+                          fcb_write:
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  23
+
+
+                          ;---------
+ 0199 B84000                      mov     ax,MS_X_WRITE           ; make it a write
+ 019C EB03           01A1         jmps    fcb_seq_rw
+
+                          fcb_read:
+                          ;--------
+ 019E B83F00                      mov     ax,MS_X_READ            ; make it a read
+                          fcb_seq_rw:
+ 01A1 E83C01         02E0         call    fcb_handle_vfy          ; verify we have a sensible handle
+ 01A4 50                          push    ax                      ; save the operation
+ 01A5 E80402         03AC         call    fcb_get_count           ; AX = bytes to read
+ 01A8 50                          push    ax                      ; save byte count
+ 01A9 E86402         0410         call    fcb_seek_seq            ; Seek to position in the file
+ 01AC 59                          pop     cx                      ; recover byte to xfer
+ 01AD 58                          pop     ax                      ;  and the Operation Code
+ 01AE 720A           01BA          jc     fcb_seq_rw10
+ 01B0 E80800         01BB         call    fcb_rw                  ; do the Op
+ 01B3 7205           01BA          jc     fcb_seq_rw10
+ 01B5 53                          push    bx                      ; save the error code
+ 01B6 E80102         03BA         call    fcb_update_seq          ; update FCB filepos
+ 01B9 5B                          pop     bx                      ; recover error
+                          fcb_seq_rw10:
+ 01BA C3                          ret
+
+                          fcb_rw:
+                          ; On Entry:
+                          ;       AX = operation code
+                          ;       CX = count
+                          ;       fcb_pb+2 = IFN
+                          ; On Exit:
+                          ;       BX = error code
+ 01BB 36C4160000   E              les     dx,ss:dword ptr dma_offset
+ 01C0 03CA                        add     cx,dx                   ; see if we overflow
+ 01C2 7236           01FA          jc     fcb_rw20
+ 01C4 2BCA                        sub     cx,dx                   ; count back to normal
+ 01C6 51                          push    cx                      ; save target count
+ 01C7 89160400     E              mov     fcb_pb+4,dx
+ 01CB 8C060600     E              mov     fcb_pb+6,es             ; setup buffer address
+ 01CF 890E0800     E              mov     fcb_pb+8,cx             ;  and target count
+ 01D3 E83B03         0511         call    fcb_fdos                ; ask the FDOS to do the read/write
+ 01D6 7220           01F8          jc     fcb_rw10                ; we got a real error...
+ 01D8 1E                          push    ds
+ 01D9 06                          push    es
+ 01DA A10200       E              mov     ax,fcb_pb+2             ; get IFN
+ 01DD E80000       E              call    ifn2dhndl               ; ES:BX -> DHNDL_ we have open
+ 01E0 0653                        push es ! push bx               ; save DHNDL_
+ 01E2 E8B701         039C         call    fcb_point               ; ES:BX = FCB
+ 01E5 5E1F                        pop si ! pop ds                 ; DS:SI -> DHNDL_
+ 01E7 E818FF         0102         call    fcb_update              ; update file size/time-stamp
+ 01EA 07                          pop     es
+ 01EB 1F                          pop     ds
+ 01EC 58                          pop     ax                      ; recover target count
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  24
+
+
+ 01ED 8B0E0800     E              mov     cx,fcb_pb+8             ; we xfered this much
+ 01F1 3BC8                        cmp     cx,ax                   ; did we xfer enough
+ 01F3 7209           01FE          jb     fcb_rw30                ; nope..
+ 01F5 33DB                        xor     bx,bx                   ; xfer went OK
+ 01F7 C3                          ret
+
+                          fcb_rw10:
+ 01F8 58                          pop     ax                      ; discard target count
+ 01F9 C3                          ret
+
+                          fcb_rw20:
+                          ; Our DTA is too small - return 2
+ 01FA BB0200                      mov     bx,2                    ; indicate the DTA is too small
+                          ;       stc                             ; error - don't update FCB
+ 01FD C3                          ret
+
+                          fcb_rw30:
+                          ; We have some form of EOF - lets look into it
+ 01FE E89B01         039C         call    fcb_point               ; ES:BX = FCB
+ 0201 268B5F0E                    mov     bx,es:MSF_RECSIZE[bx]   ; BX = record size
+ 0205 8BC1                        mov     ax,cx
+ 0207 33D2                        xor     dx,dx                   ; DX:AX = bytes xfer'd
+ 0209 F7F3                        div     bx                      ; did we xfer a complete
+ 020B 85D2                        test    dx,dx                   ;  number of records ?
+ 020D 7419           0228          jz     fcb_rw40                ;  if so return 1
+                          ; Partial data was read - fill out with zero's and return 3
+ 020F 40                          inc     ax                      ; allow for incomplete record
+ 0210 50                          push    ax                      ; save rounded up xfer count
+ 0211 36C43E0000   E              les     di,ss:dword ptr dma_offset
+ 0216 03F9                        add     di,cx                   ; point to 1st byte after xfer
+ 0218 8BCB                        mov     cx,bx                   ; this many in a record
+ 021A 2BCA                        sub     cx,dx                   ; so this many weren't xfer'd
+ 021C 33C0                        xor     ax,ax                   ; fill them with zero's
+ 021E F3AA                        rep     stosb                   ; zap the bytes we didn't xfer to
+ 0220 58                          pop     ax                      ; recover xfer count
+ 0221 F7E3                        mul     bx                      ;  and work out # bytes xfered
+ 0223 91                          xchg    ax,cx                   ; return bytes in CX
+ 0224 BB0300                      mov     bx,3                    ; indicate EOF (partial read)
+                          ;       clc                             ; update FCB
+ 0227 C3                          ret
+                                          
+                          fcb_rw40:
+                          ; No Data was xfered - return 1
+ 0228 BB0100                      mov     bx,1                    ; indicate EOF (no data read)
+                          ;       clc                             ; update FCB
+ 022B C3                          ret
+
+                          fcb_writerand:
+                          ;-------------
+ 022C B84000                      mov     ax,MS_X_WRITE           ; make it a write
+ 022F EB03           0234         jmps    fcb_random_rw
+
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  25
+
+
+                          fcb_readrand:
+                          ;------------
+ 0231 B83F00                      mov     ax,MS_X_READ            ; make it a read
+                          fcb_random_rw:
+ 0234 E8A900         02E0         call    fcb_handle_vfy          ; check the handle is OK
+ 0237 50                          push    ax                      ; save the code
+ 0238 E87101         03AC         call    fcb_get_count           ; AX = bytes to read
+ 023B 50                          push    ax                      ; save byte count
+ 023C 33C9                        xor     cx,cx                   ; cause update of seq posn from
+ 023E E8A101         03E2         call    fcb_update_rr           ;  random record position
+ 0241 E8ED01         0431         call    fcb_seek_rr             ; Seek to position in the file
+ 0244 59                          pop     cx                      ; recover byte to xfer
+ 0245 58                          pop     ax                      ;  and the Operation Code
+ 0246 7203           024B          jc     fcb_random_rw10
+ 0248 E870FF         01BB         call    fcb_rw                  ; do the Op
+                          fcb_random_rw10:
+ 024B C3                          ret
+                                  
+                                          
+                          fcb_writeblk:
+                          ;------------
+ 024C B84000                      mov     ax,MS_X_WRITE           ; make it a write
+ 024F EB03           0254         jmps    fcb_block_rw
+
+                          fcb_readblk:
+                          ;-----------
+ 0251 B83F00                      mov     ax,MS_X_READ            ; make it a read
+                          fcb_block_rw:
+ 0254 E88900         02E0         call    fcb_handle_vfy          ; check the handle is OK
+ 0257 50                          push    ax                      ; save the code
+ 0258 E85101         03AC         call    fcb_get_count           ; AX = bytes per record, CX = # records
+ 025B 91                          xchg    ax,cx                   ; CX = bytes per record
+ 025C F7E1                        mul     cx                      ; AX = bytes to xfer
+ 025E 85D2                        test    dx,dx                   ; more than 64K ?
+ 0260 740F           0271          jz     fcb_block_rw10          ; then we should truncate it
+ 0262 B80F00                      mov     ax,15                   ; AX = handy mask
+ 0265 99                          cwd                             ; DX = 0
+ 0266 3623060000   E              and     ax,ss:dma_offset        ; get dma offset for para
+ 026B F7D0                        not     ax                      ; DX/AX = maximum bytes we can xfer
+ 026D F7F1                        div     cx                      ; AX = maximum blocks we can xfer
+ 026F F7E1                        mul     cx                      ; AX = bytes to xfer (now < 64K)
+                          fcb_block_rw10: 
+ 0271 50                          push    ax                      ; save byte count
+ 0272 E8BC01         0431         call    fcb_seek_rr             ; Seek to position in the file
+ 0275 59                          pop     cx                      ; recover byte to xfer
+ 0276 58                          pop     ax                      ;  and the Operation Code
+ 0277 721C           0295          jc     fcb_block_rw20
+ 0279 E83FFF         01BB         call    fcb_rw                  ; do the Op
+ 027C 7217           0295          jc     fcb_block_rw20
+ 027E 53                          push    bx                      ; save the error code
+ 027F E86001         03E2         call    fcb_update_rr           ; update FCB filepos, get records xferd
+ 0282 8B5E02                      mov     bx,2[bp]                ; BX -> parameter block
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  26
+
+
+ 0285 874F06                      xchg    cx,6[bx]                ; update amount xfered
+ 0288 2B4F06                      sub     cx,6[bx]                ; CX = # we didn't xfer (normally 0)
+ 028B 5B                          pop     bx                      ; recover (possible) error
+ 028C E307           0295          jcxz   fcb_block_rw20          ; skip if we read all we wanted to
+ 028E 85DB                        test    bx,bx                   ; did we have a partial read for
+ 0290 7503           0295          jnz    fcb_block_rw20          ;  a reason like EOF ?
+ 0292 BB0200                      mov     bx,2                    ; no, we must have truncated it
+                          fcb_block_rw20:
+ 0295 C3                          ret
+                                  
+                                          
+                          fcb_size:
+                          ;--------
+ 0296 E8BE00         0357         call    fcb_path_prep
+ 0299 B84300                      mov     ax,MS_X_CHMOD           ; it's a get info
+ 029C C70606000000 E              mov     fcb_pb+6,0
+ 02A2 E86C02         0511         call    fcb_fdos
+ 02A5 7238           02DF          jc     fcb_size40
+ 02A7 E8F200         039C         call    fcb_point               ; ES:BX = FCB
+ 02AA 268B4F0E                    mov     cx,es:MSF_RECSIZE[bx]   ; get the record size
+ 02AE 85C9                        test    cx,cx                   ; is it non-zero ?
+ 02B0 7503           02B5          jnz    fcb_size10              ;  if not
+ 02B2 B98000                      mov     cx,128                  ;  make it 128 bytes
+                          fcb_size10:
+ 02B5 A10A00       E              mov     ax,fcb_pb+10
+ 02B8 8B160C00     E              mov     dx,fcb_pb+12            ; DX:AX = file length in bytes
+ 02BC E87002         052F         call    div_32                  ; DX:AX = file length in records
+ 02BF E306           02C7          jcxz   fcb_size20              ; was there an overflow
+ 02C1 050100                      add     ax,1
+ 02C4 83D200                      adc     dx,0                    ; include an extra record
+                          fcb_size20:
+ 02C7 E8D200         039C         call    fcb_point               ; ES:BX = FCB
+ 02CA 26894721                    mov     es:MSF_RR[bx],ax        ; low word of size
+ 02CE 26885723                    mov     es:MSF_RR2[bx],dl       ; hi byte of size
+ 02D2 26837F0E40                  cmp     es:MSF_RECSIZE[bx],64   ; if record size < 64 bytes
+ 02D7 7304           02DD          jae    fcb_size30              ;  then we use a 4 byte
+ 02D9 26887724                    mov     es:MSF_RR2+1[bx],dh     ;  random record position
+                          fcb_size30:
+ 02DD 33DB                        xor     bx,bx                   ; good return
+                          fcb_size40:
+ 02DF C3                          ret
+
+
+                          ; Utility FCB subroutines
+                          ;========================
+
+                          fcb_handle_vfy:
+                          ;--------------
+                          ; Verify FCB is valid and open, do not return if it isn't
+                          ; nb. Called with nothing on stack
+                          ;
+                          ; On Entry:
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  27
+
+
+                          ;       FCB address in parameter block
+                          ; On Exit:
+                          ;       AX preserved
+                          ;       ES:BX -> FCB (skipping EXT bit if present)
+                          ;       fcb_pb+2 = IFN of handle
+                          ;       On Error - blow away caller and return error in BX
+                          ;
+
+                          ; DEBUG - on reopen we could do more checks to ensure we are re-opening the
+                          ; same file
+ 02E0 50                          push    ax
+ 02E1 E8B800         039C         call    fcb_point
+ 02E4 26837F0E00                  cmp     es:MSF_RECSIZE[bx],0
+ 02E9 7506           02F1          jne    fcb_handle_vfy10
+ 02EB 26C7470E8000                mov     es:MSF_RECSIZE[bx],128
+                          fcb_handle_vfy10:
+ 02F1 268A4718                    mov     al,es:MSF_IFN[bx]       ; get IFN
+ 02F5 E80000       E              call    ifn2dhndl               ; ES:BX -> DHNDL_
+ 02F8 720E           0308          jc     fcb_handle_vfy20        ; it must be a valid IFN
+ 02FA 26F747020080                test    es:DHNDL_MODE[bx],DHM_FCB
+ 0300 7406           0308          jz     fcb_handle_vfy20        ; it must be an FCB..
+ 0302 26833F00                    cmp     es:DHNDL_COUNT[bx],0
+ 0306 7520           0328          jne    fcb_handle_vfy30        ; it must also be open..
+                          fcb_handle_vfy20:
+ 0308 E89100         039C         call    fcb_point
+ 030B 26FF770E                    push    es:MSF_RECSIZE[bx]      ; save current record size
+ 030F 26FF770C                    push    es:MSF_BLOCK[bx]        ; save current block number
+ 0313 0653                        push es ! push bx
+ 0315 E881FD         0099         call    fcb_open                ; try to re-open the file
+ 0318 5B07                        pop bx ! pop es                 ; point back at FCB
+ 031A 268F470C                    pop     es:MSF_BLOCK[bx]        ; restore current block number
+ 031E 268F470E                    pop     es:MSF_RECSIZE[bx]      ; restore record size
+ 0322 720F           0333          jc     fcb_handle_err
+ 0324 268A4718                    mov     al,es:MSF_IFN[bx]       ; get new IFN
+                          fcb_handle_vfy30:
+ 0328 32E4                        xor     ah,ah
+ 032A A30200       E              mov     fcb_pb+2,ax             ; set parameter block accordingly
+ 032D E86C00         039C         call    fcb_point               ; ES:BX -> MSF_
+ 0330 58                          pop     ax
+ 0331 F8                          clc
+ 0332 C3                          ret
+
+                          fcb_handle_err:
+ 0333 83C404                      add     sp,2*WORD               ; discard AX and near return address
+ 0336 3DFCFF                      cmp     ax,ED_HANDLE            ; if we have run out of handles then
+ 0339 7503           033E          jne    fcb_handle_err10        ;  say no FCB's, else return error
+ 033B B8DDFF                      mov     ax,ED_NOFCBS
+                          fcb_handle_err10:
+ 033E 93                          xchg    ax,bx                   ; error code in BX
+ 033F F9                          stc
+ 0340 C3                          ret
+
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  28
+
+
+
+                          fcb_path2_prep:
+                          ;--------------
+                          ; On Entry:
+                          ;       FCB address in parameter block
+                          ; On Exit:
+                          ;       ES:BX -> FCB (skipping EXT bit if present)
+                          ;       fcb_pb+6/8 -> unparse name from FCB
+                          ;
+ 0341 E85800         039C         call    fcb_point               ; point at the FCB
+ 0344 268A07                      mov     al,es:MSF_DRIVE[bx]     ; get drive
+ 0347 83C310                      add     bx,16                   ; point at 2nd name in FCB
+ 034A BF0000       E              mov     di,offset fcb_path2
+ 034D 893E0600     E              mov     fcb_pb+6,di
+ 0351 8C1E0800     E              mov     fcb_pb+8,ds             ; point at buffer we want
+ 0355 EB26           037D         jmps    fcb_path_prep_common
+
+                          fcb_path_prep:
+                          ;-------------
+                          ; On Entry:
+                          ;       FCB address in parameter block
+                          ; On Exit:
+                          ;       ES:BX -> FCB (skipping EXT bit if present)
+                          ;       fcb_pb+2/4 -> unparse name from FCB
+                          ;
+ 0357 33C0                        xor     ax,ax                   ; assume no attribute
+ 0359 8B5E02                      mov     bx,2[bp]                ; BX -> parameter block
+ 035C C45F02                      les     bx,2[bx]                ; ES:BX -> FCB
+ 035F 26803FFF                    cmp     es:MSF_EXTFLG[bx],0ffh  ; is it an extended FCB
+ 0363 7507           036C          jne    fcb_path_prep10
+ 0365 260A4706                    or      al,es:MSF_ATTRIB[bx]    ; we can use file mode from XFCB
+ 0369 83C307                      add     bx,7                    ; skip EXT bit of FCB
+                          fcb_path_prep10:
+ 036C A30800       E              mov     fcb_pb+8,ax             ; remember the attribute
+ 036F 268A07                      mov     al,es:MSF_DRIVE[bx]     ; get drive
+ 0372 BF0000       E              mov     di,offset fcb_path
+ 0375 893E0200     E              mov     fcb_pb+2,di
+ 0379 8C1E0400     E              mov     fcb_pb+4,ds             ; point at buffer we want
+                          fcb_path_prep_common:
+ 037D FEC8                        dec     al                      ; 0 = default drive
+ 037F 7903           0384          jns    fcb_path_prep20
+ 0381 A00000       E              mov     al,current_dsk          ; use default drive
+                          fcb_path_prep20:
+ 0384 1E                          push    ds
+ 0385 1E06                        push ds ! push es
+ 0387 1F07                        pop ds ! pop es                 ; ES:DI -> name buffer
+ 0389 0441                        add     al,'A'                  ; make drive ASCII
+ 038B AA                          stosb
+ 038C B03A                        mov     al,':'
+ 038E AA                          stosb                           ; now we have 'd:'
+ 038F 8D7701                      lea     si,MSF_NAME[bx]         ; DS:SI -> source name
+ 0392 A5A5                        movsw ! movsw
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  29
+
+
+ 0394 A5A5                        movsw ! movsw                   ; copy the name leaving spaces intact
+ 0396 B02E                        mov     al,'.'
+ 0398 AA                          stosb
+ 0399 A5A4                        movsw ! movsb                   ; copy the extention
+ 039B 1F                          pop     ds
+                          ;       jmps    fcb_point               ; point ES:BX at FCB again
+
+
+                          fcb_point:
+                          ;---------
+                          ; On Entry:
+                          ;       FCB address in parameter block
+                          ; On Exit:
+                          ;       ES:BX -> FCB (skipping EXT bit if present)
+                          ;       (All other regs preserved)
+                          ;
+ 039C 8B5E02                      mov     bx,2[bp]                ; BX -> parameter block
+ 039F C45F02                      les     bx,2[bx]                ; ES:BX -> FCB
+ 03A2 26803FFF                    cmp     es:MSF_EXTFLG[bx],0ffh  ; is it an extended FCB
+ 03A6 7503           03AB          jne    fcb_point10
+ 03A8 83C307                      add     bx,7                    ; skip EXT bit of FCB
+                          fcb_point10:
+ 03AB C3                          ret
+
+                          fcb_get_count:
+                          ;-------------
+                          ; On Entry:
+                          ;       none
+                          ; On Exit:
+                          ;       AX = bytes per record
+                          ;       CX = callers CX count
+                          ;       All regs fair game
+                          ;
+ 03AC E8EDFF         039C         call    fcb_point               ; ES:BX -> FCB
+ 03AF 8B7602                      mov     si,2[bp]                ; SI -> parameter block
+ 03B2 8B4C06                      mov     cx,6[si]                ; CX = count
+ 03B5 268B470E                    mov     ax,es:MSF_RECSIZE[bx]   ; get record size
+ 03B9 C3                          ret
+
+                          fcb_update_seq:
+                          ;--------------
+                          ; On Entry:
+                          ;       CX = byte count actually transferred
+                          ; On Exit:
+                          ;       CX = record count transferred
+                          ;       All other regs fair game
+                          ;       CR/BLOCK updated with new value
+                          ;
+ 03BA 8BC1                        mov     ax,cx
+ 03BC 33D2                        xor     dx,dx                   ; DX:AX = byte count transfered
+ 03BE E8DBFF         039C         call    fcb_point               ; ES:BX -> FCB
+ 03C1 26F7770E                    div     es:MSF_RECSIZE[bx]      ; make records xfered
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  30
+
+
+ 03C5 50                          push    ax                      ; save records xfered
+ 03C6 91                          xchg    ax,cx                   ; also in CX for later
+ 03C7 B88000                      mov     ax,128
+ 03CA 26F7670C                    mul     es:MSF_BLOCK[bx]        ; DX:AX = record of block
+ 03CE 03C1                        add     ax,cx
+ 03D0 83D200                      adc     dx,0                    ; add in amount just xfered
+ 03D3 268A4F20                    mov     cl,es:MSF_CR[bx]
+ 03D7 32ED                        xor     ch,ch                   ; now add in CR as a word
+ 03D9 03C1                        add     ax,cx
+ 03DB 83D200                      adc     dx,0                    ; DX:AX = record
+ 03DE 8AF2                        mov     dh,dl                   ; DH:AX = record for common code
+ 03E0 EB1C           03FE         jmps    fcb_update_common
+
+
+                          fcb_update_rr:
+                          ;-------------
+                          ; On Entry:
+                          ;       CX = byte count actually transferred
+                          ; On Exit:
+                          ;       CX = record count transferred
+                          ;       All other regs fair game
+                          ;       Random Record and CR/BLOCK updated with new value
+                          ;
+ 03E2 91                          xchg    ax,cx
+ 03E3 33D2                        xor     dx,dx                   ; DX:AX = byte count transfered
+ 03E5 E8B4FF         039C         call    fcb_point               ; ES:BX -> FCB
+ 03E8 26F7770E                    div     es:MSF_RECSIZE[bx]      ; make records xfered
+ 03EC 50                          push    ax                      ; save records xfered
+ 03ED 26014721                    add     es:MSF_RR[bx],ax        ; update the RR field
+ 03F1 2680572300                  adc     es:MSF_RR2[bx],0        ;  and the overflow
+ 03F6 268B4721                    mov     ax,es:MSF_RR[bx]        ; get low part of RR
+ 03FA 268A7723                    mov     dh,es:MSF_RR2[bx]       ;  and the hi part
+                          fcb_update_common:
+ 03FE 8AD4                        mov     dl,ah                   ; DX will be block number
+ 0400 D0E0                        shl     al,1                    ; get top bit of CR into CY
+ 0402 13D2                        adc     dx,dx                   ; then into DX
+ 0404 D0E8                        shr     al,1                    ; AL = CR (remember mod 128)
+ 0406 26884720                    mov     es:MSF_CR[bx],al        ; set the CR field
+ 040A 2689570C                    mov     es:MSF_BLOCK[bx],dx     ;  and the block field
+ 040E 59                          pop     cx                      ; recover records xfered
+ 040F C3                          ret
+
+
+                          fcb_seek_seq:
+                          ;------------
+                          ; Seek to position in file indicated by the RR position
+                          ; On Entry:
+                          ;       ES:BX -> FCB_
+                          ; On Exit:
+                          ;       CY clear if no problem, fcb_pb+2=IFN
+                          ;       else
+                          ;       CY set, AX = BX = error code
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  31
+
+
+                          ;       All other regs fair game
+                          ;
+ 0410 E889FF         039C         call    fcb_point               ; ES:BX -> FCB_
+ 0413 B88000                      mov     ax,128
+ 0416 26F7670C                    mul     es:MSF_BLOCK[bx]        ; get record in DX:AX
+ 041A 268A4F20                    mov     cl,es:MSF_CR[bx]
+ 041E 32ED                        xor     ch,ch
+ 0420 03C1                        add     ax,cx                   ; add in CR
+ 0422 83D200                      adc     dx,0                    ; so DX:AX is really the record
+ 0425 50                          push    ax                      ; save low word of record
+ 0426 8BC2                        mov     ax,dx
+ 0428 26F7670E                    mul     es:MSF_RECSIZE[bx]      ; DX:AX = byte offset in file/10000h
+ 042C 8BC8                        mov     cx,ax                   ; save the important word
+ 042E 58                          pop     ax                      ; recover low word of record
+ 042F EB13           0444         jmps    fcb_seek_common
+
+                          fcb_seek_rr:
+                          ;-----------
+                          ; Seek to position in file indicated by the RR position
+                          ; On Entry:
+                          ;       ES:BX -> FCB_
+                          ; On Exit:
+                          ;       CY clear if no problem, fcb_pb+2=IFN
+                          ;       else
+                          ;       CY set, AX = BX = error code
+                          ;       All other regs fair game
+                          ;
+ 0431 E868FF         039C         call    fcb_point               ; ES:BX -> FCB_
+ 0434 268A4723                    mov     al,es:MSF_RR2[bx]
+ 0438 32E4                        xor     ah,ah
+ 043A 26F7670E                    mul     es:MSF_RECSIZE[bx]      ; DX:AX = byte offset in file/10000h
+ 043E 8BC8                        mov     cx,ax                   ; save the important word
+ 0440 268B4721                    mov     ax,es:MSF_RR[bx]
+                          fcb_seek_common:
+ 0444 26F7670E                    mul     es:MSF_RECSIZE[bx]      ; DX:AX = byte offset in file
+ 0448 03D1                        add     dx,cx                   ; add the two bits together
+ 044A A30400       E              mov     fcb_pb+4,ax
+ 044D 89160600     E              mov     fcb_pb+6,dx             ; save position
+ 0451 C70608000000 E              mov     fcb_pb+8,0              ; seek from start
+ 0457 33C0                        xor     ax,ax
+ 0459 268A4718                    mov     al,es:MSF_IFN[bx]       ; AX = IFN
+ 045D A30200       E              mov     fcb_pb+2,ax             ; save IFN
+ 0460 B84200                      mov     ax,MS_X_LSEEK
+ 0463 E9AB00         0511         jmp     fcb_fdos                ; try and seek to this position
+
+
+                          fcb_search:
+                          ;----------
+                          ; On Entry:
+                          ;       AX = operation to perform
+                          ; On Exit:
+                          ;       AX = 0, or ED_ error code (CY set if error)
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  32
+
+
+ 0466 FF360000     E              push    dma_offset
+ 046A FF360000     E              push    dma_segment
+ 046E C70600000000 E              mov     dma_offset,offset fcb_search_buf
+ 0474 8C1E0000     E              mov     dma_segment,ds
+ 0478 E89600         0511         call    fcb_fdos                        ; do the search
+ 047B 8F060000     E              pop     dma_segment
+ 047F 8F060000     E              pop     dma_offset
+ 0483 85C0                        test    ax,ax                           ; was there an error
+ 0485 F9                          stc                                     ; assume there was
+ 0486 7802           048A          js     fcb_search10                    ; return the error
+ 0488 33C0                        xor     ax,ax                           ; no problems
+                          fcb_search10:
+ 048A C3                          ret
+
+                          fcb_save_search_state:
+                          ;---------------------
+                          ; On entry DS=PCMODE
+                                  
+ 048B E80EFF         039C         call    fcb_point
+ 048E 8D7F01                      lea     di,MSF_NAME[bx]         ; ES:DI -> FCB name
+ 0491 BE0000       E              mov     si,offset fcb_search_buf
+ 0494 AC                          lodsb                           ; get 1st byte = drive info
+ 0495 B90A00                      mov     cx,20/WORD              ; copy 20 bytes to FCB
+ 0498 F3A5                        rep     movsw                   ; (the rest of the search template)
+ 049A AA                          stosb                           ; drive info byte follow them
+                                  
+ 049B C43E0000     E              les     di,dword ptr dma_offset ; ES:DI -> search state in DMA address
+ 049F 8B7602                      mov     si,2[bp]                ; SI -> parameter block
+ 04A2 C57402                      lds     si,2[si]                ; DS:SI -> FCB_
+ 04A5 803CFF                      cmp     ds:MSF_EXTFLG[si],0ffh  ; extended FCB ?
+ 04A8 7505           04AF          jne    fcb_sss10
+ 04AA B90700                      mov     cx,7                    ; copy extended FCB portions too
+ 04AD F3A4                        rep     movsb                   ; we have copied up to name
+                          fcb_sss10:
+ 04AF AA                          stosb                           ; save drive byte info
+ 04B0 57                          push    di
+ 04B1 B020                        mov     al,' '                  ; space fill name
+ 04B3 B90B00                      mov     cx,11
+ 04B6 F3AA                        rep     stosb                   ; all blanks now
+ 04B8 5F                          pop     di
+ 04B9 161F                        push ss ! pop ds                ; DS:SI -> pathname
+ 04BB BE1E00       E              mov     si,offset fcb_search_buf+1Eh
+
+ 04BE 57                          push    di                      ; unparse knowing name is good
+ 04BF B90800                      mov     cx,8                    ; length of name field
+                          fcb_sss20:               
+ 04C2 AC                          lodsb                           ; treat '.' and '..' specially
+ 04C3 3C2E                        cmp     al,'.'                  ; is either possible ?
+ 04C5 7505           04CC          jne    fcb_sss30               ; no, continue as normal
+ 04C7 AA                          stosb                           ; copy the '.'
+ 04C8 E2F8           04C2         loop    fcb_sss20               ; go around for another '.'
+ 04CA EB04           04D0         jmps    fcb_sss40               ; this name is rubbish!!
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  33
+
+
+                          fcb_sss30:
+ 04CC 4E                          dec     si                      ; forget the non '.'
+ 04CD E80000       E              call    parse_one               ; parse just the name
+                          fcb_sss40:
+ 04D0 5F                          pop     di
+ 04D1 83C708                      add     di,8                    ; di -> fcb ext field
+ 04D4 3C2E                        cmp     al,'.'                  ; do we have an extention ?
+ 04D6 7508           04E0          jne    fcb_sss50
+ 04D8 B90300                      mov     cx,3                    ; length of ext field
+ 04DB 57                          push    di
+ 04DC E80000       E              call    parse_one               ; parse just extension
+ 04DF 5F                          pop     di
+                          fcb_sss50:
+ 04E0 83C703                      add     di,3                    ; di -> rest of fcb
+ 04E3 BE1500       E              mov     si,offset fcb_search_buf+15h
+ 04E6 A4                          movsb                           ; copy the attribute field
+ 04E7 33C0                        xor     ax,ax
+ 04E9 B90500                      mov     cx,10/WORD
+ 04EC F3AB                        rep     stosw                   ; 10 bytes of zeros
+ 04EE A5                          movsw                           ; copy time
+ 04EF A5                          movsw                           ; copy date
+ 04F0 A12F00       E              mov     ax,word ptr srch_buf+21+DBLOCK1
+ 04F3 AB                          stosw                           ; 1st block
+ 04F4 A5A5                        movsw ! movsw                   ; copy filesize
+ 04F6 C3                          ret
+
+                          fcb_restore_search_state:
+                          ;------------------------
+                          ; On entry DS=PCMODE
+ 04F7 1E                          push    ds
+ 04F8 E8A1FE         039C         call    fcb_point               ; ES:BX -> FCB_
+ 04FB 061E                        push es ! push ds
+ 04FD 071F                        pop es ! pop ds                 ; swap DS/ES
+ 04FF BF0100       E              mov     di,offset fcb_search_buf+1
+                                                                  ; ES:DI -> internal state
+ 0502 8D7701                      lea     si,1[bx]                ; DS:SI -> FCB+1
+ 0505 B90A00                      mov     cx,10
+ 0508 F3A5                        rep     movsw                   ; copy info from FCB
+ 050A AC                          lodsb                           ; get "drive" info
+ 050B 26A20000     E              mov     es:fcb_search_buf,al    ; it's the 1st byte in the srch state
+ 050F 1F                          pop     ds
+ 0510 C3                          ret
+
+                          fcb_fdos:
+                          ;--------
+                          ; Make an FDOS call (NB. We don't have MX here, so it's OK)
+                          ; Set top bit of remote_call flag so we use IFN's not XFN's
+                          ; On Entry:
+                          ;       AX = FDOS operation
+                          ;       fcb_pb -> FDOS parameter block
+                          ; On Exit:
+                          ;       As FDOS call
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  34
+
+
+                          ;
+ 0511 A30000       E              mov     fcb_pb,ax               ; save operation type
+ 0514 810E00000080 E              or      remote_call,DHM_FCB     ; forget about PSP during FCB call
+ 051A BA0000       E              mov     dx,offset fcb_pb        ; DS:DX -> parameter block
+ 051D 1E                          push    ds
+ 051E 55                          push    bp
+ 051F E80000       E              call    fdos_entry              ; call the FDOS
+ 0522 5D                          pop     bp
+ 0523 1F                          pop     ds
+ 0524 81260000FF7F E              and     remote_call,not DHM_FCB ; FCB operation over
+ 052A 3DA6FF                      cmp     ax,ED_LASTERROR
+ 052D F5                          cmc                             ; CY set if an error occurred
+ 052E C3                          ret
+
+                          div_32:
+                          ;       Entry:  DX,AX = long dividend
+                          ;               CX = word divisor
+                          ;       Exit:   DX,AX = long result
+                          ;               CX = remainder
+
+ 052F E31F           0550         jcxz    div0                    ; divide by 0
+ 0531 83F901                      cmp     cx,1
+ 0534 7420           0556          je     div1                    ; divide by 1
+ 0536 57                          push    di
+ 0537 53                          push    bx
+ 0538 33DB                        xor     bx,bx                   ; BX = 0
+ 053A 93                          xchg    ax,bx                   ; low word in BX, AX = 0
+ 053B 92                          xchg    ax,dx                   ; high word in DX:AX
+ 053C 50                          push    ax                      ; save high word
+ 053D F7F1                        div     cx                      ; divide high part
+ 053F 8BF8                        mov     di,ax                   ; save result
+ 0541 F7E1                        mul     cx                      ; AX = even divisor part
+ 0543 5A                          pop     dx                      ; old high in DX
+ 0544 2BD0                        sub     dx,ax                   ; eliminate even part
+ 0546 93                          xchg    ax,bx                   ; AX = low word
+ 0547 F7F1                        div     cx                      ; low part in AX
+ 0549 8BCA                        mov     cx,dx                   ; CX = remainder
+ 054B 8BD7                        mov     dx,di                   ; high result in DX
+ 054D 5B                          pop     bx
+ 054E 5F                          pop     di
+ 054F C3                          ret
+
+                          div0:
+ 0550 B8FFFF                      mov     ax,-1
+ 0553 8BD0                        mov     dx,ax
+ 0555 C3                          ret
+                          div1:
+ 0556 49                          dec     cx                      ; CX = remainder = 0
+ 0557 C3                          ret
+
+
+                          PCMODE_DATA     DSEG    WORD
+PC-DOS RASM-86 1.4a  Source: FCBS.A86      FCB - DOS file system FCB supp                                    Page  35
+
+
+
+                          extrn   fcb_pb:word
+                          extrn   fcb_path:byte
+                          extrn   fcb_path2:byte
+                          extrn   fcb_search_buf:byte
+
+                          extrn   current_dsk:byte
+                          extrn   current_psp:word
+                          extrn   dma_offset:word
+                          extrn   dma_segment:word
+                          extrn   machine_id:word
+                          extrn   remote_call:word
+                          extrn   srch_buf:byte
+
+                          end
+
+
+End of assembly.  Number of errors:   0.  Use factor: 23%
+                         extrn   fcb_search_buf:byte
+
+   

@@ -1,0 +1,179 @@
+;    File              : $PCMODE.EQU$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+;	This file contains all the general purpose definitions
+;	and equates used by the PCMODE Module.
+;
+
+TRUE	   	equ	0FFFFh		; value of TRUE
+FALSE	   	equ	0		; value of FALSE
+
+TRUE_VERSION	equ	6
+
+IDLE_DETECT	equ	TRUE		; Check for IDLE Process's
+
+if IDLE_DETECT
+IDLE_COMMAND	equ	0001h		; Command Processor Active
+IDLE_DOSFUNC	equ	0002h		; DOS Function Called
+IDLE_INT28	equ	0004h		; INT 28 Called
+
+IDLE_ON		equ	4000h		; ReSet when Idle Checking Enabled
+IDLE_INIT	equ	8000h		; ReSet when $IDLE$ Loaded and Active
+IDLE_DISABLE	equ	IDLE_INIT + IDLE_ON 
+
+PROC_IDLE	equ	0001		; Process is IDLE
+PROC_INT28	equ	0002		; INT28 Polling Loop
+PROC_KEYIN	equ	0003		; Keyboard Input
+PROC_DEVIN	equ	0004		; Device Input Routine
+endif
+
+
+STACK_SIZE	equ	192		; Local Stack Size (Levels)
+MAX_PATHLEN	equ	80		; Maximum Path length
+MAX_FILELEN	equ	13
+
+;
+;	DOS process termination Codes
+;
+TERM_NORMAL	equ	0		; Normal Termination
+TERM_BREAK	equ	1		; Termination by Control Break
+TERM_ERROR	equ	2		; Termination by Critical Error
+TERM_RESIDENT	equ	3		; Terminate and Stay Resident
+
+;
+;	Critical Error responses from the default INT 24 handler and
+;	the DO_INT24 routine.
+;
+ERR_IGNORE	equ	0		; Ignore Error
+ERR_RETRY	equ	1		; Retry the Operation
+ERR_ABORT	equ	2		; Terminate the Process
+ERR_FAIL	equ	3		; Fail Function
+;
+OK_FAIL		equ	0000$1000b	; Fail is a Valid Response
+OK_RETRY	equ	0001$0000b	; Retry is a Valid Response
+OK_IGNORE	equ	0010$0000b	; Ignore is a valid Response
+OK_RIF		equ	0011$1000b	; All Responsese are Valid
+OK_RI		equ	0011$0000b	; Retry and Ignore are Valid
+OK_RF		equ	0001$1000b	; Retry and Fail are Valid
+;
+NO_CRIT_ERRORS	equ	0100$0000b	; critical error shouldn't be generated
+					; warning - must match FDOS.A86
+;
+eject
+;	The following equates define the format in which the users registers
+;	are saved on the stack. This format is also seen by an application
+;	when a critical error occurs.
+;
+CodeMacro	POP$DOS		; Pop User Registers a la MS-DOS
+	db 058h ! db 05Bh	; pop AX ! pop BX
+	db 059h ! db 05Ah	; pop BX ! pop CX
+	db 05Eh ! db 05Fh	; pop SI ! pop DI
+	db 05Dh			; pop BP
+	db 01Fh ! db 007h	; pop DS ! pop ES
+EndM
+
+CodeMacro   PUSH$DOS    ; Push User Registers
+	db 006h ! db 01Eh	; push ES ! push DS
+	db 055h			; push BP
+	db 057h ! db 056h	; push DI ! push SI
+	db 052h ! db 051h	; push DX ! push CX
+	db 053h ! db 050h	; push BX ! push AX
+EndM
+
+reg_AX		equ	word ptr .00
+reg_AL		equ	byte ptr .00
+reg_AH		equ	byte ptr .01
+
+reg_BX		equ	word ptr .02
+reg_BL		equ	byte ptr .02
+reg_BH		equ	byte ptr .03
+
+reg_CX		equ	word ptr .04
+reg_CL		equ	byte ptr .04
+reg_CH		equ	byte ptr .05
+
+reg_DX		equ	word ptr .06
+reg_DL		equ	byte ptr .06
+reg_DH		equ	byte ptr .07
+
+reg_SI		equ	word ptr .08
+reg_DI		equ	word ptr .10
+reg_BP		equ	word ptr .12
+
+reg_DS		equ	word ptr .14
+reg_ES		equ	word ptr .16
+
+reg_IP		equ	word ptr .18
+reg_CS		equ	word ptr .20
+reg_FLAGS	equ	word ptr .22
+
+; Processor Flags
+CARRY_FLAG	equ	0001h		; Carry Flag
+ZERO_FLAG	equ	0040h		; Zero Flag
+SIGN_FLAG	equ	0080h		; Sign Flag
+INT_FLAG	equ	0200h		; Interrupt Flag
+DIR_FLAG	equ	0400h		; Direction Flag
+OFLW_FLAG	equ	0800h		; OverFlow Flag
+
+DMD_ID          equ     es:byte ptr .0	; id code ('M' or 'Z')
+DMD_PSP         equ     es:word ptr .1	; owner of memory block
+DMD_LEN         equ     es:word ptr .3	; length of memory block
+DMD_IDLE_FLAGS  equ es:word ptr .6  ; idle flags live here
+DMD_NAME	equ	es:byte ptr .8	; ASCIIZ name field
+DMD_NAME_LEN	equ	8		;  8 Bytes long
+IDM             equ     'M'		; not last id code
+IDZ             equ     'Z'		; last id code
+
+PCMCODE		GROUP	PCM_HEADER, PCM_CODE, BDOS_CODE, PCM_RODATA
+PCMCODE		GROUP	PCM_HISTORY, PCM_ICODE, PCM_CODEND
+
+PCM_HEADER	CSEG	PARA
+PCM_CODE	CSEG	BYTE
+PCM_RODATA	CSEG	WORD
+BDOS_CODE	CSEG	WORD
+PCM_HISTORY	CSEG	BYTE
+PCM_ICODE	CSEG	BYTE
+PCM_CODEND	CSEG	PARA
+
+
+PCMDATA		GROUP	PCMODE_DATA, FDOS_DSEG, FIXED_DOS_DATA
+PCMDATA		GROUP	PCMODE_CODE, GLOBAL_DATA, BDOS_DATA, PCMODE_DSIZE
+
+PCMODE_DATA	DSEG	WORD		; DOS Data
+FDOS_DSEG	DSEG	WORD COMMON	; FDOS Parameter Block	
+fdos_data	rw	7
+FIXED_DOS_DATA	CSEG	WORD	'DATA'	; Fixed DOS Data Area
+PCMODE_CODE	CSEG	WORD	'DATA'	; DATA relative CODE
+GLOBAL_DATA	DSEG	WORD		; GLOBAL DOS DATA (Process Independant)
+BDOS_DATA	DSEG	WORD		; BDOS Data Area
+PCMODE_DSIZE	DSEG	PARA		; End of DOS Data Area
