@@ -27,7 +27,7 @@ _div_by_zero_msg	db	CR, LF, "Divide Error", CR, LF, NUL
 	public	_starting_dos_msg
 	public	starting_dos_msg
 starting_dos_msg	label	byte
-_starting_dos_msg	db	CR, LF, "Starting Caldera OpenDOS 7.01.02", CR, LF, NUL
+_starting_dos_msg	db	CR, LF, "Starting Caldera OpenDOS 7.01.03", CR, LF, NUL
 	public	_lba_supp_msg
 	public	lba_supp_msg
 lba_supp_msg		label	byte

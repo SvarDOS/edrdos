@@ -48,6 +48,7 @@
 	include	BPB.EQU
 	include	UDSC.EQU
 	include	DRIVER.EQU
+	include KEYS.EQU		; common key definitions
 
 ; IBM AT Hardware equates
 
@@ -864,6 +865,43 @@ output_msg10:
 	test	al,al			; end of string ?
 	 jnz	output_msg10
 	ret
+
+	public	output_hex
+output_hex:
+;----------------
+; On Entry:
+;	dx = 2 byte hex value
+; On Exit:
+;	None
+; Used Regs:
+;	ax,bx,cx,dx,si
+	mov	cx,4
+	mov	ah,0eh
+	mov	bx,7
+output_hex10:
+	mov	al,dh
+	push	cx
+	mov	cl,4
+	shr	al,cl
+	pop	cx
+	and	al,0fh
+	cmp	al,09h			; greater 0-9?
+	jg	output_hex20
+	add	al,30h
+	jmp	output_hex30
+output_hex20:
+	add	al,37h
+output_hex30:
+	int	VIDEO_INT
+	push	cx
+	mov	cl,4
+	shl	dx,cl
+	pop	cx
+	loop	output_hex10
+	mov	si,CG:output_hex40
+	call	output_msg
+	ret
+output_hex40	db	CR,LF,NUL	; end of string
 
 get_boot_options:
 ;----------------

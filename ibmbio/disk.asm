@@ -173,6 +173,7 @@ CODE	segment	'CODE'
 	extrn	req_off:word
 	extrn	req_seg:word
 	extrn	output_msg:near
+	extrn	output_hex:near
 
 
 udsc_root	label	dword
@@ -2190,6 +2191,8 @@ ver_20		db	"2.0/EDD-1.0",CR,LF,NUL
 ver_21		db	"2.1/EDD-1.1",CR,LF,NUL
 ver_30		db	"EDD-3.0",CR,LF,NUL
 
+lastpart	dw	0		; last checked partition
+
 hard_init:	; setup all hard disk units
 ;---------
 ;	mov	log_flag,LOG_PRIM	; log in primary only initially
@@ -2210,6 +2213,7 @@ hardi0:
 	xchg	ax,cx			; CX = # of hard disks
 	mov	dl,80h			; start with first hard disk
 hardi1:
+	mov	lastpart,0
 	pushx	<cx, dx>		; save drive count, physical drive
 	mov	ah,ROS_LBACHK		; int 13 extensions available?
 	mov	bx,55aah
@@ -2358,9 +2362,18 @@ log_h6c:
 log_h6b:
 	mov	dh,1[si]		; get head # for next table
 	mov	cx,2[si]		; get cylinder, sector for next table
+	xchg	ch,cl			; compute 10-bit cylinder number
+	rol	ch,1
+	rol	ch,1
+	and	cx,3ffh
+	cmp	cx,lastpart		; check for loops/partition out of bounds
+	jng	log_h7
+	mov	lastpart,cx		; store cylinder number for comparison
+	mov	cx,2[si]
 	jmp	log_h1			; read & scan next partition table
 
 log_h7:					; entry not an extended partition
+	mov	cx,2[si]
 	add	si,16			; next partition table entry
 	cmp	si,CG:local_buffer+IDOFF; all partitions checked?
 	 jb	log_h6			; loop back if more
