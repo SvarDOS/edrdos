@@ -68,6 +68,9 @@ ROS_DSKCHG	equ	16h		; check disk change status
 ROS_SETTYPE	equ	17h		; set disk type for format
 ROS_SETMEDIA	equ	18h		; set media type for format
 ROS_LBACHK	equ	41h		; int 13 extensions install check
+ROS_LBAREAD	equ	42h		; extended read
+ROS_LBAWRITE	equ	43h		; extended write
+ROS_LBAVERIFY	equ	44h		; extended verify
 
 PRN_ERROR	equ	00101001b	; printer error bits
 PRN_NOTBUSY	equ	10000000b

@@ -104,6 +104,7 @@ DOS20_ID	equ	1		; DOS 2.0 partition, < 4086 clusters
 DOS30_ID	equ	4		; DOS 3.0 partition, < 65536 sectors
 DOSEX_ID	equ	5		; DOS 3.3 extended partition
 DOS331_ID	equ	6		; COMPAQ DOS 3.31 partition > 32 Mb
+FAT16X_ID	equ	0eh		; FAT16 LBA partition
 EXTX_ID 	equ	0fh		; Win95 ExtendedX partition
 
 ; Now for the secure partition types
@@ -174,6 +175,7 @@ CODE	segment	'CODE'
 	extrn	req_seg:word
 	extrn	output_msg:near
 	extrn	output_hex:near
+	extrn	diskaddrpack:word
 
 
 udsc_root	label	dword
@@ -839,6 +841,141 @@ UpdateMediaID:
 	pop	di
 	ret
 
+getdrivegeo:				; get number of heads & sectors
+;-------------
+; On Entry:
+;	DL unit
+; On Exit:
+;	max_head & max_sect
+
+	pushx	<cx,dx,es>
+	mov	ah,ROS_PARAM		; get drive parameters
+	int_____DISK_INT
+	xor	dl,dl			; isolate head bits
+	xchg	dh,dl
+	inc	dx
+	mov	max_head,dx		; number of heads on this drive
+	and	cx,3fh			; isolate sector bits
+	mov	max_sect,cx		; number of sectors per track on this drive
+	popx	<es,dx,cx>
+	ret
+
+login_CHS2LBA:
+;-------------
+; On Entry:
+;	DH head
+;	DL unit
+;	CX cylinder and sector
+;	DS:SI -> disk address packet structure
+; On Exit:
+;	LBA data in disk address packet
+
+	call	getdrivegeo
+	push	dx
+	mov	ax,cx			; isolate cylinder bits
+	and	ax,0ffc0h
+	xchg	ah,al			; compute 10-bit cylinder number
+	rol	ah,1
+	rol	ah,1
+	mov	bl,dh			; isolate head bits
+	xor	bh,bh
+	mul	max_head		; multiply with number of heads
+	add	ax,bx			; add head number
+	adc	dx,0
+	push	ax
+	mov	ax,dx			; multiply with sectors per track
+	mul	max_sect
+	mov	word ptr [si+10],ax
+	mov	word ptr [si+12],dx
+	pop	ax
+	mul	max_sect
+	and	cx,3fh			; isolate sector bits
+	dec	cx
+	mov	word ptr [si+8],cx	; add products and sector number
+	add	word ptr [si+8],ax
+	adc	word ptr [si+10],dx
+	adc	word ptr [si+12],0
+	pop	dx
+	ret
+
+login_LBA2CHS:
+;-------------
+; On Entry:
+;	DS:SI -> disk address packet structure
+;	LBA data in disk address packet
+; On Exit:
+;	DH head
+;	DL unit
+;	CX cylinder and sector
+
+	call	getdrivegeo
+	push	dx			; save unit number
+	mov	dx,0			; divide high word of LBA block number
+	mov	ax,word ptr [si+10]
+	div	max_sect
+	push	ax			; high word of dividend
+	mov	ax,word ptr [si+8]	; divide low word & remainder
+	div	max_sect
+	mov	cx,dx			; remainder = sector number
+	inc	cx			; sector count starts with 1
+	pop	dx			; get high word
+	div	max_head		; divide through number of heads
+	ror	ah,1			; convert cylinder and sector number to CHS format
+	ror	ah,1
+	xchg	ah,al
+	or	cx,ax
+	xchg	dh,dl			; head number to DH
+	pop	ax			; get unit number
+	mov	dl,al
+	ret
+
+login_read_lba:
+;	entry:	CH, CL = cylinder/sector to read
+;	exit:	CY = 1, AH = status if error
+;		else local_buffer filled in
+
+	mov	dl,es:UDSC_RUNIT[di]	; DL = ROS drive
+	mov	dh,0			; DH = head number
+
+login_read_dx_lba:				; read on drive DL, head DH
+;-------------				; (entry for hard disk login)
+; On Entry:
+;	DS:SI -> disk address packet
+;	DL unit number
+
+	mov	P_RETRY[bp],RETRY_MAX	; initialize retry count
+logrd1_lba:
+	test	int13ex_bits,1		; LBA support present?
+	 jz	logrd1a_lba		; no, then use old CHS method
+	mov	word ptr [si+2],1	; read one sector
+	mov	word ptr [si+4],CG:local_buffer	; address of transfer buffer
+	mov	word ptr [si+6],DS
+	mov	ah,ROS_LBAREAD
+	int_____DISK_INT
+	jmp	logrd1b_lba
+logrd1a_lba:
+	call	login_LBA2CHS		; convert LBA parameters to CHS
+	push	es
+	mov	ax,ROS_READ*256 + 1	; read one sector from ROS
+	push	ds
+	pop	es			; ES = DS = local segment
+	mov	bx,CG:local_buffer
+	int_____DISK_INT		; call the ROM BIOS
+	pop	es
+logrd1b_lba:
+	 jnc	logrd3_lba		; skip if no disk error
+	push	ax
+;	mov	ah,ROS_RESET
+	xor	ax,ax
+	int_____DISK_INT		; reset the drive
+	pop	ax
+	dec	P_RETRY[bp]
+	 jnz	logrd1_lba		; loop back if more retries
+logrd2_lba:
+	stc
+logrd3_lba:
+	mov	si,CG:local_buffer
+	ret
 
 login_read:
 ;	entry:	CH, CL = cylinder/sector to read
@@ -999,6 +1136,8 @@ setrw5:
 	sbb	dx,0			; add partition address for hard disk
 	add	ax,es:word ptr (UDSC_BPB+BPB_HIDDEN)[di]
 	adc	dx,es:word ptr (UDSC_BPB+BPB_HIDDEN+2)[di]
+	mov	word ptr P_LBABLOCK[bp],ax	; Logical Block Address of start sector
+	mov	word ptr P_LBABLOCK[bp+2],dx
 	push	ax			; AX/DX = 32 bit starting record address
 	push	dx			; save starting record
 	mov	ax,es:UDSC_BPB+BPB_SPT[di]
@@ -1025,6 +1164,7 @@ track_rw:
 ;		P_COUNT  = remaining sector count
 ;		P_DMAOFF = transfer offset
 ;		P_DMASEG = transfer segment
+;		P_LBABLOCK =  block # for start of transfer
 ;		ES:DI -> UDSC structure
 ;	exit:	CY = 0 if no error, P_COUNT = remaining sectors
 ;		CY = 1 if error, AH = ROS error code
@@ -1048,6 +1188,51 @@ endif
 trkrw10:
 	mov	P_RETRY[bp],RETRY_MAX	; perform up to three retries
 trkrw20:				; loop back here for retries
+	mov	dl,es:UDSC_RUNIT[di]	; get ROS unit #
+	test	es:UDSC_INT13BITS[di],1	; LBA supported on this drive?
+	 jz	trkrw25			; no, then use CHS routine
+
+trkrw25_lba:
+	lea	si,diskaddrpack		; disk address packet structure
+	mov	ax,word ptr P_LBABLOCK[bp]	; get block number
+	mov	word ptr [si+8],ax
+	mov	ax,word ptr P_LBABLOCK[bp+2]
+	mov	word ptr [si+10],ax
+	mov	word ptr [si+6],ds	; address of transfer buffer
+	mov	word ptr [si+4],CG:local_buffer
+;	push	es
+;	mov	ax,ds
+;	mov	es,ax
+;	mov	bx,CG:local_buffer	; point at our local buffer
+	cmp	P_DIRECT[bp],0		; DMA boundary problem?
+	 je	trkrw30_lba		; no, direct transfer performed
+	mov	ax,word ptr P_DMA[bp+2]	; transfer address
+	mov	word ptr [si+6],ax
+	mov	ax,word ptr P_DMA[bp]
+	mov	word ptr [si+4],ax
+;	les	bx,P_DMA[bp]		; ES:BX -> transfer address
+trkrw30_lba:
+;	mov	ax,P_MCNT[bp]		; AL = physical sector count
+	mov	ax,P_MCNT[bp]		; physical sector count
+	mov	word ptr [si+2],ax
+	mov	ah,P_ROSCMD[bp]		; AH = ROS read command
+	add	ah,40h			; extended (LBA) version of command
+	cmp	ah,ROS_LBAVERIFY	; write with verify?
+	 jne	trkrw40_lba		; skip if ROS_READ or ROS_WRITE
+	mov	ah,ROS_LBAWRITE		; else first perform normal write
+	int_____DISK_INT		; call ROS to write to disk
+	 jc	trkrw50_lba		; skip if any errors occurred
+	mov	ax,P_MCNT[bp]		; else get sector count
+	mov	word ptr [si+2],ax
+	mov	ah,ROS_LBAVERIFY	; verify disk sectors
+trkrw40_lba:				; AH = function, AL = count
+	int_____DISK_INT		; read/write/verify via ROM BIOS
+trkrw50_lba:				; CY = 1, AH = error code
+;	pop	es
+	jmp	trkrw55			; continue with normal routine
+
+
+trkrw25:
 	mov	cx,P_CYL[bp]		; get cylinder #
 	xchg	cl,ch			; CH = bits 0..7, CL = bits 8..11
 	ror	cl,1
@@ -1060,7 +1245,6 @@ trkrw20:				; loop back here for retries
 	ror	dh,1			; cylinder bits 10..11 in bits 6..7
 	and	dh,11000000b		; isolate cylinder bits 10..11
 	add	dh,P_HEAD[bp]		; add physical head number
-	mov	dl,es:UDSC_RUNIT[di]	; get ROS unit #
 
 	push	es
 	mov	ax,ds
@@ -1083,6 +1267,7 @@ trkrw40:				; AH = function, AL = count
 	int_____DISK_INT		; read/write/verify via ROM BIOS
 trkrw50:				; CY = 1, AH = error code
 	pop	es
+trkrw55:
 	 jnc	trkrw70			; skip if no errors occurred
 	call	disk_reset		; reset the hardware
 	cmp	ah,11h			; ECC corrected data?
@@ -1168,6 +1353,10 @@ track_setup:		; prepare for I/O on disk track
 	cmp	ax,DeblockSeg		; is this in high memory ?
 	 jae	trksu20			;  then force through deblock buffer
 	mov	ax,P_COUNT[bp]		; assume we can transfer all
+	cmp	ax,0ffh			; more than 255 blocks to transfer?
+	 jbe	trksu0			; no, then proceed
+	mov	ax,0ffh			; yes, restrict counter to one byte to prevent overflow
+trksu0:
 	mov	P_MCNT[bp],ax		;  that's requested this time
 	mov	P_DIRECT[bp],1		;  directly to destination
 	test	es:UDSC_RUNIT[di],80h	; is it a hard disk transfer ?
@@ -1451,6 +1640,7 @@ ioctl_write:
 ;	jmps	ioctl_rw_common		; use common code
 
 ioctl_rw_common:
+	call	getdrivegeo		; get heads & sectors
 	call	ask_for_disk		; make sure we've got correct floppy
 	push	ds
 	call	point_ioctl_packet	; DS:BX -> ioctl packet
@@ -1466,6 +1656,25 @@ ioctl_rw_common:
 	mov	P_HEAD[bp],al
 	mov	ax,ds:3[bx]		; get cylinder number
 	mov	P_CYL[bp],ax
+
+	mul	max_head		; multiply with number of heads
+	xor	ch,ch
+	mov	cl,P_HEAD[bp]
+	add	ax,cx			; add head number
+	adc	dx,0
+	push	ax
+	mov	ax,dx			; multiply with sectors per track
+	mul	max_sect
+	mov	word ptr P_LBABLOCK[bp+2],ax
+	pop	ax
+	mul	max_sect
+	xor	ch,ch
+	mov	cl,P_SECTOR[bp]
+	dec	cl
+	mov	word ptr P_LBABLOCK[bp],cx	; add products and sector number
+	add	word ptr P_LBABLOCK[bp],ax
+	adc	word ptr P_LBABLOCK[bp+2],dx
+
 	pop	ds
 rw_loop:
 	call	track_rw		; read as much as possible on track
@@ -2191,8 +2400,6 @@ ver_20		db	"2.0/EDD-1.0",CR,LF,NUL
 ver_21		db	"2.1/EDD-1.1",CR,LF,NUL
 ver_30		db	"EDD-3.0",CR,LF,NUL
 
-lastpart	dw	0		; last checked partition
-
 hard_init:	; setup all hard disk units
 ;---------
 ;	mov	log_flag,LOG_PRIM	; log in primary only initially
@@ -2213,32 +2420,33 @@ hardi0:
 	xchg	ax,cx			; CX = # of hard disks
 	mov	dl,80h			; start with first hard disk
 hardi1:
-	mov	lastpart,0
+	mov	word ptr lastpart,0
+	mov	word ptr lastpart+2,0
 	pushx	<cx, dx>		; save drive count, physical drive
 	mov	ah,ROS_LBACHK		; int 13 extensions available?
 	mov	bx,55aah
 	int_____DISK_INT
-	jc	hardi2
+	 jc	hardi4
 	cmp	bx,0aa55h
-	jnz	hardi2
+	 jnz	hardi4
 	cmp	int13ex_ver,0
-	jnz	hardi3
+	 jnz	hardi3
 	mov	si,offset CGROUP:lba_supp_msg
 	call	output_msg
 	cmp	ah,01
-	jnz	ver20
+	 jnz	ver20
 	lea	si,ver_1x
 	call	output_msg
 	jmp	hardi3
 ver20:
 	cmp	ah,20
-	jnz	ver21
+	 jnz	ver21
 	lea	si,ver_20
 	call	output_msg
 	jmp	hardi3
 ver21:
 	cmp	ah,21
-	jnz	ver30
+	 jnz	ver30
 	lea	si,ver_21
 	call	output_msg
 	jmp	hardi3
@@ -2246,8 +2454,12 @@ ver30:
 	lea	si,ver_30
 	call	output_msg	
 hardi3:
-	mov	int13ex_ver,ah		; version of int 13 extensions
+	mov	byte ptr int13ex_ver,ah	; version of int 13 extensions
 	mov	int13ex_bits,cx		; int 13 API support bitmap
+	jmp	hardi2
+hardi4:
+	mov	int13ex_ver,0
+	mov	word ptr int13ex_bits,0
 hardi2:
 	call	login_hdisk		; find all partitions on hard disk
 	popx	<dx, cx>		; restore physical drive, drive count
@@ -2264,11 +2476,49 @@ login_hdisk:	; find all partitions on a hard disk
 	push	log_flag		; save state for next drive
 
 	mov	p_unit,dl		; save physical drive
-	mov	cx,0001h		; track 0, sector 1
-	mov	dh,0			; partition tables start on head 0
+	push	dx
+	push	es
+	mov	ah,ROS_PARAM		; get drive parameters
+	int_____DISK_INT
+	pop	es
+	pop	ax
+	mov	dl,al
+	lea	si,diskaddrpack		; pointer to disk address packet
+	call	login_CHS2LBA		; convert CHS values to LBA
+	mov	ax,word ptr [si+8]	; largest block available via CHS
+	mov	word ptr partend_max,ax
+	mov	ax,word ptr [si+10]
+	mov	word ptr partend_max+2,ax
+	mov	word ptr ptstart,0	; block 0
+	mov	word ptr ptstart+2,0
+	mov	word ptr extoffset,0
+	mov	word ptr extoffset+2,0
+	mov	byte ptr extoffvalid,0
+;	mov	cx,0001h		; track 0, sector 1
+;	mov	dh,0			; partition tables start on head 0
+;	lea	si,diskaddrpack		; pointer to disk address packet
+;	mov	word ptr [si+8],0	; block 0
+;	mov	word ptr [si+10],0
 log_h1:
 	mov	dl,p_unit		; get physical unit
-	call	login_read_dx
+	test	int13ex_bits,1		; LBA support?
+	 jnz	log_h1b			; yes, proceed normally
+	mov	ax,word ptr ptstart+2	; partition table accessible via CHS?
+	cmp	ax,word ptr partend_max+2
+	 ja	log_h9			; table out of CHS bounds, terminating PT chain
+	 jb	log_h1b			; within bounds, proceed
+	mov	ax,word ptr ptstart
+	cmp	ax,word ptr partend_max
+	 ja	log_h9			; out of bounds, terminate PT chain here
+log_h1b:
+	push	si
+	lea	si,diskaddrpack		; pointer to disk address packet
+	mov	ax,word ptr ptstart	; partition table offset
+	mov	word ptr [si+8],ax
+	mov	ax,word ptr ptstart+2
+	mov	word ptr [si+10],ax
+	call	login_read_dx_lba
+	pop	si
 	 jnc	log_h1a
 	jmp	log_h9			; give up if disk error
 log_h1a:
@@ -2315,13 +2565,20 @@ log_h2a:
 	cmp	al,DOS30_ID		; is this a DOS 3.0/3.1/3.2 partition?
 	 je	log_h3			; yes, try to log it in
 	cmp	al,DOS331_ID		; is this a DOS 3.31/4.0 partition?
+	 je	log_h3			; yes, try to log it in
+	cmp	al,FAT16X_ID		; is this a DOS 7.x FAT16 LBA partition?
 	 jne	log_h4			; skip if not a good partition
 log_h3:
 	push	si			; save partition table index
 	pushx	<cx, dx>		; save partition table address
 	call	login_primary		; login primary partition
 	popx	<dx, cx>		; get partition table address
-	call	login_read_dx		; re-read partition table
+	lea	si,diskaddrpack		; pointer to disk address packet
+	mov	ax,word ptr ptstart	; offset of partition table
+	mov	word ptr [si+8],ax
+	mov	ax,word ptr ptstart+2
+	mov	word ptr [si+10],ax
+	call	login_read_dx_lba	; re-read partition table
 	pop	si			; get partition table index
 	 jc	log_h9			; give up if error
 log_h4:
@@ -2356,24 +2613,46 @@ log_h6a:
 ;** SECURE PARTITIONS **
 	cmp	al,DOSEX_ID		; DOS 3.3 extended partition found?
 	 je	log_h6b
-log_h6c:
 	cmp	al,EXTX_ID
 	 jne	log_h7
 log_h6b:
-	mov	dh,1[si]		; get head # for next table
-	mov	cx,2[si]		; get cylinder, sector for next table
-	xchg	ch,cl			; compute 10-bit cylinder number
-	rol	ch,1
-	rol	ch,1
-	and	cx,3ffh
-	cmp	cx,lastpart		; check for loops/partition out of bounds
-	jng	log_h7
-	mov	lastpart,cx		; store cylinder number for comparison
-	mov	cx,2[si]
+	mov	ax,word ptr extoffset	; compute offset of next partition table
+	add	ax,[si+8]
+	mov	word ptr ptstart,ax
+	mov	ax,word ptr extoffset+2
+	adc	ax,[si+10]
+	mov	word ptr ptstart+2,ax
+	test	byte ptr extoffvalid,1	; first extended partition?
+	 jnz	log_h6c			; no, then use the old value
+	mov	ax,[si+8]		; use this offset as offset for all other extended partitions
+	mov	word ptr extoffset,ax
+	mov	ax,[si+10]
+	mov	word ptr extoffset+2,ax
+	mov	byte ptr extoffvalid,1	; set offset valid flag
+log_h6c:
+;	mov	dh,1[si]		; get head # for next table
+;	mov	cx,2[si]		; get cylinder, sector for next table
+;	xchg	ch,cl			; compute 10-bit cylinder number
+;	rol	ch,1
+;	rol	ch,1
+;	and	cx,3ffh
+	mov	ax,word ptr ptstart+2	; check for loops in the PT chain
+	cmp	ax,word ptr lastpart+2	; higher block number than last table?
+	 ja	log_h6d			; yes, then proceed with this table
+;	 jb	log_h7			; no, do not follow chain to this table
+	mov	ax,word ptr ptstart
+	cmp	ax,word ptr lastpart
+;	 jbe	log_h7			; no, do not follow chain to this table
+log_h6d:
+	mov	ax,word ptr ptstart	; store address of last partition table for comparison
+	mov	word ptr lastpart,ax
+	mov	ax,word ptr ptstart+2
+	mov	word ptr lastpart+2,ax
+;	mov	cx,2[si]
 	jmp	log_h1			; read & scan next partition table
 
 log_h7:					; entry not an extended partition
-	mov	cx,2[si]
+;	mov	cx,2[si]
 	add	si,16			; next partition table entry
 	cmp	si,CG:local_buffer+IDOFF; all partitions checked?
 	 jb	log_h6			; loop back if more
@@ -2391,17 +2670,48 @@ login_primary:
 	mov	part_size,ax
 	mov	ax,14[si]		; get size of partition (high)
 	mov	part_size+2,ax
-	mov	cl,2
-	mov	bx,5[si]		; get last head/sector
-	and	bx,1100000011000000b	; isolate cylinder bits 10..11,8..9
-	rol	bl,cl			; bits 10..11 from head into position
-	or	bh,bl			;  or in bits 8..9
-	rol	bh,cl			; bits 8..11 into place
-	mov	bl,7[si]		; get cylinder bits 0..7
-	mov	dh,1[si]		; get head of DOS partition
-	mov	cx,2[si]		; get cylinder, sector of DOS partition
+	mov	ax,word ptr ptstart	; compute begin of partition
+	add	ax,word ptr [si+8]
+	mov	word ptr partstart,ax
+	mov	ax,word ptr ptstart+2
+	adc	ax,word ptr [si+10]
+	mov	word ptr partstart+2,ax
+	mov	ax,word ptr partstart	; compute end of partition
+	add	ax,word ptr [si+12]
+	mov	word ptr partend,ax
+	mov	ax,word ptr partstart+2
+	adc	ax,word ptr [si+14]
+	mov	word ptr partend+2,ax
+	sub	word ptr partend,1	; minus one
+	sbb	word ptr partend+2,0
+	test	int13ex_bits,1		; LBA support present?
+	 jnz	login_p0		; yes, then proceed normally
+	cmp	byte ptr [si+4],FAT16X_ID	; LBA partition?
+	 je	login_p9		; ignore this if LBA support not present
+	mov	ax,word ptr partend+2	; partition within CHS bounds?
+	cmp	ax,word ptr partend_max+2
+	 ja	login_p9		; cannot access via CHS, ignoring it
+	 jb	login_p0		; within CHS bounds, proceed normally
+	mov	ax,word ptr partend
+	cmp	ax,word ptr partend_max
+	 ja	login_p9		; out of bounds, ignore this partition
+login_p0:
+;	mov	cl,2
+;	mov	bx,5[si]		; get last head/sector
+;	and	bx,1100000011000000b	; isolate cylinder bits 10..11,8..9
+;	rol	bl,cl			; bits 10..11 from head into position
+;	or	bh,bl			;  or in bits 8..9
+;	rol	bh,cl			; bits 8..11 into place
+;	mov	bl,7[si]		; get cylinder bits 0..7
+;	mov	dh,1[si]		; get head of DOS partition
+;	mov	cx,2[si]		; get cylinder, sector of DOS partition
 	pushx	<bx,cx,dx>
-	call	login_read_dx		; try to read the partition boot
+	lea	si,diskaddrpack		; pointer to disk address packet
+	mov	ax,word ptr partstart	; copy offset of partition table
+	mov	word ptr [si+8],ax
+	mov	ax,word ptr partstart+2
+	mov	word ptr [si+10],ax
+	call	login_read_dx_lba	; try to read the partition boot
 	popx	<dx,cx,bx>
 	 jc	login_p9		; skip if partition not readable
 					; CX, DX = disk addr of 1st sector
@@ -2414,6 +2724,21 @@ login_p9:
 
 log_p0:
 	call	new_unit		; ES:DI -> new UDSC
+	cmp	byte ptr [si+4],FAT16X_ID	; LBA partition?
+	 je	log_p0a			; yes, then always use LBA
+	mov	ax,word ptr partend+2	; test if beyond CHS barrier
+	cmp	ax,word ptr partend_max+2
+	 ja	log_p0a			; yes, then use LBA
+	 jb	log_p0b			; within CHS bounds, do not use LBA
+	mov	ax,word ptr partend
+	cmp	ax,word ptr partend_max
+	 jbe	log_p0b			; within CHS bounds, do not use LBA
+log_p0a:
+	mov	ax,word ptr int13ex_ver	; version of int 13 extensions
+	mov	es:UDSC_INT13EXT[di],ax
+	mov	ax,word ptr int13ex_bits; int 13 extensions support bitmap
+	mov	es:UDSC_INT13BITS[di],ax
+log_p0b:
 	mov	es:UDSC_FLAGS[di],UDF_HARD
 	mov	es:UDSC_RUNIT[di],dl	; set physical drive (ROS code)
 	mov	es:UDSC_TYPE[di],5	; set type = hard disk
@@ -2431,26 +2756,28 @@ log_p0:
 	sub	bx,ax			; bx = # cylinders
 	inc	bx			; make it inclusive
 	mov	es:UDSC_NCYL[di],bx	; and save it
-	push	ax			; save # CYLINDERS
-	mov	al,nsect
-	and	dh,00111111b		; DH = head offset
-	mul	dh			; AX = HEAD_OFF * NSECT
-	xchg	ax,bx			; keep in BX
-	mov	al,nsect
-	mul	nhead			; AX = HEADS * NSECT
-	pop	dx			; recover # CYLINDERS
-	mul	dx			; DX:AX = CYLINDERS * HEADS * NSECT
-	add	ax,bx
-	adc	dx,0			; DX:AX = (CYL*HEADS + HEAD_OFF)*NSECT
+;	push	ax			; save # CYLINDERS
+;	mov	al,nsect
+;	and	dh,00111111b		; DH = head offset
+;	mul	dh			; AX = HEAD_OFF * NSECT
+;	xchg	ax,bx			; keep in BX
+;	mov	al,nsect
+;	mul	nhead			; AX = HEADS * NSECT
+;	pop	dx			; recover # CYLINDERS
+;	mul	dx			; DX:AX = CYLINDERS * HEADS * NSECT
+;	add	ax,bx
+;	adc	dx,0			; DX:AX = (CYL*HEADS + HEAD_OFF)*NSECT
 
-	and	cx,00111111b		; isolate bottom 6 bits (sector #)
-	dec	cx			; sector numbers are one-relative
-	add	ax,cx			; add in non-partition sectors
-	adc	dx,0			;   (usually 2.x partition table)
+;	and	cx,00111111b		; isolate bottom 6 bits (sector #)
+;	dec	cx			; sector numbers are one-relative
+;	add	ax,cx			; add in non-partition sectors
+;	adc	dx,0			;   (usually 2.x partition table)
 
 	lea	bx,UDSC_BPB[di]		; BX -> BPB to build
 	add	si,11			; skip JMP + OEM name in boot sector
 
+	mov	ax,word ptr partstart
+	mov	dx,word ptr partstart+2
 	mov	es:word ptr BPB_HIDDEN[bx],ax	; set the partition address
 	mov	word ptr BPB_HIDDEN+2[bx],dx	;   (32 bit sector offset)
 	mov	ax,part_size
@@ -2668,9 +2995,27 @@ nunits		db	2		; start with driver C:
 nhard		db	0		; # of hard disk partitions
 nfloppy		db	0		; # of floppy drives
 
-int13ex_ver	db	0		; version of int 13 extensions
-		db	0
+int13ex_ver	dw	0		; version of int 13 extensions
 int13ex_bits	dw	0		; int 13 API support bitmap
+
+max_head	dw	0		; maximum number of heads
+max_sect	dw	0		; maximum sectors per track
+
+;	Public	diskaddrpack
+;diskaddrpack:				; disk address packet structure for LBA access
+;		db	10h		; size of packet
+;		db	0		; reserved
+;		dw	1		; number of blocks to transfer
+;		dd	0		; transfer buffer address
+;		dq	0		; starting absolute block number
+
+partstart	dd	0		; first block of partition
+partend		dd	0		; last block of partition
+partend_max	dd	0		; limit implied by CHS if LBA not available
+extoffset	dd	0		; block offset of extended partition
+ptstart		dd	0		; block offset of current partition table
+lastpart	dd	0		; last checked partition
+extoffvalid	db	0		; extoffset valid flag
 
 	Public	init_runit
 init_runit	db	0		; poked with ROS Unit at boot

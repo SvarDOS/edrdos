@@ -519,6 +519,14 @@ PTOFF		equ	IDOFF-40h	; 4*16 bytes for partition def's
 local_id	equ	word ptr local_buffer + IDOFF
 local_pt	equ	word ptr local_buffer + PTOFF
 
+	Public	diskaddrpack
+diskaddrpack:				; disk address packet structure for LBA access
+		db	10h		; size of packet
+		db	0		; reserved
+		dw	1		; number of blocks to transfer
+		dd	0		; transfer buffer address
+		dq	0		; starting absolute block number
+
 	public	bpbs,bpb160,bpb360,bpb720,NBPBS
 
 ;	List of BPBs that we usually support
@@ -856,6 +864,7 @@ output_msg:
 ;	si = offset CGROUP:message_msg
 ; On Exit:
 ;	None
+	pushx	<ax,bx>
 	lodsb				; get 1st character (never NULL)
 output_msg10:
 	mov	ah,0Eh
@@ -864,6 +873,7 @@ output_msg10:
 	lodsb				; fetch another character
 	test	al,al			; end of string ?
 	 jnz	output_msg10
+	popx	<bx,ax>
 	ret
 
 	public	output_hex
@@ -875,6 +885,7 @@ output_hex:
 ;	None
 ; Used Regs:
 ;	ax,bx,cx,dx,si
+	pushx	<ax,bx,cx,si>
 	mov	cx,4
 	mov	ah,0eh
 	mov	bx,7
@@ -900,8 +911,9 @@ output_hex30:
 	loop	output_hex10
 	mov	si,CG:output_hex40
 	call	output_msg
+	popx	<si,cx,bx,ax>
 	ret
-output_hex40	db	CR,LF,NUL	; end of string
+output_hex40	db	20h,NUL		; end of string
 
 get_boot_options:
 ;----------------

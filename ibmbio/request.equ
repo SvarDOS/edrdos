@@ -53,6 +53,7 @@ P_HEAD		db	?	; head # (0..BPB_HEADS-1)
 P_CYL		dw	?	; cylinder # (0..1023)
 P_COUNT		dw	?	; requested sector count
 P_MCNT		dw	?	; physical sector count
+P_LBABLOCK	dd	?	; Logical Block Address of start sector
 P_STRUC	ends
 
 
