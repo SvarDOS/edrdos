@@ -119,13 +119,13 @@ CRET	MACRO	num
 	ret
 	ENDM
 
-ifndef	??Version			;; Turbo Assembler always knows RETF
-ifndef	retf				;; some versions of MASM do as well
-retf	macro				;; define far return macro for others
-	db	0cbh
-	endm
-endif
-endif
+;ifndef	??Version			;; Turbo Assembler always knows RETF
+;ifndef	retf				;; some versions of MASM do as well
+;retf	macro				;; define far return macro for others
+;	db	0cbh
+;	endm
+;endif
+;endif
 
 
 ifndef	CDOSTMP
@@ -180,7 +180,7 @@ BDOS_INT	equ	224		; ##jc##
 
 
 _DATA	SEGMENT	byte public 'DATA'
-	extrn	__psp:word
+	extrn	__psp2:word
 ifndef DOSPLUS
 	extrn	_pd:dword		; Process Descriptor Pointer
 endif
@@ -282,7 +282,7 @@ _psp_poke:
 	push	es
 
 ifdef CDOSTMP
-	mov	es,__psp		; ES:0 -> our PSP
+	mov	es,__psp2		; ES:0 -> our PSP
 else
 	mov	ah,MS_P_GETPSP
 	int	DOS_INT			; for software carousel
@@ -607,7 +607,7 @@ _ms_x_exit:
 
 ifdef NETWARE
 	push	es			; If this is Novell Netware and
-	mov	ax,__psp		; the command processor is terminating
+	mov	ax,__psp2		; the command processor is terminating
 	mov	es,ax			; ie PSP_PARENT == PSP then do the
 	cmp	ax,es:word ptr 16h	; special Novell Close down sequence
 	pop	es

@@ -277,7 +277,7 @@ _env_ins	ENDP
 ;
 get_env	PROC	near
 	push	es
-	mov	dx,__psp		; Get the Current PSP in DX
+	mov	dx,__psp2		; Get the Current PSP in DX
 	mov	es,dx			; and point ES at Our PSP
 	xor	ax,ax			; and assume an error condition
 	mov	bx,es:002Ch		; get environment segment
@@ -738,7 +738,7 @@ _TEXT	ENDS
 
 	page
 _DATA	SEGMENT	byte public 'DATA'
-	extrn	__psp:word
+	extrn	__psp2:word
 	extrn	_end:byte
 	extrn	_break_env:word
 	extrn	low_seg:word

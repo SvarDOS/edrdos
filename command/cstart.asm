@@ -600,8 +600,8 @@ himem_link_next	dw	0
 himem_link_size	dw	0
 		db	5
 
-	public	__psp
-__psp		dw	0
+	public	__psp2
+__psp2		dw	0
 
 	Public	_batch_seg_ptr
 _batch_seg_ptr	dw	dataOFFSET batch_seg_ptr
@@ -690,8 +690,8 @@ low_seg		dw	?			; segment of low memory stub.
 
 ifdef CDOSTMP	
 
-	Public	__psp
-__psp		dw	0
+	Public	__psp2
+__psp2		dw	0
 
 cmd_histbuf	dw	0		; Command Processor History Buffer
 prog_histbuf	dw	0		; Program History Buffer
@@ -1157,7 +1157,7 @@ endif
 gotCS:
 	;out	0fdh,al			; for debug purposes
 	
-	mov	[__psp],ds		; Save our PSP in the local variable
+	mov	[__psp2],ds		; Save our PSP in the local variable
 ifdef DOSPLUS
 	mov	ax,cs			; put our stack somewhere safe
 	mov	ss,ax
@@ -1181,7 +1181,7 @@ endif
 				    ; memory so remember the current segment
 
 	mov	bx,cs			; Path up the JMPF instructions
-	sub	bx,[__psp]		; around the MSDOS EXEC code to
+	sub	bx,[__psp2]		; around the MSDOS EXEC code to
 	mov	cl,4
 	shl	bx,cl
 	add	cs:[exec_psp-2],bx
@@ -1230,9 +1230,9 @@ gotCS_10:
 	mov	cl,4			; and convert to a paragraphs
 	shr	si,cl
 	mov	bx,ax			; Get the Current DS
-	sub	bx,__psp		; and calculate DS - PSP Seg
+	sub	bx,__psp2		; and calculate DS - PSP Seg
 	add	bx,si			; DS + Data length in Para's
-	mov	es,__psp
+	mov	es,__psp2
 	mov	ah,MS_M_SETBLOCK
 	int	DOS_INT
 
@@ -1275,7 +1275,7 @@ carry_on:
 	shr	si,cl
 	call	get_ds
 	mov	bx,ax			; Get the Current DS
-	sub	bx,__psp		; and calculate DS - PSP Seg
+	sub	bx,__psp2		; and calculate DS - PSP Seg
 	add	bx,si			; DS + Data length in Para's
 	mov	ah,MS_M_SETBLOCK
 	int	DOS_INT
@@ -1302,7 +1302,7 @@ page
 ;
 exec_name:
 	push	es
-	mov	es,__psp		; Get the PSP Segment Address
+	mov	es,__psp2		; Get the PSP Segment Address
 	mov	dx,PSP_ENVIRON		; Get the environment segment
 	cmp	dx,0000			; Have we got an environment ?
 	jz	exec_n11		; No prevent High Code Support
@@ -1609,11 +1609,11 @@ set_vector:
 	mov	es:word ptr 3[bx],cs	; Insert the correct code seg
 	mov	dx,bx
 	mov	bx,es	
-	sub	bx,__psp		; Calculate the correct offset for
+	sub	bx,__psp2		; Calculate the correct offset for
 	mov	cl,4			; the interrupt handler if the segment
 	shl	bx,cl			; must be that of our PSP
 	add	dx,bx
-	mov	ds,__psp
+	mov	ds,__psp2
 	mov	ah,MS_S_SETINT
 	int	DOS_INT
 	pop	es
@@ -1639,7 +1639,7 @@ control_break	PROC	FAR
 
 	mov	ah, MS_P_GETPSP		; Get the current PSP address
 	int	DOS_INT
-	cmp	bx,[__psp]		; Is this our address
+	cmp	bx,[__psp2]		; Is this our address
 	stc				; Assume not and Set the carry flag
 	jz	break_10		; if internal, restart the command loop
 					; if external, abort process
@@ -1704,7 +1704,7 @@ endif
 
 	mov	ah, MS_P_GETPSP		; Get the current PSP address
 	int	DOS_INT
-	cmp	bx,[__psp]		; Is this our address?
+	cmp	bx,[__psp2]		; Is this our address?
 	 jne	critical_e10		; no so return with Abort code
 
 	cmp	in_exec,0		; are we EXECing a program ?
@@ -1821,7 +1821,7 @@ i2e_30:
 ;	install our own Break and Criterr handlers - e.g. if second copy
 ;	of the command processor is running, install original handlers so
 ;	that they are looking at the same data as we are.
-;	N.B. __psp is currently that of original command processor
+;	N.B. __psp2 is currently that of original command processor
 
 	mov	ax, (MS_S_GETINT*256) + 23h
 	int	DOS_INT
@@ -1835,7 +1835,7 @@ i2e_30:
 	
 	call	handler_init
 	
-;	save the command processor's __psp variable, and then set it to the
+;	save the command processor's __psp2 variable, and then set it to the
 ;	psp of the process that called us. This is so that the Break and 
 ;	Criterr abort code can correctly determine whether the int2e command 
 ;	was internal or external
@@ -1843,7 +1843,7 @@ i2e_30:
 	mov	ah, MS_P_GETPSP
 	int	DOS_INT
 	push	bx		; save calling process's psp - EJH	
-	mov	bx, [__psp]
+	mov	bx, [__psp2]
 
 ; Set current PSP to our own - EJH	
 	mov	ah, MS_P_SETPSP
@@ -2115,7 +2115,7 @@ msdos_e10:
 
 					; swap stack to conventional memory
 	cli				;
-	mov	ax,__psp		;
+	mov	ax,__psp2		;
 	mov	ss,ax			;
 	mov	sp,0100h		;
 	sti				;
@@ -2551,7 +2551,7 @@ RSP_start:
 	
 	
 	mov	ax,es:P_PSP[bx]
-	mov	[__psp],ax
+	mov	[__psp2],ax
 	
 	mov	ax,XIOS_HISTBUF		; Get the History Buffer Address's
 	mov	dl,defconsole		; for console number
@@ -2795,7 +2795,7 @@ else
 	mov	di,heap_top			; copy cmdline onto the heap
 endif
 	push	ds				; Preserve DS and point to PSP
-	mov	ds,__psp			; Get the PSP address
+	mov	ds,__psp2			; Get the PSP address
 	xor	cx,cx				; Now copy the command line
 	mov	cl,ds:0080h			; Get the Command length
 	mov	si,0081h			; and its start location
@@ -2829,7 +2829,7 @@ endif
 	Public	_install_perm
 _install_perm:
 	push	es
-	mov	ax,__psp			; Modify the INT 22 and 2E
+	mov	ax,__psp2			; Modify the INT 22 and 2E
 	mov	es,ax				; vectors if the current process
 	cmp	ax,PSP_PARENT			; is the ROOT DOS process. ie
 	jnz	inst_p10			; PSP_PARENT == PSP
@@ -2848,7 +2848,7 @@ _install_perm:
 	push	ds				; because some TSR management
 	pop	es				; programs examine these variables
 	lea	di,psp_save_area		; ES:DI -> save area for PSP
-	mov	ds,__psp
+	mov	ds,__psp2
 	lea	si,PSP_TERM_IP			; DS:SI -> data in PSP to save
 	mov	cx,6
 	rep	movsw				; save the data for later EXIT
@@ -2870,11 +2870,11 @@ inst_p10:
 inst_p30:
 	push	ds
 	mov	bx,[low_seg]
-	sub	bx,__psp		; Calculate the correct offset for
+	sub	bx,__psp2		; Calculate the correct offset for
 	mov	cl,4			; the interrupt handler if the segment
 	shl	bx,cl			; must be that of our PSP
 	add	dx,bx
-	mov	ds,__psp
+	mov	ds,__psp2
 	mov	ah,MS_S_SETINT
 	int	DOS_INT
 	pop	ds
@@ -2888,7 +2888,7 @@ page
 	Public	_restore_term_addr
 _restore_term_addr:
 	push	es
-	mov	ax,__psp			; Restore the PSP we altered
+	mov	ax,__psp2			; Restore the PSP we altered
 	mov	es,ax				; if the current process
 	cmp	ax,PSP_PARENT			; is the ROOT DOS process. ie
 	 jne	restore_ta10			; PSP_PARENT == PSP
@@ -2938,7 +2938,7 @@ endif
 	mov	bx,04[bp]		; Save the Specified Size
 	add	bx,15			; and force it to be an integer 
 	and	bx,not 15		; multiple of 16
-	mov	es,__psp		; Get the PSP Segment Address
+	mov	es,__psp2		; Get the PSP Segment Address
 	
 	mov	cx,PSP_ENVIRON		; Get the environment segemnt
 	jcxz	master_env10		; Have we been loaded by DesQview ?
@@ -2974,7 +2974,7 @@ master_env15:
 	pop	cx
 	jc	master_env30		; Abort Memory Allocation Failed
 
-	mov	es,__psp		; Copy the Environemt
+	mov	es,__psp2		; Copy the Environemt
 	xchg	ax,PSP_ENVIRON		; Update the Environment Pointer
 	push	ds
 	mov	ds,ax			; DS -> Initial Environment
@@ -3578,10 +3578,10 @@ prh_success:
 	rep	movsb			; move'em
 	
 	mov	bx,ds
-	sub	bx,[__psp]		; ax = difference between psp and data
+	sub	bx,[__psp2]		; ax = difference between psp and data
 	add	bx,HISEG_OFF/16		; add size of bit we leave behind
 
-	mov	es,[__psp]		; es -> old location	
+	mov	es,[__psp2]		; es -> old location	
 
 	mov	ds,ax			; this is the new data seg
 	mov	ss,ax			; and also the new stack seg

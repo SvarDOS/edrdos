@@ -1,7 +1,7 @@
 @ECHO off
-SET TOOLS=C:\TOOLS
+SET TOOLS=C:\MASM\BINB
 
-SET MASM=%TOOLS%\MASM.EXE
+SET MASM=C:\MASM\BIN\ML.EXE
 SET LINK=%TOOLS%\LINK.EXE
 SET LIBR=%TOOLS%\LIB.EXE
 
@@ -28,23 +28,23 @@ REM *************************************
 REM Build .ASM files first, get the obj's
 REM *************************************
 
-%MASM% /t initmsgs,.\BIN\initmsgs;
+%MASM% /c /Zm /Fo.\BIN\initmsgs initmsgs.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /t biosmsgs,.\BIN\biosmsgs;
+%MASM% /c /Zm /Fo.\BIN\biosmsgs biosmsgs.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /t init,.\BIN\init;
+%MASM% /c /Zm /Fo.\BIN\init init.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /t clock,.\BIN\clock;
+%MASM% /c /Zm /Fo.\BIN\clock clock.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /t console,.\BIN\console;
+%MASM% /c /Zm /Fo.\BIN\console console.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /t disk,.\BIN\disk;
+%MASM% /c /Zm /Fo.\BIN\disk disk.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /t serpar,.\BIN\serpar;
+%MASM% /c /Zm /Fo.\BIN\serpar serpar.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /t biosgrps,.\BIN\biosgrps;
+%MASM% /c /Zm /Fo.\BIN\biosgrps biosgrps.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /t stacks,.\BIN\stacks;
+%MASM% /c /Zm /Fo.\BIN\stacks stacks.asm
 IF ERRORLEVEL 1 GOTO FAILED
 
 REM ******************************************

@@ -1,11 +1,11 @@
 @ECHO off
-SET TOOLS=C:\TOOLS
+SET TOOLS=C:\MASM\BINB
 
-SET MASM=%TOOLS%\MASM.EXE
-SET WATCOM=%TOOLS%\WATCOMC
-SET WATCOMH=%TOOLS%\WATCOMC\H
+SET MASM=C:\MASM\BIN\ML.EXE /c /Zm
+SET WATCOM=C:\WATCOM
+SET WATCOMH=%WATCOM%\H
 SET WCG=%WATCOM%\BIN\WCGL.EXE
-SET WCC=%WATCOM%\BIN\WCC.EXE
+SET WC=%WATCOM%\BINB\WCC.EXE
 SET LINK510=%TOOLS%\LINK.EXE
 SET BCC20=%TOOLS%\BCC.EXE
 SET BCC20H=%TOOLS%\BCC20\H
@@ -23,46 +23,43 @@ REM Check if tools exist
 
 ECHO Checking for %MASM%
 if not exist %MASM% goto badtool
-ECHO Checking for %WCC%
-if not exist %WCC% goto badtool
+ECHO Checking for %WC%
+if not exist %WC% goto badtool
 ECHO Checking for %LINK510%
 if not exist %LINK510% goto badtool
-ECHO Checking for %BCC20%
-if not exist %BCC20% goto badtool
 
-
-%MASM% message,.\bin\message;
+%MASM% /Fo.\bin\message message
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% resident,.\bin\resident;
+%MASM% /Fo.\bin\resident resident
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% txhelp,.\bin\txhelp;
+%MASM% /Fo.\bin\txhelp txhelp
 IF ERRORLEVEL 1 GOTO FAILED
 
-%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /MX /I.\ .\cstart.asm,.\bin\cstart.obj;
+%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\cstart.obj .\cstart.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /MX /I.\ .\csup.asm,.\bin\csup.obj;
+%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\csup.obj .\csup.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /MX /I.\ .\dosif.asm,.\bin\dosif.obj;
+%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\dosif.obj .\dosif.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /MX /I.\ .\crit.asm,.\bin\crit.obj;
-IF ERRORLEVEL 1 GOTO FAILED
-
-%WCC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\com.obj .\com.c
-IF ERRORLEVEL 1 GOTO FAILED
-%WCC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\comint.obj .\comint.c
-IF ERRORLEVEL 1 GOTO FAILED
-%WCC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\support.obj .\support.c
+%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\crit.obj .\crit.asm
 IF ERRORLEVEL 1 GOTO FAILED
 
-%WCC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\printf.obj .\printf.c
+%WC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\com.obj .\com.c
 IF ERRORLEVEL 1 GOTO FAILED
-%WCC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\batch.obj .\batch.c
+%WC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\comint.obj .\comint.c
 IF ERRORLEVEL 1 GOTO FAILED
-%WCC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\global.obj .\global.c
+%WC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\support.obj .\support.c
 IF ERRORLEVEL 1 GOTO FAILED
-%WCC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\config.obj .\config.c
+
+%WC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\printf.obj .\printf.c
 IF ERRORLEVEL 1 GOTO FAILED
-%WCC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\comcpy.obj .\comcpy.c
+%WC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\batch.obj .\batch.c
+IF ERRORLEVEL 1 GOTO FAILED
+%WC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\global.obj .\global.c
+IF ERRORLEVEL 1 GOTO FAILED
+%WC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\config.obj .\config.c
+IF ERRORLEVEL 1 GOTO FAILED
+%WC% /s /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\comcpy.obj .\comcpy.c
 IF ERRORLEVEL 1 GOTO FAILED
 
 ECHO -w -d -f- -K -O -X -Z -c -ms -I%BCC20H% -DMESSAGE -DDOSPLUS -zSCGROUP -zTCODE -zR_MSG > RESP1
@@ -81,11 +78,11 @@ ECHO +>> RESP2
 ECHO .\bin\resident.obj>> RESP2
 ECHO .\bin\command.exe>> RESP2
 ECHO .\command.map>> RESP2
-ECHO %WATCOM%\LIB\CLIBs>> RESP2
+ECHO %WATCOM%\LIB286\DOS\CLIBs>> RESP2
 %LINK510% /MAP @resp2;
 IF ERRORLEVEL 1 GOTO FAILED
 
-%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /MX /I.\ .\helpstub.asm,.\bin\helpstub.obj;
+%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\helpstub.obj .\helpstub.asm
 IF ERRORLEVEL 1 GOTO FAILED
 ECHO .\bin\helpstub.obj+> RESP3
 ECHO .\bin\txhelp.obj>> RESP3
@@ -112,7 +109,7 @@ REM CLEAN UP THE AREA
 REM **********************
 SET TOOLS=
 SET MASM=
-SET WCC=
+SET WC=
 SET LINK510=
 SET BCC20=
 SET WATCOMH=

@@ -112,7 +112,7 @@ _DATA		SEGMENT byte public 'DATA'
 
 endif
 	extrn	_country:WORD
-	extrn	__psp:WORD
+	extrn	__psp2:WORD
 
 ifdef DLS
 TEXT_LEN	equ	320		; it needs to be this size for Japanese
@@ -251,7 +251,7 @@ com_criterr:
 	mov	bp,sp
 	mov	ah,MS_P_GETPSP
 	int	DOS_INT			; Get PSP into DS
-	mov	ds,cs:__psp	
+	mov	ds,cs:__psp2	
 	mov	al,ds:byte ptr 1ah	; use COMMAND STDERR for Console INPUT
 	mov	ah,al			;  and OUTPUT
 	mov	es,bx
