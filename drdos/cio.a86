@@ -255,6 +255,16 @@ func06:
 ;	mov	bx,STDIN			; is there a character ready
 	call	char_check			;  to be input
 	 jz	func07
+
+	call	is_device			; reading from file?
+	 jnc	func06_10			; no, exit
+	push	es
+	mov	es,current_psp			; get current PSP
+	les	bx,PSP_XFTPTR			; file handle table
+	mov	es:byte ptr STDIN[bx],1		; cancel input redirection
+	pop	es
+func06_10:
+
 	mov	ax,RHS_IC			; set AL=0 and also set ZF on
 	jmps	funcICexit			;  exit as incomplete char
 
@@ -470,7 +480,7 @@ go_int23:
 	call	get_dseg		; Get our data segment
 	mov	exit_type,TERM_BREAK	; Force EXIT_TYPE to TERM_BREAK
 	mov	ax,4C00h		; "Good-Bye Cruel World" 
-    jmps    do23_20
+;    jmps    do23_20
     do23_10:
 	push	ds			; Otherwise restart the aborted func
 	call	get_dseg
@@ -563,7 +573,17 @@ cmdline_read_wait:			; Waiting for a device to become
 cmdline_read:
 	call	break_check		; check for a ^C on console
 	call	char_check		; is there a character ready
-	 jnz	cmdline_read_wait	;  no so keep scanning
+;	 jnz	cmdline_read_wait	;  no so keep scanning
+	 jz	cmdline_read10		; yes, proceed
+	call	is_device		; reading from file?
+	 jnc	cmdline_read_wait	; no, keep scanning
+	push	es
+	mov	es,current_psp		; get current PSP
+	les	bx,PSP_XFTPTR		; file handle table
+	mov	es:byte ptr STDIN[bx],1	; cancel input redirection
+	pop	es
+	jmps	cmdline_read_wait
+cmdline_read10:
 	cmp	al,CTLS			; if the user has typed ^S
 	 jne	cooked_read		;  we have to do a raw read
 ;	jmps	raw_read		;  else we do a cooked read
@@ -573,8 +593,17 @@ raw_read_wait:				; Waiting for a device to become
 					; put the processor to sleep.
 raw_read:
 	call	char_check		; Is there a character Ready
-	 jnz	raw_read_wait		; loop until character available
-	jmps	char_get
+;	 jnz	raw_read_wait		; loop until character available
+	 jz	char_get		; yes, proceed
+	call	is_device		; reading from file?
+	 jnc	raw_read_wait		; no, keep scanning
+	push	es
+	mov	es,current_psp		; get current PSP
+	les	bx,PSP_XFTPTR		; file handle table
+	mov	es:byte ptr STDIN[bx],1	; cancel input redirection
+	pop	es
+	jmps	raw_read_wait
+;	jmps	char_get
 
 cooked_read_wait:			; Waiting for a device to become
 	call	idle_dev		; ready. So call IDLE routines to
@@ -582,7 +611,16 @@ cooked_read_wait:			; Waiting for a device to become
 cooked_read:
 	call	break_check		; check for a ^C on console
 	call	cooked_status		; check for a ^S,^P,^C on handle BX
-	 jnz	cooked_read_wait	; wait until char is available
+;	 jnz	cooked_read_wait	; wait until char is available
+	 jz	char_get		; yes, proceed
+	call	is_device		; reading from file?
+	 jnc	cooked_read_wait	; no, keep scanning
+	push	es
+	mov	es,current_psp		; get current PSP
+	les	bx,PSP_XFTPTR		; file handle table
+	mov	es:byte ptr STDIN[bx],1	; cancel input redirection
+	pop	es
+	jmps	cooked_read_wait
 ;	jmps	char_get		;  else get the character
 
 char_get:
@@ -598,6 +636,9 @@ char_get20:
 
 char_get30:
 ; We are redirected, so call to the FDOS to get a character
+	pop	ax			; get previous status
+	xor	ah,ah			; clear AH so that it is not mistaken
+	push	ax			; for a device request header
 	push ss ! pop es		; EX:DX -> character to read
 	mov	ah,MS_X_READ		; call the FDOS to do all
 	call	dos_entry		;  the hard work

@@ -89,6 +89,7 @@
 #define 	HELP_VER     NULL
 #define 	HELP_VERIFY  NULL
 #define 	HELP_VOL     NULL
+#define 	HELP_COLOUR  NULL
 #else
 #define 	HELP_AND     help_and 
 #define 	HELP_APPEND  help_append 
@@ -142,6 +143,7 @@
 #define 	HELP_VER     help_ver    
 #define 	HELP_VERIFY  help_verify 
 #define 	HELP_VOL     help_vol    
+#define 	HELP_COLOUR  help_colour
 
 EXTERN BYTE	help_and    [];
 EXTERN BYTE	help_append [];
@@ -195,4 +197,5 @@ EXTERN BYTE	help_type   [];
 EXTERN BYTE	help_ver    [];
 EXTERN BYTE	help_verify [];
 EXTERN BYTE	help_vol    [];
+EXTERN BYTE	help_colour [];
 #endif

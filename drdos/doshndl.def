@@ -81,16 +81,21 @@ DHNDL_DEVPTR	equ	dword ptr 07h		; 07 - pointer to device
 DHNDL_DEVOFF	equ	word ptr 07h		; 07 - offset of device
 DHNDL_DEVSEG	equ	word ptr 09h		; 09 - segment of device
 DHNDL_BLK1	equ	word ptr 0Bh		; 0B - first cluster in file
+						;      (lower 32 bits)
 DHNDL_TIME	equ	word ptr 0Dh		; 0D - file time stamp
 DHNDL_DATE	equ	word ptr 0Fh		; 0F - file date stamp
 DHNDL_SIZE	equ	dword ptr 11h		; 11 - file length
+						;      (lower 32 bits)
 DHNDL_SIZELO	equ	word ptr 11h
 DHNDL_SIZEHI	equ	word ptr 13h
 DHNDL_POS	equ	dword ptr 15h		; 15 - current file position
+						;      (lower 32 bits)
 DHNDL_POSLO	equ	word ptr 15h
 DHNDL_POSHI	equ	word ptr 17h
 DHNDL_IDX	equ	word ptr 19h		; 19 - relative cluster within file of last read
+						;      (lower 32 bits)
 DHNDL_DBLK	equ	word ptr 1Bh		; 1B - cluster # of dir entry
+						;      (lower 32 bits)
 DHNDL_DCNTHI	equ	byte ptr 1Eh		; 1E - dir offset # within cluster
 DHNDL_DCNTLO	equ	byte ptr 1Fh		; 1F - dir offset # within cluster
 DHNDL_NAME	equ	byte ptr 20h		; 20 - File/Device Name
@@ -100,12 +105,25 @@ DHNDL_UID	equ	word ptr 2Fh		; 2F - Owning Machine ID
 DHNDL_PSP	equ	word ptr 31h		; 31 - Owning PSP
 DHNDL_SHARE	equ	word ptr 33h		; 33 - Offset of sharing record
 DHNDL_BLK	equ	word ptr 35h		; 35 - absolute cluster of last read
+						;      (lower 32 bits)
 						; 37 - dword reserved for IFS
-DHNDL_BLK1H	equ	word ptr 3Bh
-DHNDL_IDXH	equ	word ptr 3Dh
-DHNDL_DBLKH	equ	word ptr 3Fh
-DHNDL_BLKH	equ	word ptr 41h
-DHNDL_LEN	equ	43h
+DHNDL_BLK1H	equ	word ptr 3Bh		; 3B - first cluster in file
+						;      (higher 32 bits)
+DHNDL_IDXH	equ	word ptr 3Dh		; 3D - relative cluster within file of last read
+						;      (higher 32 bits)
+DHNDL_DBLKH	equ	word ptr 3Fh		; 3F - cluster # of dir entry
+						;      (higher 32 bits)
+DHNDL_BLKH	equ	word ptr 41h		; 41 - absolute cluster of last read
+						;      (higher 32 bits)
+DHNDL_SIZEX	equ	dword ptr 43h		; 43 - file length
+						;      (higher 32 bits)
+DHNDL_SIZEXLO	equ	word ptr 43h
+DHNDL_SIZEXHI	equ	word ptr 45h
+DHNDL_POSX	equ	dword ptr 47h		; 47 - current file position
+						;      (higher 32 bits)
+DHNDL_POSXLO	equ	word ptr 47h
+DHNDL_POSXHI	equ	word ptr 49h
+DHNDL_LEN	equ	4Bh
 
 ; With DOS 3 structures _DBLK is a 16 bit
 

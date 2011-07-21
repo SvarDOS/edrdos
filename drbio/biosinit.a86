@@ -80,7 +80,7 @@ INIT_COMSPEC	equ	0002h		; COMSPEC_DRV specifies the default
 INIT_WINDOWS	equ	0004h		; Disable windows support
 
 COMMAND_BASE	equ	000E0h		; must cover FFFF:D0 for CALL5 fixup
-COMMAND_SIZE	equ	01680h
+COMMAND_SIZE	equ	01FA0h
 
 CGROUP	GROUP	CODE, INITCODE, INITDATA, INITPSP, INITENV, DATAEND
 CODE	CSEG
@@ -94,12 +94,24 @@ INIT_CODE	equ	word ptr  .000Eh	; Start of initialisation code
 DOS_FLAG	equ	word ptr  .001Ch	; Compressed Data Flag
 DOS_CODE	equ	word ptr  .001Eh	; DOS Code Length (Bytes)
 DOS_DATA	equ	word ptr  .0020h	; DOS Data Length (Bytes)
+UPX_POS		equ	word ptr  .0024h	; position of UPX signature
 NO_YES_CHARS	equ	word ptr  .0028h	; DOS Data No/Yes characters
 
 INT31_SEGMENT	equ	word ptr .00C6h		; DOS Data Segment pointer
 						; for ROM systems
 JMPF_OPCODE	equ	0EAh			; 8086 JMPF instruction
 
+;F5KEY		equ	3F00h
+;F8KEY		equ	4200h
+
+SWITCH_F	equ	01h
+SWITCH_N	equ	02h
+
+	extrn	oldxbda:word
+	extrn	newxbda:word
+	extrn	xbdalen:word
+	extrn	oldmemtop:word
+	
 INITCODE	CSEG	PARA 'INITCODE'
 	extrn	cleanup:near			; BIOS Clean Up routine
 	extrn	config_init:near		; CONFIG Code Init
@@ -118,7 +130,7 @@ INITCODE	CSEG	PARA 'INITCODE'
 		db	'XXXX-0000-987654321X '
 
 		db	'Patches to original OpenDOS source code '
-		db	'Copyright (c) 2002-2005 Udo Kuhnt'
+		db	'Copyright (c) 2002-2011 Udo Kuhnt'
 
 
 	Public	biosinit
@@ -305,6 +317,26 @@ dos_reloc:
 	mov	dos_cseg,ax		; Update the DOS Code Segment
 	mov	ds,ax
 
+	mov	ax,UPX_POS		; test for UPX compression
+	cmp	ax,cs:word ptr UPX_SIGN
+	 jne	dos_noupx		; not UPX-compressed
+	mov	ax,UPX_POS+2
+	cmp	ax,cs:word ptr UPX_SIGN+2
+	 jne	dos_noupx
+	push	ds
+	push	cs			; return address after decompression
+	mov	ax,offset dos_upx
+	push	ax
+	mov	ax,ds			; entry point of decompression stub
+	sub	ax,10h
+	push	ax
+	mov	ax,100h
+	push	ax
+	retf				; unpack DRDOS.SYS
+dos_upx:
+	pop	ds
+dos_noupx:
+
 	mov	cl,4
 
 	mov	ax,ds:DOS_CODE		; get size of DOS code
@@ -487,6 +519,72 @@ load_e10:
 	jmps	load_e10
 
 eject
+
+	Public	get_boot_options
+get_boot_options:
+;----------------
+; On Entry:
+;	None
+; On Exit:
+;	AX = boot options
+	call	option_key		; poll keyboard for a while
+	 jnz	get_boot_options20	; if key available return that
+	test	boot_switches,SWITCH_N	; boot keys disabled?
+	 jnz	get_boot_options20	; then do not check shift key, either
+	mov	ah,2			; else ask ROS for shift state
+	int	16h
+	and	ax,3			; a SHIFT key is the same as F5KEY
+	 jz	get_boot_options20
+	mov	ax,F5KEY		; ie. bypass everything
+get_boot_options20:
+	ret
+
+option_key:
+;----------
+; On Entry:
+;	None
+; On Exit:
+;	AX = keypress if interesting (F5/F8)
+;	ZF clear if we have an interesting key
+;
+; Poll keyboard looking for a key press. We do so for a maximum of 36 ticks
+; (approx 2 seconds).
+;
+	xor	ax,ax
+	int	1Ah			; get ticks in DX
+	mov	cx,dx			; save in CX for later
+option_key10:
+	push	cx		
+	mov	ah,1
+	int	16h			; check keyboard for key
+	pop	cx
+	 jnz	option_key30		; stop if key available
+	test	boot_switches,SWITCH_F	; SWITCHES /F present?
+	 jnz	option_key20		; yes, skip delay
+	push	cx
+	xor	ax,ax
+	int	1Ah			; get ticks in DX
+	pop	cx
+	sub	dx,cx			; work out elapsed time
+	cmp	dx,36			; more than 2 secs ?
+	 jb	option_key10
+option_key20:
+	xor	ax,ax			; timeout, set ZF, no key pressed
+	ret
+
+option_key30:
+	test	boot_switches,SWITCH_N	; boot keys disabled?
+	 jnz	option_key20		; yes, continue without reading it
+	cmp	ax,F5KEY		; if it is a key we want then
+	 je	option_key40		;  read it, else just leave
+	cmp	ax,F8KEY		;  in the type-ahead buffer
+	 jne	option_key20
+option_key40:
+	xor	ax,ax
+	int	16h			; read the key
+	test	ax,ax			; clear ZF to indicate we have a key
+	ret
+
 ;
 ;	Initialise the PSP and inform DOS of the
 ;	location of the BIOSINIT PSP. The MS_P_SETPSP *MUST* be the first 
@@ -629,8 +727,11 @@ config_end20:
 
 	call	relocate_system		; relocate system as requested
 
-	mov	configpass,2
+	mov	configpass,3
 	mov	cfg_head,0
+	mov	cfg_tail,0
+	mov	cfg_seeklo,0
+	mov	cfg_seekhi,0
 	call	preload_done
 
 	push	es			; Free all of the unused memory
@@ -950,24 +1051,33 @@ reloc_xbda10:
 reloc_xbda15:
 	call	alloc_seg		; allocate low mem
 reloc_xbda20:
+	push	cx
 	xor	bx,bx
 	xchg	ax,dx
 	xor	ah,ah
 	mov	al,es:[bx]		; length of XBDA in kilobytes
-	mov	cl,10			; make this bytes instead
+	mov	cl,9			; make this words instead
 	shl	ax,cl
 	xchg	ax,cx
 	push	ds
-	push	es			; copy it to new position
+	mov	ax,es			; save old XBDA segment address,
+	push	es
+	mov	es,BIOS_SEG		; segment address of low memory code
+	mov	es:oldxbda,ax		; save old XBDA segment address,
+	mov	es:newxbda,dx		; new address
+	mov	es:xbdalen,cx		; and length for Int 19h
+	pop	es
+	push	es			; copy XBDA to new position
 	pop	ds
 	mov	es,dx
 	xor	di,di
 	xor	si,si
-	rep	movsb
+	rep	movsw
 	mov	ax,40h			; and update the BIOS data area with the new address
 	mov	ds,ax
 	mov	ds:0eh[bx],es
 	pop	ds
+	pop	cx
 	les	bx,func52_ptr		; now get the start of the MCB chain
 	mov	es,es:F52_DMDROOT[bx]
 	mov	si,mem_size
@@ -979,12 +1089,24 @@ reloc_xbda30:
 	inc	ax
 	cmp	di,si			; is this the one that includes the old XBDA?
 	 je	reloc_xbda40		; yes
-	cmp	ax,si			; already past the right position?
-	 ja	reloc_xbda130		; that cannot be helped
-	mov	es,ax			; get the address of the next MCB
 	cmp	es:DMD_ID,IDZ		; already the last one?
-	 jne	reloc_xbda30		; no, try again
-	jmps	reloc_xbda130		; did not find it
+	 jne	reloc_xbda31		; no
+	push	si
+	inc	si
+	cmp	ax,si			; XBDA immediately following this block?
+	pop	si
+	 je	reloc_xbda35		; yes
+	jmp	reloc_xbda130		; did not find it
+reloc_xbda31:
+	cmp	ax,si			; already past the right position?
+	 jna	reloc_xbda32		; no
+	jmp	reloc_xbda130		; that cannot be helped
+reloc_xbda32:
+	mov	es,ax			; get the address of the next MCB
+	jmps	reloc_xbda30		; try again
+reloc_xbda35:
+	add	es:DMD_LEN,cx		; length of XBDA
+	jmp	reloc_xbda45
 reloc_xbda40:
 	push	ax			; save length of old MCB
 	push	es:DMD_PSP		; and the old PSP pointer
@@ -1009,11 +1131,15 @@ reloc_xbda40:
 	mov	es:F52_DMD_UPPER[bx],9fffh
 	les	bx,drdos_ptr
 	mov	es:DRDOS_DMD_UPPER[bx],9fffh
+reloc_xbda45:
 	mov	mem_size,0a000h		; and the base mem top
 	mov	ax,40h			; also update the new base mem size
 	mov	es,ax			; in the BIOS data area
 	mov	bx,13h
-	mov	es:[bx],640
+	mov	ax,640
+	xchg	es:[bx],ax
+	mov	es,BIOS_SEG
+	mov	es:oldmemtop,ax		; save old conventional memory top
 reloc_xbda130:
 	pop	es			; restore ES again
 reloc_xbda140:
@@ -1868,7 +1994,6 @@ Verify386fail:
 	stc				; it's not a 386
 	ret
 
-
 INITDATA	dseg	'INITDATA'
 
 
@@ -1882,6 +2007,11 @@ include	initmsgs.def				; Include TFT Header File
 	extrn	configPass:byte
 	extrn	part_off:word
 	extrn	cfg_head:word
+	extrn	cfg_tail:word
+	extrn	cfg_seeklo:word
+	extrn	cfg_seekhi:word
+	extrn	boot_options:word
+	extrn	boot_switches:byte
 
 ;
 ;	PUBLIC Variables which are initialised by the BIOS before the
@@ -2070,6 +2200,8 @@ stack		rw	0
 res_dev_count	db	0
 dosdata_len	dw	0
 int_stubs_seg	dw	0
+
+UPX_SIGN	db	'UPX!'
 
 INITPSP		DSEG	PARA 'INITDATA'
 		db	'Z'			; dummy DMD header

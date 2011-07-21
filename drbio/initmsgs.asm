@@ -18,6 +18,10 @@ _yes_char	db	"Yy", NUL
 	public	no_char
 no_char	label	byte
 _no_char	db	"Nn", NUL
+	public	_run_char
+	public	run_char
+run_char	label	byte
+_run_char	db	"Rr", NUL
 	public	_bad_command
 	public	bad_command
 bad_command	label	byte
@@ -74,6 +78,14 @@ _bad_exec	db	"Bad or missing command interpreter.", CR, LF, "Please enter a vali
 	public	dos_msg
 dos_msg	label	byte
 _dos_msg	db	CR, LF, "Can't load DOS file.$", NUL
+	public	_f5key_msg
+	public	f5key_msg
+f5key_msg	label	byte
+_f5key_msg	db	CR,LF,"F5 key was pressed, skipping configuration files",CR,LF,"$",NUL
+	public	_f8key_msg
+	public	f8key_msg
+f8key_msg	label	byte
+_f8key_msg	db	CR,LF,"F8 key was pressed, single-stepping configuration files",CR,LF,"$",NUL
 
 INITDATA	ends
 

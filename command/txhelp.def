@@ -55,3 +55,4 @@ help_type	equ	72
 help_ver	equ	74
 help_verify	equ	76
 help_vol	equ	78
+help_colour	equ	80

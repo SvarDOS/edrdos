@@ -142,3 +142,5 @@ DMD_NAME_LEN	equ	8		;  8 Bytes long
 IDM             equ     'M'		; not last id code
 IDZ             equ     'Z'		; last id code
 
+F5KEY		equ	3F00h		; keys returned by BIOS
+F8KEY		equ	4200h		;  in boot_options

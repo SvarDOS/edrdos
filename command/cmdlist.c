@@ -105,7 +105,8 @@ EXTERN VOID CDECL cmd_pauseerr(BYTE *, BYTE *);
 EXTERN VOID CDECL cmd_rem(BYTE *, BYTE *);  
 EXTERN VOID CDECL cmd_set(BYTE *, BYTE *);  
 EXTERN VOID CDECL cmd_shift(BYTE *, BYTE *);
-EXTERN VOID CDECL cmd_or(BYTE *, BYTE *); 
+EXTERN VOID CDECL cmd_or(BYTE *, BYTE *);
+EXTERN VOID CDECL cmd_colour(BYTE *, BYTE *);
 
 GLOBAL S_CMD cmd_list[] =
 {
@@ -165,6 +166,7 @@ TO DO: MAKE DUAL LANG AWARE
 	{ "ver",	cmd_ver,	PARAM_NONE,	DLS_help_ver	},
 	{ "verify",	cmd_verify,	PARAM_NONE,	DLS_help_verify	},
 	{ "vol",	cmd_vol,	PARAM_NONE,	DLS_help_vol	},
+	{ "colour",	cmd_colour,	PARAM_NONE,	DLS_help_colour	},
 
 	{ NULL, 	NULL,		PARAM_NONE }
 };

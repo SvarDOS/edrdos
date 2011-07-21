@@ -44,6 +44,7 @@ STACKS		segment	public para 'STACKS'
 
 	Assume	CS:STACKS, DS:Nothing, ES:Nothing, SS:Nothing
 
+	Public	StackCode
 StackCode:
 
 ;************
@@ -55,6 +56,7 @@ NumOfStacks	dw	0		; we have this many stacks
 StackCB		dw	0		; NumOfStacks*8 = size of control array
 StackSize       dw	0		; size of an individual stack
 StackPtr	label dword		; pointer to stack data		
+	Public	StackSeg,StackOff
 StackOff	dw	offset STACKS:StackHeap
 StackSeg	dw	0
 FirstStack	dw	offset STACKS:StackHeap
@@ -249,6 +251,7 @@ Int19:
 	mov	es,ax		; ES = interrupt vectors
 	push	cs
 	pop	ds
+			Assume DS:STACKS
 	lea	si,i19Table	; DS:SI -> table to restore
 Int1910:
 	lodsw

@@ -17,7 +17,7 @@ _msg_ver111	db	NUL , NUL
 	public	_msg_version
 	public	msg_version
 msg_version	label	byte
-_msg_version	db	LF, "Enhanced DR-DOS 7.01.07 (6.3.2005) ", "based on Caldera OpenDOS 7.01", LF, NUL
+_msg_version	db	LF, "Enhanced DR-DOS 7.01.08 WIP (21.7.2011) ", "based on Caldera OpenDOS 7.01", LF, NUL
 	public	_msg_lbl
 	public	msg_lbl
 msg_lbl	label	byte
@@ -82,6 +82,10 @@ _msg_pathdrv	db	"Search path contains invalid drive", LF, NUL
 	public	msg_optline
 msg_optline	label	byte
 _msg_optline	db	"%s (Y/N) ? ", NUL
+	public	_msg_optline2
+	public	msg_optline2
+msg_optline2	label	byte
+_msg_optline2	db	"%s (Y,N,R) ? ", NUL
 	public	_msg_batterm
 	public	msg_batterm
 msg_batterm	label	byte
@@ -141,7 +145,7 @@ _msg_path	db	"No Path", LF, NUL
 	public	_path_template
 	public	path_template
 path_template	label	byte
-_path_template	db	"%.122s", LF, NUL
+_path_template	db	"%s", LF, NUL
 	public	_msg_ren
 	public	msg_ren
 msg_ren	label	byte
@@ -206,7 +210,7 @@ _msg_netassign	db	"Cannot ASSIGN a Networked Drive", LF, NUL
 	public	msg_cpyright
 msg_cpyright	label	byte
 _msg_cpyright	db	"Copyright (c) 1976, 1997 Caldera, Inc. ", "All rights reserved.", LF
-		db	"Patches to original OpenDOS source code ", "Copyright (c) 2002-2005 Udo Kuhnt", LF, NUL
+		db	"Patches to original OpenDOS source code ", "Copyright (c) 2002-2011 Udo Kuhnt", LF, NUL
 	public	_msg_serialno
 	public	msg_serialno
 msg_serialno	label	byte
@@ -507,6 +511,10 @@ _msg_longjmp	db	"LONGJMP Error %d", LF, NUL
 	public	msg_nohelp
 msg_nohelp	label	byte
 _msg_nohelp	db	"Unable to give Help. Cannot find file %s.", LF, NUL
+	public	_msg_colour
+	public	msg_colour
+msg_colour	label	byte
+_msg_colour	db	"COLOUR = %s,%d,%d,%d", LF, NUL
 
 _MSG	ends
 

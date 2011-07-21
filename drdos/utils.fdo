@@ -368,6 +368,7 @@ path_prep_cont:
 	push	es
 	call	path_prep_root		; fake a '.' entry for the root
 	pop	es
+path_prep_cont05:
 	lods	es:al			; get next char
 	dec	si			; forget we looked
 	test	al,al			; if just a '\' stop now
@@ -375,11 +376,13 @@ path_prep_cont:
 	 jnz	path_prep_cont10
 	 jmp	path_prep_done
 path_prep_cont10:
-    call    check_slash     
+	call	check_slash     
 	 jne	path_prep_next		;  otherwise start processing from root
-	mov	ax,ED_ACCESS		; get correct error code
-	stc				;  and return if \\
-	ret
+	lods	es:al
+	jmps	path_prep_cont05
+;	mov	ax,ED_ACCESS		; get correct error code
+;	stc				;  and return if \\
+;	ret
 
 path_prep_curdir:
 ; We need to select the current directory as a start for our operations
@@ -499,7 +502,11 @@ path_prep_done10:
 	pop	fdos_hds_root
 	pop	fdos_hds_root+2
 	 jz	path_prep_error		; (shouldn't happen)
+	xor	ax,ax
+	cmp	dosfat,FAT32		; FAT32 filesystem?
+	 je	path_prep_done15	; then assume no password set
 	mov	ax,DPWD[bx]		; get password hash code from entry
+path_prep_done15:
 	mov	local_password,ax	; ensure we can get back down
 	lea	si,DNAME[bx]		; point to it's name
 	mov	cx,11
@@ -835,6 +842,9 @@ rmdir_ok1:
 	 je	rmdir_ok3		;    yes, no problems yet...
 	cmp	DNAME[di],'.'		; is it "." or ".."?
 	 je	rmdir_ok3
+	mov	bx,di
+	call	is_lfn			; check if it is a long filename
+	 jc	rmdir_ok3		; we do not care for orphaned LFNs
 if DELWATCH
 ; We have found a dir entry - better check if it is a pending delete
 ; and that delwatch is installed. Then we can ignore it.
@@ -1445,6 +1455,7 @@ toupper_intl:
 eject
 kill_file:	; release clusters for file/dir and delete entry
 ;---------
+	call	del_lfn			; delete any preceding LFN entries
 	mov	bx,dirp			; get pointer to directory entry
 if DELWATCH
 	call	hdsblk			; AX = directory root cluster
@@ -1530,8 +1541,13 @@ find_label:				; find label only
 find_label30:
 	call	finddfcb		; find matching file name
 	 jz	find_label40		; skip if not found
-	test	DATTS[bx],DA_VOLUME
-	 jz	find_label30		; try again if not a volume label
+;	test	DATTS[bx],DA_VOLUME
+;	 jz	find_label30		; try again if not a volume label
+	mov	al,DATTS[bx]		; get attributes
+	and	al,256-DA_RO-DA_ARCHIVE	; ignore read only and archive bits
+	cmp	al,DA_VOLUME		; is it a volume label?
+	 jnz	find_label30		; try again if not a volume label
+	or	al,01			; clear ZF
 find_label40:
 	mov	finddfcb_mask,DA_VOLUME*256
 	ret				; back to no VOL labels or pending dels
@@ -1716,6 +1732,19 @@ creat_handle20:
 creat_handle25:
 	lea	di,DHNDL_BLK1H[bx]
 	stosw
+	lea	di,DHNDL_SIZEX[bx]	; FAT+ extended file size bits
+	mov	al,DSIZEX[si]
+	mov	ah,al
+	and	al,00000111b
+	and	ah,11100000b
+	shr	ah,1
+	shr	ah,1
+	or	al,ah
+	xor	ah,ah
+	stosw
+	xor	ax,ax
+	stosw				; zero higher file size bits
+	stosw ! stosw			; also the high dword of the position
 	lea	si,DTIME[si]
 	lea	di,DHNDL_TIME[bx]
 	movsw				; copy the time
@@ -1821,6 +1850,7 @@ vfy_hnd9:
 ;		CY set if device/network handle
 ;	Note:	doesn't return on error
 
+	Public	check_handle
 check_handle:
 ;------------
 	les	bx,current_dhndl
@@ -1845,6 +1875,7 @@ fdos_ED_H_MATCH:
 	jmp	fdos_error		; return an error
 
 	public	vfy_dhndl_ptr
+	public	vfy_dhndl_ptr_AX
 
 vfy_dhndl_ptr:
 ;=============
@@ -1858,6 +1889,7 @@ vfy_dhndl_ptr:
 
 	mov	si,2[bp]		; SI -> parameter block
 	mov	ax,2[si]		; get file handle from parameter block
+vfy_dhndl_ptr_AX:			; alternative entry point - AX=handle
 	test	ss:byte ptr remote_call+1,DHM_FCB/100h; if we are doing an FCB operation
 	 jnz	vfy_dhndl10		;  deal only with IFN, forget PSP
 	mov	es,ss:current_psp
@@ -1892,10 +1924,12 @@ vfy_dhndl30:
 	mov	ss:word ptr current_dhndl+WORD,es
 	test	es:DHNDL_MODE[bx],DHM_NOCRIT
 	 jnz	vfy_dhndl40		; are critical errors allowed ?
+	clc
 	ret
 
 vfy_dhndl40:
 	or	valid_flg,NO_CRIT_ERRORS
+	clc
 	ret				; remember no critical errors possible
 
 vfy_dhndl50:
@@ -1906,6 +1940,7 @@ vfy_dhndl50:
 vfy_dhndl_err:
 	add	sp,WORD			; pop return addr - return to caller
 	mov	bx,ED_H_MATCH		;  with "invalid handle" error
+	stc
 	ret
 
 
@@ -2363,8 +2398,9 @@ BDOS_DATA	dseg	word
 
 join_name	db	'd:\filename.ext',0
 
+		db	'Enhanced DR-DOS 7.01.08 WIP (21.7.2011) '
 		db	'Patches to original OpenDOS source code '
-		db	'Copyright (c) 2002-2005 Udo Kuhnt'
+		db	'Copyright (c) 2002-2011 Udo Kuhnt'
 
 BDOS_CODE	cseg
 
@@ -2431,9 +2467,8 @@ if PASSWORD
 	 jcxz	stamp_dir_entry10	;  if so apply it
 	mov	bx,dirp
 	cmp	dosfat,FAT32		; FAT32 file system?
-	 je	stamp_dir_entry05	; then do not overwrite this entry
+	 je	stamp_dir_entry10	; then do not overwrite this entry
 	mov	DPWM[bx],PWM_ANY	; deny all for compatibility
-stamp_dir_entry05:
 	or	DATTS[bx],DA_HIDDEN	;  make dir entry hidden
 	mov	DPWD[bx],cx		;  with this password
 stamp_dir_entry10:
@@ -2563,7 +2598,11 @@ check_pwd:		; check for password mismatch
 	callf	ss:fdos_stub
 	 jnc	check_pwd20
 
+	xor	ax,ax
+	cmp	dosfat,FAT32		; FAT32 filesystem?
+	 je	check_pwd05		; then assume no password set
 	mov	ax,DPWD[bx]		; get password hash code from entry
+check_pwd05:
 	 jcxz	check_pwd10		; exit if no password
 	cmp	ax,global_password	; compare with default password
 	 je	check_pwd10		; yes, go ahead

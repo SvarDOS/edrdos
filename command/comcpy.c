@@ -181,7 +181,7 @@ MLOCAL WORD conf_src(BYTE *);
 MLOCAL VOID e_check2(WORD);
 MLOCAL BOOLEAN touch(BYTE *);
 MLOCAL BYTE * get_pswd(BYTE *);
-
+MLOCAL WORD ret;
 
 /* define external variables used */
 
@@ -234,8 +234,10 @@ BYTE	*cmd;
 	WORD	rmode = 0x0000; 	/* read mode - normal files only */
 	BYTE	delim;
 	BYTE	npara;
-	BYTE	src[MAX_FILELEN];	/* buffer in which to expand wild source filespec */
-	BYTE	dest[MAX_FILELEN];	/* buffer in which to expand wild destination filespec */
+/*	BYTE	src[MAX_FILELEN];*/	/* buffer in which to expand wild source filespec */
+/*	BYTE	dest[MAX_FILELEN];*/	/* buffer in which to expand wild destination filespec */
+	BYTE	src[MAX_LFNLEN];	/* buffer in which to expand wild source filespec */
+	BYTE	dest[MAX_LFNLEN];	/* buffer in which to expand wild destination filespec */
 #if defined(PASSWORD)
 	BYTE	password[10];		/* keep note of src password    */
 #endif
@@ -250,11 +252,16 @@ BYTE	*cmd;
 	UWORD	dosvf;			/* used to save current dos verify state */
 	UWORD	sflag;			/* Source File Options		*/
 					/* scheme2 extra bits */
-	BYTE	wdfn[13];		/* used by scheme2 to save wild destination filename */
+/*	BYTE	wdfn[13];*/		/* used by scheme2 to save wild destination filename */
+	BYTE	wdfn[MAX_LFNLEN];	/* used by scheme2 to save wild destination filename */
 	BYTE	*dfptr;
 	BYTE	*ocmd;	 
-	BYTE	src2[MAX_FILELEN];	/* 2nd src buffer for scheme2 */
+/*	BYTE	src2[MAX_FILELEN];*/	/* 2nd src buffer for scheme2 */
+	BYTE	src2[MAX_LFNLEN];	/* 2nd src buffer for scheme2 */
 	DTA	search; 		/* DOS Search Buffer		*/
+	FINDD	finddata;
+	BOOLEAN	lfnsearch;
+	UWORD	shandle;
 
 	sascii = NO;		/* indicates if current source is ascii or not */
 	sbin   = NO;		/* sbin indicates if an explicit /b found */
@@ -376,7 +383,9 @@ BYTE	*cmd;
 	{
 	    get_filename(dest,lp,YES);		/* this turns lpt1: into lpt1 */
 	    
-	    ret = ms_x_open(dest, OPEN_READ);	/* Check if destination	is */
+	    ret = ms_l_open(dest, OPEN_READ);	/* Check if destination	is */
+	    if (ret==ED_FUNCTION)
+	      ret=ms_x_open(dest,OPEN_READ);
 	    if (ret >= 0)			/* a device. If so, if /b  */
 	    {					/* on src OR dst, copy is  */
 	    	if (isdev(ret))			/* binary		   */
@@ -432,7 +441,7 @@ BYTE	*cmd;
 #if TRUE
 /* ##jc##
  *	This Code is a Special for IBM Display Write 4 which attempts
- *	to copy "A:DEFAULT.P*TÌ". Treat this a a secial case and convert
+ *	to copy "A:DEFAULT.P*TÌ". Treat this as a special case and convert
  *	it to "A:DEFAULT.P*".
  */
 	tp = strchr(fptr(src), '.');		/* Search for . in the 	*/
@@ -467,12 +476,23 @@ more1:
 
 	tp=fptr(src);			/* get ptr to filename part of src  */
 
-	ret=ms_x_first(src,rmode,&search); /* get first explicit source (if src wild) */
+	ret=ms_l_first(src,rmode,&finddata); /* get first explicit source (if src wild) */
 					/* if(ret < 0) check moved till after prtsrc */
+	if (ret!=ED_FUNCTION) {
+	  shandle=finddata.handle;
+	  lfnsearch=1;
+	}
+	else {
+	  ret = ms_x_first(src,rmode,&search);
+	  if (!ret) {
+	    strcpy(finddata.lname,search.fname);
+	  }
+	  lfnsearch=0;
+	}
 
 loop12: 
 	if(ret >= 0) {			/* copy explicit filename to src */
-	    strcpy(tp,search.fname);	/* only do this if a file was found */
+	    strcpy(tp,finddata.lname);	/* only do this if a file was found */
 #if defined(PASSWORD)
 	    strcat(tp,password);	/* add the src password             */
 #endif
@@ -534,7 +554,17 @@ loop12:
 	   else {
 	     if (srcopen) ms_x_close(sfh);
 	   }
-	   ret = ms_x_next(&search);
+/*	   ret = ms_x_next(&search);*/
+	   if (lfnsearch) {
+	     ret = ms_l_next(shandle,&finddata);	/* get the next file and    */
+	   }
+	   else {
+	     ret = ms_x_next(&search);	/* get the next file and    */
+	     if (!ret) {
+	       strcpy(finddata.lname,search.fname);
+	     }
+	   }
+
 	   if(!ret)  goto loop12;	    /* loop round and do it again */
 					    /* if more files match wild src */
 	 
@@ -641,7 +671,16 @@ nextfile:    while (*cmd==',')		   /* skip over commas */
 						     
 	    skip2:
 
-	    ret = ms_x_next(&search);
+/*	    ret = ms_x_next(&search);*/
+	    if (lfnsearch) {
+	      ret = ms_l_next(shandle,&finddata);	/* get the next file and    */
+	    }
+	    else {
+	      ret = ms_x_next(&search);	/* get the next file and    */
+	      if (!ret) {
+	        strcpy(finddata.lname,search.fname);
+	      }
+	    }
 	    if(!ret) 			/* loop round and do it again */
 		goto loop12;		/* if wild src */
 
@@ -665,6 +704,8 @@ summary:
 
 	if(COPY_VERIFY)
 	    ms_f_verify(dosvf);			/* retore verify state */
+
+	if (lfnsearch) ms_l_findclose(shandle);
 
 }	/* end of cmd_copy */
 
@@ -783,7 +824,9 @@ REG BYTE  *s;
 	if(iswild(s))			/* If an ambiguous reference    */
 	    return (NO);		/* then no a specific file ref. */
 		
-	ret = ms_x_chmod (s, ATTR_ALL, 0);	/* get attributes of filespec */
+	ret = ms_l_chmod (s, ATTR_ALL, 0);	/* get attributes of filespec */
+	if (ret==ED_FUNCTION)
+	  ret=ms_x_chmod(s,ATTR_ALL,0);
 	
 	if(ret == ED_FILE)		/* file not found (file yet to be created) */
 	    return (YES);		/* it will be a file */
@@ -837,7 +880,11 @@ REG BYTE  *dest;			/* destination filename */
 	    return (FAILURE);	/* invalid dest drive */
 	}
 		
-	if((dfh=ms_x_creat(dest,0)) < 0) {  /* create destination file or truncate to empty */
+	dfh=ms_l_creat(dest,0);
+	if (dfh==ED_FUNCTION)
+	  dfh=ms_x_creat(dest,0);
+/*	if((dfh=ms_x_creat(dest,0)) < 0) {*/  /* create destination file or truncate to empty */
+	if(dfh<0) { 		 /* create destination file or truncate to empty */
 	    e_check2(dfh);		/* if error */
 	    return (FAILURE);
 	}
@@ -902,8 +949,11 @@ BOOLEAN failed;
 	    ms_x_close(dfh);	/* close destination */
 	    dstopen = NO;
 
-	    if(failed) 		/* if failed, delete incomplete destination */
-		ms_x_unlink(dest);
+	    if(failed) {	/* if failed, delete incomplete destination */
+		ret=ms_l_unlink(dest,0);
+		if (ret==ED_FUNCTION)
+		  ms_x_unlink(dest);
+	    }
 	    
 	    else {			/* (didnt fail) */
 #if 0
@@ -912,7 +962,9 @@ BOOLEAN failed;
 		    if (!COPY_SYS) {
 		        dattrib &= ~ATTR_HID;	/* if not /S , then dont let hidden attribute be set */
 		    }
-		    ms_x_chmod(dest,dattrib,1);	/* change destination attributes  */
+		    ret=ms_l_chmod(dest,dattrib,1);	/* change destination attributes  */
+		    if (ret==ED_FUNCTION)
+		      ms_x_chmod(dest,dattrib,1);
 	        }				/* under same conditions as tstamp */
 #endif
 	    }					/* nb must be done after dest closed */
@@ -949,9 +1001,14 @@ BYTE	*src;			/* source filename */
 	    return (FAILURE);	/* invalid src drive */
 	}
 
-	sfh = ms_x_open(src, OPEN_READ);	/* Open the File/Device using*/
-	if(sfh == ED_ACCESS)			/* a sharing mode if Access  */
-	    sfh = ms_x_open(src, OPEN_RO);	/* denied try compatibility  */
+	sfh = ms_l_open(src, OPEN_READ);	/* Open the File/Device using*/
+	if (sfh==ED_FUNCTION)
+	  sfh=ms_x_open(src,OPEN_READ);
+	if(sfh == ED_ACCESS) {			/* a sharing mode if Access  */
+	    sfh = ms_l_open(src, OPEN_RO);	/* denied try compatibility  */
+	    if (sfh==ED_FUNCTION)
+	      sfh=ms_x_open(src,OPEN_RO);
+	}
 						/* mode. FrameWork Setup     */
 	if(sfh < 0) {				/* leaves a control file Open*/
 	    e_check2(sfh);			/* during the copy.	     */
@@ -976,7 +1033,9 @@ BYTE	*src;			/* source filename */
 	ms_x_lseek(sfh,0,0);
 
 	srcopen=YES;
-	attrib=ms_x_chmod(src,attrib,0);	/* read src file attributes */
+	attrib=ms_l_chmod(src,attrib,0);	/* read src file attributes */
+	if (attrib==ED_FUNCTION)
+	  attrib=ms_x_chmod(src,attrib,0);
 
 	/* Don't copy 0 length files */
 	if (src_len == 0L && !srcdev) return(FAILURE);
@@ -1147,7 +1206,9 @@ BYTE	*dest;			/* destination filename */
 	    if(!dstopen) {		/* if destination not open, open it */
 		if(ABloop1) {		/* special case if 2nd time round the loop */
 					/* and single drive copy */
-		    dfh=ms_x_open(dest,OPEN_RDWR);	/* open dest for rw	*/
+		    dfh=ms_l_open(dest,OPEN_RDWR);	/* open dest for rw	*/
+		    if (dfh==ED_FUNCTION)
+		      dfh=ms_x_open(dest,OPEN_RDWR);
 		    dstopen=YES;
 		    ms_x_lseek(dfh, (LONG) 0,2);	/* lseek to end of dest */
 		}
@@ -1242,7 +1303,9 @@ REG BYTE  *dest;			/* destination filename */
 	
 	touch(dest);			/* set timestamp */
 		
-	dfh=ms_x_open(dest,OPEN_RDWR);		/* open file for read and write */
+	dfh=ms_l_open(dest,OPEN_RDWR);		/* open file for read and write */
+	if (dfh==ED_FUNCTION)
+	  dfh=ms_x_open(dest,OPEN_RDWR);
 
 /*	if(dfh==ED_FILE)		  */ /* if file doesnt exist, create it */
 /*		return(dopen(dest)); */ /* not necessary as src/dest must exist as found by ms_x_first */
@@ -1307,11 +1370,17 @@ REG BYTE *src,*dest;
 BOOLEAN  mess;
 {
 #if 1
-BYTE	sp[MAX_PATHLEN+MAX_FILELEN+3];
-BYTE	dp[MAX_PATHLEN+MAX_FILELEN+3];
-	
- 	ms_x_expand(sp, src);
- 	ms_x_expand(dp, dest);
+/*BYTE	sp[MAX_PATHLEN+MAX_FILELEN+3];
+BYTE	dp[MAX_PATHLEN+MAX_FILELEN+3];*/
+BYTE	sp[MAX_PATHLEN+MAX_LFNLEN+3];
+BYTE	dp[MAX_PATHLEN+MAX_LFNLEN+3];
+
+ 	ret=ms_l_expand(sp, src);
+	if (ret==ED_FUNCTION)
+	  ms_x_expand(sp,src);
+ 	ret=ms_l_expand(dp, dest);
+	if (ret==ED_FUNCTION)
+	  ms_x_expand(dp,dest);
  
  	if(strcmp(sp,dp)!=0)
  	    return (NO);
@@ -1464,7 +1533,11 @@ REG BYTE  *s;
 	date=((tdate.year-1980)<<9) + (tdate.month<<5) + tdate.day;
 	time=(ttime.hour<<11) + (ttime.min<<5) + (ttime.sec>>1);
 	
-	if((fh=ms_x_open(s,OPEN_RDWR)) >=0) {	/* open file for r/w if no error */
+	fh=ms_l_open(s,OPEN_RDWR);
+	if (fh==ED_FUNCTION)
+	  fh=ms_x_open(s,OPEN_RDWR);
+/*	if((fh=ms_x_open(s,OPEN_RDWR)) >=0) {*/	/* open file for r/w if no error */
+	if(fh >=0) {			/* open file for r/w if no error */
 	    ms_x_datetime(1,fh,&time,&date); /* change files timestamp */
 	    ms_x_close(fh);
 	    return (SUCCESS);

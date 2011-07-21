@@ -657,8 +657,12 @@ open_disk:
 	 jz	open8			; bail out if not found
 	mov	al,byte ptr fdos_pb+8	; check requested attributes
 if PASSWORD
+	cmp	dosfat,FAT32		; FAT32 filesystem?
+	 je	open1			; yes, then ignore passwords
 	cmp	word ptr DPWD[bx],0
 	 je	open1
+	test	DPWM[bx],0fffh		; no access rights set?
+	 jz	open1			; then assume it is unprotected
 	or	al,DA_HIDDEN
 open1:
 endif
@@ -768,16 +772,27 @@ fdos_read:
 	call	local_disk		; get MXdisk, switch stack
 	call	verify_handle		; check if legal file handle
 	mov	cx,fdos_pb+8		; get requested transfer length
-	mov	ax,es:DHNDL_POSLO[bx]	; If we get an error we want to have
-	mov	dx,es:DHNDL_POSHI[bx]	; xfer len adjusted for EOF (CopyIIpc)
-	sub	ax,es:DHNDL_SIZELO[bx]	; are we beyond EOF ?
-	sbb	dx,es:DHNDL_SIZEHI[bx]
+;	mov	ax,es:DHNDL_POSLO[bx]	; If we get an error we want to have
+;	mov	dx,es:DHNDL_POSHI[bx]	; xfer len adjusted for EOF (CopyIIpc)
+;	sub	ax,es:DHNDL_SIZELO[bx]	; are we beyond EOF ?
+;	sbb	dx,es:DHNDL_SIZEHI[bx]
+	mov	ax,es:DHNDL_POSLO[bx]
+	sub	ax,es:DHNDL_SIZELO[bx]
+	mov	dx,ax
+	mov	ax,es:DHNDL_POSHI[bx]
+	sbb	ax,es:DHNDL_SIZEHI[bx]
+	mov	ax,es:DHNDL_POSXLO[bx]
+	sbb	ax,es:DHNDL_SIZEXLO[bx]
+	mov	ax,es:DHNDL_POSXHI[bx]
+	sbb	ax,es:DHNDL_SIZEXHI[bx]
 ;	 jb	read2			; beyond EOF already, no action required
 ;	 ja	read2			; more the 64K to go, no problems
 	 jnz	read2
-	cmp	ax,cx			; do we want more than there is?
+;	cmp	ax,cx			; do we want more than there is?
+	cmp	dx,cx			; do we want more than there is?
 	 jae	read2			; yes, shorten the fdos_pb count
-	sub	fdos_pb+8,ax		;  in case of a critical error
+;	sub	fdos_pb+8,ax		;  in case of a critical error
+	sub	fdos_pb+8,dx		;  in case of a critical error
 read2:
 	mov	fdrwflg,1		; we're reading
 	les	di,dword ptr fdos_pb+4	; get disk transfer address
@@ -916,8 +931,12 @@ unlink_attribs:
 ;
 	mov	al,byte ptr fdos_pb+8	; check attributes
 if PASSWORD
+	cmp	dosfat,FAT32		; FAT32 filesystem?
+	 je	unlink_attribs10	; yes, then ignore passwords
 	cmp	word ptr DPWD[bx],0
 	 je	unlink_attribs10
+	test	DPWM[bx],0fffh		; no access rights set?
+	 jz	unlink_attribs10	; then assume it is unprotected
 	or	al,DA_HIDDEN
 unlink_attribs10:
 endif
@@ -951,7 +970,10 @@ fdos_lseek:
 	call	vfy_dhndl_ptr		; check file handle #
 	call	redir_dhndl_offer
 	test	es:DHNDL_ATTR[bx],DHAT_DEV
-	 jnz	lseek_dev		; skip if character device
+;	 jnz	lseek_dev		; skip if character device
+	 jz	lseek01
+	jmp	lseek_dev		; skip if character device
+lseek01:
 	call	local_disk		; get MXdisk, switch stack
 	call	check_handle		; check if legal file handle
 	mov	ax,fdos_pb+4		; get 32-bit file offset
@@ -968,16 +990,60 @@ lseek1:
 	ret				; return error code
 
 lseek2:					; seek mode 1: relative to position
-	add	ax,es:DHNDL_POSLO[bx]
-	adc	dx,es:DHNDL_POSHI[bx]
-	jmps	lseek4			; update new position
+;	add	ax,es:DHNDL_POSLO[bx]
+;	adc	dx,es:DHNDL_POSHI[bx]
+	add	es:DHNDL_POSLO[bx],ax
+	adc	es:DHNDL_POSHI[bx],dx
+	adc	es:DHNDL_POSXLO[bx],0
+	adc	es:DHNDL_POSXHI[bx],0
+	test	dx,8000h		; negative offset?
+	 jz	lseek2a
+	add	es:DHNDL_POSXLO[bx],0ffffh; yes, then extend the sign to 64-bit
+	adc	es:DHNDL_POSXHI[bx],0ffffh
+lseek2a:
+	jmps	lseek4a			; update new position
 
 lseek3:					; seek mode 2: relative to end
-	add	ax,es:DHNDL_SIZELO[bx]
-	adc	dx,es:DHNDL_SIZEHI[bx]	; add file size + offset
+;	add	ax,es:DHNDL_SIZELO[bx]
+;	adc	dx,es:DHNDL_SIZEHI[bx]	; add file size + offset
+	push	ax
+	mov	ax,es:DHNDL_SIZELO[bx]
+	mov	es:DHNDL_POSLO[bx],ax
+	mov	ax,es:DHNDL_SIZEHI[bx]
+	mov	es:DHNDL_POSHI[bx],ax
+	mov	ax,es:DHNDL_SIZEXLO[bx]
+	mov	es:DHNDL_POSXLO[bx],ax
+	mov	ax,es:DHNDL_SIZEXHI[bx]
+	mov	es:DHNDL_POSXHI[bx],ax
+	pop	ax
+	jmps	lseek2
 lseek4:					; seek mode 0: set absolute position
 	mov	es:DHNDL_POSLO[bx],ax
 	mov	es:DHNDL_POSHI[bx],dx
+	mov	fdos_pb+4,ax		; set return values
+	mov	fdos_pb+6,dx
+	mov	es:DHNDL_POSXLO[bx],cx
+	mov	es:DHNDL_POSXHI[bx],cx
+	ret
+lseek4a:
+	cmp	es:DHNDL_POSXLO[bx],0
+	 jne	lseek4b
+	cmp	es:DHNDL_POSXHI[bx],0
+	 je	lseek4d
+lseek4b:
+	cmp	es:DHNDL_POSXLO[bx],0ffffh
+	 jne	lseek4c
+	cmp	es:DHNDL_POSXHI[bx],0ffffh
+	 je	lseek4d
+lseek4c:
+	xor	ax,ax
+	dec	ax
+	mov	dx,ax
+	jmps	lseek4e
+lseek4d:
+	mov	ax,es:DHNDL_POSLO[bx]
+	mov	dx,es:DHNDL_POSHI[bx]
+lseek4e:
 	mov	fdos_pb+4,ax		; set return values
 	mov	fdos_pb+6,dx
 	ret
@@ -1146,7 +1212,7 @@ chmod12:
 chmod13:
 	xor	DATTS[bx],dl		; set new attributes
 if PASSWORD
-	jmps	chmod90
+	jmp	chmod90
 else
 	jmp	update_dir		; update directory
 endif
@@ -1172,7 +1238,11 @@ chmod20:
 	pop	dx
 	pop	cx
 	pop	bx
+	xor	ax,ax
+	cmp	dosfat,FAT32		; FAT32 filesystem?
+	 je	chmod25			; then assume no password set
 	mov	ax,DPWD[bx]		; assume get encrypted password
+chmod25:
 	cmp	cl,4			;  was it ?
 	 jne	chmod50
 endif					; yes, return encrypted password
@@ -1201,8 +1271,11 @@ chmod50:				; set password/password mode
 	call	hash_pwd		;  compute password hash code
 chmod60:
 	pop	ds
+	cmp	dosfat,FAT32		; FAT32 filesystem?
+	 je	chmod65			; then passwords do not apply
 	or	DATTS[bx],DA_HIDDEN	; file will be hidden
 	mov	DPWD[bx],ax		; set new file password
+chmod65:
 	test	ax,ax			; null password?
 	 jnz	chmod70
 	xor	dx,dx			; can't be protected....
@@ -1644,8 +1717,12 @@ search_n10:
 	 jz	search_next_err		; if not found
 	mov	al,attributes		; get attributes that we support
 if PASSWORD
+	cmp	dosfat,FAT32		; FAT32 filesystem?
+	 je	search_n20		; yes, then ignore passwords
 	cmp	word ptr DPWD[bx],0	; does it have a password?
 	 jz	search_n20		; skip if not
+	test	DPWM[bx],0fffh		; no access rights set?
+	 jz	search_n20		; then assume it is unprotected
 	or	al,DA_HIDDEN		; else include hidden files
 search_n20:
 endif
@@ -1705,6 +1782,25 @@ search_n35:
 	inc	si
 	inc	si			; skip starting cluster
 	movsw ! movsw			; return file size
+	mov	al,DSIZEX[bx]		; compute extended file size
+	mov	ah,al
+	and	al,111b
+	and	ah,11100000b
+	shr	ah,1
+	shr	ah,1
+	test	fdos_pb+10,1		; use FAT+/LFN extensions?
+	 jz	search_n38		; no, return 32bit file size
+	or	al,ah
+	mov	es:[di]-11,al		; return extended file size
+	jmps	search_n40
+search_n38:
+	or	al,ah
+	 je	search_n40		; if below 4 GB then skip
+	sub	di,4			; else go back to file size field
+	xor	ax,ax			; AX=FFFFh
+	dec	ax
+	stosw ! stosw			; report 4 GB - 1
+search_n40:
 	jmp	unparse			; return file name
 
 eject
@@ -1760,6 +1856,17 @@ file_update:
 	xchg	ax,di			; DI -> directory entry in buffer
 	or	DATTS[di],DA_ARCHIVE	; mark file as modified
 ;;;	call	timestamp_dhndl		; record the current time
+	mov	ax,es:DHNDL_SIZEXLO[bx]	; get extended 6 bits for FAT+
+	mov	ah,al			; shift the bits in place
+	and	al,00000111b
+	and	ah,00111000b
+	shl	ah,1
+	shl	ah,1
+	or	ah,al
+	mov	al,DSIZEX[di]		; get original DSIZEX byte
+	and	al,00011000b		; save bits used WinNT
+	or	al,ah			; combine them with FAT+ bits
+	mov	DSIZEX[di],al		; and store them again
 	cmp	dosfat,FAT32		; is this a FAT32 file system?
 	 jne	file_update05		; no, then skip this entry
 	mov	ax,es:DHNDL_BLK1H[bx]	; get high word of 1st block in file
@@ -1888,11 +1995,20 @@ fdos_mkddsc:
 ;-----------
 	push	ds
 	mov	si,2[bp]		; SI -> parameter block
+	mov	cx,10[si]		; signatures for extended function
+	mov	dx,12[si]
 	les	di,6[si]		; ES:DI -> DDSC
 	lds	si,2[si]		; DS:SI -> BPB
 
-;	call	bpb2ddsc		; convert BPB to DDSC
+	cmp	cx,4558h		; does the first signature match?
+	 jne	mkddsc_noext		; no, execute normal function
+	cmp	dx,4152h		; does the second signature match?
+	 jne	mkddsc_noext		; no, proceed with normal function
+	call	bpb2ddsc		; convert BPB to DDSC
+	jmps	mkddsc_ext
+mkddsc_noext:
 	call	bpb2ddsc_noext		; convert BPB to normal DDSC (without extended drive info)
+mkddsc_ext:
 	xor	bx,bx			; no error
 	pop	ds			; restore segment register
 	ret
@@ -2022,6 +2138,13 @@ bpb2ddsc41:
 	lodsw				; get high word
 	mov	es:word ptr DDSC_FSROOT+2[di],ax
 	lodsw				; get sector number of file system info sector
+	cmp	ax,es:DDSC_FATADDR[di]	; is the info sector below the FAT?
+	 jae	bpb2ddsc41a		; no, it must be invalid
+	cmp	ax,0			; same as boot sector?
+	 jnz	bpb2ddsc41b		; if yes, that does not make sense
+bpb2ddsc41a:
+	mov	ax,0ffffh		; so just assume there is none
+bpb2ddsc41b:
 	mov	es:DDSC_FSINFO[di],ax
 	lodsw				; get sector number of backup boot sector
 	mov	es:DDSC_BOOTBAK[di],ax
@@ -2173,7 +2296,10 @@ fdos_expand:
 	 je	fdos_expand10
 	mov	bx,ED_FILE
     test    al,al           
-	 jz	fdos_expand60
+;	 jz	fdos_expand60
+	 jnz	fdos_expand05
+	jmp	fdos_expand60
+fdos_expand05:
 	call	toupper			; work on premise we have drive
 	sub	al,'A'			; specified in relative name
 	sub	ah,':'			; did we have ?
@@ -2182,7 +2308,10 @@ fdos_expand10:
 	mov	al,current_dsk		; use current drive
 fdos_expand20:
 	cmp	al,last_drv		; is it a legal drive
-	 jae	fdos_expand50
+;	 jae	fdos_expand50
+	 jb	fdos_expand21
+	jmp	fdos_expand50
+fdos_expand21:
 
 ; we should check for a media change so select_logical_drv seems to be
 ; a better solution
@@ -2194,7 +2323,10 @@ fdos_expand20:
 	les	bx,current_ldt
 
 	test	es:LDT_FLAGS[bx],LFLG_PHYSICAL
-	 jz	fdos_expand50		; make sure it's a valid drive
+;	 jz	fdos_expand50		; make sure it's a valid drive
+	 jnz	fdos_expand22		; make sure it's a valid drive
+	jmp	fdos_expand50
+fdos_expand22:
 	push ss ! pop es
 	mov	di,offset pri_pathname	; build name in pathname buffer
 	lds	si,dword ptr fdos_pb+2
@@ -2209,6 +2341,31 @@ fdos_expand20:
 	call	redir_build_path	; build name from LDT
 	pop	bp
 	 jc	fdos_expand60		; bail out if bad name
+
+	lds	di,ss:current_ldt
+	test	LDT_FLAGS[di],LFLG_NETWRKD+LFLG_PHYSICAL
+	 jz	fdos_expand25
+	test	LDT_FLAGS[di],LFLG_SUBST
+	 jnz	fdos_expand25
+	mov	bx,LDT_ROOTLEN[di]
+	cmp	bx,2
+	 jbe	fdos_expand25
+	mov	si,offset pri_pathname
+	mov	al,LDT_NAME+2[di]
+	mov	ss:[si],al
+	mov	ss:word ptr 1[si],'\:'
+	inc	si
+	inc	si
+	dec	bx
+	dec	bx
+fdos_expand23:
+	inc	si
+	mov	al,ss:[si+bx]
+	mov	ss:[si],al
+	cmp	al,0
+	 jne	fdos_expand23
+fdos_expand25:
+
 	lds	di,ss:current_ldt	; we need to append a '\' if
 	mov	bx,ds:LDT_ROOTLEN[di]	;  we are at the root
 	test	ds:LDT_FLAGS[di],LFLG_SUBST
@@ -2323,8 +2480,12 @@ fdos_moverr:
 move30:					; same drive for source & destination
 	mov	al,byte ptr fdos_pb+8	; check attributes
 if PASSWORD
+	cmp	dosfat,FAT32		; FAT32 filesystem?
+	 je	move31			; yes, then ignore passwords
 	cmp	save_area+DPWD,0
 	 je	move31
+	test	word ptr save_area+DPWM,0fffh	; no access rights set?
+	 jz	move31			; then assume it is unprotected
 	or	al,DA_HIDDEN
 move31:
 endif
@@ -2374,6 +2535,7 @@ move60:					; moving to different directory
 	 jnz	move_access		; so return error if new path
 	call	allocdir		; allocate a directory entry
 move70:
+	call	del_lfn			; make sure no LFN is before it
 	mov	si,offset info_fcb+1	; get pointer to new name
 	mov	di,dirp			; get pointer to directory entry
 	mov	cx,11			; copy new name into buffer
@@ -2392,6 +2554,7 @@ move70:
 	mov	cx,HDS_LEN		; so we can get old entry again
 	rep	movsb			;    (time to get rid of it)
 	call	move_seek		; seek the original entry
+	call	del_lfn			; and delete LFN if one exists
 	mov	bx,dirp
 	mov	DNAME[bx],0E5h		; and bye, bye! it goes...
 	call	update_dir		; update the old directory entry

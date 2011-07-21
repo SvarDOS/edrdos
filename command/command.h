@@ -52,7 +52,9 @@
 #define MAX_PATHLEN	131	/* Maximum length of a Path "x:\...."	     */
 #define MAX_FILELEN	140	/* Maximum length of full file specification */
 				/* ie "x:\....\nnnnnnnn.eee;password"	     */
+#define MAX_LFNLEN	261	/* Maximum length of Long Filename	     */
 #define	MAX_ENVLEN	255	/* Maximum length of environment entry       */
+#define	MAX_LINE	255	/* Maximum length of command line            */
 
 #define DEFAULT_PROMPT	"$n$g"		/* Default Prompt string */
 
@@ -196,6 +198,7 @@ N_CMD {
 #define 	ATTR_LBL	0x0008	/* find labels		 	*/
 #define 	ATTR_DIR	0x0010	/* find directories, too	*/
 #define		ATTR_DEV	0x0040	/* Attribute returned for Device*/
+#define		ATTR_LFN	0x000f	/* combination for LFN entries	*/
 
 #define STDIN		0	/* Standard Console Input Handle	*/
 #define STDOUT		1	/* Standard Console Output Handle	*/ 
@@ -218,6 +221,8 @@ N_CMD {
 #define OPEN_READ	(OPEN_RO | OPEN_DW)	/* Open Read Only	*/
 #define OPEN_WRITE	(OPEN_WO | OPEN_DRW)	/* Open Write Only	*/
 #define	OPEN_RDWR	(OPEN_RW | OPEN_DRW)	/* Open Read and Write	*/
+
+#define	LFLG_SUBST	0x1000		/* Drive is SUBSTituted		*/
 
 /*
  *	Set STACK to 1 to use dynamic string storage fuunction STACK

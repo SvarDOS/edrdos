@@ -287,9 +287,9 @@ dmd_upper_root	dw	0FFFFh		; 0066 dmd_upper_root
 
 msdos_file_tbl	dw	-1		; 00A6 1st HDB entries
 		dw	-1		; Pointer to next Entry (None)
-		dw	4		; Number of Entries
+		dw	3		; Number of Entries
 
-		rb	4*DHNDL_LEN	; Reserve 5 Internal Handles
+		rb	3*DHNDL_LEN	; Reserve 5 Internal Handles
 
 	rb	1fbh - (offset $ - offset dos_data)
 
@@ -528,7 +528,7 @@ current_ifn	dw	0
 
     org 05ceh - FIXED_DATA_START 
 	Public	current_filepos
-current_filepos	rw	2
+current_filepos	rw	4
 
     org 05f0h - FIXED_DATA_START 
 	Public	prev_int21regs_ptr, prev_int21regs_off, prev_int21regs_seg

@@ -123,6 +123,18 @@ MS_X_SETHC	equ	67h
 MS_X_COMMIT	equ	68h
 
 MS_EDRV_SPACE	equ	7303h
+MS_L_UNLINK	equ	7141h
+MS_L_FIRST	equ	714eh
+MS_L_NEXT	equ	714fh
+MS_L_FINDCLOSE	equ	71a1h
+MS_L_RENAME	equ	7156h
+MS_L_EXPAND	equ	7160h
+MS_L_CHDIR	equ	713bh
+MS_L_CHMOD	equ	7143h
+MS_L_CURDIR	equ	7147h
+MS_L_RMDIR	equ	713ah
+MS_L_MKDIR	equ	7139h
+MS_L_OPEN	equ	716ch
 
 DOS_INT     equ 21h ; DOS Entry Point
 ;
@@ -131,3 +143,5 @@ STDOUT		equ	1	; Standard Console Output Handle
 STDERR		equ	2	; Standard Error Output
 STDAUX		equ	3	; Auxilary Device Handle
 STDPRN		equ	4	; Printer Device Handle
+
+OPEN_RW		equ	2	; Open in Read/Write mode

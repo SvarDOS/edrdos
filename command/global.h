@@ -153,3 +153,5 @@ EXTERN	WORD	hidden_umb[10];
 
 #define ERROR_EXIT	0x0200		/* Exit because of a Critical Error */
 #define BREAK_EXIT	0x0100		/* Exit because of a Control-Break  */
+
+EXTERN	UWORD	heap_min;

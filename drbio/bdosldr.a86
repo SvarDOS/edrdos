@@ -78,6 +78,8 @@ login_drive:
 ;-----------
 	les	di,boot_device		; get device driver address
 	mov	dl,boot_drv		; get the boot drive sub unit
+	xor	dh,dh
+	dec	dh
 	mov	ax,es
 	or	ax,di			; make sure boot device is initialised
 	 jnz	login_drive10
@@ -97,22 +99,37 @@ login_drive12:
 	call	device_request		; tell it to build a BPB
 ;	 jc	dev_fail		; return if can't determine BPB
 	 jnc	login_drive15
-	jmp	dev_fail		; return if can't determine BPB
+	jmp	login_drive17		; return if can't determine BPB
 login_drive15:
+	cmp	dl,boot_drv
+	 jne	login_drive16
+	mov	dh,dl
+login_drive16:
 	les	di,ds:RH2_BPB
 	mov	ax,part_off
 	cmp	es:word ptr BPB_HIDDEN[di],ax
 	 jne	login_drive17
 	mov	ax,part_off+2
 	cmp	es:word ptr BPB_HIDDEN+2[di],ax
-	 je	login_drive18
+	 jne	login_drive17
+	mov	dh,dl
+	jmps	login_drive18
 login_drive17:
-	inc	boot_drv
-	mov	dl,boot_drv
+	inc	dl
+	 jz	login_drive18
 	jmps	login_drive12
 login_drive18:
-	mov	dl,boot_drv
+	cmp	dh,255
+	 jne	login_drive19
+	jmp	dev_fail
+login_drive19:
+	mov	dl,dh
+	mov	boot_drv,dl
 	mov	init_drv,dl
+	mov	bx,offset req_hdr
+	mov	ds:RH_UNIT,dl		; save logical unit to use
+	mov	ds:RH_CMD,CMD_BUILD_BPB
+	call	device_request		; tell it to build a BPB
 	push	ds ! push si
 	push	ds ! pop es
 	mov	di,offset local_bpb	; ES:DI -> local BPB copy
@@ -186,6 +203,7 @@ dos_version_check:
 	mov	ax,4452h
 	int	21h			; try and get DRDOS version number
 	 jc	dev_fail		;  it's not DRDOS !
+	and	ax,0fffeh		; don't be so picky
 	cmp	ax,VER_MUSTBE		; version check the DRDOS BDOS
 	 jne	dev_fail		;  reject all but the one we want
 	ret				; return now I'm happy
@@ -246,7 +264,8 @@ device_request:		; general device driver interface
 	clc
 	ret
 devreq_err:
-	jmp	dev_fail		; print error message
+	stc
+;	jmp	dev_fail		; print error message
 
 
 	ret
@@ -281,8 +300,9 @@ open_file15:
 	mov	start_cluster+2,bp
 	mov	start_cluster,cx
 	call	clus2sec
+	xor	ah,ah
 	mov	al,BT_sctr_per_cluster
-	cbw
+;	cbw
 	mul	BT_bytes_per_sector
 	mov	bx,32
 	div	bx

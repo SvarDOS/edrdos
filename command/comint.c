@@ -58,7 +58,6 @@
 #include	"toupper.h"
 #include	"support.h"		/* Support routines		 */
 #include	"global.h"
-#include	"dos7.h"
 #include	<limits.h>
 
 /*RG-00-*/
@@ -415,14 +414,17 @@ REG WORD drv;
 UWORD	flags;			/* Command Flags		*/
 #endif
 {
-BYTE	dispbuf[MAX_PATHLEN];
+/*BYTE	dispbuf[MAX_PATHLEN];*/
+BYTE	dispbuf[MAX_LFNLEN];
 WORD	ret;
 
 	dispbuf[0] = (BYTE) (drv + 'A');	/* Display the path of the */
 	dispbuf[1] = ':';			/* requested drive	   */
 	dispbuf[2] = *pathchar;
 
-	ret = ms_x_curdir(drv+1, dispbuf+3);
+	ret = ms_l_curdir(drv+1, dispbuf+3);
+	if (ret==ED_FUNCTION)
+	  ret=ms_x_curdir(drv+1,dispbuf+3);
 	if (ret < 0) return;
 	
 #if !defined(NOXBATCH) && (defined(CDOS) || defined(CDOSTMP))
@@ -521,7 +523,15 @@ while ( (*p!=' ') && *p)
 	}	
 	/* Make the drive Assignment	  */
 	if (!d_check(cp)) ddrive = -1;
-	e_check(ddrive != -1 ? ms_x_chdir(cp) : ED_DRIVE);
+/*	e_check(ddrive != -1 ? ms_x_chdir(cp) : ED_DRIVE);*/
+	if (ddrive!=-1) {
+	  ret=ms_l_chdir(cp);
+	  if (ret==ED_FUNCTION)
+	    ret=ms_x_chdir(cp);
+	}
+	else
+	  ret=ED_DRIVE;
+	e_check(ret);
 }
 
 
@@ -620,11 +630,22 @@ BYTE	*s;
  *	Display or Set the current date making full use of the DOS
  *	international system call.
  */
+#define	DATE_SHOW	(flags & 1)
 
 GLOBAL VOID CDECL cmd_date(s)
 BYTE	*s;
 {
 	BYTE	buffer[18];			/* Local Input Buffer */
+	UWORD	flags;
+
+	if(f_check (s, "t", &flags, NO))	/* Check for valid Flags    */
+	    return;
+
+	if(DATE_SHOW) {
+	  printf(CUR_DATE);
+	  disp_sysdate ();
+	  return;
+	}
 
 	if (*s) {
 	    if(check_date(s))
@@ -771,6 +792,7 @@ BYTE	*path;
 #define DIR_CHANGE	(0x0080)	/* Change the Default Opts */
 #define	DIR_NOPAGE	(0x0100)	/* No Paging of Output	   */
 #define DIR_2COLS	(0x0200)	/* double column listing   */
+#define	DIR_BARE	(0x0400)	/* List Filenames only     */
 #define	OPT(x)		(flags & x)	/* Return Flag Conditions  */
 
 MLOCAL UWORD dir_default = DIR_DIR | DIR_LONG;
@@ -784,12 +806,17 @@ REG UWORD flags;
 	if(OPT(DIR_LONG)) {		/* Force DIR_WIDE to be cleared	*/
 	    flags &= ~DIR_WIDE;		/* if the LONG format has been	*/
 	    flags &= ~DIR_2COLS;	/* selected.			*/
+	    flags &= ~DIR_BARE;
 	}
 
 	if(OPT(DIR_2COLS)) {
 	    flags &= ~DIR_LONG;
 	    flags &= ~DIR_WIDE;
+	    flags &= ~DIR_BARE;
 	}
+
+	if(OPT(DIR_WIDE))
+	  flags&=~DIR_BARE;
 
 	if(page_wid < 76)		/* Check the screen is wide	*/
 	    flags &= ~DIR_WIDE;		/* enough to display directory	*/
@@ -815,16 +842,21 @@ REG BYTE *cmd;
 	WORD	 nfiles, system, others, i;
 	ULONG	 nfree = 0UL;
 	DTA	 search;
-	BYTE	 path[MAX_FILELEN];
-	BYTE	 s[MAX_PATHLEN], temp[3];
+/*	BYTE	 path[MAX_FILELEN];
+	BYTE	 s[MAX_PATHLEN], temp[3];*/
+	BYTE	 path[MAX_LFNLEN];
+	BYTE	 s[MAX_LFNLEN], temp[3];
 	BYTE	 *ext, *memory;
 	UWORD	 free, secsiz, nclust;
 	UWORD	 flags;
 	FREED	freespace;
-	BYTE	FAR *dpath="A:\\";
+	BYTE	*dpath="A:\\";
 	BYTE	sbase=0;
+	FINDD	finddata;
+	BOOLEAN	lfnsearch;
+	UWORD	shandle;
 
-	if(f_check (cmd, "dsawlprcn2", &flags, NO))	/* if any bad flags */
+	if(f_check (cmd, "dsawlprcn2b", &flags, NO))	/* if any bad flags */
 	    return;					/*    don't do it   */
 
 	flags = dir_flags(flags);	/* Manipulate the flags to remove   */
@@ -844,10 +876,15 @@ REG BYTE *cmd;
 	{
 	    strcpy(s,"d:"); s[0] = (BYTE) (ddrive + 'A');
 	    append_slash(s);
-	    ms_x_curdir(ddrive+1,s+3);	/* get the current dir */
+	    ret=ms_l_curdir(ddrive+1,s+3);	/* get the current dir */
+	    if (ret==ED_FUNCTION)
+	      ms_x_curdir(ddrive+1,s+3);
 	}
-	else
-	    ms_x_expand(s,path);
+	else {
+	    ret=ms_l_expand(s,path);
+	    if (ret==ED_FUNCTION)
+	      ms_x_expand(s,path);
+	}
 
 	ext = fptr(path);
 	if(*ext == '.' && strcmp(dotdot+1, ext) && strcmp(dotdot, ext)) {
@@ -869,14 +906,20 @@ REG BYTE *cmd;
 	    if(!iswild(ext)) {			/* specified and it does not*/
 
 #if defined(PASSWORD)
-	      if (ddrive != -1 && ms_x_chdir(s) < 0) {
+	      ret=ms_l_chdir(s);
+	      if (ret==ED_FUNCTION)
+		ret=ms_x_chdir(s);
+/*	      if (ddrive != -1 && ms_x_chdir(s) < 0) {*/
+	      if (ddrive != -1 && ret < 0) {
 	/* if cd to current dir fails then current dir must be password     */
 	/* protected. So let's do the next bit the non-novell way.	    */
 
 	/* This method of determining if the user has specified a directory */
 	/* DOES NOT work on NOVELL drives.				    */
 
-		ret = ms_x_chmod(path, 0, 0);	/* contain a '.'. Skip if   */
+		ret = ms_l_chmod(path, 0, 0);	/* contain a '.'. Skip if   */
+		if (ret==ED_FUNCTION)
+		  ret=ms_x_chmod(path,0,0);
 		if(ret > 0 && (ret & ATTR_DIR))	/* a path was specified.    */
 		    break;			/* Otherwise append ".*".   */
 
@@ -893,18 +936,24 @@ REG BYTE *cmd;
 #endif
 		if (ddrive != -1)
 		{
-		    ret = ms_x_chdir(path);	 /* try to cd to path specified */
+		    ret = ms_l_chdir(path);	 /* try to cd to path specified */
+		    if (ret==ED_FUNCTION)
+		      ret=ms_x_chdir(path);
 #if defined(PASSWORD)
 		    if (memory) *memory = 0; /* remove password again */
 #endif
 		    if (ret >= 0) {		 /* if there wasn't an error... */
-			ms_x_chdir(s);	 /* ...restore original directory... */
+			ret=ms_l_chdir(s);	 /* ...restore original directory... */
+			if (ret==ED_FUNCTION)
+			  ms_x_chdir(s);
 			break;		 /* ...and get the hell out */
 		    }
 		}
 		else
 		{
-		    ret = ms_x_chmod(path,0,0);
+		    ret = ms_l_chmod(path,0,0);
+		    if (ret==ED_FUNCTION)
+		      ret=ms_x_chmod(path,0,0);
 		    if (ret >= 0 && (ret & ATTR_DIR)) break; 
 		}
 #if defined(PASSWORD)
@@ -921,6 +970,7 @@ REG BYTE *cmd;
 	if(nofiles(path, ATTR_ALL, NO, YES)) 	/* if no files/dirs or error*/
 	    return;				/* then we can't do this    */
 
+	if (!OPT(DIR_BARE)) {
 	if (ddrive != -1)
 	{
 	    strcpy (temp, "d:");		/* Display the drive Volume	*/
@@ -929,12 +979,15 @@ REG BYTE *cmd;
 	}
 	else
 	    show_crlf(OPT(DIR_PAGE));
+	}
 
 #if 0
 	/* this has been done earlier */
 	strcpy(s, "d:"); s[0] = (BYTE) (ddrive + 'A');
 	append_slash(s);
-	ms_x_curdir(ddrive+1, s+3);	/* Get the current dir		*/
+	ret=ms_l_curdir(ddrive+1, s+3);	/* Get the current dir		*/
+	if (ret==ED_FUNCTION)
+	  ms_x_curdir(ddrive+1,s+3);
 #endif
 
 	strip_path(path, memory = (BYTE *)heap());/* Get the Path Spec and  */
@@ -942,25 +995,39 @@ REG BYTE *cmd;
 		(memory[1] == ':' ? 3 : 1))	/* Path Character.	    */
 		memory[--i] = '\0';
 
+	if (!OPT(DIR_BARE)) {
 	if(i == 0 || (i == 2 && memory[1] == ':')) {
 	    printf (MSG_DIR, temp, s+3);	/* DIR of current Directory  */
 	}
 	else
 	{
-	  if (ddrive == -1 || ms_x_chdir(s) < 0) { /* assume this means pword protected */
+	  ret=ms_l_chdir(s);
+	  if (ret==ED_FUNCTION)
+	    ret=ms_x_chdir(s);
+/*	  if (ddrive == -1 || ms_x_chdir(s) < 0) {*/ /* assume this means pword protected */
+	  if (ddrive == -1 || ret < 0) { /* assume this means pword protected */
 	    ext = memory+strlen(memory)+1;
-	    ms_x_expand(ext,memory);
+	    ret=ms_l_expand(ext,memory);
+	    if (ret==ED_FUNCTION)
+	      ms_x_expand(ext,memory);
 	    if (ddrive != -1)
 	      printf(MSG_DIR, temp, ext+3);
 	    else
 	      printf(MSG_DIR,"",ext+1);
 	  }
 	  else {
-	    ms_x_chdir(memory); 		/* Change the directory      */
-	    ms_x_curdir(ddrive+1, memory);	/* Get the current directory */
-	    ms_x_chdir(s);			/* Restore the directory     */
+	    ret=ms_l_chdir(memory); 		/* Change the directory      */
+	    if (ret==ED_FUNCTION)
+	      ms_x_chdir(memory);
+	    ret=ms_l_curdir(ddrive+1, memory);	/* Get the current directory */
+	    if (ret==ED_FUNCTION)
+	      ms_x_curdir(ddrive+1,memory);
+	    ret=ms_l_chdir(s);			/* Restore the directory     */
+	    if (ret==ED_FUNCTION)
+	      ms_x_chdir(s);
 	    printf (MSG_DIR, temp, memory);
 	  }
+	}
 	}
 
 	others = 0;			/* assume no SYS/DIR files	*/
@@ -969,33 +1036,82 @@ REG BYTE *cmd;
 
 	system = OPT(DIR_SYS) ? ATTR_SYS : 0;
 
-	ret = ms_x_first(path, ATTR_ALL, &search);
+	ret = ms_l_first(path, ATTR_ALL, &finddata);
+	if (ret!=ED_FUNCTION) {
+	  if (!ret && finddata.sname[0]==0) {
+	    strcpy(finddata.sname,finddata.lname);
+	    finddata.lname[0]=0;
+	  }
+	  shandle=finddata.handle;
+	  lfnsearch=1;
+	}
+	else {
+	  ret = ms_x_first(path, ATTR_ALL, &search);
+	  if (!ret) {
+	    finddata.fattr=search.fattr;
+	    finddata.ftime=search.ftime;
+	    finddata.fdate=search.fdate;
+	    finddata.fsize=search.fsize;
+	    finddata.fsizeh=0;
+	    strcpy(finddata.sname,search.fname);
+	    finddata.lname[0]=0;
+	  }
+	  lfnsearch=0;
+	}
 
-	if(!ret && (search.fattr & ATTR_DEV))	/* Check if the user has     */
+	if(!ret && (finddata.fattr & ATTR_DEV))	/* Check if the user has     */
 	    ret = ED_FILE;			/* specified a device then   */
 						/* generate an error.	     */
 	while(!ret) {
-	    if(!OPT(DIR_ALL) && (search.fattr & ATTR_SYS) != system) {
+	    if(!OPT(DIR_ALL) && (finddata.fattr & ATTR_SYS) != system) {
 						/* not the correct file type*/
 		others++;			/* remember others do exist */
-		ret = ms_x_next(&search);	/* get the next file and    */
+		if (lfnsearch) {
+		  ret = ms_l_next(shandle,&finddata);	/* get the next file and    */
+		  if (!ret && finddata.sname[0]==0) {
+		    strcpy(finddata.sname,finddata.lname);
+		    finddata.lname[0]=0;
+		  }
+		}
+		else {
+		  ret = ms_x_next(&search);	/* get the next file and    */
+		  if (!ret) {
+		    finddata.fattr=search.fattr;
+		    finddata.ftime=search.ftime;
+		    finddata.fdate=search.fdate;
+		    finddata.fsize=search.fsize;
+		    finddata.fsizeh=0;
+		    strcpy(finddata.sname,search.fname);
+		    finddata.lname[0]=0;
+		  }
+		}
 		continue;			/* continue the display     */
 	    }
 
-	    ext = strchr(search.fname, '.');	/* Get the file extension   */
-	    if(ext && ext != search.fname)	/* set the extension to NULL*/
+	    ext = strchr(finddata.sname, '.');	/* Get the file extension   */
+	    if(ext && ext != finddata.sname)	/* set the extension to NULL*/
 		*ext++ = '\0';			/* if no '.' exists or this */
 	    else				/* is the ".." or "." entry.*/
 		ext = "";
 
-	    if(OPT(DIR_WIDE)) {
+	    if(OPT(DIR_BARE)) {
+	      if (*finddata.lname)
+		printf ("%s",finddata.lname);
+	      else
+		if (*ext)
+		  printf ("%s.%s",finddata.sname,ext);
+		else
+		  printf ("%s",finddata.sname);
+	      show_crlf(OPT(DIR_PAGE));
+	    }
+	    else if(OPT(DIR_WIDE)) {
 		if ((nfiles % 5) == 0)
 		    show_crlf(OPT(DIR_PAGE));
 
 		printf ("%c:%c%-9s%-3s",
 			(nfiles % 5) ? ' ' : ddrive + 'A',
-			(search.fattr & ATTR_DIR) ? *pathchar : ' ',
-			search.fname, ext);
+			(finddata.fattr & ATTR_DIR) ? *pathchar : ' ',
+			finddata.sname, ext);
 	    }
 	    else {
 		if (OPT(DIR_2COLS)) {
@@ -1003,41 +1119,73 @@ REG BYTE *cmd;
 		}
 		else
 		    show_crlf(OPT(DIR_PAGE));
-		printf("%-9s%-3s", search.fname, ext);
-		if (search.fattr & ATTR_DIR)
+		printf("%-9s%-3s", finddata.sname, ext);
+		if (finddata.fattr & ATTR_DIR)
 /*		    printf(" <DIR>   ");*/
 		  if (OPT(DIR_2COLS))
-		    printf(" <DIR>    ");
+		    printf(" <DIR>     ");
 		  else
-		    printf(" <DIR>        ");
-		else
+		    printf(" <DIR>         ");
+		else {
+		  ret=conv64(&finddata.fsize,&finddata.fsizeh);
 		  if (OPT(DIR_2COLS))
 /*		    printf ("%9lu", search.fsize);*/
-		    printf ("%10lu", search.fsize);
+		    printf ("%11lu", finddata.fsize);
 		  else
-		    printf ("%14s", thousands(search.fsize));
+		    printf ("%14s", thousands(finddata.fsize));
+		  switch (ret) {
+		    case 1:  printf("K");
+			     break;
+		    default: printf(" ");
+			     break;
+		  }
+		}
 
-		if(search.fdate) {	   /* if timestamp exists */
-		    printf (" "); disp_filedate (search.fdate);
-		    printf (" "); disp_filetime (search.ftime);
-		    if ((OPT(DIR_2COLS)) && (nfiles%2 == 0)) printf ("   ");
+		if(finddata.fdate) {	   /* if timestamp exists */
+/*		    printf (" "); disp_filedate (finddata.fdate);*/
+		    if (!OPT(DIR_2COLS)) printf(" ");
+		    disp_filedate (finddata.fdate);
+		    printf (" "); disp_filetime (finddata.ftime);
+		    if (!OPT(DIR_2COLS)) printf (" %s",finddata.lname);
+		    if ((OPT(DIR_2COLS)) && (nfiles%2 == 0)) printf (" ");
 		}
 		else {
 		    if ((OPT(DIR_2COLS)) && (nfiles%2 == 0)) printf("\t\t\t");
 		}
 	    }
 	    nfiles ++;
-	    ret = ms_x_next(&search);
+	    if (lfnsearch) {
+	      ret = ms_l_next(shandle,&finddata);	/* get the next file and    */
+	      if (!ret && finddata.sname[0]==0) {
+		strcpy(finddata.sname,finddata.lname);
+		finddata.lname[0]=0;
+	      }
+	    }
+	    else {
+	      ret = ms_x_next(&search);
+	      if (!ret) {
+		finddata.fattr=search.fattr;
+		finddata.ftime=search.ftime;
+		finddata.fdate=search.fdate;
+		finddata.fsize=search.fsize;
+		finddata.fsizeh=0;
+		strcpy(finddata.sname,search.fname);
+		finddata.lname[0]=0;
+	      }
+	    }
 	}
 
+	if (lfnsearch) ms_l_findclose(shandle);
+
+	if (!OPT(DIR_BARE)) {
 	if(others + nfiles == 0) {	/* If no matching files then exit  */
 	    e_check(ED_FILE);		/* after displaying File Not Found */
 	}
+	}
 
 	dpath[0]=ddrive+'A';
-	freespace.size=sizeof(freespace);
 	freespace.ver=0;
-	ret=ms_edrv_space(&dpath,(BYTE *)&freespace,sizeof(freespace));
+	ret=ms_edrv_space(dpath,(BYTE *)&freespace,sizeof(freespace));
 	if (ret==0) {
 	  nfree=freespace.freecl*freespace.secpclus;
 	  if (ULONG_MAX/freespace.bytepsec>=nfree)
@@ -1060,24 +1208,25 @@ REG BYTE *cmd;
 	nfree = (ULONG)ret * (ULONG)free * (ULONG)secsiz;
 	}
 
-	show_crlf(OPT(DIR_PAGE));
-	if (ddrive != -1) {
-/*	    printf ("%9d %s%10ld %s", nfiles, MSG_FILES, nfree, MSG_FREE);*/
-/*	    printf ("%9s %s%15ls %s", thousands(nfiles), MSG_FILES, thousands(nfree), MSG_FREE);*/
-	    printf ("%9s %s", thousands(nfiles), MSG_FILES);
-	    printf ("%15ls ", thousands(nfree));
-	    if (sbase==1) printf("K");
-	    printf("%s",MSG_FREE);
+	if (!OPT(DIR_BARE)) {
+	  show_crlf(OPT(DIR_PAGE));
+	  if (ddrive != -1) {
+/*	      printf ("%9d %s%10ld %s", nfiles, MSG_FILES, nfree, MSG_FREE);*/
+/*	      printf ("%9s %s%15ls %s", thousands(nfiles), MSG_FILES, thousands(nfree), MSG_FREE);*/
+	      printf ("%9s %s", thousands(nfiles), MSG_FILES);
+	      printf ("%15ls ", thousands(nfree));
+	      if (sbase==1) printf("K");
+	      printf("%s",MSG_FREE);
+	  }
+	  else
+/*	      printf ("%9d %s", nfiles, MSG_FILES);*/
+	      printf ("%9s %s", thousands(nfiles), MSG_FILES);
+	  show_crlf(OPT(DIR_PAGE));
+
+	  if(others)			/* if others do exist, tell them */
+	      printf (MSG_EXIST, system ? MSG_NSYS : MSG_NDIR);
 	}
-	else
-/*	    printf ("%9d %s", nfiles, MSG_FILES);*/
-	    printf ("%9s %s", thousands(nfiles), MSG_FILES);
-	show_crlf(OPT(DIR_PAGE));
-
-	if(others)			/* if others do exist, tell them */
-	    printf (MSG_EXIST, system ? MSG_NSYS : MSG_NDIR);
 }
-
 
 GLOBAL VOID CDECL cmd_echo(s, o)
 REG BYTE	*s;		/* Deblanked Command Line	*/
@@ -1178,7 +1327,11 @@ REG BYTE *s;
 	if(!d_check(path))
 	    return;
 #endif
-	if((ret = ms_x_mkdir(s)) != 0) {	/* if any errors occurred    */
+	ret=ms_l_mkdir(s);
+	if (ret==ED_FUNCTION)
+	  ret=ms_x_mkdir(s);
+/*	if((ret = ms_x_mkdir(s)) != 0) {*/	/* if any errors occurred    */
+	if(ret!=0) {				/* if any errors occurred    */
 	    if (ret == ED_DRIVE)		/* if invalid drive	     */
 		e_check(ret);			/*    then say so	     */
 	    else				/* else use standard formula */
@@ -1371,9 +1524,11 @@ GLOBAL VOID CDECL cmd_rem ()
 GLOBAL VOID CDECL cmd_ren(s)
 REG BYTE *s;
 {
-	BYTE	 srcfile[MAX_FILELEN], dstfile[MAX_FILELEN];
+/*	BYTE	 srcfile[MAX_FILELEN], dstfile[MAX_FILELEN];*/
+	BYTE	 srcfile[MAX_LFNLEN], dstfile[MAX_LFNLEN];
 /*	BYTE	 pattern[MAX_FILELEN-MAX_PATHLEN];  */
-	BYTE	 pattern[12];
+/*	BYTE	 pattern[12];*/
+	BYTE	 pattern[MAX_LFNLEN];
 	BYTE	 *enddir;
 #if defined(PASSWORD)
 	BYTE	*password;
@@ -1386,6 +1541,11 @@ REG BYTE *s;
 #endif
         char lastchar;
         unsigned length;
+	FINDD	finddata;
+	BOOLEAN	lfnsearch;
+	UWORD	shandle;
+	BOOLEAN	cont;
+	BYTE	t[MAX_LFNLEN];
 
 	if(f_check(s, "c", &flags, NO))		/* Check the selected flags */
 	    return;				/* and return on error	    */
@@ -1418,18 +1578,21 @@ REG BYTE *s;
 	    }
 	}
 
-	if (!iswild(srcfile)) {
-	    attr = ms_x_chmod(srcfile,0,0);
-	    if ((attr > 0) && (attr & ATTR_DIR)) {
+/*	if (!iswild(srcfile)) {
+	    attr = ms_l_chmod(srcfile,0,0);
+	    if (attr==ED_FUNCTION)
+	      attr=ms_x_chmod(srcfile,0,0);
+	    if ((attr > 0) && (attr & ATTR_DIR)) {*/
 
 		/* Don't try to rename directories. Leave it to RENDIR. */
 
-		printf(MSG_USE_RENDIR);
+/*		printf(MSG_USE_RENDIR);
 		return;
 	    }
-	}
+	}*/
 
-	if(nofiles(srcfile, ATTR_ALL, YES, NO))	/* if no source files then  */
+	strcpy(t,srcfile);
+	if(nofiles(t, ATTR_ALL, YES, NO))	/* if no source files then  */
 	    return;				/* error message and stop   */
 
 	if(nofiles(dstfile, ATTR_ALL, NO, NO))	/* Check the Destination    */
@@ -1458,39 +1621,72 @@ REG BYTE *s;
 	strcpy(pattern, fptr(dstfile)); 	/* Save the destination	    */
 						/* match pattern.	    */
 
-	ms_x_first (srcfile, (ATTR_STD&(~ATTR_SYS)), &search);
+	ret=ms_l_first(srcfile,((ATTR_STD|ATTR_DIR)&(~ATTR_SYS)),&finddata);
+	if (ret!=ED_FUNCTION) {
+	  shandle=finddata.handle;
+	  lfnsearch=1;
+	}
+	else {
+	  ret=ms_x_first(srcfile,((ATTR_STD|ATTR_DIR)&(~ATTR_SYS)),&search);
+	  if (!ret) {
+	    strcpy(finddata.lname,search.fname);
+	  }
+	  lfnsearch=0;
+	}
+/*	ms_x_first (srcfile, (ATTR_STD&(~ATTR_SYS)), &search);*/
 	do {
-	    strcpy(enddir, search.fname);	/* append file name to path */
+	    strcpy(enddir,finddata.lname);	/* append file name to path */
 
+	    cont=0;
 	    if(REN_CHECK) {			/* confirm option active?   */
 		printf(MSG_ERAQ, srcfile);	/* then prompt the user and */
 		if(!yes(YES, NO))		/* act on the reponse	    */
-		    continue;
+/*		    continue;*/
+		  cont=1;
 	    }
 
-	    strcpy(fptr(dstfile), pattern);	/* Assert the Destination   */
-	    repwild(srcfile, dstfile);		/* pattern.		    */
+	    if (!cont) {
+	      strcpy(fptr(dstfile), pattern);	/* Assert the Destination   */
+	      repwild(srcfile, dstfile);	/* pattern.		    */
 
 #if defined(PASSWORD)
-	    if(password)			/* Append the password to   */
+	      if(password)			/* Append the password to   */
 		strcat(srcfile, password);	/* the sorce file if one    */
 						/* has been specified.	    */
 #endif
 
-	    if((ret = ms_x_rename(srcfile, dstfile)) < 0) {
+	      ret=ms_l_rename(srcfile,dstfile);
+	      if (ret==ED_FUNCTION)
+		ret=ms_x_rename(srcfile,dstfile);
+/*	      if((ret = ms_x_rename(srcfile, dstfile)) < 0) {*/
+	      if(ret<0) {
 		crlfflg = YES;
 #if defined(CDOSTMP) || defined(CDOS)
 		if((ret == ED_ACCESS) &&
-		   (ms_x_first(dstfile, ATTR_ALL, &search) >= 0))
+		   ((lfnsearch && (ms_l_first(dstfile,ATTR_ALL,&finddata)>=0)) ||
+		   (!lfnsearch && (ms_x_first(dstfile, ATTR_ALL, &search) >= 0))))  )
 #else
 		if(ret == ED_ACCESS)
 #endif
-		    eprintf(MSG_REN);
+		  eprintf(MSG_REN);
 		else
-		    e_check(ret);
+		  e_check(ret);
+		if (lfnsearch) ms_l_findclose(shandle);
 		return;
+	      }
 	    }
-	} while(!ms_x_next(&search));		/* get the next file */
+	    if (lfnsearch) {
+	      ret = ms_l_next(shandle,&finddata);	/* get the next file and    */
+	    }
+	    else {
+	      ret = ms_x_next(&search);		/* get the next file and    */
+	      if (!ret) {
+		strcpy(finddata.lname,search.fname);
+	      }
+	    }
+/*	} while(!ms_x_next(&search));*/		/* get the next file */
+	} while(!ret);				/* get the next file */
+	if (lfnsearch) ms_l_findclose(shandle);
 }
 
 
@@ -1510,7 +1706,11 @@ REG BYTE *s;
 	if(!d_check(path))
 	    return;
 #endif
-	if((ret = ms_x_rmdir(s)) != 0) {	/* if can't remove directory */
+	ret=ms_l_rmdir(s);
+	if (ret==ED_FUNCTION)
+	  ret=ms_x_rmdir(s);
+/*	if((ret = ms_x_rmdir(s)) != 0) {*/	/* if can't remove directory */
+	if(ret!=0) {				/* if can't remove directory */
 	    if(ret == ED_DIR || ret == ED_FILE || ret == ED_ACCESS)
 	    					/* because its in use by     */	
 		eprintf(MSG_RMDIR);		/* by another process or is  */
@@ -1605,6 +1805,7 @@ BYTE *s;
  *	Displays or Sets the current system time 
  */
 #define	TIME_CON	(flags & 1)
+#define	TIME_SHOW	(flags & 2)
 
 GLOBAL VOID CDECL cmd_time(s)
 REG BYTE *s;
@@ -1612,7 +1813,7 @@ REG BYTE *s;
 	BYTE	buffer[18];			/* Local Input Buffer */
 	UWORD	flags;				/* Continuous Display	*/
 
-	if(f_check (s, "c", &flags, NO))	/* Check for valid Flags    */
+	if(f_check (s, "ct", &flags, NO))	/* Check for valid Flags    */
 	    return;
 
 	if(TIME_CON) {
@@ -1632,6 +1833,12 @@ REG BYTE *s;
 		}
 #endif
 	    }
+	}
+
+	if(TIME_SHOW) {
+	  printf(CUR_TIME);
+	  disp_systime ();
+	  return;
 	}
 
 	if(*s) {
@@ -1668,21 +1875,43 @@ REG BYTE *s;
 GLOBAL VOID CDECL cmd_truename(s)
 REG BYTE *s;
 {
-	BYTE	 path[MAX_FILELEN];
+/*	BYTE	 path[MAX_FILELEN];*/
+	BYTE	 path[MAX_LFNLEN];
+	int	 ddrive;
 
 	*path = 0;
 
 	/* expand path, current directory if none specified */
-	if (*s)
-		ret = ms_x_expand(path, s);
-	else
-		ret = ms_x_expand(path, ".");
+	if (*s) {
+		ret = ms_l_expand(path, s);
+		if (ret==ED_FUNCTION)
+		  ret=ms_x_expand(path,s);
+	}
+	else {
+		ret = ms_l_expand(path, ".");
+		if (ret==ED_FUNCTION)
+		  ret=ms_x_expand(path,".");
+	}
 
 	/* if we get an error report it, otherwise display expanded path */
 	if (ret)
-		e_check(ret);
-	else
-		printf(path);
+	  e_check(ret);
+	else {
+	  if (*(s+1)==':') {
+	    if (*s>96)
+	      ddrive=*s-97;
+	    else
+	      ddrive=*s-65;
+	  }
+	  else ddrive=drive;
+	  ret=get_lastdrive();
+	  if (ddrive+1>(ret>>8) || (!(get_driveflags(ddrive)&LFLG_SUBST) && ddrive+1>(ret&0xff))) {
+	    e_check(ED_DRIVE);
+	    return;
+	  }
+	  printf(path);
+	  crlf();
+	}
 }
 
 
@@ -1840,7 +2069,8 @@ GLOBAL VOID CDECL cmd_type(cmd)
 REG BYTE *cmd;
 {
 	WORD 	ret, h;			/* file handle			  */
-	BYTE	path[MAX_FILELEN];	/* Path and File Name		  */
+/*	BYTE	path[MAX_FILELEN];*/	/* Path and File Name		  */
+	BYTE	path[MAX_LFNLEN];	/* Path and File Name		  */
 	BYTE	*files;			/* pointer to file spec 	  */
 #if defined(PASSWORD)
 	BYTE	*password;
@@ -1848,7 +2078,11 @@ REG BYTE *cmd;
 	DTA	search; 		/* Local Search Buffer		  */
 	UWORD	flags;			/* only one switch permitted	  */
 	BOOLEAN wild_flag = FALSE;	/* Wild Card Type		  */
-	BYTE	passbuf[MAX_FILELEN];
+/*	BYTE	passbuf[MAX_FILELEN];*/
+	BYTE	passbuf[MAX_LFNLEN];
+	FINDD	finddata;
+	BOOLEAN	lfnsearch;
+	UWORD	shandle;
 
 	if(f_check(cmd, "p", &flags, NO))       /* if any bad flags */
 	    return;				/*    don't do it */
@@ -1880,18 +2114,31 @@ REG BYTE *cmd;
 	 */
 
 	if (wild_flag) {
-	    search.fattr = ATTR_STD;
-	    ret = ms_x_first(path, ATTR_STD, &search);
-
+	    finddata.fattr = ATTR_STD;
+/*	    ret = ms_x_first(path, ATTR_STD, &search);*/
+	    ret=ms_l_first(path,ATTR_STD,&finddata);
+	    if (ret!=ED_FUNCTION) {
+	      shandle=finddata.handle;
+	      lfnsearch=1;
+	    }
+	    else {
+	      ret=ms_x_first(path,ATTR_STD,&search);
+	      if (!ret) {
+		finddata.fattr=search.fattr;
+		strcpy(finddata.lname,search.fname);
+	      }
+	      lfnsearch=0;
+	    }
 	    if (ret < 0) {
 	    	e_check(ret);		/* if we can't find anything */
+		if (lfnsearch) ms_l_findclose(shandle);
 		return;			/* we'd better say so */
 	    }
 	}
 
 	do {
 	    if (wild_flag)
-		strcpy(files, search.fname);  	/* make it full pathname     */
+		strcpy(files,finddata.lname);  	/* make it full pathname     */
 	    strcpy(heap(), path);
 
 #if defined(PASSWORD)
@@ -1899,12 +2146,17 @@ REG BYTE *cmd;
 	        strcat(heap(), password);
 #endif
 
-	    h = ms_x_open(heap(), OPEN_READ);	/* Open file in sharing mode */
-	    if(h == ED_SHAREFAIL || h == ED_ACCESS)	/* if fails with a   */
-	        h = ms_x_open(heap(), 0);	/* sharing violation then try*/
-						/* opening with compatibilty */
-	    if(h < 0) {				/* mode.		     */
+	    h = ms_l_open(heap(), OPEN_READ);	/* Open file in sharing mode */
+	    if (h==ED_FUNCTION)
+	      h=ms_x_open(heap(),OPEN_READ);
+	    if(h == ED_SHAREFAIL || h == ED_ACCESS) {	/* if fails with a   */
+	        h = ms_l_open(heap(), 0);	/* sharing violation then try*/
+		if (h==ED_FUNCTION)		/* opening with compatibilty */
+		  h=ms_x_open(heap(),0);	/* mode.		     */
+	    }
+	    if(h < 0) {
 		e_check(h);
+		if (lfnsearch) ms_l_findclose(shandle);
 		return;
 	    }
 
@@ -1917,7 +2169,19 @@ REG BYTE *cmd;
 
 	    show_file(h, TYPE_PAGE);	/* Output the File to the Screen */
 	    ms_x_close(h);		/* Close the File */
-	} while (wild_flag && (ms_x_next(&search) >= 0));
+	    if (lfnsearch) {
+	      ret = ms_l_next(shandle,&finddata);
+	    }
+	    else {
+	      ret = ms_x_next(&search);
+	      if (!ret) {
+		finddata.fattr=search.fattr;
+		strcpy(finddata.lname,search.fname);
+	      }
+	    }
+/*	} while (wild_flag && (ms_x_next(&search) >= 0));*/
+	} while (wild_flag && ret>= 0);
+	if (lfnsearch) ms_l_findclose(shandle);
 }
 
 /*
@@ -1972,6 +2236,9 @@ BYTE *path;
 	else {	
 	    printf(MSG_LBL, ddrive+'A');
 
+	    while (!ret && (search.fattr==ATTR_LFN))
+	      ret = ms_x_next(&search);		/* skip LFN entries */
+
 	    if (ret)
 		printf(MSG_NOLBL);
 	    else {
@@ -2010,7 +2277,8 @@ MLOCAL VOID erase(s, confirm)
 BYTE *s;
 BOOLEAN  confirm;
 {
-	BYTE	path[MAX_FILELEN];		/* FileName Buffer	    */
+/*	BYTE	path[MAX_FILELEN];*/		/* FileName Buffer	    */
+	BYTE	path[MAX_LFNLEN];		/* FileName Buffer	    */
 	BYTE	answer[20];			/* Yes/No string	    */
 	BYTE 	*files;				/* pointer to file spec	    */
 #if defined(PASSWORD)
@@ -2020,15 +2288,22 @@ BOOLEAN  confirm;
 	DTA	search; 			/* Local Search Buffer	    */
 	UWORD	attr;				/* Erase Search Attributes  */
 #if !STACK
-	BYTE	passbuf[MAX_FILELEN];
+/*	BYTE	passbuf[MAX_FILELEN];*/
+	BYTE	passbuf[MAX_LFNLEN];
 #endif
 #if !(defined (CDOSTMP))
-	BYTE	savepath[MAX_PATHLEN+1];
-	BYTE	newpath[MAX_PATHLEN+2];		/* including trailing \	    */
+/*	BYTE	savepath[MAX_PATHLEN+1];
+	BYTE	newpath[MAX_PATHLEN+2];*/		/* including trailing \	    */
+	BYTE	savepath[MAX_LFNLEN+1];
+	BYTE	newpath[MAX_LFNLEN+2];		/* including trailing \	    */
 	BYTE	fcb[37];
 	WORD	ret;
 	WORD	i;
 #endif
+	FINDD	finddata;
+	BOOLEAN	lfnsearch;
+	UWORD	shandle;
+	BOOLEAN	cont;
 
 	if(f_check(s, "cps", &flags, NO))     	/* if any bad flags return  */
 	    return;
@@ -2089,6 +2364,10 @@ BOOLEAN  confirm;
 	    }
 	}
 
+	if (!confirm)			/* Try LFN API first */
+	  if (!(ret=ms_l_unlink(path,attr)))
+	    return;			/* Seems to have succeeded... */
+
 	if(!confirm && ERASE_SYS &&	/* If no confirmation is required */
 #if !(defined (CDOSTMP))
 	   !iswild(path) &&		/* and this is an ambigous file   */
@@ -2119,7 +2398,9 @@ BOOLEAN  confirm;
 
 	    strcpy (savepath, "d:\\");	/* get curpath on relevant drive  */
 	    *savepath = ddrive + 'A';
-	    ms_x_curdir (ddrive+1, savepath+3);
+	    ret=ms_l_curdir (ddrive+1, savepath+3);
+	    if (ret==ED_FUNCTION)
+	      ms_x_curdir(ddrive+1,savepath+3);
 	    
 	    strncpy (newpath, path, files - path);
 	    				/* extract new path		*/
@@ -2128,12 +2409,18 @@ BOOLEAN  confirm;
 	    if ((i = strlen (newpath)) > (newpath[1] == ':' ? 3 : 1))
 	        newpath[--i] = '\0';	/* remove trailing backslash	*/
 	
-	    if (! ((i == 0) || ((i == 2) && (newpath[1] == ':'))) )
-	        if (ms_x_chdir (newpath))
+	    if (! ((i == 0) || ((i == 2) && (newpath[1] == ':'))) ) {
+		ret=ms_l_chdir(newpath);
+		if (ret==ED_FUNCTION)
+		  ret=ms_x_chdir(newpath);
+/*	        if (ms_x_chdir (newpath))*/
+	        if (ret)
 		    goto fcbdel_end;
+	    }
 	
 	    ret = ms_f_delete (fcb);
-	    ms_x_chdir (savepath);
+	    if (ms_l_chdir(savepath)==ED_FUNCTION)
+	      ms_x_chdir (savepath);
 	    
 	    if (!ret)
 	        return;			/* all done			  */
@@ -2142,27 +2429,60 @@ fcbdel_end:
 	}
 #endif
 	    
-	if (ms_x_first(path, attr, &search)) return;
+	ret=ms_l_first(path,attr,&finddata);
+	if (ret!=ED_FUNCTION) {
+	  shandle=finddata.handle;
+	  lfnsearch=1;
+	}
+	else {
+	  ret=ms_x_first(path,attr,&search);
+	  if (!ret) {
+	    strcpy(finddata.lname,search.fname);
+	  }
+	  lfnsearch=0;
+	}
+/*	if (ms_x_first(path, attr, &search)) return;*/
+	if (ret) {
+	  if (lfnsearch) ms_l_findclose(shandle);
+	  return;
+	}
 	do {
-	    strcpy(files, search.fname);	/* make it full file name */
+	    strcpy(files, finddata.lname);	/* make it full file name */
 	    strcpy(heap(), path);		/* copy to an internal    */
 #if defined(PASSWORD)
 	    if(password)			/* buffer and append the  */
 		strcat(heap(), password);	/* password if present	  */
 #endif
 
+	    cont=0;
 	    if(confirm) {
-		printf(MSG_ERAQ, path);
-		if(!yes(YES, NO))
-		    continue;
+	      printf(MSG_ERAQ, path);
+	      if(!yes(YES, NO))
+		cont=1;
 	    }
-
-	    if((ret = ms_x_unlink(heap())) != 0) {
+	    if (!cont) {
+	      ret=ms_l_unlink(heap(),attr);
+	      if (ret==ED_FUNCTION)
+		ret=ms_x_unlink(heap());
+/*	      if((ret = ms_x_unlink(heap())) != 0) {*/
+	      if (ret) {
 		printf(MSG_ERA, path);
 		e_check(ret);
 		crlf();
+	      }
 	    }
-	} while (!ms_x_next (&search));
+	    if (lfnsearch) {
+	      ret = ms_l_next(shandle,&finddata);	/* get the next file and    */
+	    }
+	    else {
+	      ret = ms_x_next(&search);	/* get the next file and    */
+	      if (!ret) {
+		strcpy(finddata.lname,search.fname);
+	      }
+	    }
+/*	} while (!ms_x_next (&search));*/
+	} while (!ret);
+	if (lfnsearch) ms_l_findclose(shandle);
 }
 
 #if defined(DOSPLUS)
@@ -2236,4 +2556,61 @@ int	region, i;
 
 #endif
 
+GLOBAL VOID CDECL cmd_colour(s)
+BYTE	*s;
+{
+	COLDATA	colset;
+	WORD	fg,bg;
+	BOOLEAN	error=NO;
 
+	get_colour(&colset);
+	fg=colset.fgbg&15;
+	bg=colset.fgbg>>4;
+
+	s=deblank(s);
+
+	if (*s) {
+	
+	  switch(onoff(s)) {
+	    case	YES:
+	      colset.flags=1;
+	      s+=2;
+	      break;
+	    case	NO:
+	      colset.flags=2;
+	      fg=7;
+	      bg=0;
+	      colset.border=0;
+	      s+=3;
+	      break;
+	    default:
+	      if(*s) {
+	        if (isdigit(*s)) getdigit(&fg,&s);
+	        if (*s && !strchr(",",*s++)) error=TRUE;
+	        if (isdigit(*s)) getdigit(&bg,&s);
+	        if (*s && !strchr(",",*s++)) error=TRUE;
+	        if (isdigit(*s)) getdigit(&colset.border,&s);
+	        s=deblank(s);
+	        if (*s||fg>15||bg>15||colset.border>63) error=TRUE;
+	        if (!error) {
+		  colset.flags=1;
+	        }
+	      }
+	  }
+
+	  s=deblank(s);
+	  if (*s) error=TRUE;
+
+	  if (error) {
+	    printf("Invalid format!\n");
+	    return;
+	  }
+	  else {
+	    colset.fgbg=bg*16+fg;
+	    set_colour(&colset);
+	  }
+
+	}
+	else
+	  printf(MSG_COLOUR,colset.flags ? MSG_ON : MSG_OFF,fg,bg,colset.border);
+}

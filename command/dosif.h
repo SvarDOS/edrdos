@@ -34,6 +34,8 @@
 ;    ENDLOG
 */
 
+#include	"dos7.h"
+
 EXTERN	VOID	CDECL	debug(VOID);
 
 #define	EXT_SUBST 1
@@ -43,6 +45,7 @@ EXTERN	VOID	CDECL	debug(VOID);
 EXTERN BYTE * CDECL   heap_get(WORD);
 EXTERN BYTE * CDECL   heap(VOID);
 EXTERN VOID CDECL     heap_set(BYTE *);
+EXTERN UWORD CDECL    heap_size(VOID);
 #endif
 
 #if !defined(MWC)
@@ -107,6 +110,21 @@ EXTERN VOID FAR * CDECL ms_idle_ptr(VOID);
 EXTERN WORD CDECL     ms_switchar(VOID);
 EXTERN WORD CDECL     ms_x_expand(BYTE *, BYTE *);
 
+EXTERN WORD CDECL     ms_edrv_space(BYTE *,BYTE *,UWORD);
+EXTERN WORD CDECL     ms_l_first(BYTE *, UWORD, FINDD *);
+EXTERN WORD CDECL     ms_l_next(UWORD, FINDD *);
+EXTERN WORD CDECL     ms_l_findclose(UWORD);
+EXTERN WORD CDECL     ms_l_unlink(BYTE *,UWORD);
+EXTERN WORD CDECL     ms_l_rename(BYTE *, BYTE *);
+EXTERN WORD CDECL     ms_l_expand(BYTE *, BYTE *);
+EXTERN WORD CDECL     ms_l_chdir(BYTE *);
+EXTERN WORD CDECL     ms_l_chmod(BYTE *, UWORD, UWORD);
+EXTERN WORD CDECL     ms_l_curdir(UWORD, BYTE *);
+EXTERN WORD CDECL     ms_l_rmdir(BYTE *);
+EXTERN WORD CDECL     ms_l_mkdir(BYTE *);
+EXTERN WORD CDECL     ms_l_creat(BYTE *, UWORD);
+EXTERN WORD CDECL     ms_l_open(BYTE *, UWORD);
+
 EXTERN VOID CDECL     mem_alloc(BYTE FAR * NEAR *, UWORD *, UWORD, UWORD);
 EXTERN VOID CDECL     mem_free (BYTE FAR * NEAR *);
 
@@ -126,6 +144,10 @@ EXTERN WORD CDECL     ms_f_delete (BYTE *);
 EXTERN VOID CDECL     restore_term_addr();
 #endif
 
+EXTERN UWORD CDECL     get_lastdrive(VOID);
+EXTERN UWORD CDECL     get_driveflags(UWORD);
+EXTERN UWORD CDECL     conv64(ULONG *, ULONG *);
+
 #if defined(DOSPLUS)
 EXTERN WORD CDECL     ms_x_getcp(UWORD *, UWORD *);
 EXTERN WORD CDECL     ms_x_setcp(UWORD);
@@ -142,6 +164,8 @@ EXTERN BOOLEAN CDECL  env_entry(BYTE *, UWORD); 	/* CSUP.ASM	*/
 EXTERN BOOLEAN CDECL  env_scan(BYTE *, BYTE *); 	/* CSUP.ASM	*/
 EXTERN BOOLEAN CDECL  env_del(BYTE *);			/* CSUP.ASM	*/
 EXTERN BOOLEAN CDECL  env_ins(BYTE *);			/* CSUP.ASM	*/
+
+EXTERN BOOLEAN CDECL  get_cmdname(BYTE *);		/* CSUP.ASM	*/
 
 #if defined(CDOSTMP)
 #define	system	bdos	/* Call the BDOS Function for Common routines	*/
@@ -180,4 +204,12 @@ EXTERN	WORD	CDECL	get_lines_page(VOID);
 EXTERN	WORD	CDECL	get_scr_width(VOID);
 EXTERN	WORD	CDECL	novell_copy(WORD,WORD,ULONG);
 
-EXTERN WORD CDECL     ms_edrv_space(BYTE FAR * NEAR *,BYTE *,UWORD);
+#define COLDATA struct coldata
+COLDATA {
+	BYTE	flags;
+	BYTE	fgbg;
+	BYTE	border;
+};
+
+EXTERN	VOID	CDECL	get_colour(COLDATA *);
+EXTERN	VOID	CDECL	set_colour(COLDATA *);

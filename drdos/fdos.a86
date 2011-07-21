@@ -367,7 +367,8 @@ BDOS_CODE	cseg
 	extrn	update_fat:NEAR
 	extrn	write_dev:near		; write to character device
 	extrn	zeroblk:near		; fill cluster with 0's
-	
+	extrn	is_lfn:near		; check if long filename entry
+	extrn	del_lfn:near		; delete long filenames
 
 eject
 	public	bpb2ddsc		; build DDSC from a BPB
@@ -384,6 +385,8 @@ eject
 	Public	unparse
 	public	update_dir_fat		; flush DIR then FAT to disk
 	public	get_path_drive		; get drive number for given path
+	public	path_prep
+	public	check_no_wild
 
 	public	fdos_getdpb	; 0-disk information
 	public	fdos_mkdir	; 1-make directory

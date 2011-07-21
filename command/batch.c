@@ -178,7 +178,7 @@ BOOLEAN ifcond=FALSE;
 
 EXTERN jmp_buf break_env;
 
-#define	MAX_LINE	128	/* Maximum No of Chars in input line	*/
+/*#define	MAX_LINE	128*/	/* Maximum No of Chars in input line	*/
 
 #if defined(CPM)
 EXTERN UWORD user;		/* USER Number variable for CPM.EXE	*/
@@ -549,6 +549,7 @@ BYTE	*tail;			/* Command Line Options	*/
 BYTE *s2;
 BYTE	dirbuf[MAX_PATHLEN];
 WORD	i;
+BYTE	quoteflag;
 
 	if(batchflg)			/* If a batch file is currently */
 	    batch_close();		/* close it. So minimum number	*/
@@ -594,13 +595,19 @@ WORD	i;
 	strcpy(heap(), argv0);		/* Copy the invoking command	*/
 	heap_get(strlen(heap())+1);	/* and protect the buffer	*/
 
+	quoteflag=0;
 	while(*tail) {			/* While there are command line */
 	    s2 = (BYTE *)heap();	/* parameters copy them 	*/
-	    while(*tail && strchr(batch_sep, *tail))
+	    if (*tail=='"') quoteflag=!quoteflag;
+	    while(*tail && !quoteflag && strchr(batch_sep, *tail)) {
 		tail = skip_char(tail);
+		if (*tail=='"') quoteflag=!quoteflag;
+	    }
 
-	    while(*tail && !strchr(batch_sep, *tail))
+	    while(*tail && (quoteflag || !strchr(batch_sep, *tail))) {
 		copy_char(&s2, &tail);
+		if (*tail=='"') quoteflag=!quoteflag;
+	    }
 
 	    *s2++ = '\0';
 	    heap_get(strlen(heap()) + 1);

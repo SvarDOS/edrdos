@@ -141,6 +141,10 @@ redir_dhndl_accept:
 	mov	word ptr current_filepos,ax
 	mov	ax,es:word ptr DHNDL_POS+2[bx]
 	mov	word ptr current_filepos+2,ax
+	mov	ax,es:word ptr DHNDL_POSX[bx]
+	mov	word ptr current_filepos+4,ax
+	mov	ax,es:word ptr DHNDL_POSX+2[bx]
+	mov	word ptr current_filepos+6,ax
 	pop	ds
 	jmps	redir_accept		; now we can process the call
 
@@ -466,10 +470,12 @@ build_remote_path:
 	 ja	build_remote_path30	; return "invalid drive" if error
 	xchg	ax,dx			; DL = ASCIIZ supplied drive
 	lodsw				; get possible '\\'
+	jmps	build_remote_path15
 build_remote_path10:
 	mov	ss:word ptr current_ldt,0ffffh
 	call	check_dslash		; is it "\\"
 	 je	build_remote_path20		; if so forget about the drive #
+build_remote_path15:
 	call	isremote		; test if drive DL is remote
 if JOIN
 	 jb	build_remote_path30	; return "invalid drive" if JOINed
@@ -936,13 +942,41 @@ redir_lseek:
 	ret
 
 redir_lseek10:				; seek mode 1: relative to position
-	add	dx,es:DHNDL_POSLO[di]	; add position + offset
-	adc	cx,es:DHNDL_POSHI[di]
-;	jmps	redir_lseek20
+;	add	dx,es:DHNDL_POSLO[di]	; add position + offset
+;	adc	cx,es:DHNDL_POSHI[di]
+	add	es:DHNDL_POSLO[di],dx
+	adc	es:DHNDL_POSHI[di],cx
+	adc	es:DHNDL_POSXLO[di],0
+	adc	es:DHNDL_POSXHI[di],0
+	test	cx,8000h		; negative offset?
+	 jz	redir_lseek12
+	add	es:DHNDL_POSXLO[di],0ffffh; yes, then extend the sign to 64-bit
+	adc	es:DHNDL_POSXHI[di],0ffffh
+redir_lseek12:
+	cmp	es:DHNDL_POSXLO[di],0
+	 jne	redir_lseek15
+	cmp	es:DHNDL_POSXHI[di],0
+	 je	redir_lseek17
+redir_lseek15:
+	cmp	es:DHNDL_POSXLO[di],0ffffh
+	 jne	redir_lseek16
+	cmp	es:DHNDL_POSXHI[di],0ffffh
+	 je	redir_lseek17
+redir_lseek16:
+	xor	dx,dx
+	dec	dx
+	mov	cx,dx
+	jmps	redir_lseek90
+redir_lseek17:
+	mov	dx,es:DHNDL_POSLO[di]
+	mov	cx,es:DHNDL_POSHI[di]
+	jmps	redir_lseek90
 
 redir_lseek20:				; seek mode 0: set absolute position
 	mov	es:DHNDL_POSLO[di],dx	; set new file offset
 	mov	es:DHNDL_POSHI[di],cx	; SI = error code/0 at this point
+	mov	es:DHNDL_POSXLO[di],ax
+	mov	es:DHNDL_POSXHI[di],ax
 ;	jmps	redir_lseek90
 
 redir_lseek90:
@@ -970,6 +1004,7 @@ redir_lseek30:				; seek mode 2: relative to end
 redir_lseek40:
 	add	dx,es:DHNDL_SIZELO[di]	; add file size + offset
 	adc	cx,es:DHNDL_SIZEHI[di]
+	xor	ax,ax
 	jmps	redir_lseek20
 
 

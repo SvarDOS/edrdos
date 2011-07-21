@@ -83,6 +83,8 @@ INITCODE	CSEG	PARA 'INITCODE'
 	extrn	HookInt2F:near
 	extrn	UnhookInt2F:near
 	extrn	Verify386:near
+	extrn	preload_done:near
+	extrn	get_boot_options:near
 	
 	Public config_init
 config_init:				; Initialize the CONFIG data
@@ -148,6 +150,29 @@ cfg_skip:
 
 	call	config_process		; Process CONFIG.SYS
 
+	call	get_boot_options	; look for user keypress
+	mov	boot_options,ax		;  return any options
+	cmp	ax,F5KEY
+	 jne	cfg_no_f5
+	lea	dx,cs:f5key_msg
+	mov	ah,MS_C_WRITESTR
+	int	DOS_INT
+	jmps	cfg_no_f8
+cfg_no_f5:
+	cmp	ax,F8KEY
+	 jne	cfg_no_f8
+	lea	dx,cs:f8key_msg
+	mov	ah,MS_C_WRITESTR
+	int	DOS_INT
+cfg_no_f8:
+
+	mov	configPass,1		; second pass of CONFIG.SYS
+	mov	cfg_head,0
+	mov	cfg_tail,0
+	mov	cfg_seeklo,0
+	mov	cfg_seekhi,0
+	call	preload_done
+
 	cmp	num_files,MIN_NUM_FILES	; Ensure the Minimum number of File
 	jae	cfg_ex10		; have been allocated.
 	mov	num_files,MIN_NUM_FILES
@@ -158,7 +183,7 @@ cfg_ex10:
 
 	call	SetupDeblocking		; do our thing with deblocking
 
-	mov	byte ptr configPass,1
+	mov	byte ptr configPass,2
 	call	config_finish		; clean up configuration
 	call	setup_fopen		; allocate disk hashing
 	call	setup_history
@@ -1318,10 +1343,14 @@ INITDATA	DSEG 'INITDATA'
 	extrn	func52_ptr:dword
 	extrn	drdos_ptr:dword
 	extrn	res_ddsc_ptr:dword
-
-
+	extrn	cfg_head:word
+	extrn	cfg_tail:word
+	extrn	cfg_seeklo:word
+	extrn	cfg_seekhi:word
+	extrn	boot_options:word
 
 include	initmsgs.def				; Include TFT Header File
+include	biosmsgs.def
 
 
 	extrn	preload_drv:byte

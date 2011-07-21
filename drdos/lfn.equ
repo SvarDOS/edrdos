@@ -1,0 +1,17 @@
+; LFN.EQU - Definitions for Long Filename and 64-bit file size support
+;
+; This file is part of
+; The DR-DOS/OpenDOS Enhancement Project - http://www.drdosprojects.de
+; Copyright (c) 2002-2006 Udo Kuhnt
+
+FINFO_ATTR	equ	dword ptr 00h	; file attributes
+FINFO_CREAT_T	equ	dword ptr 04h	; creation time (64-bit)
+FINFO_ACCESS_T	equ	dword ptr 0ch	; last access time (64-bit)
+FINFO_WRITE_T	equ	dword ptr 14h	; last write time (64-bit)
+FINFO_SERNUM	equ	dword ptr 1ch	; volume serial number
+FINFO_SIZEH	equ	dword ptr 20h	; file size (higher 32 bits)
+FINFO_SIZE	equ	dword ptr 24h	; file size (lower 32 bits)
+FINFO_LINKS	equ	dword ptr 28h	; number of links to file
+FINFO_IDH	equ	dword ptr 2ch	; file identifier (higher 32 bits)
+FINFO_ID	equ	dword ptr 30h	; file identifier (lower 32 bits)
+FINFO_LEN	equ	34h		; length of Get File Info structure

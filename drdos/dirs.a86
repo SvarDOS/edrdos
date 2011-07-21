@@ -100,6 +100,8 @@ finddfcb_mask	dw	0800h		; hi byte = reject DA_VOLUME attribs
 chdblk		dw	0,0		; current cluster # of directory
 
 rd_pcdir_cl	dw	0,0		; current cluster in rd_pcdir
+rd_pcdir_rel	dw	0		; relative cluster in chain
+rd_pcdir_last	dw	0		; last relative position
 find_hcb_cl	dw	0,0		; current cluster in find_hcb
 
 
@@ -131,6 +133,7 @@ eject
 	public	hshdscrd
 	public	mkhsh
 	public	setenddir
+	public	rd_pcdir
 eject
 
 fill_dirbuf:	;get 32 byte directory entry
@@ -301,6 +304,7 @@ rd_pcdir05:
 	pop	cx
 	xchg	ax,dx		; DX = # to skip, AX = offset in cluster
 	mov	di,dx
+	mov	rd_pcdir_rel,di	; remember cluster offset
 	xchg	ax,cx		; AX = start of chain, CX = offset in cluster
 	mov	ax,rd_pcdir_cl
 	mov	dx,rd_pcdir_cl+2
@@ -313,11 +317,15 @@ rd_pcdir05:
 	cmp	chdblk+2,0
 	 jz	rd_pcdir10	;  if not trace from start of chain
 rd_pcdir09:
+	cmp	di,rd_pcdir_last; trying to read cluster before last one?
+	 jb	rd_pcdir10	; yes, begin at start of chain
 ;	xchg	ax,cx		; AX = cluster of last dir entry
 	mov	ax,chdblk
 	mov	dx,chdblk+2
 	test	bx,bx		; have we moved onto next cluster?
 	 jnz	rd_pcdir20	; no, trust me..
+	cmp	di,rd_pcdir_last; have we moved onto next cluster?
+	 je	rd_pcdir20	; no, trust me..
 ;	mov	dx,1		; move on to next entry in the chain
 	mov	di,1		; move on to next entry in the chain
 rd_pcdir10:
@@ -343,6 +351,8 @@ rd_pcdir10:
 rd_pcdir20:
 	mov	chdblk,ax	; remember this cluster for next time
 	mov	chdblk+2,dx
+	mov	cx,rd_pcdir_rel	; save relative position in chain
+	mov	rd_pcdir_last,cx
 	mov	cl,FCBSHF	; to divide by fcb size
 	shr	bx,cl		; BX = dir offset in cluster
 	jmps	rd_pcdir50	;  now go and find the entry

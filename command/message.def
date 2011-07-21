@@ -186,6 +186,8 @@
 	extrn	msg_onoff	: byte
 	extrn	_msg_optline	: byte
 	extrn	msg_optline	: byte
+	extrn	_msg_optline2	: byte
+	extrn	msg_optline2	: byte
 	extrn	_msg_outactive	: byte
 	extrn	msg_outactive	: byte
 	extrn	_msg_path	: byte
@@ -244,3 +246,5 @@
 	extrn	wed_d	: byte
 	extrn	_yes_no	: byte
 	extrn	yes_no	: byte
+	extrn	_msg_colour	: byte
+	extrn	msg_colour	: byte

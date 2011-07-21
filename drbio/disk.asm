@@ -179,7 +179,6 @@ CODE	segment	'CODE'
 	extrn	output_hex:near
 	extrn	diskaddrpack:word
 
-
 udsc_root	label	dword
 		dw	-1,-1
 
@@ -1304,6 +1303,17 @@ trkrw80:
 	mov	ax,P_MCNT[bp]		; get physical transfer length
 	sub	P_COUNT[bp],ax		; subtract from total transfer length
 	 jz	trkrw90			; exit if none left
+trkrw85_lba:
+	test	es:UDSC_INT13BITS[di],1	; LBA supported on this drive?
+	 jz	trkrw85			; no, then use CHS routine
+	xor	ah,ah			; update current LBA
+	add	word ptr P_LBABLOCK[bp],ax
+	adc	word ptr p_LBABLOCK+2[bp],0
+	mov	ah,SECSIZE/16
+	mul	ah			; AX = paras to inc DMA address
+	add	P_DMASEG[bp],ax		; update DMA segment
+	jmps	trkrw90
+trkrw85:
 	add	P_SECTOR[bp],al		; update current sector
 	mov	ah,SECSIZE/16
 	mul	ah			; AX = paras to inc DMA address
@@ -2316,7 +2326,19 @@ equip_loop:
 
 	call	new_unit		; ES:DI -> UDSC
 	mov	es:UDSC_RUNIT[di],dl	; set physical drive (ROS code)
+	push	dx
+	mov	ah,ROS_LBACHK
+	mov	bx,55aah
+	int_____DISK_INT
+	pop	dx
+	 jc	equip_nolba
+	cmp	bx,0aa55h
+	 jnz	equip_nolba
+	xor	ah,ah
+	mov	es:UDSC_INT13EXT[di],ax	; version of int 13 extensions
+	mov	es:UDSC_INT13BITS[di],cx ; int 13 API support bitmap
 
+equip_nolba:
 	call	floppy_type		; determine type, build default BPB
 
 	cmp	nfloppy,1		; do we only have single drive?
@@ -2408,6 +2430,9 @@ equip_no_chgline:
 	cmp	cl,36			; 36 spt ?
 	 jne	equip_no_type		; don't recognise anything
 equip_type:
+	cmp	bl,0			; 360K 5.25"?
+	je	equip_type_ok		; yes
+	mov	es:UDSC_NCYL[di],80	; else assume 80 tracks
 	cmp	bl,3			; is it 1.44 Mb 3.5" type?
 	 jb	equip_type_ok		; skip if 360K, 1.2Mb, 720K (0, 1, 2)
 	mov	bl,7			; use reserved "Other" type
@@ -2434,9 +2459,43 @@ equip_360:
 	mov	es,ax			; ES = DS
 	rep	movsb			; make default BPB current BPB in UDSC
 	popx	<cx, si, di, es>
+
+;	test	es:UDSC_INT13BITS[di],7	; extended functions available?
+;	 jz	equip_type_nolba	; no, must be a standard FDD
+	push	cx
+	push	si
+	pushx	<es,di,dx>
+	mov	ah,ROS_LBAPARAM		; get extended drive parameters
+	lea	si,int13ex_para		; DS:SI -> drive parameter buffer
+	int_____DISK_INT
+	popx	<dx,di,es>
+	 jc	equip_type_nolba	; error, assume standard FDD
+	test	word ptr 2[si],4	; removable drive?
+	 jnz	equip_type_nolba	; no
+	or	es:UDSC_FLAGS[di],UDF_HARD ; classify it as hard disk
+	mov	ax,4[si]		; number of cylinders
+	mov	es:UDSC_NCYL[di],ax
+	mov	ax,8[si]		; number of heads
+	mov	nhead,al
+	mov	ax,0ch[si]		; number of sectors per track
+	mov	nsect,al
+	mov	ax,10h[si]		; total number of sectors
+	mov	es:word ptr (UDSC_BPB+BPB_SIZE)[di],ax
+	mov	ax,12h[si]
+	mov	es:word ptr (UDSC_BPB+BPB_SIZE+2)[di],ax
+	lea	bx,es:UDSC_BPB[di]
+	pushx	<es,di,si,dx>
+	call	hd_bpb			; build BPB from scratch
+	popx	<dx,si,di,es>
+	pop	si
+	lea	si,es:UDSC_BPB[di]
+	push	si
+equip_type_nolba:
+	pop	si
+	pop	cx
 	pushx	<es, di>
 	lea	di,es:UDSC_DEVBPB[di]
-	rep	movsb			; copy default BPB device BPB in UDSC
+	rep	movsb			; copy BPB to device BPB in UDSC
 	popx	<di, es>
 	ret
 
@@ -2741,11 +2800,13 @@ login_primary:
 	mov	word ptr partend+2,ax
 	sub	word ptr partend,1	; minus one
 	sbb	word ptr partend+2,0
+	mov	al,[si+4]		; get partition type
+	mov	parttype,al
 	test	int13ex_bits,1		; LBA support present?
 	 jnz	login_p0		; yes, then proceed normally
-	cmp	byte ptr [si+4],FAT16X_ID	; LBA partition?
+	cmp	parttype,FAT16X_ID	; LBA partition?
 	 je	login_p9		; ignore this if LBA support not present
-	cmp	byte ptr [si+4],FAT32X_ID	; LBA partition?
+	cmp	parttype,FAT32X_ID	; LBA partition?
 	 je	login_p9		; ignore this if LBA support not present
 	mov	ax,word ptr partend+2	; partition within CHS bounds?
 	cmp	ax,word ptr partend_max+2
@@ -2783,9 +2844,9 @@ login_p9:
 
 log_p0:
 	call	new_unit		; ES:DI -> new UDSC
-	cmp	byte ptr [si+4],FAT16X_ID	; LBA partition?
+	cmp	parttype,FAT16X_ID	; LBA partition?
 	 je	log_p0a			; yes, then always use LBA
-	cmp	byte ptr [si+4],FAT32X_ID	; LBA partition?
+	cmp	parttype,FAT32X_ID	; LBA partition?
 	 je	log_p0a			; yes, then always use LBA
 	mov	ax,word ptr partend+2	; test if beyond CHS barrier
 	cmp	ax,word ptr partend_max+2
@@ -2848,17 +2909,9 @@ log_p0b:
 
 	mov	BPB_TOTSEC[bx],ax	; set partition size for < 32 Mb
 					; we'll zero this later if > 32 Mb
-	push	es
-	push	di
-	push	ax
-	push	dx
-	push	si
+	pushx	<es,di,ax,dx,si>
 	call	hd_bpb			; build BPB from scratch
-	pop	si
-	pop	dx
-	pop	ax
-	pop	di
-	pop	es
+	popx	<si,dx,ax,di,es>
 	
 	cmp	byte ptr -11[si],0E9h	; look for a jmp
 	jz	log_p1a
@@ -3004,23 +3057,94 @@ hd_bpb10:
 	cmp	dx,32			; less than 32*65536 sectors (1 Gb)?
 	 jb	hd_bpb20		; yes, leave cluster size the same
 	mov	BPB_ALLOCSIZ[bx],32*2	; use 32 K clusters if 1-2 Gb
+	cmp	dx,64			; less than 64*65536 sectors (2 Gb)?
+	 jb	hd_bpb20		; yes, leave cluster size the same
+	mov	BPB_ALLOCSIZ[bx],64*2	; use 64 K clusters if 2-4 Gb
+	cmp	dx,128			; less than 128*65536 sectors (4 Gb)?
+	 jb	hd_bpb20		; yes, leave cluster size the same
+	mov	BPB_ALLOCSIZ[bx],0	; use 128 K clusters if 4-8 Gb
+	cmp	dx,256			; more than 256*65536 sectors (8 Gb)?
+	 jae	hd_bpb30		; then use FAT32 instead
 
 hd_bpb20:				; cluster size determined
 	sub	ax,1+(512*32/SECSIZE)	; subtract reserved+root directory
 	sbb	dx,0			; (note: 32 bytes per entry)
 	xor	cx,cx
 	mov	ch,BPB_ALLOCSIZ[bx]	; CX = (256 * # of clusters on drive)
-;	dec	cx
-	dec	ch
+	dec	cx
 	add	ax,cx			; add in for rounding error
 	adc	dx,0
 	inc	cx
+	 jnz	hd_bpb25
+	xchg	ax,dx
+	jmps	hd_bpb26
+hd_bpb25:
 	div	cx			; AX = # of fat sectors
+hd_bpb26:
 	mov	BPB_FATSEC[bx],ax	; remember FAT size
 	mov	es:UDSC_FSTYPE+4[di],'6'; change "FAT12" to "FAT16"
 	ret
 	
-
+hd_bpb30:				; build BPB for FAT32
+	mov	BPB_DIRMAX[bx],0	; FAT32, so no fixed root dir
+	mov	BPB_FATADD[bx],3	; assume 1 boot, 1 reserved, 1 info sector
+	mov	word ptr BPB_FSROOT[bx],2; assume root dir is in first cluster
+	mov	BPB_FSINFO[bx],2	; FS info sector at 2, this is standard
+	mov	BPB_BOOTBAK[bx],0ffffh	; no backup boot sector
+	mov	BPB_ALLOCSIZ[bx],1	; use 0.5 K clusters <64 Mb
+	cmp	dx,2			; less than 2*65536 sectors (64 Mb)?
+	 jb	hd_bpb40		; yes, leave cluster size the same
+	mov	BPB_ALLOCSIZ[bx],1*2	; use 1 K clusters if 64-256 Mb
+	cmp	dx,8			; less than 8*65536 sectors (256 Mb)?
+	 jb	hd_bpb40		; yes, leave cluster size the same
+	mov	BPB_ALLOCSIZ[bx],2*2	; use 2 K clusters if 256-1024 Mb
+	cmp	dx,32			; less than 32*65536 sectors (1 Gb)?
+	 jb	hd_bpb40		; yes, leave cluster size the same
+	mov	BPB_ALLOCSIZ[bx],4*2	; use 4 K clusters if 1-4 Gb
+	cmp	dx,128			; less than 128*65536 sectors (4 Gb)?
+	 jb	hd_bpb40		; yes, leave cluster size the same
+	mov	BPB_ALLOCSIZ[bx],8*2	; use 8 K clusters if 4-16 Gb
+	cmp	dx,512			; less than 512*65536 sectors (16 Gb)?
+	 jb	hd_bpb40		; yes, leave cluster size the same
+	mov	BPB_ALLOCSIZ[bx],16*2	; use 16 K clusters if 16-64 Gb
+	cmp	dx,2048			; less than 2048*65536 sectors (64 Gb)?
+	 jb	hd_bpb40		; yes, leave cluster size the same
+	mov	BPB_ALLOCSIZ[bx],32*2	; use 32 K clusters if 64-256 Gb
+	cmp	dx,8192			; less than 8192*65536 sectors (256 Gb)?
+	 jb	hd_bpb40		; yes, leave cluster size the same
+	mov	BPB_ALLOCSIZ[bx],64*2	; use 64 K clusters if 256-1024 Gb
+	cmp	dx,32768		; less than 32768*65536 sectors (1024 Gb)?
+	 jb	hd_bpb40		; yes, leave cluster size the same
+	mov	BPB_ALLOCSIZ[bx],0	; use 128 K clusters if >1024 Gb
+	
+hd_bpb40:				; cluster size determined
+	sub	ax,1			; subtract reserved
+	sbb	dx,0
+	xor	cx,cx
+	mov	ch,BPB_ALLOCSIZ[bx]
+	shr	cx,1			; CX = (128 * # of clusters on drive)
+	dec	cx
+	add	ax,cx			; add in for rounding error
+	adc	dx,0
+	inc	cx
+;	div	cx			; AX = # of fat sectors
+	push	bp
+	push	dx
+	push	ax
+	xor	ax,ax
+	push	ax
+	push	cx
+	sub	sp,8
+	call	div32i
+	add	sp,4
+	pop	ax
+	pop	dx
+	add	sp,8
+	pop	bp
+	mov	word ptr BPB_BFATSEC[bx],ax	; remember FAT size
+	mov	word ptr BPB_BFATSEC+2[bx],dx
+	mov	es:UDSC_FSTYPE+3[di],'3'; change "FAT12" to "FAT32"
+	ret
 
 new_unit:
 	push	ds
@@ -3063,6 +3187,43 @@ new_unit10:
 	pop	ds
 	ret
 
+div32i:					; 32-bit division
+;--------
+; On Entry:
+;	32-bit dividend & divisor on stack
+;	space for 32-bit quotient & remainder reserved on stack
+;	SP-16
+; On Exit:
+;	32-bit quotient & remainder on stack
+;	SP-16
+; Modified registers:
+;	AX,CX,DX,BP
+	mov	bp,sp			; base address of temporary variables
+	add	bp,2
+	xor	ax,ax			; clear work registers
+	xor	dx,dx
+	mov	cx,32			; 32 bits
+div32i_loop:
+	shl	word ptr 4[bp],1	; multiply quotient with two
+	rcl	word ptr 6[bp],1
+	shl	word ptr 12[bp],1	; shift one bit from dividend
+	rcl	word ptr 14[bp],1
+	rcl	ax,1			; to work registers
+	rcl	dx,1
+	cmp	dx,10[bp]		; compare high word with divisor
+	 jb	div32i_2
+	 ja	div32i_1
+	cmp	ax,8[bp]		; compare low word
+	 jb	div32i_2
+div32i_1:
+	or	word ptr 4[bp],1	; divisor fits one time
+	sub	ax,8[bp]		; subtract divisor
+	sbb	dx,10[bp]
+div32i_2:
+	loop	div32i_loop		; loop back if more bits to shift
+	mov	[bp],ax			; save remainder onto stack
+	mov	2[bp],dx
+	ret
 
 ICODE	ends
 
@@ -3084,6 +3245,9 @@ nfloppy		db	0		; # of floppy drives
 int13ex_ver	dw	0		; version of int 13 extensions
 int13ex_bits	dw	0		; int 13 API support bitmap
 
+int13ex_para	dw	30		; extended drive parameters
+		db	28 dup (?)
+
 ;	Public	diskaddrpack
 ;diskaddrpack:				; disk address packet structure for LBA access
 ;		db	10h		; size of packet
@@ -3099,6 +3263,7 @@ extoffset	dd	0		; block offset of extended partition
 ptstart		dd	0		; block offset of current partition table
 lastpart	dd	0		; last checked partition
 extoffvalid	db	0		; extoffset valid flag
+parttype	db	0		; ID of partition
 
 	Public	init_runit
 init_runit	db	0		; poked with ROS Unit at boot

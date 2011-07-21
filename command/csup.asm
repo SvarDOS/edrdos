@@ -53,7 +53,7 @@ DGROUP	GROUP	_DATA
 
 codeOFFSET	equ	offset CGROUP:
 dataOFFSET	equ	offset DGROUP:
-STACKSLOP	equ	128		; Minimum Stack Size
+STACKSLOP	equ	256		; Minimum Stack Size
 
 jmps	macro	label			; Define a Macro to generate the
 	jmp	SHORT label		; Short Jmp instruction
@@ -343,6 +343,30 @@ get_k20:
 	ret
 get_key	ENDP
 
+	Public	_get_cmdname
+_get_cmdname:
+	cld
+	push	bp
+	mov	bp,sp
+	push	ds
+	push	si
+	push	es
+	push	di
+	mov	es,__psp2
+	mov	es,es:16h
+	push	ds
+	push	es
+	pop	ds
+	pop	es
+	mov	si,62h
+	mov	di,4[bp]
+get_cmdname10:
+	lodsb
+	stosb
+	or	al,al
+	 jnz	get_cmdname10
+	jmp	env_exit
+	
 	page
 	assume	cs:CGROUP, ds:DGROUP, es:nothing
 ifdef MSC
@@ -415,7 +439,7 @@ _heap_size:
 	push	bp
 	mov	bp,sp
 	mov	ax,heap_top
-        add     ax,STACKSLOP
+;        add     ax,STACKSLOP
 	sub	bp,ax		
         jnc     noprobs
         xor     bp,bp
@@ -434,14 +458,14 @@ noprobs:
 PUBLIC	_heap
 _heap:
 	mov	ax,heap_top
-ifndef FINAL
+;ifndef FINAL
 ifdef WATCOMC
 	add	ax,STACKSLOP	; we'd better do some stack checking
 	cmp	ax,sp		; 'cause the C isn't doing it now
 	 jae	heap_error
 	sub	ax,STACKSLOP
 endif
-endif
+;endif
 	ret
 	
 ;

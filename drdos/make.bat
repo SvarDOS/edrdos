@@ -84,6 +84,9 @@ IF ERRORLEVEL 1 GOTO FAILED
 %LOCTOOLS%\rasm_sh %LOCTOOLS%\rasm86.exe . .\dos7.asm .\bin\dos7.obj
 IF ERRORLEVEL 1 GOTO FAILED
 
+%LOCTOOLS%\rasm_sh %LOCTOOLS%\rasm86.exe . .\lfn.asm .\bin\lfn.obj
+IF ERRORLEVEL 1 GOTO FAILED
+
 copy drdos.inp .\BIN
 CD .\BIN
 ..\%LOCTOOLS%\linkcmd.exe drdos[i]

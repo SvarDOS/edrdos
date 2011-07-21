@@ -71,6 +71,7 @@ ROS_LBACHK	equ	41h		; int 13 extensions install check
 ROS_LBAREAD	equ	42h		; extended read
 ROS_LBAWRITE	equ	43h		; extended write
 ROS_LBAVERIFY	equ	44h		; extended verify
+ROS_LBAPARAM	equ	48h		; get extended drive parameters
 
 PRN_ERROR	equ	00101001b	; printer error bits
 PRN_NOTBUSY	equ	10000000b

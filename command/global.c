@@ -166,3 +166,5 @@ WORD	global_link;
 WORD	global_strat;
 WORD	global_in_hiload = 0;
 WORD	hidden_umb[10];
+
+UWORD	heap_min=0x4000;

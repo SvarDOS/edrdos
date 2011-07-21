@@ -204,6 +204,10 @@ fdrwdircnt	dw	0		; # sectors in direct xfer
 
 byteoff		dw	0		; fdosrw local variable
 		dw	0		; byte offset with file
+		dw	0,0
+
+fsize		dw	0,0,0,0		; used for file size calculations
+lastpos		dw	0,0,0,0		; last position that has been written
 
 blk		dw	0,0		; current cluster of filepos
 blkidx		dw	0,0		; current cluster index within file
@@ -213,6 +217,12 @@ fdrw_seek_cl	dw	0,0
 fdw_trunc_cl	dw	0,0
 fdw_extend_cl	dw	0,0
 check_cont_cl	dw	0,0
+
+lasttsc		dw	0,0,0,0
+tscsel		dw	0
+tsc1		dw	0,0,0,0,0,0,0,0
+tsc2		dw	0,0,0,0,0,0,0,0
+tsc3		dw	0,0,0,0,0,0,0,0
 
 ;	static request header for DOS device driver I/O
 
@@ -271,6 +281,7 @@ BDOS_CODE	cseg
 	extrn	update_dat:near
 	extrn	update_fat:near
 	extrn	share_delay:near
+	extrn	fatptr_tag:near
 
 	public	block_device_driver
 	public	clus2sec
@@ -282,6 +293,8 @@ BDOS_CODE	cseg
 	public 	write_block
 	public	div32
 	public	mul32
+	public	div64
+	public	mul64
 
 eject
 
@@ -340,17 +353,35 @@ fdosrw:
 	test	fdrwflg,1		; writing zero bytes?
 	 jnz	fdrw_error		; (reading has no meaning)
 	call	fdw_trunc		; writing truncates the file
-	jmps	fdrw_nobigger
+	jmp	fdrw_nobigger
 fdrw_error:
 	ret
 
 fdrw_loop:				; loop here for long reads/writes
 	call	fdrw_seek		; seek to position for xfer
-	 jc	fdrw_exit		;  should get error's now...
+;	 jc	fdrw_exit		;  should get error's now...
+	 jnc	fdrw_noerror
+	jmp	fdrw_exit
+fdrw_noerror:
 	 jnz	fdrw_buffered		; deblocking required if not aligned
 	mov	cx,fdrwcnt		; CX = requested transfer size
 	cmp	cx,psecsiz		; at least one sector transferred?
-	 jb	fdrw_buffered		; if less, need deblocked transfer
+;	 jb	fdrw_buffered		; if less, need deblocked transfer
+	 jae	fdrw_direct
+	test	fdrwflg,1
+	 jnz	fdrw_buffered
+	mov	ax,byteoff
+	sub	ax,lastpos
+	mov	ax,byteoff+2
+	sbb	ax,lastpos+2
+	mov	ax,byteoff+4
+	sbb	ax,lastpos+4
+	mov	ax,byteoff+6
+	sbb	ax,lastpos+6
+	 jc	fdrw_buffered
+	call	deblock_rw_npr
+	jmps	fdrw_more
+fdrw_direct:
 	mov	fdrwreq,cx		; requested count for direct r/w
 	call	direct_rw		; transfer straight to/from TPA
 	jmps	fdrw_more
@@ -362,23 +393,72 @@ fdrw_more:
 
 	add	byteoff,ax		; adjust file offset
 	adc	byteoff+2,0
+	adc	byteoff+4,0
+	adc	byteoff+6,0
 
+	push	ax
+	mov	ax,psecsiz
+	dec	ax
+	or	ax,lastpos
+	sub	ax,byteoff
+	mov	ax,lastpos+2
+	sbb	ax,byteoff+2
+	mov	ax,lastpos+4
+	sbb	ax,byteoff+4
+	mov	ax,lastpos+6
+	sbb	ax,byteoff+6
+	 jnc	fdrw_nohigher
+	mov	ax,byteoff
+	mov	lastpos,ax
+	mov	ax,byteoff+2
+	mov	lastpos+2,ax
+	mov	ax,byteoff+4
+	mov	lastpos+4,ax
+	mov	ax,byteoff+6
+	mov	lastpos+6,ax
+
+fdrw_nohigher:
+	pop	ax
 	sub	fdrwcnt,ax		; adjust remaining count
-	 ja	fdrw_loop		; still more to do
+;	 ja	fdrw_loop		; still more to do
+	 jna	fdrw_exit
+	jmp	fdrw_loop
 fdrw_exit:
 	les	bx,current_dhndl
 	mov	ax,fdos_ret		; get total xfered and update position
 	add	es:DHNDL_POSLO[bx],ax
 	adc	es:DHNDL_POSHI[bx],0
+	adc	es:DHNDL_POSXLO[bx],0
+	adc	es:DHNDL_POSXHI[bx],0
 	test	fdrwflg,1
 	 jnz	fdrw_return		; skip if reading
-	mov	ax,byteoff		; has the file grown ?
-	mov	dx,byteoff+WORD
+;	mov	ax,byteoff		; has the file grown ?
+;	mov	dx,byteoff+WORD
+;	sub	ax,es:DHNDL_SIZELO[bx]
+;	sbb	dx,es:DHNDL_SIZEHI[bx]
+	mov	ax,byteoff
 	sub	ax,es:DHNDL_SIZELO[bx]
-	sbb	dx,es:DHNDL_SIZEHI[bx]
+	mov	fsize,ax
+	mov	ax,byteoff+2
+	sbb	ax,es:DHNDL_SIZEHI[bx]
+	mov	fsize+2,ax
+	mov	ax,byteoff+4
+	sbb	ax,es:DHNDL_SIZEXLO[bx]
+	mov	fsize+4,ax
+	mov	ax,byteoff+6
+	sbb	ax,es:DHNDL_SIZEXHI[bx]
+	mov	fsize+6,ax
 	 jb	fdrw_nobigger		; yes, update the file size
+;	add	es:DHNDL_SIZELO[bx],ax
+;	adc	es:DHNDL_SIZEHI[bx],dx
+	mov	ax,fsize
 	add	es:DHNDL_SIZELO[bx],ax
-	adc	es:DHNDL_SIZEHI[bx],dx
+	mov	ax,fsize+2
+	adc	es:DHNDL_SIZEHI[bx],ax
+	mov	ax,fsize+4
+	adc	es:DHNDL_SIZEXLO[bx],ax
+	mov	ax,fsize+6
+	adc	es:DHNDL_SIZEXHI[bx],ax
 fdrw_nobigger:
 	call	timestamp_dhndl		; record the current time
 	test	es:DHNDL_MODE[bx],DHM_COMMIT
@@ -469,6 +549,10 @@ fdw_t60:
 	mov	es:DHNDL_SIZELO[bx],ax
 	mov	ax,byteoff+2
 	mov	es:DHNDL_SIZEHI[bx],ax
+	mov	ax,byteoff+4
+	mov	es:DHNDL_SIZEXLO[bx],ax
+	mov	ax,byteoff+6
+	mov	es:DHNDL_SIZEXHI[bx],ax
 	xor	ax,ax			; cause reads/writes to scan
 	mov	es:DHNDL_BLK[bx],ax	;   block chain from start
 	mov	es:DHNDL_BLKH[bx],ax
@@ -520,10 +604,31 @@ fdrw_p10:
 fdrw_p20:
 	mov	fdrwseg,ax		; save normalized segment for read/write
 	les	bx,current_dhndl
-	mov	ax,es:DHNDL_POSLO[bx]
-	mov	byteoff,ax		; copy position to local variables
+	mov	ax,es:DHNDL_POSLO[bx]	; copy position to local variables
+	mov	byteoff,ax
 	mov	ax,es:DHNDL_POSHI[bx]
-	mov	byteoff+WORD,ax
+	mov	byteoff+2,ax
+	mov	ax,es:DHNDL_POSXLO[bx]
+	cmp	ax,63			; greater than 256 GB-1
+	 jbe	fdrw_p25
+	jmp	fdrw_p40		; then it is too big even for FAT+
+fdrw_p25:
+	mov	byteoff+4,ax
+	mov	ax,es:DHNDL_POSXHI[bx]
+	cmp	ax,0
+;	 ja	fdrw_p40
+	 jna	fdrw_p27
+	jmp	fdrw_p40
+fdrw_p27:
+	mov	byteoff+6,ax
+	mov	ax,es:DHNDL_SIZELO[bx]	; copy file size
+	mov	lastpos,ax
+	mov	ax,es:DHNDL_SIZEHI[bx]
+	mov	lastpos+2,ax
+	mov	ax,es:DHNDL_SIZEXLO[bx]
+	mov	lastpos+4,ax
+	mov	ax,es:DHNDL_SIZEXHI[bx]
+	mov	lastpos+6,ax
 ;	mov	cx,clsize
 ;	mov	ax,lastcl
 ;	mul	cx			; DX:AX = maximum size of disk
@@ -533,37 +638,55 @@ fdrw_p20:
 	push	blastcl
 	sub	sp,8			; reserve space on stack
 	call	mul32			; compute maximum size of disk
-	pop	ax
-	pop	dx
-	pop	cx
-	add	sp,10			; clean up the stack again
+;	pop	ax
+;	pop	dx
+;	pop	cx
+	pop	fsize
+	pop	fsize+2
+	pop	fsize+4
+	pop	fsize+6
+;	add	sp,10			; clean up the stack again
+	add	sp,8			; clean up the stack again
+;	sub	ax,byteoff
+;	sbb	dx,byteoff+WORD		; beyond this we can't go
+;	sbb	cx,0
+	mov	ax,fsize
 	sub	ax,byteoff
-	sbb	dx,byteoff+WORD		; beyond this we can't go
-	sbb	cx,0
+	mov	ax,fsize+2
+	sbb	ax,byteoff+2
+	mov	ax,fsize+4
+	sbb	ax,byteoff+4
+	mov	ax,fsize+6
+	sbb	ax,byteoff+6
 	 jc	fdrw_p30
 ;	mov	ax,byteoff		; DX:AX = current file size
 ;	mov	dx,byteoff+WORD
 ;	div	clsize
 ;	mov	blkidx,ax		; save it for later
 ;	mov	blkoffset,dx		; DX = offset within cluster
-	push	word ptr byteoff+2	; current file size
+	push	word ptr byteoff+6	; current file size
+	push	word ptr byteoff+4
+	push	word ptr byteoff+2
 	push	word ptr byteoff
 	push	word ptr clsize+2
 	push	word ptr clsize
 	sub	sp,8			; reserve space on stack
-	call	div32
+;	call	div32
+	call	div64
 	pop	word ptr blkoffset	; offset within cluster
 	pop	word ptr blkoffset+2
 ;	add	sp,2			; skip high word
 	pop	word ptr blkidx		; save it for later
 	pop	word ptr blkidx+2
-	add	sp,8			; clean up stack
+;	add	sp,8			; clean up stack
+	add	sp,12			; clean up stack
 	clc				; theoretically possible
 fdrw_p30:
 	ret
 
-
-
+fdrw_p40:
+	stc
+	ret
 
 fdrw_size:
 ;---------
@@ -579,16 +702,34 @@ fdrw_size:
 ;	CY set if problem extending file
 ;
 	les	bx,current_dhndl
-	mov	ax,es:DHNDL_SIZELO[bx]	; are we past the end of file
-	mov	dx,es:DHNDL_SIZEHI[bx]	;  if so we may wish to extend on write
-	sub	ax,byteoff		; AX,DX = current offset
-	sbb	dx,byteoff+WORD		; are we already beyond EOF ?
+;	mov	ax,es:DHNDL_SIZELO[bx]	; are we past the end of file
+;	mov	dx,es:DHNDL_SIZEHI[bx]	;  if so we may wish to extend on write
+;	sub	ax,byteoff		; AX,DX = current offset
+;	sbb	dx,byteoff+WORD		; are we already beyond EOF ?
+	mov	ax,es:DHNDL_SIZELO[bx]
+	sub	ax,byteoff
+	mov	fsize,ax
+	mov	ax,es:DHNDL_SIZEHI[bx]
+	sbb	ax,byteoff+2
+	mov	fsize+2,ax
+	mov	ax,es:DHNDL_SIZEXLO[bx]
+	sbb	ax,byteoff+4
+	mov	fsize+4,ax
+	mov	ax,es:DHNDL_SIZEXHI[bx]
+	sbb	ax,byteoff+6
+	mov	fsize+6,ax
 	 jb	fdrw_s40
-	sub	ax,fdrwcnt		; will we be going beyond EOF ?
-	sbb	dx,0
+;	sub	ax,fdrwcnt		; will we be going beyond EOF ?
+;	sbb	dx,0
+	mov	ax,fdrwcnt
+	sub	fsize,ax
+	sbb	fsize+2,0
+	sbb	fsize+4,0
+	sbb	fsize+6,0
 	 jnb	fdrw_s10		; no, whole xfer is OK
 	test	fdrwflg,1		; check if we're reading
 	 jz	fdrw_s50		;  if we are just adjust the
+	mov	ax,fsize
 	add	fdrwcnt,ax		;  amount we can xfer
 fdrw_s10:
 ; We call share concerning the XFER to check if any of the proposed
@@ -635,22 +776,40 @@ fdwrite_extend:
 ;	CY clear if cluster chain now big enough for desired file size
 ;
 
-	mov	ax,byteoff		; AX,DX = current offset
-	mov	dx,byteoff+2
-	add	ax,fdrwcnt		; AX,DX = offset after r/w if success
-	adc	dx,0			; add offset from lower 16 bits
+;	mov	ax,byteoff		; AX,DX = current offset
+;	mov	dx,byteoff+2
+;	add	ax,fdrwcnt		; AX,DX = offset after r/w if success
+;	adc	dx,0			; add offset from lower 16 bits
+	mov	ax,byteoff
+	add	ax,fdrwcnt
+	mov	fsize,ax
+	mov	ax,byteoff+2
+	adc	ax,0
+	mov	fsize+2,ax
+	mov	ax,byteoff+4
+	adc	ax,0
+	mov	fsize+4,ax
+	mov	ax,byteoff+6
+	adc	ax,0
+	mov	fsize+6,ax
 ;	div	clsize			; AX whole blocks required
-	push	dx
-	push	ax
+;	push	dx
+;	push	ax
+	push	fsize+6
+	push	fsize+4
+	push	fsize+2
+	push	fsize
 	push	word ptr clsize+2
 	push	word ptr clsize
 	sub	sp,8
-	call	div32
+;	call	div32
+	call	div64
 	pop	ax
 	pop	dx
 	pop	fdw_extend_cl
 	pop	fdw_extend_cl+2
-	add	sp,8
+;	add	sp,8
+	add	sp,12
 	test	dx,dx			; any remainder ?
 	 jnz	fdw_e04
 	test	ax,ax
@@ -773,18 +932,22 @@ fdrw_seek:
 ;	div	clsize
 ;	mov	blkidx,ax		; save cluster
 ;	mov	blkoffset,dx		;  and offset within it
-	push	word ptr byteoff+2	; where are we now ?
+	push	word ptr byteoff+6	; where are we now ?
+	push	word ptr byteoff+4
+	push	word ptr byteoff+2
 	push	word ptr byteoff
 	push	word ptr clsize+2
 	push	word ptr clsize
 	sub	sp,8			; reserve space on stack for result
-	call	div32
+;	call	div32
+	call	div64
 	pop	word ptr blkoffset	; save cluster and offset within it
 	pop	word ptr blkoffset+2
 ;	add	sp,2
 	pop	word ptr blkidx
 	pop	word ptr blkidx+2
-	add	sp,8			; clean up stack
+;	add	sp,8			; clean up stack
+	add	sp,12			; clean up stack
 	les	bx,current_dhndl
 	mov	ax,blkidx
 	mov	dx,blkidx+2
@@ -857,6 +1020,7 @@ fdrw_seek40:
 	mov	es:DHNDL_BLKH[bx],dx
 	mov	blk,ax			; save the block for coniguous checks
 	mov	blk+2,dx
+	call	fatptr_tag
 	mov	bx,blkoffset
 	mov	cx,blkoffset+2
 	call	clus2sec		; convert to sector/offset
@@ -879,9 +1043,14 @@ fdrw_seek_error:
 ; On Exit:
 ;	AX = # of bytes transferred
 
+deblock_rw_npr:
+	mov	cx,BF_ISDAT		; CH = no preread, buffer is data
+	jmps	deblkrw05
+
 deblock_rw:
 ;----------
 	mov	cx,0FF00h+BF_ISDAT	; CH = preread, buffer is data
+deblkrw05:
 	mov	dx,word ptr fdrwsec	; set sector to xfer from
 ;	mov	ah,byte ptr fdrwsec+WORD
 	mov	ax,word ptr fdrwsec+WORD
@@ -935,10 +1104,18 @@ direct_rw:
 	mov	bx,clsize+2
 	sub	cx,blkoffset		; BX:CX = bytes remaining in this block
 	sbb	bx,blkoffset+2
+	cmp	dx,bx
+	 jne	direct_rw03
+	cmp	ax,cx
+	 je	direct_rw10
+direct_rw03:
 	sub	ax,cx			; if wholly containined within block
 	sbb	dx,bx
 ;	 jbe	direct_rw10		; then leave it alone
-	 jnc	direct_rw10		; then leave it alone
+	jnc	direct_rw05
+	xor	dx,dx
+	jmps	direct_rw10		; then leave it alone
+direct_rw05:
 ;	div	clsize			; else get # of extra clusters
 ;	push	cx
 	push	dx
@@ -1301,10 +1478,14 @@ select_logical_drv05:
 	mov	word ptr current_ldt,bx
 	mov	word ptr current_ldt+WORD,es
 	mov	al,es:byte ptr LDT_FLAGS+1[bx]	; is the drive valid ?
-	test	al,(LFLG_NETWRKD+LFLG_JOINED)/100h
-	 jnz	select_drv_bad		; reject networked/joined drives
+;	test	al,(LFLG_NETWRKD+LFLG_JOINED)/100h
+;	 jnz	select_drv_bad		; reject networked/joined drives
+	test	al,LFLG_JOINED/100h
+	 jnz	select_drv_bad		; reject joined drives
 	test	al,LFLG_PHYSICAL/100h
 	 jz	select_drv_bad		; reject non-physical drives
+	test	al,LFLG_NETWRKD/100h	; skip if networked drive
+	 jnz	select_logical_drv30
 	mov	al,es:LDT_NAME[bx]	; get the drive from the ascii name
 	and	al,1fh			;  as the drive may require rebuilding
 	dec	ax			; make it zero based
@@ -1797,6 +1978,51 @@ clus2sec:		; convert from cluster/offset to sector/offset
 	adc	dx,0
 	ret
 
+div64:					; 64-bit division
+;--------
+; On Entry:
+;	64-bit dividend & 32-bit divisor on stack
+;	space for 32-bit quotient & remainder reserved on stack
+;	SP-20
+; On Exit:
+;	32-bit quotient & remainder on stack
+;	SP-20
+; Modified registers:
+;	AX,CX,DX,BP,SI
+	mov	bp,sp			; base address of temporary variables
+	add	bp,2
+	xor	ax,ax			; clear work registers
+	xor	dx,dx
+	xor	si,si
+	mov	cx,64			; 64 bits
+div64_loop:
+	shl	word ptr 4[bp],1	; multiply quotient with two
+	rcl	word ptr 6[bp],1
+	shl	word ptr 12[bp],1	; shift one bit from dividend
+	rcl	word ptr 14[bp],1
+	rcl	word ptr 16[bp],1
+	rcl	word ptr 18[bp],1
+	rcl	ax,1			; to work registers
+	rcl	dx,1
+	rcl	si,1
+	cmp	si,0			; larger than divisor?
+	 jne	div64_1
+	cmp	dx,10[bp]		; compare second word with divisor
+	 jb	div64_2
+	 ja	div64_1
+	cmp	ax,8[bp]		; compare first word
+	 jb	div64_2
+div64_1:
+	or	word ptr 4[bp],1	; divisor fits one time
+	sub	ax,8[bp]		; subtract divisor
+	sbb	dx,10[bp]
+	sbb	si,0
+div64_2:
+	loop	div64_loop		; loop back if more bits to shift
+	mov	[bp],ax			; save remainder onto stack
+	mov	2[bp],dx
+	ret
+
 div32:					; 32-bit division
 ;--------
 ; On Entry:
@@ -1810,6 +2036,8 @@ div32:					; 32-bit division
 ;	AX,CX,DX,BP
 	mov	bp,sp			; base address of temporary variables
 	add	bp,2
+	cmp	word ptr 10[bp],0
+	 je	div16
 	xor	ax,ax			; clear work registers
 	xor	dx,dx
 	mov	cx,32			; 32 bits
@@ -1835,6 +2063,92 @@ div32_2:
 	mov	2[bp],dx
 	ret
 
+div16:
+	mov	ax,12[bp]
+	mov	dx,14[bp]
+	div	word ptr 8[bp]
+	xor	cx,cx
+	mov	[bp],dx
+	mov	2[bp],cx
+	mov	4[bp],ax
+	mov	6[bp],cx
+	ret
+
+mul64:					; 64-bit multiplication
+;--------
+; On Entry:
+;	64-bit factors on stack
+;	space for 128-bit product reserved on stack
+;	SP-32
+; On Exit:
+;	64-bit product on stack
+;	SP-32
+;	Carry flag set if result does not fit in quad word
+; Modified registers:
+;	AX,BX,CX,DX
+	push	es			; save ES
+	push	bp			; save BP
+	push	si			; save SI
+	push	di			; save DI
+	push	ss
+	pop	es
+	mov	bp,sp			; base address of temporary variables
+	add	bp,10
+	mov	di,bp			; clear result
+	xor	ax,ax
+	mov	cx,4
+	cld
+	rep	stosw
+	xor	si,si			; start with lowest words of factors
+mul64_10:
+	xor	di,di
+mul64_20:
+	mov	bx,si			; compute offset in result
+	add	bx,di
+	add	bx,4
+	mov	cx,16			; number of carry additions left
+	sub	cx,bx
+	shr	cx,1			; / 2 = number of word additions
+	mov	ax,16[bp+si]		; multiply two words
+	mul	word ptr 24[bp+di]
+	xchg	bx,di
+	add	-4[bp+di],ax		; and add the product to the result
+	adc	-2[bp+di],dx
+	jcxz	mul64_40		; skip if highest words
+mul64_30:
+	jnc	mul64_40		; no carry, so no further adds needed
+	adc	word ptr [bp+di],0	; otherwise add zero
+	inc	di
+	inc	di
+	loop	mul64_30		; until no carry left over
+mul64_40:
+	xchg	bx,di
+	inc	di			; next word in first factor
+	inc	di
+	cmp	di,6			; already highest word?
+	 jbe	mul64_20		; next multiplication
+	inc	si			; next word in second factor
+	inc	si
+	cmp	si,6			; already highest word?
+	 jbe	mul64_10		; next multiplication
+	mov	cx,4			; check if results fits in 64 bits
+	xor	si,si
+mul64_45:
+	cmp	word ptr 8[bp+si],0	; zero?
+	 jnz	mul64_50		; if not, then skip and set carry
+	inc	si			; next word to compare
+	inc	si
+	loop	mul64_45		; until highest dword has been checked
+	jmps	mul64_60		; 64-bit result
+mul64_50:
+	stc
+mul64_60:
+	pop	di			; restore DI again
+	pop	si			; restore SI
+	pop	bp			; restore BP
+	pop	es			; restore ES
+	ret
+
 mul32:					; 32-bit multiplication
 ;--------
 ; On Entry:
@@ -1846,9 +2160,10 @@ mul32:					; 32-bit multiplication
 ;	SP-16
 ;	Carry flag set if result does not fit in double word
 ; Modified registers:
-;	AX,DX,BP,SP
+;	AX,DX
+	push	bp			; save BP
 	mov	bp,sp			; base address of temporary variables
-	add	bp,2
+	add	bp,4
 	mov	ax,10[bp]		; multiply high word of factors
 	mul	word ptr 14[bp]
 	mov	4[bp],ax		; store result
@@ -1876,6 +2191,83 @@ mul32:					; 32-bit multiplication
 mul32_1:
 	stc				; yes, set carry flag to indicate this
 mul32_2:
+	pop	bp			; restore BP again
+	ret
+
+	public	read_tsc
+read_tsc:
+	push	dx
+	push	ax
+	db	0fh,31h			; RDTSC
+	db	66h			; MOV lasttsc+4,EDX
+	mov	lasttsc+4,dx
+	db	66h			; MOV lasttsc,EAX
+	mov	lasttsc,ax
+	pop	ax
+	pop	dx
+	ret
+
+	public	diff_tsc
+diff_tsc:
+	push	dx
+	push	cx
+	push	bx
+	push	ax
+	db	0fh,31h			; RDTSC
+	db	66h			; MOV ECX,lasttsc+4
+	mov	cx,lasttsc+4
+	db	66h			; MOV EBX,lasttsc
+	mov	bx,lasttsc
+	db	66h			; SUB EAX,EBX
+	sub	ax,bx
+	db	66h			; SBB EDX,ECX
+	sbb	dx,cx
+	cmp	tscsel,0
+	 je	diff_tsc10
+	db	66h
+	push	dx
+	db	66h
+	push	ax
+	mov	dx,tscsel
+	call	output_hex
+	db	66h
+	pop	ax
+	db	66h
+	pop	dx
+	db	66h
+	xor	bx,bx
+	mov	bx,tscsel
+	dec	bx
+	shl	bx,1
+	shl	bx,1
+	shl	bx,1
+	db	66h
+	add	tsc1[bx],ax
+	db	66h
+	adc	tsc1+4[bx],dx
+	db	66h
+	mov	ax,tsc1[bx]
+	db	66h
+	mov	dx,tsc1+4[bx]
+diff_tsc10:
+	db	66h			; PUSH EAX
+	push	ax
+	db	66h			; PUSH EDX
+	push	dx
+	pop	ax
+	pop	dx
+	call	output_hex
+	xchg	ax,dx
+	call	output_hex
+	pop	ax
+	pop	dx
+	call	output_hex
+	xchg	ax,dx
+	call	output_hex
+	pop	ax
+	pop	bx
+	pop	cx
+	pop	dx
 	ret
 
 	public	output_msg

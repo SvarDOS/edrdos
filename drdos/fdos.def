@@ -111,6 +111,8 @@ FD_BPBOFF	equ	fdos_data + 2
 FD_BPBSEG	equ	fdos_data + 4
 FD_DDSCOFF	equ	fdos_data + 6
 FD_DDSCSEG	equ	fdos_data + 8
+FD_SIG1		equ	fdos_data + 10
+FD_SIG2		equ	fdos_data + 12
 
 FD_IOCTLFUNC	equ	fdos_data + 4
 FD_IOCTLSTAT	equ	fdos_data + 6
@@ -124,3 +126,4 @@ FD_DDIO_STARTHIGH equ	fdos_data + 8
 FD_DDIO_DMAOFF	equ	fdos_data + 10
 FD_DDIO_DMASEG	equ	fdos_data + 12
 
+FD_LFNSEARCH	equ	fdos_data + 10

@@ -2,7 +2,7 @@
 ;
 ; This file is part of
 ; The DR-DOS/OpenDOS Enhancement Project - http://www.drdosprojects.de
-; Copyright (c) 2002-2004 Udo Kuhnt
+; Copyright (c) 2002-2009 Udo Kuhnt
 
 	include	pcmode.equ
 	include	fdos.equ
@@ -31,8 +31,7 @@ f73_10:
 	 jne	func73_error
 	jmp	func7305		; yes
 func73_error:
-	mov	ax,7300h		; function not supported
-	clc
+	xor	ax,ax			; function not supported
 	ret
 
 ;	*************************************
@@ -51,14 +50,14 @@ func73_error:
 func7302:
 	cmp	cx,EDPB_LEN+2		; enough buffer space for data?
 	 jae	f7302_10
-	mov	ax,18h			; return 18h (bad request structure length)
+	mov	ax,-18h			; return 18h (bad request structure length)
 	stc
 	jmp	error_exit		; no, then exit with error
 f7302_10:
 	xor	dh,dh
 	call	fdos_DISKINFO		; get drive info, ES:BX -> DDSC
 	 jnc	f7302_20
-	mov	ax,0fh			; return 0fh (invalid drive)
+	mov	ax,-0fh			; return 0fh (invalid drive)
 	stc
 	jmp	error_exit		; error if invalid drive
 f7302_20:
@@ -144,7 +143,7 @@ func7303:
 	mov	es,es:reg_DS[bp]
 	call	get_path_drive
 	 jnc	f7303_10
-	mov	ax,0fh			; return 0fh (invalid drive)
+	mov	ax,-0fh			; return 0fh (invalid drive)
 	stc
 	jmp	error_exit		; error if invalid drive
 f7303_10:
@@ -153,13 +152,13 @@ f7303_10:
 	xor	dh,dh
 	call	fdos_DISKINFO		; get drive info, ES:BX -> DDSC
 	 jnc	f7303_20
-	mov	ax,0fh			; return 0fh (invalid drive)
+	mov	ax,-0fh			; return 0fh (invalid drive)
 	stc
 	jmp	error_exit		; error if invalid drive
 f7303_20:
 	cmp	cx,FREED_LEN		; enough buffer space for data?
 	 jbe	f7303_30
-	mov	ax,18h			; return 18h (bad request structure length)
+	mov	ax,-18h			; return 18h (bad request structure length)
 	stc
 	jmp	error_exit		; no, then exit with error
 f7303_30:

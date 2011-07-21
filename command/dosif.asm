@@ -142,6 +142,7 @@ include	mserror.equ
 else
 include	f52data.def
 endif
+include doshndl.def
 ;
 ifdef	CDOSTMP
 OK_RIF		equ	00111000b	; All Responsese are Valid
@@ -363,36 +364,17 @@ _ms_edrv_space:
 
 	push	bp
 	mov	bp,sp
-	push	ds
 	push	es
-	push	dx
 	push	di
-	push	bx
-	mov	di,6[bp]		; ES:DI pointer to buffer
-	push	ds
+	mov	dx,4[bp]		; DS:DX pointer to drive path
+	push	ds			; ES:DI pointer to buffer
 	pop	es
-	mov	bx,8[bp]		; CX length of buffer
-	mov	cx,[bx]
-	mov	bx,4[bp]		; DS:DX pointer to drive path
-	mov	dx,[bx]
-	mov	ax,2[bx]
-	mov	ds,ax
+	mov	di,6[bp]
+	mov	cx,8[bp]		; CX length of buffer
 	mov	ax,MS_EDRV_SPACE
-	int	DOS_INT
-	 jc	_ms_edrv_space20	; error?
-	cmp	ax,7300h		; function not implemented?
-	 jne	_ms_edrv_space10
-	mov	al,0ffh			; generic error code
-	stc
-	jmp	_ms_edrv_space20
-_ms_edrv_space10:
-	xor	ax,ax
-_ms_edrv_space20:
-	pop	bx
+	call	call73
 	pop	di
-	pop	dx
 	pop	es
-	pop	ds
 	pop	bp
 	ret
 
@@ -417,6 +399,17 @@ _ms_x_mkdir:
 	mov	ah,MS_X_MKDIR
 	jmp	ms_dx_call
 
+	Public _ms_l_mkdir
+;----------
+_ms_l_mkdir:
+;----------
+	push	bp
+	mov	bp,sp
+	mov	dx,4[bp]		; DS:DX directory name
+	mov	ax,MS_L_MKDIR
+	call	call71
+	pop	bp
+	ret
 
 	Public	_ms_x_rmdir
 ;----------
@@ -425,6 +418,17 @@ _ms_x_rmdir:
 	mov	ah,MS_X_RMDIR
 	jmp	ms_dx_call
 
+	Public	_ms_l_rmdir
+;----------
+_ms_l_rmdir:
+;----------
+	push	bp
+	mov	bp,sp
+	mov	dx,4[bp]		; DS:DX directory name
+	mov	ax,MS_L_RMDIR
+	call	call71
+	pop	bp
+	ret
 
 	Public	_ms_x_chdir
 ;----------
@@ -432,6 +436,18 @@ _ms_x_chdir:
 ;----------
 	mov	ah,MS_X_CHDIR
 	jmp	ms_dx_call
+
+	Public	_ms_l_chdir
+;----------
+_ms_l_chdir:
+;----------
+	push	bp
+	mov	bp,sp
+	mov	dx,4[bp]		; DS:DX directory name
+	mov	ax,MS_L_CHDIR
+	call	call71
+	pop	bp
+	ret
 
 	Public	_ms_x_creat
 ;----------
@@ -456,6 +472,39 @@ ms_open_creat:
 	jnc	ms_open_ret		; AX = handle if no error
 	neg	ax			; else mark as error code
 ms_open_ret:
+	pop	bp
+	ret
+
+	Public	_ms_l_creat
+;---------
+_ms_l_creat:
+;---------
+	push	bp
+	mov	bp,sp
+	push	si
+	mov	cx,6[bp]		; create attributes
+	mov	bx,OPEN_RW		; create mode
+	mov	dx,18			; create or truncate if exists
+	jmp	ms_l_creat_entry
+
+	Public	_ms_l_open
+;---------
+_ms_l_open:
+;---------
+	push	bp
+	mov	bp,sp
+	push	si
+	mov	bx,6[bp]		; open mode
+	mov	dx,1			; open if exists
+ms_l_creat_entry:
+	mov	si,4[bp]		; DX:SI filename
+	mov	ax,MS_L_OPEN
+	stc
+	int	DOS_INT
+	 jnc	ms_l_open10
+	call	call71_alt_entry
+ms_l_open10:
+	pop	si
 	pop	bp
 	ret
 
@@ -548,6 +597,21 @@ _ms_x_unlink:
 	mov	ah,MS_X_UNLINK
 	jmp	ms_dx_call
 
+	Public	_ms_l_unlink
+;-----------
+_ms_l_unlink:
+;-----------
+	push	bp
+	mov	bp,sp
+	push	si
+	mov	dx,4[bp]		; DS:DX -> filename
+	mov	cx,6[bp]		; search attributes
+	mov	si,1			; wildcards enabled
+	mov	ax,MS_L_UNLINK
+	call	call71
+	pop	si
+	pop	bp
+	ret
 
 	Public	_ms_x_lseek
 ;----------
@@ -626,6 +690,28 @@ ms_chmod_ret:
 	pop	bp
 	ret
 
+	Public	_ms_l_chmod
+;----------
+_ms_l_chmod:
+;----------
+	push	bp
+	mov	bp,sp
+	mov	dx,4[bp]		; DS:DX filename
+	mov	cx,6[bp]		; file attributes
+	mov	bl,8[bp]		; get/set attributes
+	mov	ax,MS_L_CHMOD
+	stc
+	int	DOS_INT
+	 jnc	ms_l_chmod10
+	call	call71_alt_entry
+	jmp	ms_l_chmod20
+ms_l_chmod10:
+	cmp	byte ptr 8[bp],0	; get attributes?
+	 jne	ms_l_chmod20
+	mov	ax,cx			; return attributes
+ms_l_chmod20:
+	pop	bp
+	ret
 
 	Public	_ms_x_curdir
 ;-----------
@@ -640,6 +726,21 @@ _ms_x_curdir:
 	push	word ptr 4[bp]
 	call	ms_dx_call
 	pop	dx
+	pop	si
+	pop	bp
+	ret
+
+	Public	_ms_l_curdir
+;-----------
+_ms_l_curdir:
+;-----------
+	push	bp
+	mov	bp,sp
+	push	si
+	mov	dl,4[bp]		; DL drive number (0 = current drive)
+	mov	si,6[bp]		; DS:SI path buffer
+	mov	ax,MS_L_CURDIR
+	call	call71
 	pop	si
 	pop	bp
 	ret
@@ -786,6 +887,26 @@ ms_exp_ret:
 	pop	bp
 	CRET	4
 
+	Public	_ms_l_expand
+_ms_l_expand:
+	push	bp
+	mov	bp,sp
+	push	es
+	push	di
+	push	si
+	push	ds
+	pop	es
+	mov	si,6[bp]		; DS:SI source string
+	mov	di,4[bp]		; ES:DI destination buffer
+	xor	cx,cx			; sub function 0, no subst expansion
+	mov	ax,MS_L_EXPAND
+	call	call71
+	pop	si
+	pop	di
+	pop	es
+	pop	bp
+	ret
+
 	Public	_ms_x_wait
 ;---------
 _ms_x_wait:		; retrieve child return code
@@ -820,6 +941,64 @@ _ms_x_next:
 	mov	ah,MS_X_NEXT		; get the function
 	jmp	ms_call_dos		; get DX, call DOS, handle errors
 
+	Public	_ms_l_first
+;----------
+_ms_l_first:
+;----------
+	push	bp
+	mov	bp,sp
+	push	es
+	push	di
+	push	si
+	push	ds
+	pop	es
+	mov	dx,4[bp]		; get ASCII string
+	mov	cx,6[bp]		; get attribute
+	mov	si,1			; request DOS date/time format
+	mov	di,8[bp]		; get buffer address
+	mov	ax,MS_L_FIRST		; LFN FindFirst
+	stc
+	int	DOS_INT
+	mov	es:24h[di],ax		; save search handle
+	call	call71_alt_entry
+	pop	si
+	pop	di
+	pop	es
+	pop	bp
+	ret
+
+	Public	_ms_l_next
+;----------
+_ms_l_next:
+;----------
+	push	bp
+	mov	bp,sp
+	push	es
+	push	di
+	push	si
+	push	ds
+	pop	es
+	mov	bx,4[bp]		; get search handle
+	mov	si,1			; request DOS date/time format
+	mov	di,6[bp]		; get buffer address
+	mov	ax,MS_L_NEXT		; LFN FindNext
+	call	call71
+	pop	si
+	pop	di
+	pop	es
+	pop	bp
+	ret
+
+	Public	_ms_l_findclose
+;----------
+_ms_l_findclose:
+;----------
+	push	bp
+	mov	bp,sp
+	mov	bx,4[bp]		; get search handle
+	mov	ax,MS_L_FINDCLOSE	; LFN FindClose
+	jmp	ms_call_dos
+
 ms_dx_call:				; call DOS with parameter in DX
 	push	bp
 	mov	bp,sp
@@ -853,6 +1032,50 @@ _ms_x_rename:
 	pop	di
 	pop	bp
 	ret
+
+	Public	_ms_l_rename
+;-----------
+_ms_l_rename:
+;-----------
+	push	bp
+	mov	bp,sp
+	push	es
+	push	di
+	push	ds
+	pop	es
+	mov	dx,4[bp]		; DS:DX old filename
+	mov	di,6[bp]		; ES:DI new filename
+	mov	ax,MS_L_RENAME
+	call	call71
+	pop	di
+	pop	es
+	pop	bp
+	ret
+
+call71:
+	stc				; just in case it is not implemented
+	int	DOS_INT
+call71_alt_entry:
+	 jnc	call71_20
+	cmp	ax,7100h		; function implemented?
+call73_entry:
+	 jne	call71_10
+	mov	ax,0ffffh		; error code -1 - invalid function
+	jmp	call71_30
+call71_10:
+	neg	ax
+	jmp	call71_30
+call71_20:
+	sub	ax,ax			; no error
+call71_30:
+	ret
+
+call73:
+	stc				; just in case it is not implemented
+	int	DOS_INT
+	 jnc	call71_20
+	cmp	ax,7300h		; function implemented?
+	jmp	call73_entry
 
 	Public	_ms_x_datetime
 ;	ret = _ms_x_datetime (gsflag, h, &time, &date);
@@ -996,6 +1219,79 @@ _ms_p_getpsp:
 	xchg	ax,bx
 	ret
 endif
+
+	Public	_get_lastdrive
+;-----------
+_get_lastdrive:
+;-----------
+	push	es
+	mov	ah,52h			; get List of Lists
+	int	DOS_INT
+	mov	ax,es:20h[bx]		; number of drives
+;	xor	ah,ah
+	pop	es
+	ret
+
+	Public	_get_driveflags
+;-----------
+_get_driveflags:
+;-----------
+	push	bp
+	mov	bp,sp
+	push	es
+	mov	ah,52h			; get List of Lists
+	int	DOS_INT
+	les	bx,es:16h[bx]		; ES:BX -> Path Control Table
+	mov	ax,LDT_LEN		; length of table entry
+	mul	word ptr 4[bp]		; drive number (A=0)
+	add	bx,ax			; offset in LDT
+	mov	ax,es:LDT_FLAGS[bx]
+	pop	es
+	pop	bp
+	ret
+
+	Public	_conv64
+;-----------
+_conv64:
+;-----------
+	push	bp
+	mov	bp,sp
+	push	si
+	push	di
+	mov	si,4[bp]
+	mov	di,6[bp]
+	xor	dx,dx
+conv64_10:
+	cmp	word ptr [di],0		; greater than 2^32-1?
+	 jne	conv64_20
+	cmp	word ptr 2[di],0
+	 je	conv64_40
+conv64_20:
+	mov	ax,1[si]		; /256
+	mov	[si],ax
+	mov	al,3[si]
+	mov	ah,[di]
+	mov	2[si],ax
+	mov	ax,1[di]
+	mov	[di],ax
+	mov	al,3[di]
+	xor	ah,ah
+	mov	2[di],ax
+	mov	cx,2
+conv64_30:
+	shr	byte ptr 2[di],1	; /4
+	rcr	word ptr [di],1
+	rcr	word ptr 2[si],1
+	rcr	word ptr [si],1
+	loop	conv64_30
+	inc	dx
+conv64_40:
+	xchg	ax,dx
+	pop	di
+	pop	si
+	pop	bp
+	ret
+
 	Public	_ms_f_verify
 ;-----------
 _ms_f_verify:
@@ -2948,6 +3244,146 @@ nc_exit:
 	ret
 
 _nov_connection	ENDP
+
+	Public	_get_colour
+;-----------
+_get_colour:
+;-----------
+	push	bp
+	mov	bp,sp
+	push	es
+	mov	ah,52h			; get List of Lists
+	int	DOS_INT
+	les	bx,F52_CONDEV		; get console driver address
+get_colour10:
+	xor	cx,cx
+	dec	cx			; CX=FFFFh
+	mov	ax,es
+	cmp	ax,cx			; check if CON driver address valid
+	 jne	get_colour20
+	cmp	bx,cx
+	 jne	get_colour20
+	xor	ax,ax			; FFFF:FFFFh means end of chain
+	xor	dx,dx
+	jmp	get_colour40
+get_colour20:
+	call	check_colour		; test for CON with COLOUR support
+	 je	get_colour30
+	les	bx,es:[bx]		; go to next driver in chain
+	jmp	get_colour10
+get_colour30:
+	mov	ax,es:24[bx]		; get current COLOUR parameters
+	mov	dl,es:26[bx]
+get_colour40:
+	mov	bx,4[bp]		; and store them in variables
+	mov	ds:[bx],ax
+	mov	ds:2[bx],dl
+	pop	es
+	pop	bp
+	ret
+
+	Public	_set_colour
+;-----------
+_set_colour:
+;-----------
+	push	bp
+	mov	bp,sp
+	push	es
+	mov	ah,52h			; get List of Lists
+	int	DOS_INT
+	les	bx,F52_CONDEV		; get console driver address
+set_colour10:
+	xor	cx,cx
+	dec	cx			; CX=FFFFh
+	mov	ax,es
+	cmp	ax,cx			; check if CON driver address valid
+	 jne	set_colour20
+	cmp	bx,cx
+	 je	set_colour40		; FFFF:FFFFh means end of chain
+set_colour20:
+	call	check_colour		; test for CON with COLOUR support
+	 je	set_colour30
+	les	bx,es:[bx]		; go to next driver in chain
+	jmp	set_colour10
+set_colour30:
+	push	bx
+	mov	bx,4[bp]		; get new parameters
+	mov	ax,ds:[bx]
+	mov	dl,ds:2[bx]
+	pop	bx
+	mov	dh,al
+	and	al,1
+	mov	es:24[bx],al		; and update COLOUR with these
+	test	dh,2
+	 jnz	set_colour35
+	mov	es:25[bx],ah
+	mov	es:26[bx],dl
+set_colour35:
+	push	ax
+	mov	bh,dl
+	mov	ax,1001h		; set new border colour
+	int	10h
+	pop	bx
+	xchg	bh,bl
+	call	col_screen		; update screen colours
+set_colour40:
+	pop	es
+	pop	bp
+	ret
+
+check_colour:
+	push	ds			; check for COLOUR support in driver
+	push	si
+	push	di
+	push	cs
+	pop	ds
+	lea	si,cs:colour_sig	; signature
+	lea	di,10[bx]
+	mov	cx,14			; length of signature
+	cld
+	repz	cmpsb			; compare string
+	pop	di
+	pop	si
+	pop	ds
+	ret				; zero flag set if COLOUR supported
+
+colour_sig	db	"CON     ","COLOUR"
+
+col_screen:
+	mov	ah,0fh			; get current screen page
+	int	10h			; screen page in BH
+	mov	ah,3			; get cursor position
+	int	10h
+	push	dx
+
+	mov	si,40h			; BIOS data segment
+	mov	es,si
+	xor	si,si
+	xor	dx,dx			; start in upper left corner
+	mov	cx,1			; only one char per time
+col_screen10:
+	push	es
+	push	si
+	mov	ah,2			; set cursor position
+	int	10h
+	mov	ah,8			; read character with colour
+	int	10h			; AL = char, AH = colour
+	mov	ah,9			; write char back, BL = colour
+	int	10h
+	pop	si
+	pop	es
+	inc	dl			; mov to next column
+	cmp	dl,es:4ah[si]		; already at the end of the line?
+	 jne	col_screen10		; no, do it again
+	xor	dl,dl			; else continue at first column
+	inc	dh			; in next line
+	cmp	dh,es:84h[si]		; already last in last line
+	 jbe	col_screen10		; not finished, yet
+
+	pop	dx
+	mov	ah,2			; restore cursor position
+	int	10h
+	ret
 
 _TEXT	ENDS
 	END

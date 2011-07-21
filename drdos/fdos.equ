@@ -194,6 +194,7 @@ DATTS       equ byte ptr 11
   DA_DELWATCH	equ	80h		; 0x88 - return pending delete files
   DA_FIXED	equ	11011000b	; can't CHMOD label, dir, unused bits
   DA_CHANGE	equ	not DA_FIXED	; all others are changeable
+  DA_LFN	equ	DA_RO+DA_HIDDEN+DA_SYSTEM+DA_VOLUME
 
 ;DATTS2		equ	12		;CP/M attributes
 ;					; 0x80 - f1' modify default open rules
@@ -204,6 +205,7 @@ DATTS       equ byte ptr 11
 ;					; 0x04 - DELETE password
 ;					; 0x02 - WRITE password
 ;					; 0x01 - READ password
+DSIZEX		equ	12		;file size extension for FAT+ (bit 0-2 and 5-7)
 DUNDEL		equ	13		;1st letter of deleted file
 DPWD		equ	word ptr 14	;16-bit password hash code
 DMODTIME    	equ	word ptr 16	;delwatch time (hhhhhmmmmmmsssss)

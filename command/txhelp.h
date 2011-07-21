@@ -109,3 +109,5 @@ extern void near * near * near cdecl dls_table;
 #define help_verify		((char near *)dls_table[38])
 #define DLS_help_vol		39
 #define help_vol		((char near *)dls_table[39])
+#define DLS_help_colour		40
+#define help_colour		((char near *)dls_table[40])

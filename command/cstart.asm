@@ -250,7 +250,7 @@ C_HEAP_SIZE	equ	1200h		; C routine Heap Size - TMP has
 else					;  extra to save ENV in
 ;C_HEAP_SIZE	equ	0800h		; C routine Heap Size
 ;endif					; (observed sizes 500h-600h - IJ)
-C_HEAP_SIZE	equ	0860h		; C routine Heap Size
+C_HEAP_SIZE	equ	0CC0h		; C routine Heap Size
 ; For safety increased that value as UNC filenames require 128 byte buffers
 ; allocated dynamically on tha stack. With respect to the observed sizes
 ; above it might be dangerous to leave that value at 0800h. I would have
@@ -1667,7 +1667,7 @@ break_10:
 	mov	es,ax			; on old 8088 or 8086 so interrupts
 	mov	ss,ax			; must be disabled
 	mov	sp,stack_min		; Get the lowest possible stack address
-	add	sp,12			; Add a little to avoid problems with
+	add	sp,16			; Add a little to avoid problems with
 	sti				; the stack check code.
 
 	mov	ax,0100h		; Termination Code Control-C Abort
@@ -3082,7 +3082,36 @@ _int10_cls:
 	and	al,7fh
 	mov	ah, 0			; set mode, clear screen (al bit 7 clear)
 	int	10h
-	
+
+	push	es
+	mov	ah,52h			; get List of Lists address
+	int	21h
+	les	bx,F52_CONDEV		; address of console device driver
+	mov	ax,es:24[bx]		; COLOUR command active?
+	cmp	al,01
+	 jne	int10_cls10		; no, then skip
+	push	ax
+	mov	bh,es:26[bx]		; colour of the border
+	mov	ax,1001h		; set border colour
+	int	10h
+	pop	ax
+	mov	dx,40h			; BIOS data segment
+	mov	es,dx
+	xor	bx,bx
+	xor	cx,cx
+	push	bp
+	mov	bp,sp
+	mov	dh,4[bp]
+	pop	bp
+;	mov	dh,byte ptr es:84h[bx]
+	mov	dl,byte ptr es:4ah[bx]
+	dec	dl
+	mov	bh,ah			; character colour
+	mov	ax,600h
+	int	10h
+
+int10_cls10:
+	pop	es
 	call	cginfo			; has resolution changed?
 	pop	ax			; restore screen lines
 
