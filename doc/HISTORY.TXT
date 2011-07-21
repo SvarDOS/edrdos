@@ -1,0 +1,383 @@
+7.01.08 WIP:
+(30.5.2005):
+- made XBDA=LOW properly handle the case when no upper memory chain is present
+- added new config.sys COLOUR=xx,yy,zz to set the colour of foreground,
+  background and border, respectively
+- reserved more space in HMA for command.com to allow it to load high again
+- added support for quoted strings in batch file arguments
+- fixed BPB (BIOS parameter block) for unformatted FAT32 partitions
+- fixed free space handling for FAT32 drives without File System Info Block,
+  added safeguard against invalid FS Info Block
+- added alternate keys <CR> and <SPACE> to answer (Y/N) question for F8-single-
+  stepping and queries (? command) in config.sys; changed these routines to
+  beep if wrong key has been pressed instead of simply selecting 'no'
+- added option to run through the rest of config.sys in single-stepping mode by
+  hitting the R or <ESC> key
+(4.7.2005):
+- made VOL and DIR commands skip LFNs when looking for the volume label
+- changed delete file routine to also delete all LFNs preceding a dir entry
+- made dir removal routine regard LFNs as empty when checking if a dir is still
+  in use
+- made file rename/move routine delete LFNs both for old and new entry
+- fixed bug that caused the COLOUR command in config.sys to be repeated
+  endlessly when it was used in single-stepping or query mode
+- changed CLS command to use the colours set with the COLOUR command again
+  after clearing the screen
+- made COLOUR command also apply the new fore and background colour to the
+  screen immediately
+- also added alternate keys and run-through option to the single-stepping mode
+  of autoexec.bat
+(6.12.2005):
+- added support for decompressing DRDOS.SYS files compressed with Pack v1.00
+- added option /F to SWITCHES command, restructured config.sys processing to
+  wait for F5/F8 keys after SWITCHES has been processed
+- fixed bug in disk R/W routine that failed to update the LBA block number for
+  subsequent read/write attempts if the previous transfer was only partially
+  completed
+- fixed bug in partition login routines that caused dedicated LBA partitions
+  (type 0C/0Eh) within the CHS boundaries to be logged as CHS partitions
+- made control flow commands GOTO/GOSUB/RETURN/EXIT/SWITCH persistent in most
+  config.sys phases to make them work with (HI)INSTALLLAST
+- changed routine for SWITCH command to remember the option the user selected
+  in the main config.sys pass to keep it from asking again
+- fixed bug that caused DR-DOS to hang on delete/rename operations when the
+  boundary to the previous directory cluster was crossed while looking for
+  preceding LFN entries
+(15.1.2006):
+- fixed bug that caused delete file operation to fail in every second cluster
+  in a directory chain
+- added preliminary support for 64-bit file systems
+- added support for the FAT+ filesystem extension that allows files of up to
+  256 GB
+- added new function int 21h/AX=7142h (Long LSEEK) to allow 64-bit file pointer
+  positioning
+- placed additional check in read/write routine to ensure that files cannot
+  become larger than the FAT+ limit (256 GB - 1)
+- changed function 4E/4Fh (Find First/Next) to report a maximum file size of
+  4 GB - 1
+(20.8.2006):
+- fixed bug in new function 7142h that caused the seek direction parameter to
+  be lost
+- fixed bug that caused the carry flag to be cleared when an unsupported sub
+  function of DOS function 71/73h was called, causing some LFN-aware programs
+  to assume that the LFN API was present
+- fixed another bug in function 7142h that caused register DS not to be
+  restored
+- fixed yet another bug in function 7142h that caused positioning relative to
+  the end of the file to change the file size instead of the file pointer
+- fixed bug in free disk space computation routine that caused the next drive
+  letter to become inaccessible until reboot
+- added functions int 21h/AX=71A6 (Get File Info) and 21h/AX=71A7,BL=01
+  (Convert DOS time to 64-bit Windows time)
+(17.12.2006):
+- changed disk buffer routines to no longer flush all buffers for a drive when
+  a FAT sector on that drive is read into a buffer
+- fixed a bug introduced by the 128 KB cluster support that caused all file
+  read/write operations to be split into single cluster transfers
+- added new debug routines that access the TSC of 686 CPUs to measure the
+  execution time
+- changed deblocked RW routine to not use preread for a buffer if the sector to
+  be written is known to be unused.
+- changed disk buffer routines to allow a buffer to just be tagged as in use
+  instead of actually filled if it still exists, changed file RW routine to tag
+  the corresponding FAT buffer when a cluster is accessed
+- changed cluster allocation routines to not flush the FAT buffers for a drive
+  automatically whenever a new cluster chain is allocated
+- changed 32bit division routine to not use a long division if the divisor is
+  a 16bit value
+(21.4.2007):
+- added LFN support to COMMAND.COM for DIR command
+- added some preliminary code for LFN support in DEL command
+- fixed a bug in DR-DOS header which had been introduced by the 64-bit file
+  support that caused the file handle #3 to collide with the line input buffer,
+  resulting in unpredictable behaviour if the handle was in use
+- fixed bug in Int 19h routine and made it restore the XBDA segment to the
+  previous address if it had been relocated with the XBDA command
+(17.6.2007):
+- fixed FAT size for FAT32 in BIOS Parameter Block reported by IOCTL
+- made function Int 21h/AH=71h (LFN and 64-bit file support) set the carry flag
+  and AX=7100h if subfunction is unsupported
+- added FAT32 extension to function Int 21h/AH=53h (Translate BIOS Parameter
+  Block to Drive Parameter Block)
+- changed function Int 21h/AH=60h (Canonicalize Filename or Path) to also work
+  on CD-ROM drives, needed by TRUENAME command and also DOSLFN
+- increased maximum length of command line in COMMAND.COM to 255, removed 122
+  character limit when displaying the PATH variable
+- made COMMAND.COM identify its own filename and path after loading to allow it
+  to properly reload its transient part if it has been renamed
+(8.2.2008):
+- changed input redirection routines to cancel the redirection and continue to
+  read from the console device when reading from a file and EOF had already
+  been reached.
+- changed input redirection routine to clear register AH before calling the
+  Read function to read from a file to keep it from mistake it for a device
+  request header
+- fixed bug that caused the allocation of the last free cluster on a FAT32
+  drive to reset the free disk space info for that drive to the value
+  previously present in the FS Info Sector before the allocation of the cluster
+  chain
+- made DIR command also use LFN API for checking whether the search string
+  matches any files to prevent spurious "file not found" errors
+- fixed problem with LFN assembly interface code in COMMAND.COM not restoring
+  registers in use by the calling C code
+- added LFN support to DEL command
+- added support for LFN functions 7156h (Rename), 7160h (Expand), 713Bh
+  (Change Directory), 7143h (Get/Set File Attributes) and 7147h (Get Current
+  Directory) to the interface code of COMMAND.COM
+- added full LFN support to DIR
+- made DEL also use LFN functions for interactive mode (option /C)
+- added LFN support to CD and RENAME commands
+- added interface code for LFN functions 713Ah (Remove Directory) and 7139h
+  (Create Directory)
+- added LFN support to RD and MD commands
+- added interface code for LFN function 716Ch (Create/Open File)
+- added LFN support to TYPE and TRUENAME commands
+(12.4.2008):
+- changed TRUENAME to fail on nonexistant drives to mimic the behaviour of
+  MS-DOS
+- fixed bug that caused function Int 21h/AX=60h (Expand Filename) to produce
+  malformed paths for SUBSTituted drives
+- made DIR command display meaningful sizes for huge files on FAT+ drives if
+  DOSLFN is loaded
+- added missing CR LF to TRUENAME output to make piping it into FIND feasible
+- fixed bug in TRUENAME that caused it to erroneously report "invalid drive
+  specified" for drives that did not physically exist themselves but had been
+  SUBSTituted for a physical drive
+- fixed bug in TRUENAME that caused it to report spurious info for drive
+  letters beyond the LASTDRIVE setting
+- added LFN support to the COPY command
+- increased heap size and enabled stack checks in COMMAND.COM to guard against
+  heap/stack collisions
+(26.7.2008):
+- fixed bug in critical error handler of COMMAND.COM that triggered stack
+  overflows when accessing a drive with no disk inserted and selecting the
+  option "abort"
+- fixed bug that caused erratic behaviour instead of displaying an error when
+  RENAME was used on directories
+- adjusted heap/stack size for COMMAND.COM to fix another problem with COPY
+- enhanced RENAME command to also work on directories
+- added option /T to DATE and TIME to simply display current date/time without
+  prompting for new one
+- implemented new COLOUR command for command line and batch files
+(2.1.2009):
+- fixed bug in CLS command that sometimes caused screen foreground/background
+  colour not to be updated when COLOUR was active
+- fixed bug in function Int 21h/AX=7142h (Long LSEEK) that caused only the
+  lowest word of the 64-bit file pointer to be updated when moving the pointer
+  relative to its current position
+- made the COLOUR command in COMMAND.COM follow the driver chain to look for
+  the internal CON driver if an external driver (e.g. ANSI.SYS) has been loaded
+- added an option to skip AUTOEXEC.BAT when single-stepping the configuration
+  files
+- added proper messages when configuration files are single-stepped or skipped
+  due to F8/F5 key pressed
+- fixed 64 KB cluster support in BDOS loader
+- fixed bug that caused the ? (Query) command in CONFIG.SYS not to execute the
+  command it was used on
+- fixed bug in Ctrl-C/Break handler that could cause it not to restore the
+  stack properly in some cases when aborting the program
+- fixed bug in functions 4E/4Fh (Find First/Next) that caused them to also find
+  LFN entries in searches for only volume labels
+(28.3.2009):
+- made BDOS loader fall back to init drive if actual boot drive can not be
+  determined, this will (hopefully) fix reported problems with some boot
+  managers and non-standard MBRs
+- made all password handling routines ignore file passwords for files on FAT32
+  drives and for files with no access rights set to prevent hidden files
+  created or modified by DOSLFN from being mistaken for password-protected
+- restructured function 7142h (Long Lseek) to make it check the subfunction
+  number before the file handle
+- inverted error codes in function 73h since this is how error_exit expects
+  them
+- added limited support for function 714E/4Fh (LFN Find First/Next, but without
+  LFN support) which are needed for FAT+ support in DIR
+- added limited support for subfunctions 3 and 4 of function 7143h (LFN Set/Get
+  Last Write Time, but without LFN support) which are used by XCOPY
+(23.7.2009):
+- made function 440Dh/CL=60h (IOCTL - Get Device Parameters) report 80 tracks
+  instead of 40 for USB floppy disk drives
+- added experimental Int13h extension (LBA) support for removable drives
+- added experimental support for USB memory sticks
+- fixed bug in function 714E/4Fh (LFN Find First/Next) that caused it to
+  sometimes report the size of FAT+ files as 4 GB-1 instead of the actual file
+  size
+- fixed bug in functions 7142h (Long Lseek) and 71A6h (Get File Info) that
+  caused them to silently fail when called with an invalid file handle
+- changed network redirector to check whether a path that both resembles an UNC
+  (networking) filename AND contains a drive letter is on a local drive before
+  assuming that it is remote
+- removed unnecessary restriction regarding multiple leading path separators in
+  function 3Dh (Open) since it did not apply to other occurrences
+(21.07.2011):
+- reverted functions 1F/32h (Get DPB) to the behaviour before the 7.01.07
+  (24.3.2004) WIP version so they do no longer report FAT32 drives as invalid
+- added option /B "bare" to DIR command
+- included option /T in help text for TIME and DATE commands
+
+7.01.07:
+- added FAT32 support to the BDOS loader to allow booting from FAT32 partitions
+- added support for category code 48h (FAT32) to generic ioctl function,
+  changed get and set subfunctions to use extended BPBs again, but only for
+  this category
+- fixed bug in device driver initialization code that called driver interrupt
+  routine without checking whether its offset had been changed by the strategy
+  routine, causing Himem64 to hang after unpacking
+- added DOS 7 system call int 21h/AH=73h, implemented sub function 7303h (Get
+  Extended Free Disk Space)
+- changed dir command to use the new free disk space routine when it is
+  available and kilobytes instead of bytes for large numbers
+- fixed some small Watcom C/C++ 11.0c compilation problems
+- fixed bugs in disk device driver that caused Get/Set Media routines to not
+  read/write the serial number and label correctly on FAT16 and LBA drives
+- fixed bug in Find First/Next Matching File functions that caused volume
+  labels not to be found when other attributes were also given
+- fixed bug in SynchroniseBuffers routine that sometimes caused data
+  inconsistensies between buffers and disk
+- restructured DR-DOS DDSC to make it more compatible with DOS 7 Extended DPB
+  structure
+- implemented function 7302h (Get Extended DPB)
+- added alternate implementation of the int 25h/26h absolute disk read/write
+  interface via function 7305h, for the few silly programs that try to use the
+  so-called "extended" interface without checking if it is present
+- changed the behaviour of functions 1Fh and 32h (Get DPB) to return error code
+  FFh (invalid drive) for FAT32 drives; again, this was needed because some
+  programs rely on this function to identify FAT32 drives
+- changed OEM version code in function 30h from 00h (PC DOS) to EEH (DR DOS),
+  changed true version as reported by function 3306h to 7.01, let SetVer
+  override this as well to make Scandisk activate its FAT32 functionality
+- added drive locking/unlocking functions to the disk device driver that fake
+  a successful operation to make Scandisk work again after version change
+- reduced maximum cluster size reported by function 36h for FAT32 partitions to
+  32K to improve compatibility with existing disk tools.
+- removed a rather dirty hack that was needed to work around a bug in the
+  DR-DOS 7.03 boot sector code
+- fixed bugs related to STACKS command
+- added code to allow buffers, files, fcbs, stacks and drive table to be loaded
+  in upper or high memory.
+- added new config.sys commands HIFILES, HIFCBS, HISTACKS and HILASTDRIVE to
+  load these data structures high even if DOS itself is loaded low
+- added support for function 3001h (Get Version Flag) which is needed by
+  Windows 3.x
+- worked around a bug in MASM that led to errors in the DR-DOS header which was
+  the reason why the taskswitcher refused to start
+- fixed bugs in command.com to make comparisons in batch files with quoted
+  strings work as expected
+- added support for environment and internal variables on the command line
+- changed function 49h (Free Memory) to merge adjacent free blocks after
+  freeing a memory block
+- fixed an overflow error that prevented DR-DOS from reading/writing files if
+  the seek position was larger than (partition_size modulo 4 GB)
+- made command.com stay resident even if not invoked with parameter /P when no
+  other primary shell is installed, removed default parameters A: /P
+- changed DEVICE command to not insert unnessary spaces into device driver's
+  command line
+- added new experimental config.sys command VERSION=x.x to allow to change the
+  global version setting
+- added support for block device drivers that are loaded with INSTALL in
+  config.sys by increasing the number of drive letters available at boot time
+  and copying the temporary logical drive table into the final one
+- made some arrays in command.com static to keep nested IF commands in batch
+  files from overflowing the stack
+- added experimental support for drives with 128 KB cluster size (sectors per
+  cluster in boot sector = 0)
+- added new code to allow DDSC structures to be relocated to upper or high
+  memory, added new config.sys command DDSCS=HIGH,UMB to configure this feature
+  (default is DDSCS=LOW)
+- added new code to also allow the DOS data segment to be relocated to upper
+  memory, added new config.sys command DOSDATA=UMB to activate this (default is
+  DOSDATA=LOW)
+- added new code to allow the Extended BIOS Data Area to be relocated to low or
+  upper memory if for some reason the memory manager fails to do this, added
+  new config.sys command XBDA=LOW,UMB
+- fixed a bug in the FAT32 FSInfo block handling routines that manifested after
+  the DDSC relocation feature had been introduced
+- fixed age-old OpenDOS bug that caused wrong value to be used for code segment
+  padding which made DR-DOS hang during boot when loaded low on some machines
+- made command.com ignore leading semicolons in %PATH% environment variable
+- changed location of static arrays in command.com to another segment to work
+  around what seems to be a bug in TaskMgr
+- changed boot code so that DR-DOS will look for ibmdos.com and config.sys on
+  the correct drive when booting from a second primary partition
+- changed history and deblock buffer setup routines to use upper mem for these
+  buffers if available
+- changed FILES/FCBS to use upper memory by default if available
+- changed number of internal file handles in the DOS header to four, remooved
+  now obsolete command line buffer size hack
+- changed floppy disk BPB table in init to use old-style BPB structure
+- fixed command.com stack corruption problem when PATH is longer than 256 bytes
+- fixed yet another bug from OpenDOS times that caused the RENAME command to
+  corrupt the command.com stack if the new filename was longer than eight bytes
+- fixed a stupid bug present since v7.01.04 that referenced some internal LBA
+  variables via the wrong segment register, causing FORMAT to crash upon
+  completion in recent versions with DOSDATA relocation
+- introduced two new config.sys commands INSTALLLAST and HIINSTALLLAST that
+  load programs after the DOSDATA segment relocation to work around problems
+  with older programs that are incompatible with this feature when INSTALLed
+- enhanced the VERSION=x.xx,y.yy config.sys command to also allow setting the
+  True DOS Version as reported by function 3306h
+- fixed code in command.com module cmdlist to work with Watcom C; changed
+  default compiler for cmdlist from Borland C to Watcom C
+- added support for DR-DOS 7.03 internal vars %_YEAR%, %_MONTH%, %MOY%, %_DAY%,
+  %DOM%, %_DOW%, %_DOWI%, %_HOUR%, %_MINUTE%, %_SECOND%, %ERRORLEVEL%,
+  %ERRORLVL%, %_ROWS%, %_COLUMNS%, %_COUNTRY% and %_CODEPAGE% to command.com
+- changed the names for the kernel files to DRBIO.SYS and DRDOS.SYS; changed
+  official name to "Enhanced DR-DOS"
+- enhanced IF statement to also allow letters instead of numbers in ERRORLEVEL
+  tests, i.e. IF ERRORLEVEL A translates into IF ERRORLEVEL 1
+
+7.01.06:
+- added support for FAT32 partition types and boot records to disk device
+  driver
+- expanded sector numbers in buffer management routines from 24 to 32 bit to
+  allow partitions larger than 8 GB
+- added FAT32 specific entries to DR-DOS file system structures
+- rewrote most file system routines to cope with 32-bit cluster numbers and
+  dynamic root directories (FAT32)
+- added support for FAT32 file system info block to store free disk space
+  to speed up disk access
+- changed the free disk space routine to use dynamic cluster sizes on FAT32
+  partitions to report free space more accurately
+- added a routine to command.com to display large numbers with thousands
+  delimiters, changed dir command to use it
+- fixed bugs in the boot routine to allow booting from 64 KB cluster
+  partitions
+- fixed bug that caused command.com not to terminate the PSP chain at the
+  master PSP, leading to all kinds of problems with the environment space
+- fixed bug in dir command that caused the free disk space on partitions with
+  64 KB clusters to be displayed as zero
+- fixed bug in the memory allocation routine that would cause the install
+  command to crash sometimes when upper memory was present
+- fixed bug in LBA routines that caused writing problems on some systems, this
+  may also speed up writing on other systems
+- increased heap space in command.com to prevent corruption of command line
+  arguments while processing deeply nested batch files
+- fixed bug that sometimes caused XMSDSK to corrupt the last memory block
+
+7.01.05:
+- some preliminary changes for 32-bit file system support
+- added support for 4 GB FAT16 partitions (64 KB cluster size)
+
+7.01.04:
+- added routines to convert LBA values to CHS and vice versa
+- rewrote the partition registering routine to use the LBA values in the
+  partition tables instead of the obsolete CHS values, disabled old code
+- added int 13 extensions (LBA) support to the partition login and track r/w
+  routines
+- added support for partition type 0eh (FAT16B LBA)
+
+7.01.03:
+- added a hex value output routine for debugging purposes
+- changed the behavior of the partition registering routine to not follow loops
+  in the partition tables
+
+7.01.02:
+- changed some text strings to reflect the new version number
+- slightly changed the structure of the start-up message routine
+- added support for ExtendedX (type 0fh) partitions
+- added a routine that checks for and displays the version number of extended
+  int 13 (LBA) support
+- some preliminary changes for LBA support
+
+7.01.01 (original release):
+- fixed the compilation to work with MASM 6.0b and Watcom C/C++ 10.0a
+- no user-visible changes

@@ -1,0 +1,27 @@
+To install the binaries, create a directory on your hard disk and copy the
+archive there. You can then unpack it with unzip32 or any other tool that can
+unpack ZIP archives. From this directory, you can either use the makeboot batch
+file to create a boot disk, e.g. makeboot a: will make a boot disk of the disk
+in drive a:, or you can just copy the three files drbio.sys, drdos.sys and
+command.com on any existing DR-DOS 7 boot disk and use the DR SYS tool to write
+a new boot sector to the disk. DR SYS is available as a separate package. You
+can also copy these files to your hard disk, but make sure you have a boot disk
+to be able to reinstall your old DOS in case there is a problem. Also, please
+read bugs.txt before you proceed.
+
+To compile the source code, create a directory and copy dossrc.zip and any
+patches you want to use there, then unzip the files with unzip32 or any other
+tool that can unpack ZIP archives. Make sure you have the patch utility in your
+path, then apply the patches by typing "patch -p1 <dr7010x.dif", where x is the
+minor version number, up to the required number in consecutive order. Depending
+on which patches you want to apply, you might have to change the names of some
+sub directories to match those in the patch. Before you can compile the source
+code, you have to edit the make.bat file in the directories drbio, drdos and
+command to adjust the locations of your your MASM and Watcom files if
+necessary. Then you can run make.bat in these directories to compile the source
+code. The resulting binaries will be in the sub directory "bin". To boot the
+compiled version of Enhanced DR-DOS, the files drbio.sys, drdos.sys and
+command.com have to be copied on a bootable Enhanced DR-DOS disk. If you do not
+have one, you will find a disk image in the archives containing the precompiled
+binaries. Alternatively, you can create one yourself by using DR SYS to install
+an Enhanced DR-DOS boot sector to any formatted disk.

@@ -1,0 +1,58 @@
+The DR-DOS/OpenDOS Enhancement Project
+
+Many PC users in the world use DR-DOS because of its advanced features.
+In mid 2002, however, the development of DR-DOS seemed to have stopped and the
+last version had been released more than three years ago. Since there is no
+other PC operating system that combines so many useful features with full PC
+compatibility, I decided to write my own set of patches for DR-DOS to fix some
+bugs and add support for new standards.
+Since the source code of later versions of DR-DOS was not freely available, I
+decided to use the source code of DR-DOS 7.01, better known as OpenDOS, as
+the base for my work.
+Originally, I had only planned to make minor modifications to DR-DOS 7.01, like
+adding support for large disks, fix some bugs, etc., but with each successive
+version, the scope of the project increased, thereby extending the original
+concept of DOS.
+
+You will find the latest patches at http://www.drdosprojects.de, the project's
+official web site. Since it has got its own domain, this should not change
+anymore.
+
+To use the supplied patches, you need the following:
+- a copy of the original Caldera OpenDOS 7.01 source code archive (DOSSRC.ZIP)
+- a tool capable of unpacking ZIP archives
+- a utility to apply the patches to the source
+- the development tools MASM 6.0b and Watcom C/C++ 10.0a (other versions may
+  work as well, but this has not been tested)
+
+Note that the source code patches are not cumulative, meaning that you have to
+apply the earlier patches to the source code as well, with the exception of
+Work-In-Progress (WIP) and Release Candidate (RC) versions; these refer to the
+previous main release version.
+
+For those who do not want to compile the source code themselves or lack the
+necessary development software, there are also pre-compiled binaries available.
+
+OpenDOS had originally been released by Caldera under a commercial license, and
+it is still bound to this license. If you plan to use OpenDOS for commercial
+purposes, you need a commercial license for it from either Caldera or the
+company that now owns DR-DOS/OpenDOS, DeviceLogics (or like they seem to call
+themselves now, DRDOS, Inc.).
+The original Caldera license agreement is in the file license.txt, and it also
+applies for any modified versions that you can download here, as far as they
+are based on OpenDOS, except that you should not contact their tech support on
+matters specific to the modified versions. You should read license.txt before
+you start using any of them.
+
+If you use these patches or the precompiled binary versions on my web site, you
+do it at your own risk. I am not responsible for any damage that might occur
+to your hardware or data from using them.
+Due to the experimental nature of these patches and lack of time on my side, I
+cannot provide extensive technical support for them. However, if you find a bug
+that I have not been aware of, or if you want to tell me something that you
+think I should know, you should post a message in
+- the Enhanced DR-DOS forum at http://www.drdosprojects.de/forum/drp_forum/
+which I usually check at least once in a few days. This forum is also an
+excellent place to ask any other DR-DOS related questions or discuss any DR-DOS
+topics with other members of the DR-DOS community.
+

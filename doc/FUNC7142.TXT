@@ -1,0 +1,13 @@
+--------O-217142-------------------------------
+INT 21 - EDR-DOS 7.01.08+ - "Long LSEEK" - SET CURRENT 64-bit FILE POSITION
+	AX = 7142h
+	CL = origin of move
+	    00h start of file
+	    01h current file position
+	    02h end of file
+	BX = file handle
+	DS:DX = pointer to (signed) 64-bit offset from origin of new position
+Return: CF clear if successful
+	    DS:DX unchanged, new 64-bit position from start of file at -> DS:DX
+	CF set on error
+	    AX = error code (01h,06h) (see #01680 at AH=59h/BX=0000h)

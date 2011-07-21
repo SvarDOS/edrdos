@@ -1,0 +1,74 @@
+New or changed commands:
+
+In Config.sys:
+
+ HIFILES/HIFCBS	moves file handles and file control blocks (FCBs) to upper or
+		high memory if available
+ HISTACKS	moves interrupt stacks to upper or high memory
+ HILASTDRIVE	moves drive table to upper or high memory
+ DDSCS=UMB|HIGH|HIGH,UMB
+		moves drive descriptor tables (DDSCS) to upper or high memory;
+		default is DDSC=LOW
+ DOSDATA=UMB	moves main DOS data segment to upper memory; default is LOW
+ XBDA=LOW|UMB|LOW,UMB
+		relocates extended BIOS data area (XBDA) to low base or upper
+		memory if the memory manager has not already done this
+ VERSION=x.xx[,y.yy]
+		sets the DOS version (Int 21h/AH=30h) and optionally the true
+		DOS version (Int 21h/AX=3306h) to be reported to programs
+ [HI]INSTALLLAST
+		works like INSTALL/HIINSTALL, but loads program after the DOS
+		data segment relocation
+ COLOUR fg,bg,bd
+		changes the foreground, background and border colour of the
+		DOS screen
+
+ [HI]BUFFERS	can now also use upper memory if available
+ FILES/FCBS	uses upper memory by default if available
+ LASTDRIVE	uses upper memory by default if available
+ HISTORY	uses upper memory by default if available
+
+In batch files/on the command line:
+
+ COLOUR [fg][,[bg][,[bd]]]|ON|OFF
+		changes the foreground, background and border colour of the
+		DOS screen
+
+ TIME /T	display current time without prompting for new one
+ DATE /T	display current date without prompting for new one
+ DIR /B		lists filenames without any other info
+
+New or changed system calls:
+
+ Int 21h/AX=7302h	Get Extended Drive Parameter Block
+	/AX=7303h	Get Extended Free Disk Space
+	/AX=7305h	alternative Absolute Disk Read/Write Interface
+	/AX=3001h	Get Version Flag
+
+	/AX=7142h	Long LSEEK
+			This function works like 42h but uses a 64bit (QWORD)
+			buffer pointed to by DS:DX for both the signed offset
+			and the resulting absolute file pointer position; the
+			type of movement is read from CL
+	/AX=71A6h	Get File Info
+	/AX=71A7h,BL=01	Convert DOS Time to Windows 64bit Time
+	/AX=714E/714Fh	LFN FindFirst/Next
+	/AX=71A1h	LFN FindClose
+	/AX=7143h,
+	 BL=3/4		LFN Set/Get Last Write Time
+
+ Int 21h/AX=440dh	(Generic IOCTL) now supports category code 48h (FAT32)
+			stubs have been added for sub functions 4ah, 4bh, 6ah
+			and 6bh	(lock/unlock logical/physical drive) that fake
+			successful operation
+	/AH=1fh/32h	(Get DPB) ***no longer returns DPBs for FAT32 drives***
+			reverted to previous behaviour
+	/AH=30h		(Get DOS Version) now reports OEM code eeh (DR DOS)
+			instead of 00h (PC DOS)
+	/AX=3306h	(Get True DOS Version) now returns 7.01 instead of
+			6.00, configurable by SETVER or VERSION command
+	/AH=36h		(Get Free Disk Space) no longer reports cluster sizes
+			>32K on FAT32 partitions
+	/AH=49h		(Free Memory) merges adjacent free blocks after freeing
+	/AH=53h		(Translate BPB to DDSC) now uses FAT32 BPBs and DDSCs
+			if CX=4558h and DX=4152h

@@ -1,0 +1,93 @@
+There are currently no serious bugs known to be in Enhanced DR-DOS, but you
+might encounter problems with software that is not adapted to some of its
+features. In particular, you should read the following warnings before using
+any disk tools:
+
+Warning: Beginning with version 7.01.04, DR-DOS is able to use the LBA BIOS
+functions to access hard disk partitions outside the 7.8 GB limit defined by
+the old CHS (cylinder, head & sector) system. This is no problem for any disk
+tools that use DOS functions to access these partitions, however, there are
+many old tools that are not LBA-compliant which use low-level BIOS calls to
+access hard disks. When used on partitions that are not within the space
+accessible via CHS these tools could possibly write data to the wrong sectors
+on the hard disk and thus cause severe damage. This is not a bug in DR-DOS, but
+a limitation of these tools. Some of the disk tools that are included in the
+distributions of DR-DOS 7.0x like fdisk, format, diskopt, etc. may also fall
+into this category. Until they have been tested on LBA partitions and it has
+been found that they are safe to use, do not use them without making a backup
+of your hard disk first.
+
+Warning: Beginning with version 7.01.05, DR-DOS supports FAT16 partitions with
+a cluster size of 64 KB. This feature has been tested and found to be working.
+However, until someone has done extensive tests and it has been found that it
+is generally safe to use, use precautions before using it on partitions that
+contain valuable data. Also, please note that many disk tools do not expect to
+see this feature on a DOS based machine, so they most likely do not support it.
+Windows NT and FreeDOS support it, so tools written for these operating systems
+should be safe to use.
+
+Update: Chkdsk seems to work with both LBA partitions and 64K clusters.
+
+Warning: In version 7.01.06 I have introduced support for the FAT32 file system
+to DR-DOS. However, many disk tools (including those of DR-DOS 7.0x) do not
+support FAT32, at least not in DOS. You should not use any disk tools on FAT32
+drives unless you know that they are compatible with FAT32 and large drives.
+Tools written for FreeDOS or MS-DOS 7 and higher should be safe to use.
+
+Enhanced DR-DOS v7.01.07 again adds new features that might prove incompatible
+with older software:
+- It now supports drives with 128K cluster size. This is mostly untested, since
+  there are no DOS tools that support this cluster size. Existing tools
+  probably cannot handle this size. Due to limitations of the bootsector and
+  BDOS loader code, it also cannot boot from those drives.
+  Update (30.5.2005): The new DR-DOS FORMAT v1.0 supports this cluster size.
+- Several config.sys commands that DR-DOS 7.03 uses to move data structures to
+  upper memory are now supported, some of which have been enhanced to provide
+  additional benefits. Older software might expect to see these structures in
+  lower mem, so you might have to turn those options off to run it.
+  Also, because of enhancements of the internal memory handling, some older TSR
+  programs might not work properly if you load them with INSTALL/HIINSTALL in
+  config.sys. If that is the case, use INSTALLLAST/HIINSTALLLAST instead.
+
+Starting with version 7.01.08 WIP (15.1.2006), Enhanced DR-DOS supports the
+FAT+ filesystem extension which allows files to become as large as 256 GB - 1B,
+space on the drive permitting. This support is automatic and does not require
+any changes to existing drives. FAT+ is fully downward compatible with FAT for
+drives which only contain files that are below the 4 GB limit of the older FAT
+filesystem in size. To prevent non-FAT+-aware OSes from accidentally accessing
+FAT32+ drives which contain larger files, it is recommended to set the FAT32
+version number in the boot block of these drives to 0.1 (major version 0, minor
+version 1) to indicate that they should not mount these drives.
+
+Other things known not to work perfectly:
+- The DIR command currently does not show the actual size of files larger than
+  4 GB; this will probably be fixed in one of the next WIP versions.
+  Update (12.4.2008): DIR at least now shows large file sizes if DOSLFN is
+  loaded.
+  Update (28.3.2009): DIR no longer needs DOSLFN to show large file sizes.
+- Function Int 21h/AX=71A6 is supposed to give the "Unique File Identifier" of
+  an open file. Until someone can tell me how Windows determines this value, it
+  will be shown as 0 instead. Also, the number of "links to this file" is
+  always assumed to be 1.
+- Function Int 21h/AX=71A7,BL=01 treats all time stamps as local, simply
+  because there is no time zone information in DOS. This also affects the time
+  stamps given by function 71A6. The inverse function BL=00 has not been
+  implemented, yet.
+- DOSLFN and probably also other LFN tools use some reserved bytes in directory
+  entries to store additional time stamps; alas, some of those bytes are used
+  by DR-DOS as part of the file password protection system. The result is that
+  hidden files with a creation file time set may show up in directory searches
+  not looking for hidden files. If this is a problem to you, you can either
+  compile a version of DRDOS.SYS without specifying /DPASSWORD in MAKE.BAT or
+  not use hidden files with Long Filenames.
+  Update (6.1.2009): I have solved the problem by making Enhanced DR-DOS ignore
+  all file passwords on FAT32 drives (on which passwords cannot be used,
+  anyway) and for files with no access rights set (which cannot happen for
+  actually password-protected files). However, using DOSLFN on password-
+  protected files will probably corrupt the passwords or accidentally unprotect
+  the files.
+- Enhanced DR-DOS 7.01.08 WIP (28.3.2009) includes partial support for several
+  LFN functions (7143h,714E/4Fh,71A1h) which are used by COMMAND.COM or other
+  tools, however, they do not actually support LFN functionality. If you need
+  full LFN support, you have to load DOSLFN or a similar TSR. Also, the
+  functions 714E/4Fh do not support two or more concurrent searches.
