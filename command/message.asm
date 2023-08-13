@@ -226,7 +226,7 @@ _msg_serno	db	0, "XXX-0000-987654321X", NUL
 	public	_msg_oemcpyrt
 	public	msg_oemcpyrt
 msg_oemcpyrt	label	byte
-_msg_oemcpyrt	db	LF, "LICENSED FOR NON-COMMERCIAL USE ONLY", LF, 0, "FILLERFILLERFILLERFILLER", NUL
+_msg_oemcpyrt	db	LF, "Distributed and used under license agreement by DRDOS, Inc. on 2022-07-07", LF, 0, "FILLERFILLERFILLERFILLER", NUL
 	public	_msg_cpyself
 	public	msg_cpyself
 msg_cpyself	label	byte
