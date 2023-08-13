@@ -112,6 +112,9 @@ open_dev:
 	lea	di,DHNDL_DATRB[bx]	; point at start of area to fill
 	mov	cx,DHNDL_UID-DHNDL_DATRB
 	rep	stosb
+	lea	di,DHNDL_SIZEX[bx]
+	mov	cx,(DHNDL_LEN - DHNDL_SIZEX) / 2
+	rep	stosw			; clear 64-bit high dwords size/seek
 	mov	es:DHNDL_SHARE[bx],ax	; also zap share word	
 	pop	es:DHNDL_DEVOFF[bx]
 	pop	es:DHNDL_DEVSEG[bx]	; save device driver address
