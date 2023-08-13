@@ -372,7 +372,32 @@ func71a6:
 	neg	ax
 	jmp	f71_error
 f71a6_handle_ok:
-	call	redir_dhndl_offer
+	test	es:byte ptr DHNDL_WATTR+1[bx],DHAT_REMOTE/100h
+	jz	f71a6_not_redirector
+
+f71a6_redirector:
+	mov di, bx		; es:di -> SFT entry
+
+	push	ds
+	lds	bp,int21regs_ptr
+	mov	dx,ds:reg_DX[bp]
+	mov	ds,ds:reg_DS[bp]; ds:dx -> buffer
+
+	mov	ax,11A6h
+	stc
+	int	2Fh		; dosemu2 extension function
+	jnc	f71a6_ret_CF	; supported and successful -->
+	cmp	ax,1		; error 1 ?
+	stc			; indicate error (CY)
+	jne	f71a6_ret_CF
+	mov	ax, 7100h	; MSWindows 4 returns CY, ax=7100h on redirector
+				; (still CY)
+
+f71a6_ret_CF:
+	pop	ds
+	jmp	f7142_ret_CF
+
+f71a6_not_redirector:
 	test	es:DHNDL_ATTR[bx],DHAT_DEV
 	 jnz	f71a6_dev		; skip if character device
 	call	verify_handle		; check if valid file handle
