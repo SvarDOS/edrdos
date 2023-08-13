@@ -2589,9 +2589,15 @@ BYTE	*s;
 	        if (*s && !strchr(",",*s++)) error=TRUE;
 	        if (isdigit(*s)) getdigit(&bg,&s);
 	        if (*s && !strchr(",",*s++)) error=TRUE;
-	        if (isdigit(*s)) getdigit(&colset.border,&s);
-	        s=deblank(s);
-	        if (*s||fg>15||bg>15||colset.border>63) error=TRUE;
+		{
+		  WORD to_set_colset_border = colset.border;
+	          if (isdigit(*s)) {
+		    getdigit(&to_set_colset_border,&s);
+		    colset.border = (BYTE)to_set_colset_border;
+		  }
+	          s=deblank(s);
+	          if (*s||fg>15||bg>15||to_set_colset_border>63) error=TRUE;
+		}
 	        if (!error) {
 		  colset.flags=1;
 	        }
