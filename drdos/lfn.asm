@@ -131,6 +131,11 @@ f7142_handle_ok:
 f7142_redirector:
 	mov di, bx		; es:di -> SFT entry
 
+	push	ds
+	lds	bp,int21regs_ptr
+	mov	dx,ds:reg_DX[bp]
+	mov	ds,ds:reg_DS[bp]; ds:dx -> buffer
+
 		; If either of the calls fails with error 1
 		;  it means that call is not supported. So we
 		;  try one, and if it returns error 1 then
@@ -148,16 +153,18 @@ f7142_redirector:
 	mov	ax,11C2h
 	stc
 	int	2Fh
-	jnc	f7142_ret_CF	; supported and successful -->
+	jnc	f7142_ret_CF_ds	; supported and successful -->
 	cmp	ax,1		; error 1 ?
 	stc
-	jne	f7142_ret_CF	; error other than 1,
+	jne	f7142_ret_CF_ds	; error other than 1,
 				;  that means it is supported.
 				;  return the other error -->
 	mov	ax,1142h	; ax = 1142h
 	stc
 	int	2Fh
-f7142_ret_CF:
+f7142_ret_CF_ds:
+	pop	ds
+f71_ret_CF:
 	jc	f71_error_j
 	jmp	f7142_ret_success
 
@@ -385,22 +392,20 @@ f71a6_redirector:
 	mov	ax,11A6h
 	stc
 	int	2Fh		; dosemu2 extension function
-	jnc	f71a6_ret_CF	; supported and successful -->
+	jnc	f71a6_ret_CF_ds	; supported and successful -->
 	cmp	ax,1		; error 1 ?
 	stc			; indicate error (CY)
-	jne	f71a6_ret_CF
+	jne	f71a6_ret_CF_ds
 	mov	ax, 7100h	; MSWindows 4 returns CY, ax=7100h on redirector
 				; (still CY)
 
-f71a6_ret_CF:
-	pop	ds
-f7142_ret_CF_j:
-	jmp	f7142_ret_CF
+f71a6_ret_CF_ds:
+	jmp	f7142_ret_CF_ds
 
 f71a6_dev:
 	mov	ax, 7100h
 	stc
-	jmp	f7142_ret_CF_j
+	jmp	f71_ret_CF
 
 f71a6_not_redirector:
 	test	es:DHNDL_ATTR[bx],DHAT_DEV
