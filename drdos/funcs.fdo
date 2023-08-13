@@ -969,13 +969,11 @@ fdos_lseek:
 ;----------
 	call	vfy_dhndl_ptr		; check file handle #
 	call	redir_dhndl_offer
-	test	es:DHNDL_ATTR[bx],DHAT_DEV
-;	 jnz	lseek_dev		; skip if character device
-	 jz	lseek01
-	jmp	lseek_dev		; skip if character device
-lseek01:
 	call	local_disk		; get MXdisk, switch stack
+	test	es:DHNDL_ATTR[bx],DHAT_DEV
+	 jnz	lseek_dev		; skip a part if character device
 	call	check_handle		; check if legal file handle
+lseek_dev:
 	mov	ax,fdos_pb+4		; get 32-bit file offset
 	mov	dx,fdos_pb+6		; into AX,DX
 	mov	cx,fdos_pb+8		; get seek mode
@@ -1046,13 +1044,6 @@ lseek4d:
 lseek4e:
 	mov	fdos_pb+4,ax		; set return values
 	mov	fdos_pb+6,dx
-	ret
-
-lseek_dev:				; jump here if character device
-	mov	si,2[bp]		; SI -> parameter block
-	xor	bx,bx
-	mov	4[si],bx		; always return result of 0000h
-	mov	6[si],bx
 	ret
 
 eject

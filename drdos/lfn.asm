@@ -166,10 +166,10 @@ f71_error_j:
 
 f7142_not_redirector:
 	test	es:DHNDL_ATTR[bx],DHAT_DEV
-	 jz	f7142_05
-	jmp	f7142_dev		; skip if character device
+	jnz	f7142_dev		; skip a part if character device
 f7142_05:
 	call	check_handle		; check if valid file handle
+f7142_dev:
 	push	ds
 	lds	bp,int21regs_ptr
 	mov	ax,ds:reg_CX[bp]	; AL = original CL
@@ -234,7 +234,6 @@ f7142_ret_success:
 	xor	ax,ax
 	call	return_AX_CLC
 	clc
-f7142_dev:
 	ret
 
 func7143:
