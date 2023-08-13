@@ -125,7 +125,46 @@ f7142_02:
 	neg	ax
 	jmp	f71_error
 f7142_handle_ok:
-	call	redir_dhndl_offer
+	test	es:byte ptr DHNDL_WATTR+1[bx],DHAT_REMOTE/100h
+	jz f7142_not_redirector
+
+f7142_redirector:
+	mov di, bx		; es:di -> SFT entry
+
+		; If either of the calls fails with error 1
+		;  it means that call is not supported. So we
+		;  try one, and if it returns error 1 then
+		;  either it meant to return the actual error
+		;  1 or it isn't supported. Either way, we want
+		;  to try the other call then.
+		; If 11C2h meant to return an actual error 1
+		;  then we'll still call 1142h, but either
+		;  1142h isn't supported anymore (so we get the
+		;  eventual error 1 anyway), or it is also
+		;  supported and we will get the same error 1
+		;  again from the second call, too.
+		; If 11C2h isn't supported we will call 1142h
+		;  and return whatever status it gives us.
+	mov	ax,11C2h
+	stc
+	int	2Fh
+	jnc	f7142_ret_CF	; supported and successful -->
+	cmp	ax,1		; error 1 ?
+	stc
+	jne	f7142_ret_CF	; error other than 1,
+				;  that means it is supported.
+				;  return the other error -->
+	mov	ax,1142h	; ax = 1142h
+	stc
+	int	2Fh
+f7142_ret_CF:
+	jc	f71_error_j
+	jmp	f7142_ret_success
+
+f71_error_j:
+	jmp	f71_error
+
+f7142_not_redirector:
 	test	es:DHNDL_ATTR[bx],DHAT_DEV
 	 jz	f7142_05
 	jmp	f7142_dev		; skip if character device
@@ -191,6 +230,7 @@ f7142_30:				; mode 2: relative to end of file
 	mov	6[si],ax
 f7142_40:
 	pop	ds
+f7142_ret_success:
 	xor	ax,ax
 	call	return_AX_CLC
 	clc
