@@ -1,0 +1,18 @@
+syntax: glob
+
+command/RESP1
+command/RESP2
+command/RESP3
+command/resp1
+command/resp2
+command/resp3
+command/batch.err
+command/com.err
+command/comcpy.err
+command/comint.err
+command/command.map
+command/support.err
+command/bin/*
+drbio/bin/*
+drdos/bin/*
+prepare.bat
