@@ -394,7 +394,13 @@ f71a6_redirector:
 
 f71a6_ret_CF:
 	pop	ds
+f7142_ret_CF_j:
 	jmp	f7142_ret_CF
+
+f71a6_dev:
+	mov	ax, 7100h
+	stc
+	jmp	f7142_ret_CF_j
 
 f71a6_not_redirector:
 	test	es:DHNDL_ATTR[bx],DHAT_DEV
@@ -466,7 +472,6 @@ f71a6_not_redirector:
 	pop	ds
 	call	return_AX_CLC
 	clc
-f71a6_dev:
 	ret
 
 func71a7:
