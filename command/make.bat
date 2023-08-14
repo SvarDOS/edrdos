@@ -70,31 +70,31 @@ IF ERRORLEVEL 1 GOTO FAILED
 %WC% %OPT_S% /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\cmdlist.obj .\cmdlist.c
 IF ERRORLEVEL 1 GOTO FAILED
 
-ECHO -w -d -f- -K -O -X -Z -c -ms -I%BCC20H% -DMESSAGE -DDOSPLUS -zSCGROUP -zTCODE -zR_MSG > RESP1
-ECHO -I.\ >> RESP1
-ECHO -o.\bin\cmdlist.obj .\cmdlist.c >> RESP1
+ECHO -w -d -f- -K -O -X -Z -c -ms -I%BCC20H% -DMESSAGE -DDOSPLUS -zSCGROUP -zTCODE -zR_MSG > resp1
+ECHO -I.\ >> resp1
+ECHO -o.\bin\cmdlist.obj .\cmdlist.c >> resp1
 %BCC20% @resp1
 IF ERRORLEVEL 1 GOTO FAILED
 
-ECHO .\bin\cstart.obj .\bin\com.obj .\bin\csup.obj +> RESP2
-ECHO .\bin\dosif.obj .\bin\comint.obj .\bin\support.obj+>> RESP2
-ECHO .\bin\cmdlist.obj .\bin\printf.obj+>> RESP2
-ECHO .\bin\message.obj +>> RESP2
-ECHO .\bin\batch.obj .\bin\global.obj .\bin\config.obj+>> RESP2
-ECHO .\bin\comcpy.obj .\bin\crit.obj +>> RESP2
-ECHO +>> RESP2
-ECHO .\bin\resident.obj>> RESP2
-ECHO .\bin\command.exe>> RESP2
-ECHO .\command.map>> RESP2
-ECHO %WATCOM%\LIB286\DOS\CLIBs>> RESP2
+ECHO .\bin\cstart.obj .\bin\com.obj .\bin\csup.obj +> resp2
+ECHO .\bin\dosif.obj .\bin\comint.obj .\bin\support.obj+>> resp2
+ECHO .\bin\cmdlist.obj .\bin\printf.obj+>> resp2
+ECHO .\bin\message.obj +>> resp2
+ECHO .\bin\batch.obj .\bin\global.obj .\bin\config.obj+>> resp2
+ECHO .\bin\comcpy.obj .\bin\crit.obj +>> resp2
+ECHO +>> resp2
+ECHO .\bin\resident.obj>> resp2
+ECHO .\bin\command.exe>> resp2
+ECHO .\command.map>> resp2
+ECHO %WATCOM%\LIB286\DOS\CLIBs>> resp2
 %LINK510% /MAP @resp2;
 IF ERRORLEVEL 1 GOTO FAILED
 
 %MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\helpstub.obj .\helpstub.asm
 IF ERRORLEVEL 1 GOTO FAILED
-ECHO .\bin\helpstub.obj+> RESP3
-ECHO .\bin\txhelp.obj>> RESP3
-ECHO .\bin\txhelp.exe>> RESP3
+ECHO .\bin\helpstub.obj+> resp3
+ECHO .\bin\txhelp.obj>> resp3
+ECHO .\bin\txhelp.exe>> resp3
 %LINK510% @resp3;
 IF ERRORLEVEL 1 GOTO FAILED
 
