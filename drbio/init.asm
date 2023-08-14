@@ -360,6 +360,7 @@ Int19Trap10:
 Int19Trap20:
 	int	19h			; and go to original int 19...
 
+	even
 	Public	oldxbda,newxbda,xbdalen,oldmemtop
 oldxbda		dw	0		; old XBDA segment address
 newxbda		dw	0		; new XBDA segment address
@@ -384,7 +385,7 @@ DeblockSeg	dw	0A000h		; segment we start deblocking
 IntLPT1:				; LPT1
 	call	DeviceDriver
 	dw	0
-	
+
 IntLPT2:				; LPT2
 	call	DeviceDriver
 	dw	1
@@ -580,6 +581,7 @@ Int4Trap:
 	iret
 ControlBreak	endp
 
+	even
 	public	daycount
 daycount	dw	0
 
@@ -589,6 +591,7 @@ daycount	dw	0
 
 	public	local_buffer,local_id,local_pt
 
+	even
 local_buffer	db	512 dup (?)	; local deblocking buffer
 SECSIZE		equ	512
 IDOFF		equ	SECSIZE-2	; last word in boot sector is ID
@@ -596,6 +599,7 @@ PTOFF		equ	IDOFF-40h	; 4*16 bytes for partition def's
 local_id	equ	word ptr local_buffer + IDOFF
 local_pt	equ	word ptr local_buffer + PTOFF
 
+	even
 	Public	diskaddrpack
 diskaddrpack:				; disk address packet structure for LBA access
 		db	10h		; size of packet
@@ -661,6 +665,7 @@ endm
 local_char	db	0		;** fixed location **
 local_flag	db	0		;** fixed location **
 
+	even
 	public	endbios
 endbios		dw	offset CGROUP:RESBIOS	; pointer to last resident byte
 
