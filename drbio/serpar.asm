@@ -36,11 +36,11 @@
 ;
 ;    ENDLOG
 
-	include BIOSGRPS.EQU
-	include	DRMACROS.EQU		; standard DR macros
-	include	IBMROS.EQU		; ROM BIOS equates
-	include	REQUEST.EQU		; request header equates
-	include	DRIVER.EQU		; device driver equates
+	include biosgrps.equ
+	include	drmacros.equ		; standard DR macros
+	include	ibmros.equ		; ROM BIOS equates
+	include	request.equ		; request header equates
+	include	driver.equ		; device driver equates
 
 page
 CGROUP	group	CODE, RCODE, ICODE

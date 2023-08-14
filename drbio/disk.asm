@@ -77,14 +77,14 @@
 ;
 ;    ENDLOG
 
-	include BIOSGRPS.EQU
-	include	DRMACROS.EQU		; standard DR macros
-	include	IBMROS.EQU		; ROM BIOS equates
-	include	REQUEST.EQU		; request header equates
-	include	BPB.EQU			; BIOS parameter block equates
-	include	UDSC.EQU		; unit descriptor equates
-	include	DRIVER.EQU		; device driver equates
-	include KEYS.EQU		; common key definitions
+	include biosgrps.equ
+	include	drmacros.equ		; standard DR macros
+	include	ibmros.equ		; ROM BIOS equates
+	include	request.equ		; request header equates
+	include	bpb.equ			; BIOS parameter block equates
+	include	udsc.equ		; unit descriptor equates
+	include	driver.equ		; device driver equates
+	include keys.equ		; common key definitions
 
 
 int_____DISK_INT macro

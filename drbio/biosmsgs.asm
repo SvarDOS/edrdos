@@ -4,7 +4,7 @@ TAB	equ	9
 LF	equ	10
 CR	equ	13
 
-include BIOSGRPS.EQU
+include biosgrps.equ
 
 CGROUP	group	RCODE
 

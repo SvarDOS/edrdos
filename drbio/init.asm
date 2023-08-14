@@ -40,15 +40,15 @@
 ;    ENDLOG
 
 
-	include BIOSGRPS.EQU
-	include	DRMACROS.EQU
-	include	IBMROS.EQU
-	include MSDOS.EQU
-	include	REQUEST.EQU		; request header equates
-	include	BPB.EQU
-	include	UDSC.EQU
-	include	DRIVER.EQU
-	include KEYS.EQU		; common key definitions
+	include biosgrps.equ
+	include	drmacros.equ
+	include	ibmros.equ
+	include msdos.equ
+	include	request.equ		; request header equates
+	include	bpb.equ
+	include	udsc.equ
+	include	driver.equ
+	include keys.equ		; common key definitions
 
 ; IBM AT Hardware equates
 
