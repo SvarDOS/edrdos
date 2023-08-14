@@ -353,10 +353,10 @@ Int19Trap10:
 	xor	si,si
 	xor	di,di
 	rep	movsw
-	mov	cl, 40h			; update BIOS data
-	mov	ds, cx
-	mov	word ptr ds:[0Eh], es
-	mov	word ptr ds:[13h], ax
+	mov	ds, cx			; => segment 0
+	mov	word ptr ds:[40Eh], es
+	mov	word ptr ds:[413h], ax
+					; update BIOS data
 Int19Trap20:
 	int	19h			; and go to original int 19...
 
