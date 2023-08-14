@@ -211,12 +211,6 @@ cleanup	PROC	far			; BIOSINIT will call here later
 	ret
 cleanup	endp
 
-;	Local single character buffer for Ctrl-Break handling
-	public	serparFlag, serparChar
-
-serparFlag	db	4 dup (FALSE)	; we haven't got any yet
-serparChar	db	4 dup (?)	; will store one character
-
 
 ;	Device driver headers for serial/parallel devices
 
@@ -291,6 +285,12 @@ strat	proc	far
 	mov	cs:req_seg,es
 	ret
 strat	endp
+
+;	Local single character buffer for Ctrl-Break handling
+	public	serparFlag, serparChar
+
+serparFlag	db	4 dup (FALSE)	; we haven't got any yet
+serparChar	db	4 dup (?)	; will store one character
 
 lpt1_drvr	dw	CG:lpt2_drvr, 0		; link to next device driver
 		dw	DA_CHARDEV
