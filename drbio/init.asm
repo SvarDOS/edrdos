@@ -56,14 +56,14 @@ COMPRESSED	equ	TRUE		; enables compressed changes.
 
 ; a little macro to help locate things
 ; it warns us when the ORG get trampled on
-orgabs	MACRO	address
+orgabs	MACRO	address, name
 	local	was,is
 	was = offset $
 	org address
 	is = offset $
 	if was GT is
 	if2
-		%OUT ERROR - absolute data overwritten !! moving it
+		%OUT ERROR - absolute data overwritten !! moving it: name
 	endif
 	org	was
 endif
@@ -268,7 +268,7 @@ ENDIF
 		db	'COM4    '
 
 
-	orgabs	0b4h			; save address at fixed location
+	orgabs	0b4h, i13pointer	; save address at fixed location
 					;  for dirty apps
 
 	Public	i13pointer, i13off_save, i13seg_save
@@ -278,7 +278,7 @@ i13off_save	dw	?
 i13seg_save	dw	?
 
 
-	orgabs	0b8h			; REQ_HDR
+	orgabs	0b8h, req_ptr		; REQ_HDR
 
 	public	req_ptr, req_off, req_seg
 
@@ -308,7 +308,7 @@ lpt3_drvr	dw	CG:com2_drvr, 0		; link to next device driver
 		dw	CG:strat, CG:IntLPT3
 		db	'LPT3    '
 
-	orgabs	100h			; save vectors at fixed location
+	orgabs	100h, vecSave		; save vectors at fixed location
 					;  for dirty apps
 
 	Public	orgInt13
@@ -368,7 +368,7 @@ newxbda		dw	0		; new XBDA segment address
 xbdalen		dw	0		; length of XBDA in words
 oldmemtop	dw	0		; old conventional mem limit
 
-	orgabs	16ch			; PRN:/AUX: the device number
+	orgabs	16ch, devno		; PRN:/AUX: the device number
 
 devno	db	0,0			;** fixed location **
 
@@ -655,7 +655,7 @@ rept	MAX_SPT
 S	=	S + 1
 endm
 
-	orgabs	600h			; CON: one character look-ahead buffer
+	orgabs	600h, local_char	; CON: one character look-ahead buffer
 ; nb. it's at 61B in DOS 4.0
 
 	Public	local_char, local_flag
