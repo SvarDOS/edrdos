@@ -331,7 +331,7 @@ Int19Trap:
 	cli				; be sure...
 	push	cs
 	pop	ds
-	lea	si,vecSave
+	lea	si,[vecSave]
 	mov	cx,NUM_SAVED_VECS	; restore this many vectors
 Int19Trap10:
 	xor	ax,ax			; zero AH for lodsb
@@ -343,11 +343,11 @@ Int19Trap10:
 	movsw
 	movsw				; restore this vector
 	loop	Int19Trap10		; go and do another
-	cmp	oldxbda,0		; has the XBDA been moved?
+	cmp	word ptr cs:[oldxbda],0	; has the XBDA been moved?
 	 je	Int19Trap20		; no
-	mov	es,oldxbda		; yes, move it back
-	mov	cx,xbdalen
-	mov	ds,newxbda
+	mov	es,word ptr cs:[oldxbda]; yes, move it back
+	mov	cx,word ptr cs:[xbdalen]
+	mov	ds,word ptr cs:[newxbda]
 	xor	si,si
 	xor	di,di
 	rep	movsw
@@ -356,7 +356,7 @@ Int19Trap10:
 	xor	di,di
 	mov	ax,es
 	mov	0eh[di],ax
-	mov	ax,oldmemtop		; also restore old conventional
+	mov	ax,word ptr cs:[oldmemtop]; also restore old conventional
 					; memory top
 	mov	13h[di],ax
 Int19Trap20:
