@@ -3435,6 +3435,7 @@ write_string_90:
 	ret
 
 flush_buff:
+	push es
 	extrn	strlen_:near
 	extrn	c_write_:near
 
@@ -3445,6 +3446,7 @@ flush_buff:
 	;mov	ax,dataOFFSET _str	; watcom C requires first param in AX
 	mov	ax,[heap_top]
 	call	c_write_		; display the string
+	pop es
 	ret
 
 _show_help	ENDP
