@@ -527,7 +527,7 @@ prread:
 	call	i24_print		; appropriate string
 ;;	test	bh,80h
 	mov	es,dos_BP		; ES:SI = driver header
-	test	es:DH_ATTRIB[si],DA_CHARDEV
+	test	DH_ATTRIB[si],DA_CHARDEV
 	 jz	disk_error		; Was this a DISK error
 
 ;
