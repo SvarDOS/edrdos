@@ -62,9 +62,9 @@ orgabs	MACRO	address
 	org address
 	is = offset $
 	if was GT is
-;	if2
-;		%OUT ERROR - absolute data overwritten !! moving it
-;	endif
+	if2
+		%OUT ERROR - absolute data overwritten !! moving it
+	endif
 	org	was
 endif
 ENDM
