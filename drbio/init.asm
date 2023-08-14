@@ -307,8 +307,6 @@ lpt3_drvr	dw	CG:com2_drvr, 0		; link to next device driver
 
 	Public	orgInt13
 
-NUM_SAVED_VECS	equ	5
-
 vecSave		db	10h
 		dw	0,0
 		db	13h
@@ -319,6 +317,8 @@ orgInt13	dw	0,0
 		dw	0,0
 		db	1Bh
 		dw	0,0
+
+NUM_SAVED_VECS	equ	($ - vecSave) / 5
 
 strat	proc	far
 	mov	cs:req_off,bx
@@ -331,7 +331,7 @@ Int19Trap:
 	cli				; be sure...
 	push	cs
 	pop	ds
-	lea	si,[vecSave]
+	mov	si, offset vecSave
 	mov	cx,NUM_SAVED_VECS	; restore this many vectors
 Int19Trap10:
 	xor	ax,ax			; zero AH for lodsb
@@ -343,22 +343,20 @@ Int19Trap10:
 	movsw
 	movsw				; restore this vector
 	loop	Int19Trap10		; go and do another
-	cmp	word ptr cs:[oldxbda],0	; has the XBDA been moved?
+	cmp	word ptr ds:[oldxbda],0	; has the XBDA been moved?
 	 je	Int19Trap20		; no
-	mov	es,word ptr cs:[oldxbda]; yes, move it back
-	mov	cx,word ptr cs:[xbdalen]
-	mov	ds,word ptr cs:[newxbda]
+	mov	ax,word ptr ds:[oldmemtop]; also restore old conventional
+					; memory top
+	mov	es,word ptr ds:[oldxbda]; yes, move it back
+	mov	cx,word ptr ds:[xbdalen]
+	mov	ds,word ptr ds:[newxbda]
 	xor	si,si
 	xor	di,di
 	rep	movsw
-	mov	ax,40h			; update BIOS data
-	mov	ds,ax
-	xor	di,di
-	mov	ax,es
-	mov	0eh[di],ax
-	mov	ax,word ptr cs:[oldmemtop]; also restore old conventional
-					; memory top
-	mov	13h[di],ax
+	mov	cl, 40h			; update BIOS data
+	mov	ds, cx
+	mov	word ptr ds:[0Eh], es
+	mov	word ptr ds:[13h], ax
 Int19Trap20:
 	int	19h			; and go to original int 19...
 
