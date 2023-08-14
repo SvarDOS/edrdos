@@ -280,12 +280,6 @@ req_ptr	label	dword
 req_off	dw	0			;** fixed location **
 req_seg	dw	0			;** fixed location **
 
-strat	proc	far
-	mov	cs:req_off,bx
-	mov	cs:req_seg,es
-	ret
-strat	endp
-
 ;	Local single character buffer for Ctrl-Break handling
 	public	serparFlag, serparChar
 
@@ -325,7 +319,13 @@ orgInt13	dw	0,0
 		dw	0,0
 		db	1Bh
 		dw	0,0
-	
+
+strat	proc	far
+	mov	cs:req_off,bx
+	mov	cs:req_seg,es
+	ret
+strat	endp
+
 Int19Trap:
 	cld
 	cli				; be sure...
