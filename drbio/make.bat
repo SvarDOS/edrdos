@@ -1,9 +1,6 @@
 @ECHO off
-SET TOOLS=C:\MASM\BINB
 
-SET MASM=C:\MASM\BIN\ML.EXE
-SET LINK=%TOOLS%\LINK.EXE
-SET LIBR=%TOOLS%\LIB.EXE
+SET JWASMEXE=C:\BIN\JWASM.EXE
 
 REM 
 REM YOU SHOULD NOT HAVE TO CHANGE ANYTHING BELOW THIS LINE.
@@ -16,35 +13,31 @@ IF NOT EXIST BIN\*.* MD BIN
 
 REM Check if tools exist
 
-ECHO Checking for %MASM%
-if not exist %MASM% goto badtool
-ECHO Checking for %LINK%
-if not exist %LINK% goto badtool
-ECHO Checking for %LIBR%
-if not exist %LIBR% goto badtool
+ECHO Checking for %JWASMEXE%
+if not exist %JWASMEXE% goto badtool
 
 
 REM *************************************
 REM Build .ASM files first, get the obj's
 REM *************************************
 
-%MASM% /c /Zm /Fo.\BIN\initmsgs initmsgs.asm
+%JWASMEXE% -c -Zm -Zg -Fo.\BIN\initmsgs initmsgs.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /c /Zm /Fo.\BIN\biosmsgs biosmsgs.asm
+%JWASMEXE% -c -Zm -Zg -Fo.\BIN\biosmsgs biosmsgs.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /c /Zm /Fo.\BIN\init init.asm
+%JWASMEXE% -c -Zm -Zg -Fl.\BIN\init.lst -Fo.\BIN\init init.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /c /Zm /Fo.\BIN\clock clock.asm
+%JWASMEXE% -c -Zm -Zg -Fo.\BIN\clock clock.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /c /Zm /Fo.\BIN\console console.asm
+%JWASMEXE% -c -Zm -Zg -Fo.\BIN\console console.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /c /Zm /Fo.\BIN\disk disk.asm
+%JWASMEXE% -c -Zm -Zg -Fo.\BIN\disk disk.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /c /Zm /Fo.\BIN\serpar serpar.asm
+%JWASMEXE% -c -Zm -Zg -Fo.\BIN\serpar serpar.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /c /Zm /Fo.\BIN\biosgrps biosgrps.asm
+%JWASMEXE% -c -Zm -Zg -Fo.\BIN\biosgrps biosgrps.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /c /Zm /Fo.\BIN\stacks stacks.asm
+%JWASMEXE% -c -Zm -Zg -Fo.\BIN\stacks stacks.asm
 IF ERRORLEVEL 1 GOTO FAILED
 
 REM ******************************************
@@ -57,8 +50,6 @@ IF ERRORLEVEL 1 GOTO FAILED
 %LOCTOOLS%\rasm_sh %LOCTOOLS%\rasm86.exe . .\bdosstub.a86 .\BIN\bdosstub.obj $szpz /DDRDOS35=0 /DADDDRV=0
 IF ERRORLEVEL 1 GOTO FAILED
 %LOCTOOLS%\fixupp .\BIN\bdosstub.obj
-IF ERRORLEVEL 1 GOTO FAILED
-%LIBR% .\BIN\biosstub.LIB -+ .\BIN\bdosstub.obj -+ .\BIN\confstub.obj;
 IF ERRORLEVEL 1 GOTO FAILED
 
 REM ******************************************
@@ -89,9 +80,10 @@ REM ***************************************************
 REM Link the OBJ's and LIBR file to create the BIOS.EXE
 REM and then use EXE2BIN to create the DRBIO.SYS file.
 REM ***************************************************
-%LINK% @bios.lnk
+warplink @wlbios.lnk
 IF ERRORLEVEL 1 GOTO FAILED
-%LOCTOOLS%\exe2bin.exe .\bin\bios.exe .\bin\drbio.sys
+echo.
+x2b2 .\bin\bios.exe .\bin\drbio.sys
 IF ERRORLEVEL 1 GOTO FAILED
 del .\bin\bios.exe
 %LOCTOOLS%\compbios .\bin\drbio.sys
@@ -110,10 +102,4 @@ REM *********
 REM CLEANUP
 REM *********
 
-SET TOOLS=
 SET LOCTOOLS=
-SET MASM=
-SET TASM=
-SET LINK=
-SET LIBR=
-

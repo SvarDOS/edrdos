@@ -1,18 +1,12 @@
 @ECHO off
-SET TOOLS=C:\MASM\BINB
 
 SET OPT_S=
 
-SET MASM=C:\MASM\BIN\ML.EXE /c /Zm
+SET JWASMEXE=C:\BIN\JWASM.EXE -c -Zm -Zg
 SET WATCOM=C:\WATCOM
 SET WATCOMH=%WATCOM%\H
-IF EXIST %WATCOM%\BIN\WCGL.EXE SET WCG=%WATCOM%\BIN\WCGL.EXE
 IF EXIST %WATCOM%\BINB\WCC.EXE SET WC=%WATCOM%\BINB\WCC.EXE
-IF EXIST %WATCOM%\BINW\WCGL.EXE SET WCG=%WATCOM%\BINW\WCGL.EXE
 IF EXIST %WATCOM%\BINW\WCC.EXE SET WC=%WATCOM%\BINW\WCC.EXE
-SET LINK510=%TOOLS%\LINK.EXE
-SET BCC20=%TOOLS%\BCC.EXE
-SET BCC20H=%TOOLS%\BCC20\H
 
 REM
 REM YOU SHOULD NOT HAVE TO CHANGE ANYTHING BELOW THIS LINE.
@@ -25,29 +19,27 @@ IF NOT EXIST BIN\*.* MD BIN
 
 REM Check if tools exist
 
-ECHO Checking for %MASM%
-if not exist %MASM% goto badtool
+ECHO Checking for %JWASMEXE%
+if not exist %JWASMEXE% goto badtool
 ECHO Checking for %WC%
 if not exist %WC% goto badtool
-ECHO Checking for %LINK510%
-if not exist %LINK510% goto badtool
 
-rem %MASM% /Fo.\bin\message message
+rem %JWASMEXE% -Fo.\bin\message message
 rem IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /Fo.\bin\resident.obj resident.asm
+%JWASMEXE% -Fo.\bin\resident.obj resident.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /Fo.\bin\txhelp.obj txhelp.asm
+%JWASMEXE% -Fo.\bin\txhelp.obj txhelp.asm
 IF ERRORLEVEL 1 GOTO FAILED
 
-%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\message.obj .\message.asm
+%JWASMEXE% -DDOSPLUS -DWATCOMC -DPASCAL -DFINAL -I.\ -Fo.\bin\message.obj .\message.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\cstart.obj .\cstart.asm
+%JWASMEXE% -DDOSPLUS -DWATCOMC -DPASCAL -DFINAL -I.\ -Fo.\bin\cstart.obj .\cstart.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\csup.obj .\csup.asm
+%JWASMEXE% -DDOSPLUS -DWATCOMC -DPASCAL -DFINAL -I.\ -Fo.\bin\csup.obj .\csup.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\dosif.obj .\dosif.asm
+%JWASMEXE% -DDOSPLUS -DWATCOMC -DPASCAL -DFINAL -I.\ -Fo.\bin\dosif.obj .\dosif.asm
 IF ERRORLEVEL 1 GOTO FAILED
-%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\crit.obj .\crit.asm
+%JWASMEXE% -DDOSPLUS -DWATCOMC -DPASCAL -DFINAL -I.\ -Fo.\bin\crit.obj .\crit.asm
 IF ERRORLEVEL 1 GOTO FAILED
 
 %WC% %OPT_S% /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\com.obj .\com.c
@@ -70,35 +62,30 @@ IF ERRORLEVEL 1 GOTO FAILED
 %WC% %OPT_S% /DFINAL /i=. /ms /os /dWATCOMC /i=%WATCOMH% /fo.\bin\cmdlist.obj .\cmdlist.c
 IF ERRORLEVEL 1 GOTO FAILED
 
-ECHO -w -d -f- -K -O -X -Z -c -ms -I%BCC20H% -DMESSAGE -DDOSPLUS -zSCGROUP -zTCODE -zR_MSG > resp1
-ECHO -I.\ >> resp1
-ECHO -o.\bin\cmdlist.obj .\cmdlist.c >> resp1
-%BCC20% @resp1
-IF ERRORLEVEL 1 GOTO FAILED
-
-ECHO .\bin\cstart.obj .\bin\com.obj .\bin\csup.obj +> resp2
-ECHO .\bin\dosif.obj .\bin\comint.obj .\bin\support.obj+>> resp2
-ECHO .\bin\cmdlist.obj .\bin\printf.obj+>> resp2
-ECHO .\bin\message.obj +>> resp2
-ECHO .\bin\batch.obj .\bin\global.obj .\bin\config.obj+>> resp2
-ECHO .\bin\comcpy.obj .\bin\crit.obj +>> resp2
-ECHO +>> resp2
+ECHO /mx /w0 /as:1 /nd .\bin\cstart.obj+.\bin\com.obj+.\bin\csup.obj+> resp2
+ECHO .\bin\dosif.obj+.\bin\comint.obj+.\bin\support.obj+>> resp2
+ECHO .\bin\cmdlist.obj+.\bin\printf.obj+>> resp2
+ECHO .\bin\message.obj+>> resp2
+ECHO .\bin\batch.obj+.\bin\global.obj+.\bin\config.obj+>> resp2
+ECHO .\bin\comcpy.obj+.\bin\crit.obj+>> resp2
 ECHO .\bin\resident.obj>> resp2
 ECHO .\bin\command.exe>> resp2
 ECHO .\command.map>> resp2
-ECHO %WATCOM%\LIB286\DOS\CLIBs>> resp2
-%LINK510% /MAP @resp2;
+ECHO %WATCOM%\LIB286\DOS\CLIBs+%WATCOM%\LIB286\MATH87s>> resp2
+warplink @resp2;
 IF ERRORLEVEL 1 GOTO FAILED
+echo.
 
-%MASM% /DDOSPLUS /DWATCOMC /DPASCAL /DFINAL /I.\ /Fo.\bin\helpstub.obj .\helpstub.asm
+%JWASMEXE% -DDOSPLUS -DWATCOMC -DPASCAL -DFINAL -I.\ -Fo.\bin\helpstub.obj .\helpstub.asm
 IF ERRORLEVEL 1 GOTO FAILED
-ECHO .\bin\helpstub.obj+> resp3
+ECHO /w0 /as:1 /nd .\bin\helpstub.obj+> resp3
 ECHO .\bin\txhelp.obj>> resp3
 ECHO .\bin\txhelp.exe>> resp3
-%LINK510% @resp3;
+warplink @resp3;
 IF ERRORLEVEL 1 GOTO FAILED
+echo.
 
-%LOCTOOLS%\exe2bin /S0000 .\bin\txhelp.exe .\bin\txhelp.bin
+x2b2 .\bin\txhelp.exe .\bin\txhelp.bin
 IF ERRORLEVEL 1 GOTO FAILED
 
 copy /b .\bin\command.exe+.\bin\txhelp.bin .\bin\command.com
@@ -115,13 +102,8 @@ ECHO Can't find that tool!
 REM **********************
 REM CLEAN UP THE AREA
 REM **********************
-rem SET TOOLS=
-rem SET MASM=
-rem SET WC=
-rem SET LINK510=
-rem SET BCC20=
-rem SET WATCOMH=
-rem SET BCC20H=
-rem SET LOCTOOLS=
 
-
+SET JWASMEXE=
+SET WC=
+SET WATCOMH=
+SET LOCTOOLS=
