@@ -2380,7 +2380,7 @@ equip_single:				; we only have one physical drive
 	mov	es:i13seg_save,ax
 
 	mov	di,500h			; dual drive byte & friends live here
-	mov	cx,20h/2		; zero some bytes at 50h:0
+	mov	cx,12h/2		; zero some bytes at 50h:0
 	sub	ax,ax			; get a quick zero
 	mov	es,ax			; ES:DI -> 0:500h
 	rep	stosw			; setup dual drive byte & friends
