@@ -1,0 +1,5 @@
+/mx /as:1 /w0 .\bin\biosgrps+.\bin\init+.\bin\clock+.\bin\console+.\bin\disk+
+.\bin\serpar+.\bin\biosmsgs+.\bin\biosinit+.\bin\config+.\bin\genercfg+
+.\bin\nlsfunc+.\bin\bdosldr+.\bin\stacks+.\bin\initmsgs
+.\bin\bios
+.\bin\bios;
