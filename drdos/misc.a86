@@ -437,6 +437,18 @@ f30_10:
 ; WARNING - called on USER stack
 
 func33:
+	cmp	al, 0FFh		; is it function 33FFh ?
+	 jne	f33_XX			; no, jump -->
+	call	f33_FF			; yes
+shortversion equ 0
+	include version.inc
+	db	0
+
+f33_FF:	pop	reg_AX[bp]		; dx:ax - hidden DOS string
+	mov	reg_DX[bp], cs
+	ret
+
+f33_XX:
 	cmp	al,2			; range check subfunction
 	 jbe	f33_10
 	mov	dl,bootDrv		; assume we want boot drive
