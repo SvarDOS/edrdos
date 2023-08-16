@@ -2464,6 +2464,10 @@ equip_360:
 ;	 jz	equip_type_nolba	; no, must be a standard FDD
 	push	cx
 	push	si
+		; This check is reported to be needed for an
+		;  emulated diskette drive created by GRUB4DOS.
+	test	dl, dl			; Hard Disk ?
+	 jns	equip_type_nolba	; no -->
 	pushx	<es,di,dx>
 	mov	ah,ROS_LBAPARAM		; get extended drive parameters
 	lea	si,int13ex_para		; DS:SI -> drive parameter buffer
