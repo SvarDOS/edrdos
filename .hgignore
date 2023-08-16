@@ -16,3 +16,7 @@ command/bin/*
 drbio/bin/*
 drdos/bin/*
 prepare.bat
+*.swp
+drbio/version.inc
+drdos/version.inc
+command/version.inc
