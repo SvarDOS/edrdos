@@ -430,5 +430,11 @@ eject
 eject !	include	funcs.fdo
 eject !	include	utils.fdo
 
+BDOS_DATA	dseg	word
+
+		include version.inc
+		db	' Patches to original OpenDOS source code '
+		db	'Copyright (c) 2002-2011 Udo Kuhnt'
+		db	0
 
 	END

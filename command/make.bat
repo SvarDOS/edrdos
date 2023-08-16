@@ -24,6 +24,8 @@ if not exist %JWASMEXE% goto badtool
 ECHO Checking for %WC%
 if not exist %WC% goto badtool
 
+copy ..\version.inc . /y
+
 rem %JWASMEXE% -Fo.\bin\message message
 rem IF ERRORLEVEL 1 GOTO FAILED
 %JWASMEXE% -Fo.\bin\resident.obj resident.asm

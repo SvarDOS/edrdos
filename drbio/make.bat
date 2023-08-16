@@ -16,6 +16,7 @@ REM Check if tools exist
 ECHO Checking for %JWASMEXE%
 if not exist %JWASMEXE% goto badtool
 
+copy ..\version.inc . /y
 
 REM *************************************
 REM Build .ASM files first, get the obj's

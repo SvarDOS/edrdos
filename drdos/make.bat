@@ -9,6 +9,8 @@ SET LOCTOOLS=..\LTOOLS
 
 IF NOT EXIST BIN\*.* MD BIN
 
+copy ..\version.inc . /y
+
 REM ******************************************
 REM Build the .A86 files next, get the obj's
 REM ******************************************
@@ -19,7 +21,7 @@ IF ERRORLEVEL 1 GOTO FAILED
 %LOCTOOLS%\rasm_sh %LOCTOOLS%\rasm86.exe . .\dirs.a86 .\bin\dirs.obj $szpz /DDELWATCH
 IF ERRORLEVEL 1 GOTO FAILED
 
-%LOCTOOLS%\rasm_sh %LOCTOOLS%\rasm86.exe . .\fdos.a86 .\bin\fdos.obj $szpz /DDELWATCH /DKANJI /DDOS5 /DPASSWORD /DJOIN /DUNDELETE
+%LOCTOOLS%\rasm_sh %LOCTOOLS%\rasm86.exe . .\fdos.a86 .\bin\fdos.obj $szpz /DDELWATCH /DKANJI /DDOS5 /DPASSWORD /DJOIN /DUNDELETE /Dshortversion
 IF ERRORLEVEL 1 GOTO FAILED
 
 %LOCTOOLS%\rasm_sh %LOCTOOLS%\rasm86.exe . .\fcbs.a86 .\bin\fcbs.obj

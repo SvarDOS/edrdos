@@ -2398,10 +2398,6 @@ BDOS_DATA	dseg	word
 
 join_name	db	'd:\filename.ext',0
 
-		db	'Enhanced DR-DOS 7.01.08 WIP (21.7.2011) '
-		db	'Patches to original OpenDOS source code '
-		db	'Copyright (c) 2002-2011 Udo Kuhnt'
-
 BDOS_CODE	cseg
 
 	Public	mv_join_root

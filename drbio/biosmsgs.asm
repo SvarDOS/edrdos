@@ -31,7 +31,10 @@ _drdosprojects_msg		db	CR, LF, "The DR-DOS/OpenDOS Enhancement Project          
 	public	_starting_dos_msg
 	public	starting_dos_msg
 starting_dos_msg	label	byte
-_starting_dos_msg	db	CR, LF, "Starting Enhanced DR-DOS 7.01.08 WIP (21.7.2011)", CR, LF, NUL
+_starting_dos_msg	db	CR, LF, "Starting "
+shortversion equ 1
+			include version.inc
+			db	CR, LF, NUL
 	public	_lba_supp_msg
 	public	lba_supp_msg
 lba_supp_msg		label	byte
@@ -41,4 +44,3 @@ RCODE	ends
 
 
 	end
-
