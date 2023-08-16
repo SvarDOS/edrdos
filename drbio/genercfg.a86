@@ -3915,35 +3915,35 @@ endif
 if not ADDDRV
 cmd_country	db	'COUNTRY',0
 cmd_shell	db	'SHELL',0
+cmd_hilastdrive db      'HI'            ;'HILASTDRIVE',0
 cmd_lastdrive	db	'LASTDRIVE',0
-cmd_hilastdrive	db	'HILASTDRIVE',0
 cmd_break	db	'BREAK',0
+cmd_hibuffers   db      'HI'            ;'HIBUFFERS',0
 cmd_buffers	db	'BUFFERS',0
-cmd_hibuffers	db	'HIBUFFERS',0
+cmd_hifcbs      db      'HI'            ;'HIFCBS',0
 cmd_fcbs	db	'FCBS',0
-cmd_hifcbs	db	'HIFCBS',0
+cmd_hifiles     db      'HI'            ;'HIFILES',0
 cmd_files	db	'FILES',0
-cmd_hifiles	db	'HIFILES',0
+cmd_histacks    db      'HI'            ;'HISTACKS',0
 cmd_stacks	db	'STACKS',0
-cmd_histacks	db	'HISTACKS',0
 cmd_fastopen	db	'FASTOPEN',0
 cmd_drivparm	db	'DRIVPARM', 0
 cmd_history	db	'HISTORY', 0
+cmd_hiinstall   db      'HI'            ;'HIINSTALL', 0
 cmd_install	db	'INSTALL', 0
+cmd_hiinstalllast       db 'HI'         ;'HIINSTALLLAST', 0
 cmd_installlast	db	'INSTALLLAST', 0
-cmd_hiinstall	db	'HIINSTALL', 0
-cmd_hiinstalllast	db	'HIINSTALLLAST', 0
 cmd_installhigh	db	'INSTALLHIGH', 0
-cmd_hidos	db	'HIDOS',0
 cmd_dosdata	db	'DOSDATA',0
 cmd_ddscs	db	'DDSCS',0
 cmd_xbda	db	'XBDA',0
+cmd_hidos       db      'HI'            ;'HIDOS',0
 cmd_dos		db	'DOS',0
 cmd_set		db	'SET',0
 cmd_switches	db	'SWITCHES',0
 endif
-cmd_hidevice	db	'HIDEVICE',0
 cmd_devicehigh	db	'DEVICEHIGH',0
+cmd_hidevice    db      'HI'            ;'HIDEVICE',0
 cmd_device	db	'DEVICE',0
 cmd_remark	db	'REM', 0
 cmd_semicolon	db	';',0
@@ -3957,10 +3957,10 @@ cmd_cpos	db	'CPOS',0
 cmd_colour	db	'COLOUR',0
 cmd_timeout	db	'TIMEOUT',0
 cmd_switch	db	'SWITCH',0
-cmd_onerror	db	'ONERROR',0
 cmd_query	db	'?',0
 cmd_echo	db	'ECHO',0
 cmd_exit	db	'EXIT',0
+cmd_onerror     db      'ON'            ;'ONERROR',0
 cmd_error	db	'ERROR',0
 cmd_getkey	db	'GETKEY',0
 cmd_yeschar	db	'YESCHAR',0
@@ -3981,8 +3981,8 @@ slashs_opt	db	'/S',0
 size_opt	db	'SIZE',0
 high_opt	db	'HIGH',0
 low_opt		db	'LOW',0
+noumb_opt       db      'NO'            ;'NOUMB',0
 umb_opt		db	'UMB',0
-noumb_opt	db	'NOUMB',0
 
 himem_region	dw	0		; region to hidevice into
 himem_size	dw	0		; minimum size wanted
@@ -4032,4 +4032,3 @@ exeReloff	dw	0	; 0018 Byte Offset of First REL item
 exeOverlay	dw	0	; 001A Overlay Number (0 == Resident)
 
 	end
-
