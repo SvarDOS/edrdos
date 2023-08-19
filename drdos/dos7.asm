@@ -254,8 +254,8 @@ f7303_exit:
 func7305:
 	cmp	cx,0ffffh		; is CX=FFFFh given?
 	 je	f7305_10		; yes
-	mov	ax,57h			; if not, return 18h (invalid parameter)
-	stc
+	mov	ax, -57h		; if not, return 57h, RBIL calls it
+					;  "(DOS 3.3+) invalid parameter"
 	jmp	f7305_exit		; no, then exit with error
 f7305_10:
 	push	es
@@ -286,7 +286,12 @@ f7305_30:
 	pop	es
 	call	fdos_nocrit		; call fdos function
 f7305_exit:
-	ret
+	test ax, ax
+	jz f7305_exit_NC
+	jmp error_exit
+
+f7305_exit_NC:
+	jmp return_AX_CLC
 
 PCMODE_DATA	dseg	word
 
