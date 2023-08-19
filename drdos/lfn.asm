@@ -351,18 +351,15 @@ f714f_10:
 	movsw				; file size low
 	movsw
 	add	di,8			; skip over reserved bytes
-	push	di
 	mov	cx,13
 	repnz	movsb			; copy file name
-	pop	di
-	add	di,260			; start of short name field
-	mov	es:byte ptr [di],0	; no short name
+	add	di,260 - 13		; start of short name field
+	stosb				; no short name (0)
 	pop	ss:dma_offset		; restore old DTA
 	pop	ss:dma_segment
 	pop	ds
 	les	bp,int21regs_ptr
-	xor	ax,ax
-	mov	es:reg_CX[bp],ax	; Unicode conversion flags
+	mov	es:reg_CX[bp],ax	; Unicode conversion flags (0)
 	call	return_AX_CLC		; no error
 	ret
 
