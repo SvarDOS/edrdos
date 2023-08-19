@@ -1263,6 +1263,14 @@ parse_path20:
 	inc	di			; di -> fcb name field
 	mov	cx,8			; length of name field
 	call	parse_one		; parse just the name
+	jc parse_path_not_lfn_asterisk
+	cmp ss:lfnpathflag, 0
+	je parse_path_not_lfn_asterisk
+	dec si
+	dec si				; -> asterisk
+	mov al, '.'
+parse_path_not_lfn_asterisk:
+
 	mov	di,dx			; DI -> FCB
 	cmp	es:byte ptr 1[di],0E5h	; is first character E5?
 	 jne	parse_path30		; skip if not
@@ -1344,11 +1352,15 @@ parse_one:
 	 jz	parse_one_wild		;   rest of field with '?'
 	call	check_delim		; if char is not delimiter,
 	 jnz	parse_one_char		;   then move it to fcb
+	stc
 	ret				; if delimiter, return
 
 parse_one_wild:
 	mov	al,'?'
 	rep	stosb			; after filling
+	cmp byte ptr [si], 0
+	jne parse_one_ignore_no_asterisk
+	clc
 	jmps	parse_one_ignore	; skip until a delimiter
 
 parse_one_char:
@@ -1357,7 +1369,8 @@ if KANJI
 	 jnz	parse_one_skip		; skip if straight 8-bit
 	inc	si			; assume both chars discarded
 	dec	cx			; we will copy 2 bytes
-	 jcxz	parse_one_ignore	; ignore both if only room for one
+	 jcxz	parse_one_ignore_no_asterisk
+					; ignore both if only room for one
 	stosb				; thats the first byte
 	dec	si			; point at 2nd again
 	lodsb				; get the 2nd byte
@@ -1365,10 +1378,16 @@ parse_one_skip:
 endif
 	stosb				; send char to fcb
 	loop	parse_one		; get another character from ASCIIZ string
+
+parse_one_ignore_no_asterisk:
+	stc
 parse_one_ignore:
+	pushf
+parse_one_ignore_loop:
 	lodsb
 	call	check_delim		; ignore up to next delimiter
-	 jnz	parse_one_ignore
+	 jnz	parse_one_ignore_loop
+	popf
 	ret
 
 ;

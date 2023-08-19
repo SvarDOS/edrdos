@@ -251,6 +251,7 @@ int21_e30:
 	xor	ax,ax
 	mov	remote_call,ax		; indicate we are a local call
 	mov	int28_flag,al		; Do NOT Generate INT 28s
+	mov	lfnpathflag, al
 
 	mov	ax,ds
 	mov	ss,ax			; swap initially to the error
@@ -862,6 +863,7 @@ if DOS5
 else
 	extrn	win386_local_machine:dword
 endif
+	extrn lfnpathflag:byte
 
 if IDLE_DETECT
 	extrn	active_cnt:word

@@ -202,6 +202,7 @@ PCMODE_DATA	dseg
 	extrn	unlock_tables:dword
     extrn   WindowsHandleCheck:byte
 	extrn	net_delay:word
+	extrn lfnpathflag:byte
 
 if KANJI
 	extrn	DBCS_tbl:word		; Double Byte Character Table

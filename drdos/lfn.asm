@@ -355,6 +355,7 @@ f714e_entry:
 	mov	FD_FUNC,ax
 ;	mov	FD_LFNSEARCH,1		; use FAT+/LFN extensions
 	mov	fdos_pb+10,1		; use FAT+/LFN extensions
+	mov	lfnpathflag, 1
 	push	di			; handle
 	push	ds
 	push	ss:dma_segment		; save old DTA
@@ -811,3 +812,4 @@ PCMODE_DATA	dseg	word
 	extrn lfn_find_handle_heap:word
 	extrn lfn_find_handle_heap_end:word
 	extrn lfn_find_handle_heap_free:word
+	extrn lfnpathflag:byte
