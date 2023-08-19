@@ -845,12 +845,18 @@ SaveVectors:
 	movsw				; save this vector
 	loop	SaveVectors		; go and do another
 
+	clc
+	int 3
+	jc debugger_detected
+
 	mov	i0off,CG:Int0Trap
 	mov	i0seg,cs		; now grab int0 vector
 	mov	i1off,CG:Int1Trap
 	mov	i1seg,cs		; now grab int1 vector
 	mov	i3off,CG:Int1Trap
 	mov	i3seg,cs		; now grab int3 vector
+
+debugger_detected:
 	mov	i4off,CG:Int1Trap
 	mov	i4seg,cs		; now grab int4 vector
 	mov	i19off,CG:Int19Trap
