@@ -657,6 +657,24 @@ f4C_10:
 	mov	bx,current_psp		; free all memory associated
 	call	free_all		;  with this PSP
 
+	push ss
+	pop ds
+	mov di, offset lfn_find_handles
+f4C_close_lfn_handle_loop:
+	mov bx, word ptr [di]
+	test bx, bx			; in use ?
+	jz f4C_close_lfn_handle_next	; no -->
+	mov ax, current_psp
+	cmp word ptr [bx], ax		; we are owner ?
+	jne f4C_close_lfn_handle_next	; no -->
+	push di
+	call lfn_free_handle
+	pop di
+f4C_close_lfn_handle_next:
+	scasw				; di += 2
+	cmp di, offset lfn_find_handles_end
+	jb f4C_close_lfn_handle_loop
+
 	pop	ax			; recover parental PSP
 f4C_20:
 	mov	current_psp,ax		; make current PSP = parental PSP
@@ -1489,5 +1507,17 @@ eject
 	extrn	load_top:word			; Last paragraph of Allocated Memory
 	extrn	load_max:word			; ditto, but not messed with
 	extrn	exe_loadhigh:byte		; load high flag
+
+PCM_HEADER	CSEG	PARA
+
+	extrn lfn_find_handles:word
+	extrn lfn_find_handles_end:word
+	extrn lfn_find_handle_heap:word
+	extrn lfn_find_handle_heap_end:word
+	extrn lfn_find_handle_heap_free:word
+
+PCM_CODE	cseg	byte
+
+	extrn lfn_free_handle:near
 
 	end

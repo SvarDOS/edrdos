@@ -291,25 +291,76 @@ f7143_exit:
 	jmp	return_AX_CLC
 
 func714e:
-	mov	ax,4eh			; FindFirst
 	xor	ch,ch
 	mov	FD_ATTRIB,cx		; search attributes
 	mov	FD_NAMEOFF,dx		; search pattern
 	mov	FD_NAMESEG,es
+
+		; We don't need to store the pathname,
+		;  the DTA will have everything needed.
+if 0
+	mov di, dx
+	mov cx, -1
+	mov al, 0
+	repne scasb
+	not cx				; cx = size
+	add cx, 2 + 1
+	and cl, 0FEh
+endif
+
+	push ds
+	pop es
+	mov di, offset lfn_find_handles
+	xor ax, ax
+f714e_loop_handle:
+	scasw
+	je f714e_found_handle
+	cmp di, offset lfn_find_handles_end
+	jb f714e_loop_handle
+
+f714e_oom:
+	mov ax, 4			; "too many open handles"
+	jmp f71_error
+
+f714e_found_handle:
+	mov cx, 2Eh			; size needed
+
+	mov ax, offset lfn_find_handle_heap_end
+	mov bx, lfn_find_handle_heap_free
+	sub ax, bx
+	cmp ax, cx
+	jb f714e_oom
+
+	mov word ptr -2[di], bx
+	add lfn_find_handle_heap_free, cx
+	mov ax, current_psp
+	mov word ptr [bx], ax
+	sub di, offset lfn_find_handles + 2
+	shr di, 1			; make it a handle
+
+	mov	ax,4eh			; FindFirst
 	jmps	f714e_entry
 
 func714f:
+	call lfn_get_handle
+	jc f714e_oom
+
+	mov ah, 4Fh
+	xchg di, ax			; al = from handle, ah = 4Fh
+
 	mov	ax,4fh			; FindNext
 f714e_entry:
+	inc bx
+	inc bx				; -> our DTA
 	mov	FD_FUNC,ax
 ;	mov	FD_LFNSEARCH,1		; use FAT+/LFN extensions
 	mov	fdos_pb+10,1		; use FAT+/LFN extensions
+	push	di			; handle
 	push	ds
 	push	ss:dma_segment		; save old DTA
 	push	ss:dma_offset
 	mov	ss:dma_segment,ds
-	lea	di,f714e_dta
-	mov	ss:dma_offset,di
+	mov	ss:dma_offset,bx
 	mov	dx,offset fdos_data
 	call	fdos_entry		; call FindNext function
 	cmp	ax,ED_LASTERROR		; has an error occurred?
@@ -317,6 +368,7 @@ f714e_entry:
 	pop	ss:dma_offset		; restore old DTA
 	pop	ss:dma_segment
 	pop	ds
+	pop	di
 	neg	ax
 	jmp	f71_error
 f714f_10:
@@ -360,12 +412,72 @@ f714f_10:
 	pop	ds
 	les	bp,int21regs_ptr
 	mov	es:reg_CX[bp],ax	; Unicode conversion flags (0)
+	pop	ax			; return handle
 	call	return_AX_CLC		; no error
 	ret
 
 func71a1:
-	call	return_AX_CLC
+	call lfn_get_handle
+	jc f714e_oom_j
+	call lfn_free_handle
+	xor ax, ax
+	jmp return_AX_CLC
+
+f714e_oom_j:
+	jmp f714e_oom
+
+
+	Public lfn_free_handle
+
+lfn_free_handle:
+	mov ax, bx
+	and word ptr [di], 0		; clear the handle table
+
+	push ds
+	pop es
+	mov di, ax			; -> to overwrite
+	lea si, +2Eh[di]		; -> next
+	mov cx, offset lfn_find_handle_heap_end
+					; -> after last
+	sub cx, si			; = length of next to after last
+	rep movsb			; move down
+	mov di, offset lfn_find_handles
+f71a1_loop:
+	scasw				; cmp ax, word ptr [es:di]
+	ja f71a1_next			; offset freed is above entry -->
+	sub word ptr -2[di], 2Eh	; offset freed is below, relocate this
+f71a1_next:
+	cmp di, offset lfn_find_handles_end
+					; more to go ?
+	jb f71a1_loop			; yes -->
+	sub lfn_find_handle_heap_free, 2Eh
+lfn_free_handle_ret:
 	ret
+
+
+		; INP:	bx = handle
+		; OUT:	NC if valid handle,
+		;	 ax = original handle
+		;	 bx -> DTA
+		;	 di -> handle table entry
+		;	CY if no valid handle
+lfn_get_handle:
+	mov ax, bx
+	add bx, bx			; get handle
+	jc lfn_get_handle_ret_CY
+	add bx, offset lfn_find_handles
+	jc lfn_get_handle_ret_CY
+	cmp bx, offset lfn_find_handles_end
+	jae lfn_get_handle_ret_CY
+	mov di, bx
+	mov bx, word ptr [bx]		; = offset of our DTA (0 = invalid)
+	test bx, bx
+	jnz lfn_get_handle_ret		; valid --> (NC)
+lfn_get_handle_ret_CY:
+	stc
+lfn_get_handle_ret:
+	ret
+
 
 func71a6:
 	mov	ax,bx
@@ -687,10 +799,15 @@ BDOS_DATA	dseg	word
 	extrn	dcnt:word
 	extrn	fdos_pb:word
 
-f714e_dta	rb	43
-
 PCMODE_DATA	dseg	word
 
 	extrn	int21regs_ptr:dword
 	extrn	dma_segment:word
 	extrn	dma_offset:word
+	extrn	current_psp:word
+
+	extrn lfn_find_handles:word
+	extrn lfn_find_handles_end:word
+	extrn lfn_find_handle_heap:word
+	extrn lfn_find_handle_heap_end:word
+	extrn lfn_find_handle_heap_free:word

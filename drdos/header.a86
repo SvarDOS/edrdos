@@ -1337,6 +1337,24 @@ info1_len	equ	word ptr (offset $ - offset country_data)
 	rb	10		; 10 zero bytes held at the end of the
 				; country information.
 
+
+	Public lfn_find_handles
+	Public lfn_find_handles_end
+lfn_find_handles:
+	rw	32
+lfn_find_handles_end:
+
+	Public lfn_find_handle_heap
+	Public lfn_find_handle_heap_end
+lfn_find_handle_heap:
+	rb	2Eh * 32
+lfn_find_handle_heap_end:
+
+	Public lfn_find_handle_heap_free
+lfn_find_handle_heap_free:
+	dw lfn_find_handle_heap
+
+
 PCM_CODEND	CSEG	PARA
 
 	Public	code_end
