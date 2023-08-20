@@ -98,16 +98,11 @@ f71_a6:
 	jmp	func71a6
 func71_a7:
 	cmp	al,0a7h			; function 71a7h?
-	 jne	func71_error
+	 jne	f71_error_7100
 	jmp	func71a7		; yes
-func71_error:
+f71_error_7100:
 	mov	ax,7100h		; function not supported
-	push	ds
-	lds	bp,int21regs_ptr	; set carry flag
-	or	ds:reg_FLAGS[bp],CARRY_FLAG
-	pop	ds
-	stc
-	ret
+	jmp f71_error
 
 func7142:
 	push	ds
@@ -116,7 +111,7 @@ func7142:
 	pop	ds
 	cmp	al,2			; valid subfunction number?
 	 jbe	f7142_02
-	jmp	f71_error_func
+	jmp	f71_error_0001
 f7142_02:
 	mov	ax,bx
 	call	vfy_dhndl_ptr_AX_call	; check file handle number
@@ -248,7 +243,7 @@ func7143:
 	 je	f7143_10
 	cmp	bl,4
 	 je	f7143_10
-	jmp	f71_error_func
+	jmp	f71_error_7100
 f7143_10:
 	mov	FD_FUNC,ax		; function number
 	mov	FD_NAMEOFF,dx		; filename
@@ -603,7 +598,7 @@ f71a6_not_redirector:
 func71a7:
 	cmp	bl,01			; sub function 01?
 	 je	f71a701			; yes
-	jmp	f71_error_func
+	jmp	f71_error_7100
 f71a701:				; Convert DOS time to Windows time
 	call	f71a701_entry
 	xor	ax,ax
@@ -796,7 +791,7 @@ vfy_dhndl_ptr_AX_call:
 	call	vfy_dhndl_ptr_AX	; setup stack for vfy_dhndl_ptr_AX
 	ret
 
-f71_error_func:
+f71_error_0001:
 	mov	ax,1			; invalid function number
 
 f71_error:
