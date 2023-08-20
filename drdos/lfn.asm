@@ -23,14 +23,14 @@ BDOS_CODE	cseg	word
 	Public	is_lfn
 is_lfn:
 	cmp	DATTS[bx],DA_LFN	; attribute combination of LFN entry?
-	 jne	is_lfn10		; no, must something else
+	 jne	is_lfn10		; no, must be something else
 	cmp	word ptr BLOCK1[bx],0	; no cluster chain?
 	 jne	is_lfn10		; perhaps it is a Delwatch entry
 	stc				; it is probably a Long Filename
-	jmps	is_lfn20
+	ret
+
 is_lfn10:
 	clc				; no LFN entry
-is_lfn20:
 	ret
 
 	Public	del_lfn
@@ -155,7 +155,7 @@ f7142_redirector:
 				;  that means it is supported.
 				;  return the other error -->
 	mov	ax,1142h	; ax = 1142h
-	stc
+	; stc			; (already CY)
 	int	2Fh
 f7142_ret_CF_ds:
 	pop	ds
@@ -519,9 +519,7 @@ f71a6_ret_CF_ds:
 	jmp	f7142_ret_CF_ds
 
 f71a6_dev:
-	mov	ax, 7100h
-	stc
-	jmp	f71_ret_CF
+	jmp f71_error_7100
 
 f71a6_not_redirector:
 	test	es:DHNDL_ATTR[bx],DHAT_DEV
