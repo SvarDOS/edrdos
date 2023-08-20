@@ -153,3 +153,15 @@ with at least a basic expression evaluator
   \n Run \cw{PACKBIO.BAT} and \cw{PACKDOS.BAT} in DOS
 
 }
+
+\n To build this document, you need
+the Halibut document preparation system
+
+\lcont{
+
+  \n Grab sources from \W{https://www.chiark.greenend.org.uk/~sgtatham/halibut/}{https://www.chiark.greenend.org.uk/~sgtatham/halibut/}
+
+  \n You may want to get a patch from
+\W{https://github.com/ecm-pushbx/halibut/commit/1ccc3ac}{https://github.com/ecm-pushbx/halibut/commit/1ccc3ac}
+
+}
