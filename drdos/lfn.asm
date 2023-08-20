@@ -369,7 +369,18 @@ f714e_entry:
 	pop	ss:dma_offset		; restore old DTA
 	pop	ss:dma_segment
 	pop	ds
-	pop	di
+	pop	bx			; = handle for 714Eh
+
+	push ax
+	cmp FD_FUNC, 4Eh		; was find first ?
+	jne f714e_error_findnext	; no -->
+
+	call lfn_get_handle		; get handle data
+	jc f714e_error_findnext		; (cannot happen)
+	call lfn_free_handle		; free handle, as we cannot return it
+
+f714e_error_findnext:
+	pop ax
 	neg	ax
 	jmp	f71_error
 f714f_10:
