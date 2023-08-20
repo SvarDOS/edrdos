@@ -76,7 +76,7 @@ then the DOS drive I: still must be unused
 
 \lcont{
 
-  \n Build x2b2 (requires NASM) and place in DOS PATH
+  \n Build x2b2 (requires NASM and lmacros) and place in DOS PATH
 
   \n A build can be obtained from
 \W{https://pushbx.org/ecm/download/x2b2.zip}{https://pushbx.org/ecm/download/x2b2.zip}
