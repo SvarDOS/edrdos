@@ -20,3 +20,7 @@ prepare.bat
 drbio/version.inc
 drdos/version.inc
 command/version.inc
+doc/build.htm
+doc/build.txt
+doc/build.pdf
+doc/screvid.but

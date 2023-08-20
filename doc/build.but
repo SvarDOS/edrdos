@@ -1,0 +1,155 @@
+\cfg{chapter}{Section}
+
+\cfg{text-filename}{build.txt}
+\cfg{text-chapter-numeric}{true}
+\cfg{text-indent-preamble}{false}
+\cfg{text-quotes}{"}{"}
+\cfg{text-indent}{4}
+\cfg{text-width}{72}
+
+\cfg{html-chapter-numeric}{true}
+\cfg{html-suppress-address}{true}
+\cfg{html-single-filename}{build.htm}
+\cfg{html-leaf-level}{0}
+\cfg{html-template-fragment}{%k}{%b}
+\cfg{html-head-end}{<meta name="viewport" content="width=device-width, initial-scale=1.0">}
+\cfg{html-leaf-contains-contents}{true}
+\cfg{html-heading-hashtag-links}{true}
+
+\cfg{pdf-filename}{build.pdf}
+
+\cfg{ps-filename}{build.ps}
+
+\cfg{info-filename}{build.info}
+
+\cfg{chm-filename}{build.chm}
+
+\cfg{winhelp-filename}{build.hlp}
+
+\cfg{man-filename}{build.7}
+\cfg{man-identity}{build}{7}{2023}{}{C. Masloch}
+
+\title How to build Enhanced DR-DOS from ecm repo
+
+\copyright 2023 by C. Masloch.
+Public Domain.
+
+This document has been compiled on \date{%Y-%m-%d}.
+
+
+\n Set up dosemu2
+
+\lcont{
+
+  \n Make sure to use FreeCOM as the shell
+
+  \n When redirecting a host directory to a DOS drive using \cw{-K},
+then the DOS drive I: still must be unused
+
+  \n A recent FreeCOM build can be obtained from the build at
+\W{https://pushbx.org/ecm/download/freecom.zip}{https://pushbx.org/ecm/download/freecom.zip}
+
+  \n There is a blog post on how to set up dosemu2:
+\W{https://pushbx.org/ecm/dokuwiki/blog:pushbx:setupdosemu2}{https://pushbx.org/ecm/dokuwiki/blog:pushbx:setupdosemu2}
+
+\# \W{https://pushbx.org/ecm/dokuwiki/blog:pushbx:2023:0706_how_to_set_up_dosemu2_freedos_and_ldebug}{https://pushbx.org/ecm/dokuwiki/blog:pushbx:2023:0706_how_to_set_up_dosemu2_freedos_and_ldebug}
+
+\# \W{https://pushbx.org/ecm/dokuwiki/doku.php?id=blog:pushbx:2023:0706_how_to_set_up_dosemu2_freedos_and_ldebug}{https://pushbx.org/ecm/dokuwiki/doku.php?id=blog:pushbx:2023:0706_how_to_set_up_dosemu2_freedos_and_ldebug}
+
+}
+
+\n Set up WarpLink
+
+\lcont{
+
+  \n Build WarpLink (requires NASM, dosemu2, and \cw{warplink.exe} itself) or obtain a build
+
+  \n Place resulting executable in DOS PATH as \cw{warplink.exe}
+
+  \n A build can be obtained from
+\W{https://pushbx.org/ecm/download/warplink.zip}{https://pushbx.org/ecm/download/warplink.zip}
+(rename \cw{wl.exe} to use it as \cw{warplink.exe})
+
+}
+
+\n Set up x2b2
+
+\lcont{
+
+  \n Build x2b2 (requires NASM) and place in DOS PATH
+
+  \n A build can be obtained from
+\W{https://pushbx.org/ecm/download/x2b2.zip}{https://pushbx.org/ecm/download/x2b2.zip}
+
+}
+
+\n Set up JWasm
+
+\lcont{
+
+  \n Build DJGPP executable of JWasm and place as \cw{C:\\BIN\\JWASM.EXE}
+
+  \n A build can likely be obtained from
+\W{https://github.com/Baron-von-Riedesel/JWasm/releases/}{https://github.com/Baron-von-Riedesel/JWasm/releases/}
+
+}
+
+\n Set up OpenWatcom
+
+\lcont{
+
+  \n Insure to have no files in DOS named \cw{C:\\C0NFIG.SYS}
+or \cw{C:\\AUTOEXEC.BAT}
+
+  \n Download OpenWatcom 1.9 DOS installer from
+\W{http://openwatcom.org/ftp/install/open-watcom-c-dos-1.9.exe}{http://openwatcom.org/ftp/install/open-watcom-c-dos-1.9.exe}
+
+  \n Run installer in dosemu2
+
+  \n Install to \cw{C:\\WATCOM}
+
+  \n Choose the full installation
+
+  \n Choose for the installer to \q{Make all the modifications for you}
+
+  \n Rename the created file \cw{C:\\AUTOEXEC.BAT}
+to \cw{C:\\AUTOWAT.BAT} after the installer is done
+
+  \n The created file \cw{C:\\CONFIG.SYS} should have just the line \cw{FILES=20}
+so make sure to configure at least that many SFT entries in \cw{FDCONFIG.SYS}
+
+}
+
+\n Run mak script from edrdos repo (repo root as host cwd), as \cw{./mak.sh}
+
+\n Alternatively, set up DOS drive I: to point to the repo's \cw{drdos/} subdirectory,
+call the \cw{C:\\AUTOWAT.BAT} file (only needed for building command.com),
+then run one of the \cw{make.bat} scripts
+from one of the subdirectories
+(\cw{drbio/}, \cw{drdos/}, or \cw{command/} subdirectory as DOS cwd).
+
+\n Find files \cw{drbio.sys}, \cw{drdos.sys}, and \cw{command.com}
+in the subdirectories \cw{drbio/bin/}, \cw{drdos/bin/}, and \cw{command/bin/}
+
+\n To use Enhanced DR-DOS kernel packing:
+
+\lcont{
+
+  \n Unpack \cw{upx.exe} from \cw{pack100.zip}
+
+  \n Unpack all files from \cw{pack101.zip}
+
+  \n The archives can be found at
+\W{https://pushbx.org/ecm/download/edrdos/}{https://pushbx.org/ecm/download/edrdos/}
+
+  \n Place \cw{drbio.sys} and \cw{drdos.sys} in same directory
+
+  \n Make sure that the files are fresh and not yet compressed by this packer
+
+  \n Make sure that the command \cw{debug} resolves to a debugger
+with at least a basic expression evaluator
+(lDebug will do, DR-DOS Debug too)
+
+  \n Run \cw{PACKBIO.BAT} and \cw{PACKDOS.BAT} in DOS
+
+}
