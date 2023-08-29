@@ -190,6 +190,7 @@ MLOCAL WORD ret;
 #define	COPY_SYS	(global_flg & 2)	/* Include SYSTEM Files	*/
 #define	COPY_ZERO	(global_flg & 4)	/* Zero the eighth Bit	*/
 #define	COPY_CONFIRM	(global_flg & 8)	/* Confirm each file	*/
+#define COPY_YES	(global_flg & 16)
 
 #define	COPYSRC_ASC	(sflag & 1)		/* Source is ASCII	*/
 #define	COPYSRC_BIN	(sflag & 2)		/* Source is Binary	*/
@@ -272,10 +273,10 @@ BYTE	*cmd;
 	cmd = deblank(cmd);		/* remove leading spaces */
 	strlwr(cmd);			/* force it all to lower case first */
 	strcpy(heap(),cmd);		/* make temp copy of cmd line */
-	if(f_check(heap(), "vszcab", &global_flg, NO))	/* check for any bad flags */
+	if(f_check(heap(), "vszcyab", &global_flg, NO))	/* check for any bad flags */
 	   return;				/* exit if any (with message) */    
 						/* also zaps any valid flags but not important is this is a temp copy */
-	f_check(cmd,"vszc",&global_flg,YES);	/* check for, and zap verify, sys, zero and confirm flags */
+	f_check(cmd,"vszcy",&global_flg,YES);	/* check for, and zap verify, sys, zero and confirm flags */
 	if(COPY_SYS) {
 	    rmode |= ATTR_SYS;			/* read system files also*/
 	    rmode |= ATTR_HID;			/* read hidden files also*/
@@ -500,10 +501,10 @@ loop12:
 				
 	strlwr(tp);		 	/* convert to lower case */
 		
-	if(pflag && !COPY_CONFIRM)
+	if(pflag && (!COPY_CONFIRM || COPY_YES))
 	    prtsrc(src);		/* print name of this file */
 
-	if(COPY_CONFIRM && ret>=0) 
+	if(COPY_CONFIRM && !COPY_YES && ret>=0) 
 	    confirmed = conf_src(src);	/* print source name and ask whether to copy */
 	else
 	    confirmed = YES;
