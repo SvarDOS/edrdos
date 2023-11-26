@@ -6,6 +6,20 @@
 ;
 ;    Last Edited By    : $Author: RGROSS$
 ;
+;    Bugs: - UDSC_FSTYPE is not updated correctly if actual file system type
+;            does not match the type of partition table. This may be be a
+;            non-issue, because UDSC_FSTYPE is not actually used by
+;            the kernel.
+;
+;          - BPB_SIZE et al. are not read from the BPB of the hard disk
+;            partition but always constructed from information stored in the
+;            partition table. This may impose a problem where these values
+;            disagree.
+;
+;          - Kernel allows access to non-formatted disks, because a valid
+;            default BPB is constructed. Even file operations may seem to
+;            succeed if FAT etc. by accident store sensible values.
+;
 ;-----------------------------------------------------------------------;
 ;    Copyright Unpublished Work of Novell, Inc. All Rights Reserved.
 ;      
@@ -3012,6 +3026,30 @@ log_p9:
 
 hd_bpb:
 ;------
+; IN:	DS:BX = ptr to BPB to be build (BPB_SIZE and BPB_HIDDEN pre-filled)
+;	ES:DI = ptr to UDSC table entry
+; OUT:	DS:BX = ptr to initialized BPB
+;
+; CALL STACK: login_hdisk -> login_primary -> hd_bpb
+;
+; Builds a default BPB based on the size of the partition to login.
+; Makes also use of global variable parttype to determine the FAT type.
+; Before hd_bpb is called, it is ensured via login_hdisk that parttype is
+; of supported FAT type.
+;
+; The algorithm is as follows:
+;   - build a FAT-12 BPB if partition size allows it and parttype is FAT-12
+;   - else, build a FAT-16 BPB if partition size allows it and parttype is not
+;     FAT-32 or FAT-32X
+;   - in all other cases, make it FAT-32
+;
+; Also sets informal UDSC_FSTYPE to zero terminated string indicating
+; FAT12, FAT16, FAT32.
+;
+; This default BPB will be overwritten by login_primary with BPB values
+; of the partition, if it contains a valid FAT formatted file system.
+;
+
 	mov	BPB_SECSIZ[bx],SECSIZE	; set standard sector size
 	mov	BPB_FATADD[bx],1	; one reserved (boot) sector
 	mov	BPB_NFATS[bx],2		; two FAT copies
@@ -3031,6 +3069,8 @@ hd_bpb:
 	 jnz	hd_bpb10		; yes, it's 16-bit
 	cmp	ax,7FCEh		; more than 16 Mb?
 	 jae	hd_bpb20		; yes, use 16 bit FAT
+	cmp	parttype,DOS20_ID	; <16 Mb, but parttype indicates that
+	 jnz	hd_bpb20		; this is not FAT-12 -> must be FAT-16
 	mov	cx,4*2			; else we've got old 12-bit FAT
 	mov	BPB_ALLOCSIZ[bx],cl	; we use 4 K clusters
 	add	ax,cx			; adjust DX:AX for rounding
@@ -3049,6 +3089,10 @@ hd_bpb:
 
 hd_bpb10:
 	mov	BPB_TOTSEC[bx],0	; zero this if BPB_SIZE is required
+	cmp	parttype,FAT32_ID	; create FAT32 BPB if parttype
+	 jz	hd_bpb30		; indicates a FAT32 partition
+	cmp	parttype,FAT32X_ID	;
+	 jz	hd_bpb30		;
 	cmp	dx,2			; less than 2*65536 sectors (64 Mb)?
 	 jb	hd_bpb20		; yes, leave cluster size the same
 	mov	BPB_ALLOCSIZ[bx],4*2	; use 4 K clusters if 64-128 Mb
