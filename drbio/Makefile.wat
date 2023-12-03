@@ -33,18 +33,23 @@ bin/drbio.sys : bin/bios.exe
 	$(EXE2BIN) -q $< $@
 	$(COMPBIOS) $@
 	
-bin/bios.exe : $(wasm_objs) $(rasm_objs)
+bin/bios.exe : version.inc $(wasm_objs) $(rasm_objs)
 	wlink @bios.lnk
 
 .asm.obj:
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $<
 
 .a86.obj:
-	$(RASM_SH) $(RASM) . .\$< .\$^@ $(RASM_FLAGS)
-	$(FIXUPP) $^@
-	
+	$(RASM_SH) $(RASM) . .\$< .\$^*.o86 $(RASM_FLAGS)
+	$(FIXUPP) $^*.o86 $^@
+
+version.inc:
+	copy ..\version.inc .
+
 clean: .SYMBOLIC
 	rm -f bin/drbio.sys
 	rm -f bin/bios.exe
+	rm -f bin/*.o86
+	rm -f version.inc
 	@for %f in ($(wasm_objs)) do rm -f %f
 	@for %f in ($(rasm_objs)) do rm -f %f

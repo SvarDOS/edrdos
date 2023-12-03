@@ -225,9 +225,11 @@ static void encode_fixup( fixup_t *fixup, u8 **data )
 
 static void dump_fixup( fixup_t *fixup )
 {
-   printf( "M%d L%d O=%04x F%d T%d : F=%04x T=%04x D=%04x",
+#if 0
+      printf( "M%d L%d O=%04x F%d T%d : F=%04x T=%04x D=%04x",
       fixup->mode, fixup->location, fixup->offset, fixup->frame, fixup->target,
-      fixup->frame_datum, fixup->target_datum, fixup->displacement);   
+      fixup->frame_datum, fixup->target_datum, fixup->displacement);
+#endif
 }
 
 
@@ -260,13 +262,11 @@ static int process_fixup( u8 *data, size_t *len )
          fixup.frame = FRAME_GRPDEF_IDX;
          fixup.frame_datum = segment_group[fixup.target_datum];
 
-         printf( "  ->  " );
          dump_fixup( &fixup );
       }
 
       encode_fixup( &fixup, &p );
 
-      puts("");
    }
 
    /* encode new record length and checksum */
@@ -274,7 +274,6 @@ static int process_fixup( u8 *data, size_t *len )
    *p = -calculate_checksum( data, p - data );
    *len = p - data + 1;
 
-   printf( "-> len=%d\n", p - data + 1);
    return 1;
 }
 
