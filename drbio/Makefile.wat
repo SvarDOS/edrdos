@@ -12,6 +12,7 @@
 
 WASM = jwasm
 WASM_FLAGS = -q -Zm -Zg
+WLINK = wlink
 EXE2BIN = exe2bin
 
 LTOOLS = ..\ltools
@@ -34,22 +35,48 @@ bin/drbio.sys : bin/bios.exe
 	$(COMPBIOS) $@
 	
 bin/bios.exe : version.inc $(wasm_objs) $(rasm_objs)
-	wlink @bios.lnk
+	$(WLINK) @bios.lnk
+
+bin/biosmsgs.obj: biosgrps.equ
+
+bin/init.obj: biosgrps.equ drmacros.equ ibmros.equ msdos.equ request.equ bpb.equ udsc.equ driver.equ keys.equ
+
+bin/clock.obj: biosgrps.equ drmacros.equ ibmros.equ request.equ driver.equ
+
+bin/console.obj: biosgrps.equ drmacros.equ ibmros.equ request.equ driver.equ
+
+bin/disk.obj: biosgrps.equ drmacros.equ ibmros.equ request.equ bpb.equ udsc.equ driver.equ keys.equ
+
+bin/serpar.obj: biosgrps.equ drmacros.equ ibmros.equ request.equ driver.equ
+
+bin/biosgrps.obj: biosgrps.equ
+
+bin/biosinit.obj: msdos.equ psp.def f52data.def doshndl.def config.equ fdos.equ modfunc.def patch.cod initmsgs.def
+
+bin/config.obj: config.equ msdos.equ char.def reqhdr.equ driver.equ fdos.equ f52data.def doshndl.def country.def initmsgs.def biosmsgs.def
+
+bin/bdosldr.obj: reqhdr.equ driver.equ config.equ initmsgs.def
+
+bin/genercfg.obj: config.equ msdos.equ char.def reqhdr.equ driver.equ fdos.equ f52data.def doshndl.def country.def
+
+bin/nlsfunc.obj: config.equ msdos.equ mserror.equ
 
 .asm.obj:
-	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $<
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 .a86.obj:
-	$(RASM_SH) $(RASM) . .\$< .\$^*.o86 $(RASM_FLAGS)
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)
 	$(FIXUPP) $^*.o86 $^@
 
-version.inc:
+version.inc: ../version.inc
 	copy ..\version.inc .
 
 clean: .SYMBOLIC
 	rm -f bin/drbio.sys
 	rm -f bin/bios.exe
 	rm -f bin/*.o86
+	rm -f bin/*.lst
+	rm -f bin/*.map
 	rm -f version.inc
 	@for %f in ($(wasm_objs)) do rm -f %f
 	@for %f in ($(rasm_objs)) do rm -f %f
