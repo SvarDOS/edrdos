@@ -62,6 +62,9 @@ title 'FDOS IOCTL - DOS file system input/output control'
 ;    5 aug 92  substatial ioctl rework saves a few bytes - ioctl
 ;              request header now built by PCMODE
 
+PCMCODE	GROUP	BDOS_CODE
+PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
+
 	eject ! include i:fdos.equ
 	eject ! include rh.equ
 	eject ! include i:msdos.equ

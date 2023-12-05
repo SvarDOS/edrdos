@@ -42,6 +42,8 @@ title 'DIRS - dos directory support'
 ;   19 Aug 91 Initial version created for VLADIVAR
 
 eject
+PCMCODE	GROUP	BDOS_CODE
+PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
 
 include	bdos.equ
 include i:mserror.equ

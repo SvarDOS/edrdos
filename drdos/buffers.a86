@@ -48,6 +48,9 @@ title 'BUFFERS - buffer handling routines'
 ;    9 Sep 91 Initial version created for VLADIVAR
 ;    3 mar 93 correct zeroblk bug
 
+PCMCODE	GROUP	BDOS_CODE
+PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
+
 	NOLIST
 	eject ! include i:fdos.equ
 	eject ! include bdos.equ

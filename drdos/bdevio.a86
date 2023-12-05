@@ -59,6 +59,9 @@ title 'BDEVIF - Block DEVice Input/Output support'
 ;    UNDELETE support changes
 ;    ENDLOG
 
+PCMCODE	GROUP	BDOS_CODE
+PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
+
 	eject ! include i:mserror.equ	; F_DOS erros
 	eject ! include i:fdos.equ
 	eject ! include i:driver.equ

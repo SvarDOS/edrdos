@@ -36,6 +36,9 @@ title 'FCB - DOS file system FCB support'
 ;    fix for >255 open files (PNW Server)
 ;    ENDLOG
 
+PCMCODE	GROUP	BDOS_CODE
+PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
+
 	eject ! include i:fdos.equ
 	eject ! include i:msdos.equ
 	eject ! include i:mserror.equ

@@ -154,6 +154,9 @@ title 'F_DOS - DOS file system'
 ;   29-Jun-89  Split off IOCTL into seperate module
 ;   11-Sep-89  Split off MSNET into seperate module
 
+PCMCODE	GROUP	BDOS_CODE
+PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
+
 	eject ! include i:psp.def
 	eject ! include i:modfunc.def
 	eject ! include i:fdos.equ

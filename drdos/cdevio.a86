@@ -43,6 +43,9 @@ title 'F_DOS Character device I/O'
 ;    Update char_error so ES:SI -> device driver header itself;
 ;    ENDLOG
 
+PCMCODE	GROUP	BDOS_CODE
+PCMDATA	GROUP	BDOS_DATA
+
 	eject ! include i:psp.def
 	eject ! include i:modfunc.def
 	eject ! include i:fdos.equ
@@ -51,6 +54,7 @@ title 'F_DOS Character device I/O'
 	eject ! include i:driver.equ
 	eject ! include rh.equ
 	eject ! include cmdline.equ
+
 
 BDOS_DATA	dseg
 

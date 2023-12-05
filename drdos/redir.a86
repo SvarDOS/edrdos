@@ -57,6 +57,9 @@ title 'REDIR - DOS file system network redirector interace support'
 ;    zero space adjust on getddsc
 ;    ENDLOG
 
+PCMCODE	GROUP	BDOS_CODE
+PCMDATA	GROUP	PCMODE_DATA
+
 	eject ! include i:psp.def
 	eject ! include i:fdos.equ
 	eject ! include i:msdos.equ
