@@ -2,7 +2,7 @@
 .ERASE
 
 WASM = jwasm
-WASM_FLAGS = -q -Zm -Zg
+WASM_FLAGS = -q
 EXE2BIN = exe2bin
 WLINK = wlink
 
@@ -18,13 +18,10 @@ objs += bin/cdevio.obj bin/fioctl.obj bin/redir.obj bin/header.obj
 objs += bin/pcmif.obj bin/cio.obj bin/disk.obj bin/ioctl.obj bin/misc.obj
 objs += bin/support.obj bin/dosmem.obj bin/error.obj bin/process.obj
 objs += bin/network.obj bin/int2f.obj bin/history.obj bin/cmdline.obj
-objs += bin/dos7.obj bin/lfn.obj
+objs += bin/dos7.obj bin/lfn.obj bin/dosgrps.obj
 
-bin/drdos.sys: bin/drdos.inp version.inc $(objs) .SYMBOLIC
-	cd bin
-	..\$(LTOOLS)\linkcmd.exe drdos[i]
-	cd ..
-	$(LTOOLS)\bin2asc -ob -s128 .\bin\drdos.tmp .\bin\drdos.sys
+bin/drdos.sys: bin/drdos.inp version.inc $(objs)
+	$(WLINK) @drdos.lnk
 	$(LTOOLS)\compbdos .\bin\drdos.sys
 
 version.inc: ../version.inc
@@ -32,6 +29,9 @@ version.inc: ../version.inc
 
 bin/drdos.inp: drdos.inp
 	copy drdos.inp bin\drdos.inp
+
+bin/dosgrps.obj: dosgrps.asm
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/buffers.obj: buffers.a86 fdos.equ bdos.equ doshndl.def
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz  /DDELWATCH /DDOS5
