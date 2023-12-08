@@ -133,6 +133,7 @@ bin/lfn.obj: lfn.asm bdos.equ fdos.equ pcmode.equ doshndl.def lfn.equ fdos.def m
 clean: .SYMBOLIC
 	rm -f bin/drdos.sys
 	rm -f bin/*.obj
+	rm -f bin/*.o86
 	rm -f bin/*.lst
 	rm -f bin/*.sym
 	rm -f bin/*.tmp

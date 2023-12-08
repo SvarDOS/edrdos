@@ -1,6 +1,7 @@
 system dos com
 option quiet
 option map=bin\drdos.map
+disable 1023
 
 name bin\drdos.sys
 file bin\dosgrps.obj

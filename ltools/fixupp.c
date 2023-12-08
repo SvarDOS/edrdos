@@ -100,7 +100,7 @@ static size_t read_record( FILE *f, u8 *buf, size_t buf_sz )
 {
    size_t rec_len;
    if ( buf_sz < 4 ) return 0;
-   if ( fread( buf, 3, 1, f ) == -1 ) return 0;
+   if ( fread( buf, 1, 3, f ) != 3 ) return 0;
    rec_len = buf[1] | (buf[2] << 8);
    if ( rec_len + 3 > buf_sz ) return 0;
    if ( fread( buf + 3, 1, rec_len, f ) != rec_len ) return 0;
@@ -127,6 +127,7 @@ static u8 calculate_checksum( const u8 *data, size_t len )
    number of defined segments */
 static int process_segdef( const u8 *data, size_t len )
 {
+   (void)data; (void)len; /* unused */
    segment_count++;
    return 1;
 }
@@ -138,10 +139,9 @@ static int process_segdef( const u8 *data, size_t len )
    processing FIXUP records. */
 static int process_grpdef( u8 *data, size_t len  )
 {
-   const char *data_end = data + len - 1;
+   const u8 *data_end = data + len - 1;
    u8 *p = data + 3;       /* skip record type and length fields */
    u16 seg_idx;
-   u16 name_idx;
    group_count++;          /* group count now stores idx of current group */
 
    (void) get_index( &p ); /* skip group name index (we do not need it) */
@@ -160,7 +160,7 @@ static int process_grpdef( u8 *data, size_t len  )
 }
 
 
-static int decode_fixup( u8 **data, u8 *data_end, fixup_t *fixup )
+static int decode_fixup( u8 **data, const u8 *data_end, fixup_t *fixup )
 {
    u8 *p = *data;
 
@@ -206,7 +206,7 @@ static void encode_fixup( fixup_t *fixup, u8 **data )
    /* 16-it LOCAT field */
    *p++ = 0x80 | (fixup->mode << 6) | (fixup->location << 2) 
         | (fixup->offset >> 8) ;
-   *p++ = fixup->offset;
+   *p++ = (u8)fixup->offset;
    
    /* 8-bit FIXDAT field */
    *p++ = (fixup->f_thread << 7) | (fixup->frame << 4)
@@ -229,6 +229,8 @@ static void dump_fixup( fixup_t *fixup )
       printf( "M%d L%d O=%04x F%d T%d : F=%04x T=%04x D=%04x",
       fixup->mode, fixup->location, fixup->offset, fixup->frame, fixup->target,
       fixup->frame_datum, fixup->target_datum, fixup->displacement);
+#else
+   (void)fixup;
 #endif
 }
 
@@ -270,7 +272,7 @@ static int process_fixup( u8 *data, size_t *len )
    }
 
    /* encode new record length and checksum */
-   put_16( p - data - 3 + 1, data + 1 );
+   put_16( (u16)(p - data - 3 + 1), data + 1 );
    *p = -calculate_checksum( data, p - data );
    *len = p - data + 1;
 
@@ -311,6 +313,8 @@ int process_records( FILE *inf, FILE *outf )
             break;
          case MODEND16_REC:
             finished = 1;
+            break;
+         default:
             break;
       }
 

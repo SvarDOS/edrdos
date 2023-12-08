@@ -74,9 +74,8 @@ version.inc: ../version.inc
 clean: .SYMBOLIC
 	rm -f bin/drbio.sys
 	rm -f bin/bios.exe
+	rm -f bin/*.obj
 	rm -f bin/*.o86
 	rm -f bin/*.lst
 	rm -f bin/*.map
 	rm -f version.inc
-	@for %f in ($(wasm_objs)) do rm -f %f
-	@for %f in ($(rasm_objs)) do rm -f %f
