@@ -16,6 +16,9 @@
 ;            partition table. This may impose a problem where these values
 ;            disagree.
 ;
+;		ecm note: If the BPB size is smaller than the partition
+;		 table entry size then the BPB size is now preferred.
+;
 ;          - Kernel allows access to non-formatted disks, because a valid
 ;            default BPB is constructed. Even file operations may seem to
 ;            succeed if FAT etc. by accident store sensible values.
@@ -2918,7 +2921,7 @@ log_p0b:
 
 	mov	ax,word ptr partstart
 	mov	dx,word ptr partstart+2
-	mov	es:word ptr BPB_HIDDEN[bx],ax	; set the partition address
+	mov	word ptr BPB_HIDDEN[bx],ax	; set the partition address
 	mov	word ptr BPB_HIDDEN+2[bx],dx	;   (32 bit sector offset)
 	mov	ax,part_size
 	mov	dx,part_size+2
@@ -2955,6 +2958,33 @@ log_p1:					; any of the above:  BPB invalid
 	jmp	log_p9
 
 log_p2:					; valid BPB for partition, AX/DX = size
+	cmp word ptr BPB_TOTSEC[si], 0	; BPB says small size ?
+	jne log_p2a			; no -->
+	test dx, dx			; partition table says larger ?
+	jnz log_replace			; yes, replace it with BPB size -->
+	cmp word ptr BPB_TOTSEC[si], ax	; BPB says smaller than partition table ?
+	jb log_replace			; yes, replace it with BPB size -->
+	jmp log_p2z
+log_p2a:
+	cmp word ptr BPB_SIZE+2[si], dx	; BPB says smaller than partition table ?
+	jne log_p2b
+	cmp word ptr BPB_SIZE[si], ax
+log_p2b:
+	jae log_p2z			; no -->
+
+log_replace:
+	mov cx, word ptr BPB_TOTSEC[si]	; = 0 or small size
+	mov dx, word ptr BPB_SIZE+2[si]
+	mov ax, word ptr BPB_SIZE[si]
+	jcxz log_p2x			; if to use large size -->
+	xor dx, dx
+	mov ax, cx			; use small size as large size too
+log_p2x:
+	mov word ptr BPB_TOTSEC[bx], cx	; set small size
+	mov word ptr BPB_SIZE[bx], ax
+	mov word ptr BPB_SIZE+2[bx], dx	; set large size
+
+log_p2z:
 	push	ax
 	mov	al,BPB_ALLOCSIZ[si]	; copy a few parameters from the 
 	mov	BPB_ALLOCSIZ[bx],al	; Boot Sector BPB to our new BPB
@@ -3071,6 +3101,11 @@ hd_bpb:
 	 jae	hd_bpb20		; yes, use 16 bit FAT
 	cmp	parttype,DOS20_ID	; <16 Mb, but parttype indicates that
 	 jnz	hd_bpb20		; this is not FAT-12 -> must be FAT-16
+		; This branch can be taken even if 4 SpC (2 KiB clusters)
+		;  would lead to misdetecting the FAT as FAT12. However,
+		;  the only ill effect is that we may allocate too many
+		;  FAT sectors for the assumed FAT16 in this case.
+
 	mov	cx,4*2			; else we've got old 12-bit FAT
 	mov	BPB_ALLOCSIZ[bx],cl	; we use 4 K clusters
 	add	ax,cx			; adjust DX:AX for rounding
@@ -3191,6 +3226,7 @@ hd_bpb40:				; cluster size determined
 	pop	bp
 	mov	word ptr BPB_BFATSEC[bx],ax	; remember FAT size
 	mov	word ptr BPB_BFATSEC+2[bx],dx
+	and word ptr BPB_FATSEC[bx], 0	; clear small FAT size field
 	mov	es:UDSC_FSTYPE+3[di],'3'; change "FAT12" to "FAT32"
 	ret
 
