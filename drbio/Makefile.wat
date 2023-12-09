@@ -11,7 +11,7 @@
 .ERASE
 
 WASM = jwasm
-WASM_FLAGS = -q -Zm -Zg
+WASM_FLAGS = -q -Zm -Zg -DSVARDOS
 WLINK = wlink
 EXE2BIN = exe2bin
 
@@ -34,32 +34,32 @@ bin/drbio.sys : bin/bios.exe
 	$(EXE2BIN) -q $< $@
 	$(COMPBIOS) $@
 	
-bin/bios.exe : version.inc $(wasm_objs) $(rasm_objs) bios.lnk
+bin/bios.exe : $(wasm_objs) $(rasm_objs) bios.lnk
 	$(WLINK) @bios.lnk
 
-bin/biosmsgs.obj: biosgrps.equ
+bin/biosmsgs.obj: biosmsgs.asm biosgrps.equ version.inc
 
-bin/init.obj: biosgrps.equ drmacros.equ ibmros.equ msdos.equ request.equ bpb.equ udsc.equ driver.equ keys.equ
+bin/init.obj: init.asm biosgrps.equ drmacros.equ ibmros.equ msdos.equ request.equ bpb.equ udsc.equ driver.equ keys.equ biosmsgs.def
 
-bin/clock.obj: biosgrps.equ drmacros.equ ibmros.equ request.equ driver.equ
+bin/clock.obj: clock.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driver.equ
 
-bin/console.obj: biosgrps.equ drmacros.equ ibmros.equ request.equ driver.equ
+bin/console.obj: console.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driver.equ
 
-bin/disk.obj: biosgrps.equ drmacros.equ ibmros.equ request.equ bpb.equ udsc.equ driver.equ keys.equ
+bin/disk.obj: biosgrps.asm biosgrps.equ drmacros.equ ibmros.equ request.equ bpb.equ udsc.equ driver.equ keys.equ biosmsgs.def
 
-bin/serpar.obj: biosgrps.equ drmacros.equ ibmros.equ request.equ driver.equ
+bin/serpar.obj: serpar.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driver.equ
 
-bin/biosgrps.obj: biosgrps.equ
+bin/biosgrps.obj: biosgrps.asm biosgrps.equ
 
-bin/biosinit.obj: msdos.equ psp.def f52data.def doshndl.def config.equ fdos.equ modfunc.def patch.cod initmsgs.def
+bin/biosinit.obj: biosinit.a86 msdos.equ psp.def f52data.def doshndl.def config.equ fdos.equ modfunc.def patch.cod initmsgs.def
 
-bin/config.obj: config.equ msdos.equ char.def reqhdr.equ driver.equ fdos.equ f52data.def doshndl.def country.def initmsgs.def biosmsgs.def
+bin/config.obj: config.a86 config.equ msdos.equ char.def reqhdr.equ driver.equ fdos.equ f52data.def doshndl.def country.def initmsgs.def biosmsgs.def
 
-bin/bdosldr.obj: reqhdr.equ driver.equ config.equ initmsgs.def
+bin/bdosldr.obj: bdosldr.a86 reqhdr.equ driver.equ config.equ initmsgs.def
 
-bin/genercfg.obj: config.equ msdos.equ char.def reqhdr.equ driver.equ fdos.equ f52data.def doshndl.def country.def
+bin/genercfg.obj: genercfg.a86 config.equ msdos.equ char.def reqhdr.equ driver.equ fdos.equ f52data.def doshndl.def country.def
 
-bin/nlsfunc.obj: config.equ msdos.equ mserror.equ
+bin/nlsfunc.obj: nlsfunc.a86 config.equ msdos.equ mserror.equ
 
 .asm.obj:
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@

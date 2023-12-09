@@ -26,8 +26,13 @@ div_by_zero_msg	label	byte
 _div_by_zero_msg	db	CR, LF, "Divide Error", CR, LF, NUL
 	public	_drdosprojects_msg
 	public	drdosprojects_msg
+
 drdosprojects_msg		label	byte
-_drdosprojects_msg		db	CR, LF, "The DR-DOS/OpenDOS Enhancement Project              http://www.drdosprojects.de", CR, LF, NUL
+ifdef SVARDOS
+	_drdosprojects_msg	db	CR, LF, "SvarDOS Enhanced DR-DOS kernel fork           https://github.com/svardos/edrdos", CR, LF, NUL
+else
+	_drdosprojects_msg	db	CR, LF, "The DR-DOS/OpenDOS Enhancement Project              http://www.drdosprojects.de", CR, LF, NUL
+endif
 	public	_starting_dos_msg
 	public	starting_dos_msg
 starting_dos_msg	label	byte
