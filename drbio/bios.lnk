@@ -4,6 +4,7 @@ system dos
 option quiet
 option nocaseexact
 option map=bin\bios.map
+disable 1014
 
 name bin\bios
 file bin\biosgrps

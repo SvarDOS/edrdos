@@ -34,7 +34,7 @@ bin/drbio.sys : bin/bios.exe
 	$(EXE2BIN) -q $< $@
 	$(COMPBIOS) $@
 	
-bin/bios.exe : version.inc $(wasm_objs) $(rasm_objs)
+bin/bios.exe : version.inc $(wasm_objs) $(rasm_objs) bios.lnk
 	$(WLINK) @bios.lnk
 
 bin/biosmsgs.obj: biosgrps.equ

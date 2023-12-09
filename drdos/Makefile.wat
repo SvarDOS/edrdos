@@ -20,9 +20,12 @@ objs += bin/support.obj bin/dosmem.obj bin/error.obj bin/process.obj
 objs += bin/network.obj bin/int2f.obj bin/history.obj bin/cmdline.obj
 objs += bin/dos7.obj bin/lfn.obj bin/dosgrps.obj
 
-bin/drdos.sys: bin/drdos.inp version.inc $(objs)
-	$(WLINK) @drdos.lnk
+bin/drdos.sys : bin/drdos.exe
+	$(EXE2BIN) -q $< $@
 	$(LTOOLS)\compbdos .\bin\drdos.sys
+
+bin/drdos.exe: bin/drdos.inp version.inc $(objs) drdos.lnk
+	$(WLINK) @drdos.lnk
 
 version.inc: ../version.inc
 	copy ..\version.inc .
@@ -132,6 +135,7 @@ bin/lfn.obj: lfn.asm bdos.equ fdos.equ pcmode.equ doshndl.def lfn.equ fdos.def m
 
 clean: .SYMBOLIC
 	rm -f bin/drdos.sys
+	rm -f bin/drdos.exe	
 	rm -f bin/*.obj
 	rm -f bin/*.o86
 	rm -f bin/*.lst

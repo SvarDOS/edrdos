@@ -1,9 +1,9 @@
-system dos com
+system dos
 option quiet
 option map=bin\drdos.map
 disable 1023
 
-name bin\drdos.sys
+name bin\drdos.exe
 file bin\dosgrps.obj
 file bin\header.obj
 file bin\pcmif.obj
