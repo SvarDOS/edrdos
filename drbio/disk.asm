@@ -3200,12 +3200,24 @@ hd_bpb30:				; build BPB for FAT32
 	 jb	hd_bpb40		; yes, leave cluster size the same
 	mov	BPB_ALLOCSIZ[bx],0	; use 128 K clusters if >1024 Gb
 	
-hd_bpb40:				; cluster size determined
+	; Now follows the calculation of the sector count per FAT.
+	; It is calculated after the formula
+	;   (total_sec + (sec_per_clust-1) - reserved) /
+	;   (sect_per_clust * entries_per_FAT_sector)
+	; This is somewhat inefficient, because the FATs are unnecessarily
+	; treated as data area.
+hd_bpb40:				; DX:AX = total sectors
 	sub	ax,1			; subtract reserved
 	sbb	dx,0
 	xor	cx,cx
 	mov	ch,BPB_ALLOCSIZ[bx]
-	shr	cx,1			; CX = (128 * # of clusters on drive)
+	shr	cx,1			; CX = sectors per cluster * 128
+	  ; If CX is now zero this means that we are dealing with
+	  ; 256 sectors per cluster. We set CX to:
+	  ;	256 sectors per cluster * 128 FAT entries per sector = 8000h
+	jnz	hd_bpb41
+	mov	ch,80h
+hd_bpb41:
 	dec	cx
 	add	ax,cx			; add in for rounding error
 	adc	dx,0
@@ -3226,7 +3238,7 @@ hd_bpb40:				; cluster size determined
 	pop	bp
 	mov	word ptr BPB_BFATSEC[bx],ax	; remember FAT size
 	mov	word ptr BPB_BFATSEC+2[bx],dx
-	and word ptr BPB_FATSEC[bx], 0	; clear small FAT size field
+	and	word ptr BPB_FATSEC[bx], 0	; clear small FAT size field
 	mov	es:UDSC_FSTYPE+3[di],'3'; change "FAT12" to "FAT32"
 	ret
 
