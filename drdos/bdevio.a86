@@ -2039,11 +2039,11 @@ div32:					; 32-bit division
 ;	AX,CX,DX,BP
 	mov	bp,sp			; base address of temporary variables
 	add	bp,2
-	cmp	word ptr 10[bp],0
+	cmp	word ptr 10[bp],0	; if divisor high => 32bit div
 	 jne	div32_full
-	cmp	word ptr 14[bp],0
+	cmp	word ptr 14[bp],0	; if dividend high => 32bit div
 	 jne	div32_full
-	jmp	div16
+	jmp	div16			; else 16bit division shortcut
 div32_full:
 	xor	ax,ax			; clear work registers
 	xor	dx,dx
