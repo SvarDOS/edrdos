@@ -2040,7 +2040,11 @@ div32:					; 32-bit division
 	mov	bp,sp			; base address of temporary variables
 	add	bp,2
 	cmp	word ptr 10[bp],0
-	 je	div16
+	 jne	div32_full
+	cmp	word ptr 14[bp],0
+	 jne	div32_full
+	jmp	div16
+div32_full:
 	xor	ax,ax			; clear work registers
 	xor	dx,dx
 	mov	cx,32			; 32 bits
