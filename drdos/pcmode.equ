@@ -96,7 +96,7 @@ eject
 ;
 CodeMacro	POP$DOS		; Pop User Registers a la MS-DOS
 	db 058h ! db 05Bh	; pop AX ! pop BX
-	db 059h ! db 05Ah	; pop BX ! pop CX
+	db 059h ! db 05Ah	; pop CX ! pop DX
 	db 05Eh ! db 05Fh	; pop SI ! pop DI
 	db 05Dh			; pop BP
 	db 01Fh ! db 007h	; pop DS ! pop ES
