@@ -2039,15 +2039,29 @@ div32:					; 32-bit division
 ;	AX,CX,DX,BP
 	mov	bp,sp			; base address of temporary variables
 	add	bp,2
-	cmp	word ptr 10[bp],0	; if divisor high => 32bit div
-	 jne	div32_full
-	cmp	word ptr 14[bp],0	; if dividend high => 32bit div
-	 jne	div32_full
-	jmp	div16			; else 16bit division shortcut
-div32_full:
-	xor	ax,ax			; clear work registers
 	xor	dx,dx
-	mov	cx,32			; 32 bits
+	cmp	10[bp],dx		; if divisor high != 0 => 32bit div
+	 jne	div32_full
+	mov	cx,8[bp]		; CX <- divisor low
+	mov	2[bp],dx		; clear remainder high, guaranteed to
+					; ...be zero here
+	mov	ax,14[bp]		; AX <- dividend high
+	test	ax,ax			; if both dividend and divisor are
+					; ...16bit, perform one 16bit division
+	 jz	div16			; ...else perform two 16bit divisions
+dix2x16:
+	div	cx			; divide dividend high by divisor low
+div16:	mov	6[bp],ax		; 6[bp] <- quotient high
+	mov	ax,12[bp]		; AX <- dividend low
+	div	cx			; divide dividend low by divisor low
+					; ...DX -> remainder of previous
+					; ...      division or zero
+	mov	[bp],dx			; store remainder low
+	mov	4[bp],ax		; store quotient low
+	ret
+div32_full:
+	xor	ax,ax			; clear registers, DX cleared above
+	mov	cx,32			; 32 iterations (bits)
 div32_loop:
 	shl	word ptr 4[bp],1	; multiply quotient with two
 	rcl	word ptr 6[bp],1
@@ -2070,16 +2084,6 @@ div32_2:
 	mov	2[bp],dx
 	ret
 
-div16:
-	mov	ax,12[bp]
-	mov	dx,14[bp]
-	div	word ptr 8[bp]
-	xor	cx,cx
-	mov	[bp],dx
-	mov	2[bp],cx
-	mov	4[bp],ax
-	mov	6[bp],cx
-	ret
 
 mul64:					; 64-bit multiplication
 ;--------
