@@ -2038,7 +2038,8 @@ div32:					; 32-bit division
 ; Modified registers:
 ;	AX,CX,DX,BP
 	mov	bp,sp			; base address of temporary variables
-	add	bp,2
+	inc	bp
+	inc	bp
 	xor	dx,dx
 	cmp	10[bp],dx		; if divisor high != 0 => 32bit div
 	 jne	div32_full
@@ -2049,7 +2050,6 @@ div32:					; 32-bit division
 	test	ax,ax			; if both dividend and divisor are
 					; ...16bit, perform one 16bit division
 	 jz	div16			; ...else perform two 16bit divisions
-dix2x16:
 	div	cx			; divide dividend high by divisor low
 div16:	mov	6[bp],ax		; 6[bp] <- quotient high
 	mov	ax,12[bp]		; AX <- dividend low
