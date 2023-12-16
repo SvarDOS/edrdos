@@ -3173,7 +3173,7 @@ hd_bpb26:
 	
 hd_bpb30:				; build BPB for FAT32
 	mov	BPB_DIRMAX[bx],0	; FAT32, so no fixed root dir
-	mov	BPB_FATADD[bx],20	; assume 20 reserved sectors
+	mov	BPB_FATADD[bx],20h	; assume 32 reserved sectors
 	mov	word ptr BPB_FSROOT[bx],2; assume root dir is in first cluster
 	mov	BPB_FSINFO[bx],0ffffh	; no FS info sector for default BPB
 	mov	BPB_BOOTBAK[bx],0ffffh	; no backup boot sector
