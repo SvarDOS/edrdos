@@ -1,3 +1,21 @@
+
+
+7.01.09:
+- changed reserved sectors for FAT-32 default BPB to 32 and fsinfo sector
+  to 0xffff (MS-DOS 7.1 compatibility)
+- changed maximum cluster size to 128 for FAT-32 (compatibility)
+- fixed bug in DRSYS div32 function, leading to kernel hangs on partitions
+  with more than 65535 FAT sectors.
+- create FAT-32 default BPB for FAT-32 partitions instead of FAT-16 default
+  BPB
+- replace proprietary FIXUPP utility with open source version
+- link DRDOS.SYS with OpenWatcom wlink instead of proprietary LINKCMD
+- link DRBIO.SYS with OpenWatcom wlink instead of WarpLink
+- create Watcom makefiles for DRBIO.SYS and DRDOS.SYS
+- suppress using int13h func 48h for diskettes
+- COMMAND.COM: accept COPY /Y switch
+- error 7100h on 7143h, 71A7h subfunctions
+
 7.01.08 WIP:
 (30.5.2005):
 - made XBDA=LOW properly handle the case when no upper memory chain is present

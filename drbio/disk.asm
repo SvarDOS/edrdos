@@ -3144,10 +3144,13 @@ hd_bpb10:
 	 jb	hd_bpb20		; yes, leave cluster size the same
 	mov	BPB_ALLOCSIZ[bx],64*2	; use 64 K clusters if 2-4 Gb
 	cmp	dx,128			; less than 128*65536 sectors (4 Gb)?
-	 jb	hd_bpb20		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],0	; use 128 K clusters if 4-8 Gb
-	cmp	dx,256			; more than 256*65536 sectors (8 Gb)?
-	 jae	hd_bpb30		; then use FAT32 instead
+	 jae	hd_bpb30		; no, use FAT-32
+; 256 sectors per cluster disabled for compatibility reasons.
+; They are still supported if such a partition is encountered, but
+; not established by a default BPB (Boeckmann)
+;	mov	BPB_ALLOCSIZ[bx],0	; use 128 K clusters if 4-8 Gb
+;	cmp	dx,256			; more than 256*65536 sectors (8 Gb)?
+;	 jae	hd_bpb30		; then use FAT32 instead
 
 hd_bpb20:				; cluster size determined
 	sub	ax,1+(512*32/SECSIZE)	; subtract reserved+root directory
@@ -3170,9 +3173,9 @@ hd_bpb26:
 	
 hd_bpb30:				; build BPB for FAT32
 	mov	BPB_DIRMAX[bx],0	; FAT32, so no fixed root dir
-	mov	BPB_FATADD[bx],3	; assume 1 boot, 1 reserved, 1 info sector
+	mov	BPB_FATADD[bx],20	; assume 20 reserved sectors
 	mov	word ptr BPB_FSROOT[bx],2; assume root dir is in first cluster
-	mov	BPB_FSINFO[bx],2	; FS info sector at 2, this is standard
+	mov	BPB_FSINFO[bx],0ffffh	; no FS info sector for default BPB
 	mov	BPB_BOOTBAK[bx],0ffffh	; no backup boot sector
 	mov	BPB_ALLOCSIZ[bx],1	; use 0.5 K clusters <64 Mb
 	cmp	dx,2			; less than 2*65536 sectors (64 Mb)?
@@ -3196,9 +3199,10 @@ hd_bpb30:				; build BPB for FAT32
 	cmp	dx,8192			; less than 8192*65536 sectors (256 Gb)?
 	 jb	hd_bpb40		; yes, leave cluster size the same
 	mov	BPB_ALLOCSIZ[bx],64*2	; use 64 K clusters if 256-1024 Gb
-	cmp	dx,32768		; less than 32768*65536 sectors (1024 Gb)?
-	 jb	hd_bpb40		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],0	; use 128 K clusters if >1024 Gb
+; 256 sectors per cluster disabled for compatibility reasons (Boeckmann)
+;	cmp	dx,32768		; less than 32768*65536 sectors (1024 Gb)?
+;	 jb	hd_bpb40		; yes, leave cluster size the same
+;	mov	BPB_ALLOCSIZ[bx],0	; use 128 K clusters if >1024 Gb
 	
 	; Now follows the calculation of the sector count per FAT.
 	; It is calculated after the formula
@@ -3207,7 +3211,7 @@ hd_bpb30:				; build BPB for FAT32
 	; This is somewhat inefficient, because the FATs are unnecessarily
 	; treated as data area.
 hd_bpb40:				; DX:AX = total sectors
-	sub	ax,1			; subtract reserved
+	sub	ax,BPB_FATADD[bx]	; subtract reserved
 	sbb	dx,0
 	xor	cx,cx
 	mov	ch,BPB_ALLOCSIZ[bx]
