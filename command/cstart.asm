@@ -3305,7 +3305,7 @@ _show_help	PROC NEAR
 
 	push	bp
 	mov	bp,sp
-	sub	sp,4			; require 2 WORD local variables
+	sub	sp,20			; require 20 bytes of local space
 	
 	mov	ah,MS_M_ALLOC		; allocate memory for the help text
 	mov	bx,help_length		; bx = no. paragraphs
@@ -3326,17 +3326,31 @@ show_help_05:
 	jc	show_help_err1		; exit on error
 	mov	bx,ax			; bx = file handle
 	mov	-4[bp],ax		; save handle for later
-		
-	xor	cx,cx
 	xor	dx,dx
 	cmp	exe_file,TRUE		; if command.com is an EXE file take
 	jne	show_help_10		; account of the EXE header
-	add	dx,200h
+
+	  ; read .EXE header size
+	mov	ah,MS_X_READ		; read from COMMAND.COM file
+	lea	dx,-20[bp]		; 16-byte data buffer
+	push	ds
+	push	ss
+	pop	ds			; point DS to data buffer on stack
+	mov	cx,16			; cx = no. bytes required
+	int	DOS_INT			; do it
+	pop	ds
+	mov	dx,-12[bp]		; read header size in paragraphs
+	jc	show_help_err2		; exit on error
+	mov	cl,4
+	shl	dx,cl			; DX now contains EXE header size
+
 show_help_10:
+	xor	cx,cx
 	add	dx,total_length
 	add	dx,cgroup_length
 	add	dx,cend_length		; dx = file offset of help text
 	mov	ax,(MS_X_LSEEK*256)+0	; seek to the right location
+	mov	bx,-4[bp]		; bx = file handle
 	int	DOS_INT			; do it
 	jc	show_help_err2		; exit on error
 	
@@ -3382,7 +3396,7 @@ show_help_err1:
 	pop	es
 	
 show_help_err0:
-	add	sp,4
+	add	sp,20
 	pop	bp
 	ret
 
