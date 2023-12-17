@@ -8,12 +8,14 @@ operating system. The following tools are required:
   (wmake and exe2bin)
 - [JWasm assembler](https://github.com/Baron-von-Riedesel/JWasm)
 
-To build `DRBIO.SYS`, invoke `wmake -f makefile.wat` inside the `DRBIO`
-directory. The output file is `DRBIO\BIN\DRBIO.SYS`.
+To build `DRBIO.SYS`, `DRDOS.SYS` and `COMMAND.COM`, invoke
+`wmake -f makefile.wat` from within their sub-directories. The output files
+are written to the `BIN` directory of the component,
+like `DRBIO\BIN\DRBIO.SYS`.
 
-To build `DRDOS.SYS`, invoke `wmake -f makefile.wat` inside the `DRDOS`
-directory. The output file is `DRDOS\BIN\DRDOS.SYS`.
-
+The command interpreter `COMMAND.COM` is currently not in such a good shape.
+Consider using [FreeCOM](https://github.com/FDOS/freecom) or an alternative
+command interpreter like 4DOS or SvarCOM instead.
 
 ## Kernel installation
 To install the kernel you may use a custom build of the FreeDOS SYS
