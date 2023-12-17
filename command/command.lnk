@@ -1,0 +1,23 @@
+system dos
+option fullheader
+option quiet
+option map
+disable 1023
+name bin/command.exe
+file bin/cstart.obj
+file bin/com.obj
+file bin/csup.obj
+file bin/dosif.obj
+file bin/comint.obj
+file bin/support.obj
+file bin/cmdlist
+file bin/printf.obj
+file bin/message.obj
+file bin/batch.obj
+file bin/global.obj
+file bin/config.obj
+file bin/comcpy.obj
+file bin/crit.obj
+file bin/resident.obj
+library clibs.lib
+

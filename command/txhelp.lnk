@@ -1,0 +1,9 @@
+system dos
+option fullheader
+option quiet
+option map
+disable 1014
+disable 1023
+name bin/txhelp.exe
+file bin/helpstub.obj
+file bin/txhelp.obj
