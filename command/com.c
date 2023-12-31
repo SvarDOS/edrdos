@@ -156,7 +156,7 @@ MLOCAL BYTE	valid_sepchar[] = ":.;,=+";
 
 
 #if defined(DOSPLUS)			/* we now define initial  */
-MLOCAL BYTE PATH_DIR[]  = "A:\\OPENDOS";
+MLOCAL BYTE PATH_DIR[]  = "A:\\";
 MLOCAL BYTE SET_PATH[]  = "PATH=%s";
 MLOCAL BYTE SET_PROMPT[]  = "PROMPT=$P$G";
 /*MLOCAL BYTE SET_OS[]   = "OS=OPENDOS";*/	/* environment in COMMAND */
