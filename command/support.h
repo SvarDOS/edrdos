@@ -41,8 +41,7 @@ EXTERN VOID      disp_sysdate(VOID);
 EXTERN VOID      revon(VOID);
 EXTERN VOID      revoff(VOID);
 EXTERN VOID CDECL cmd_cls(VOID);
-EXTERN BYTE      tolower(BYTE);
-EXTERN BOOLEAN   isdigit(BYTE);
+EXTERN BYTE      dr_tolower(BYTE);
 EXTERN BYTE *    skip_char (BYTE *);
 EXTERN BYTE *    copy_char (BYTE **, BYTE **);
 EXTERN WORD      is_blank (BYTE *);
@@ -63,12 +62,10 @@ EXTERN VOID      syntax (VOID);
 EXTERN VOID      crlf (VOID);
 EXTERN VOID      putc (BYTE);
 EXTERN VOID      puts(BYTE *);
-EXTERN BOOLEAN   isdigit(BYTE);
-EXTERN BOOLEAN   isletter(BYTE);
 	
 EXTERN BYTE *	strlwr(BYTE *);
 EXTERN BYTE *	strupr(BYTE *);
-EXTERN WORD	strnicmp(const BYTE *, const BYTE *, UWORD);
+EXTERN WORD		dr_strnicmp(const BYTE *, const BYTE *, UWORD);
 
 EXTERN WORD      e_check(WORD);
 EXTERN BYTE *    d_check(BYTE *);

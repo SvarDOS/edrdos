@@ -37,6 +37,7 @@
 #include	"defines.h"
 #include	<stdlib.h>
 #include	<string.h>
+#include	<ctype.h>
 
 #if defined(MWC) && defined(strlen)
 #undef strcmp			/* These are defined as macros in string.h */
@@ -330,8 +331,8 @@ GLOBAL VOID CDECL cmd_assign(REG BYTE *s)
 
 #if defined(DOSPLUS)
 	    nvec = network_drvs();
-	    if ((nvec & (1L << (toupper(src)-'A')))
-	          || (nvec & (1L << (toupper(dst)-'A')))) {
+	    if ((nvec & (1L << (dr_toupper(src)-'A')))
+	          || (nvec & (1L << (dr_toupper(dst)-'A')))) {
 	    	eprintf(MSG_NETASSIGN);		/* if either is remote	*/
 	    	return;				/* complain and exit	*/
 	    }
@@ -1932,7 +1933,7 @@ MLOCAL BOOLEAN check_time(BYTE *s)
 	}
 	
 	if (*s) {
-	    *s = toupper(*s);
+	    *s = dr_toupper(*s);
 	    if (*s == 'P' && hour != 12) hour += 12;
             if (*s == 'A' && hour == 12) hour = 0;
 	}
@@ -2482,7 +2483,7 @@ int	region, i;
 	    /* Look out for /L:r1[,s1][;r2[,s2]...] */
 	    /* We parse r1, and discard the rest */
 
-	    if ((s[0]==*switchar)&&(toupper(s[1])=='L')&&(s[2]==':')&&isdigit(s[3])){
+	    if ((s[0]==*switchar)&&(dr_toupper(s[1])=='L')&&(s[2]==':')&&isdigit(s[3])){
 		region = s[3]-'0';	/* assume region is 1 digit */
 		s += 4;			/* skip what we parsed */
 		while ((*s==';') || (*s==',') || isdigit(*s))
@@ -2491,7 +2492,7 @@ int	region, i;
 	    }
 
 	    /* discard any /S we find (really we should minimise) */
-	    if ((s[0]==*switchar) && (toupper(s[1])=='S')) {
+	    if ((s[0]==*switchar) && (dr_toupper(s[1])=='S')) {
 		s += 2;			/* skip the /S */
 		s = deblank(s);		/* deblank rest of line */
 	    }

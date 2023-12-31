@@ -81,7 +81,7 @@ EXTERN WORD CDECL     ms_x_chdir(BYTE *);
 EXTERN WORD CDECL     ms_x_mkdir(BYTE *);
 EXTERN WORD CDECL     ms_x_rmdir(BYTE *);
 EXTERN WORD CDECL     ms_s_country(INTERNAT *);
-EXTERN BYTE CDECL     toupper(BYTE);
+EXTERN BYTE CDECL     dr_toupper(BYTE);
 EXTERN WORD CDECL     ms_x_creat(BYTE *, UWORD);
 EXTERN WORD CDECL     ms_x_open(BYTE *, UWORD);
 EXTERN WORD CDECL     ms_x_close(WORD);

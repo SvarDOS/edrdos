@@ -2822,12 +2822,12 @@ endif	;!EXT_SUBST
 endif	;!DOSPLUS
 
 
-	Public	_toupper
+	Public	_dr_toupper
 
 UCASE	equ	18			; offset of dword ptr to uppercase func
 
 ;-------
-_toupper	proc	near
+_dr_toupper	proc	near
 ;-------
 ; Return the uppercase equivilant of the given character.
 ; The uppercase function defined in the international info block is 
@@ -2836,7 +2836,7 @@ _toupper	proc	near
 ; char	ch;				char to be converted
 ; char	result;				uppercase equivilant of ch
 ;
-; result = toupper(ch);
+; result = dr_toupper(ch);
 
 	push	bp
 	mov	bp, sp
@@ -2862,7 +2862,7 @@ exit_toupper:
 	pop	bp
 	ret
 
-_toupper	endp
+_dr_toupper	endp
 
 
 

@@ -408,7 +408,7 @@ VOID FAR CDECL _main(BYTE *cmd)
 	if(*cmdline && *cmdline != ':')		/* Check for a command	    */
 	{					/* not a LABEL		    */
 
-	    if (!strnicmp(cmdline,"IF",2)) docmd(cmdline,YES);
+	    if (!dr_strnicmp(cmdline,"IF",2)) docmd(cmdline,YES);
 	    else {
 	        if(!parse(cmdline))	{	/* If the Parse succeeds then*/
 		    docmd(cmdline, YES);	/* execute the command.	     */
@@ -602,7 +602,7 @@ MLOCAL VOID init(BYTE *cmd)
 	    if(*cmd != *switchar)		/* Stop the option check if  */
 		break;				/* the next character is not */
 	    cmd++;				/* a switch character.	     */
-	    c = toupper(*cmd++);
+	    c = dr_toupper(*cmd++);
 	    switch(c) {
 /*RG-05-*/
 #if (defined(CDOS)||defined(DOSPLUS)) && !defined(NOHELP)
@@ -670,7 +670,7 @@ MLOCAL VOID init(BYTE *cmd)
 
 #if defined(DOSPLUS)
 		case 'M':			/* relocate resident portion */
-		    c = toupper(*cmd++);
+		    c = dr_toupper(*cmd++);
 		    if (c == 'H') prh_function = 1;
 		    if (c == 'U') prh_function = 2;
 		    if (c == 'L') prh_function = -1;
@@ -1262,7 +1262,7 @@ GLOBAL VOID docmd(REG BYTE *cp, BOOLEAN internal)
 /*	    cpf = cgroupptr(s_cmd_p->cmnd);*/
 	    cpf = (BYTE FAR*)s_cmd_p->cmnd;
 	    for(i=0;cpf[i];i++)			/* make upper case copy */
-	    	argv0[i]=toupper(cpf[i]);
+	    	argv0[i]=dr_toupper(cpf[i]);
 	    for(;i<8;argv0[i++]=' ');		/* space fill it to 8 */
 
 	    if(!strncmp(argv0,loadfile+1,8)) {	/* Is this a match ? */
@@ -1270,7 +1270,7 @@ GLOBAL VOID docmd(REG BYTE *cp, BOOLEAN internal)
 #if !defined(NOHELP)
 		/* Handle  /H or /? in command */
 		strcpy(heap(),deblank(cp));
-		if(!strnicmp(heap(),"/h",2)||!strnicmp(heap(),"/?",2)) {
+		if(!dr_strnicmp(heap(),"/h",2)||!dr_strnicmp(heap(),"/?",2)) {
 		    if (s_cmd_p->help_index != -1)
 		    	show_help(s_cmd_p->help_index);
 		    crlf();
@@ -1309,7 +1309,7 @@ GLOBAL VOID docmd(REG BYTE *cp, BOOLEAN internal)
 	}
 
 	/* it's not an internal command - could it be help ? */
-        if ((!strnicmp(lcp,"/h",2))||(!strncmp(lcp,"/?",2))) {
+        if ((!dr_strnicmp(lcp,"/h",2))||(!strncmp(lcp,"/?",2))) {
             show_help(0);
 	    s_cmd_p = (S_CMD FAR *)farptr((BYTE *)&cmd_list[0]);
 	    while(s_cmd_p->cmnd) {
@@ -1806,7 +1806,7 @@ GLOBAL VOID process_config_env(VOID)
 #if 0
 		s = heap();
 		if (!env_scan("HOMEDIR=",s)) {
-			if (s[1] == ':') ms_drv_set(toupper(*s)-'A');
+			if (s[1] == ':') ms_drv_set(dr_toupper(*s)-'A');
 			ms_x_chdir(s);
 		}
 #endif

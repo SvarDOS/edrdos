@@ -54,8 +54,9 @@
  *           on a NOVELL drive when we are in seg FFFF.
  */
 
-#include	"defines.h"
-#include	<string.h>
+#include "defines.h"
+#include <string.h>
+#include <ctype.h>
 
 #if defined(MWC) && defined(strlen)
 #undef strcmp			/* These are defined as macros in string.h */
@@ -63,18 +64,17 @@
 #undef strlen			/* Metaware C. These undefs avoid this. */
 #endif
 
-#include	<portab.h>
-#include	"command.h"
-#include	"dosif.h"
-#include	"global.h"
+#include <portab.h>
+#include "command.h"
+#include "dosif.h"
+#include "global.h"
 
-#define     PRINTF      -1
-#define     EPRINTF     -2
-#define     SPRINTF     -3
+#define PRINTF      -1
+#define EPRINTF     -2
+#define SPRINTF     -3
 
 EXTERN VOID		c_write		(BYTE *, WORD);	
 EXTERN BYTE FAR * CDECL farptr		(BYTE *);
-EXTERN BOOLEAN		isdigit		(BYTE);
 EXTERN BOOLEAN		err_flag;
 
 /* forward references */

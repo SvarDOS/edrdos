@@ -445,7 +445,7 @@ GLOBAL VOID CDECL cmd_copy(BYTE	*cmd)
  *	it to "A:DEFAULT.P*".
  */
 	tp = strchr(fptr(src), '.');		/* Search for . in the 	*/
-	if(tp && !strnicmp(tp, ".p*t", 4))	/* and check for an ext */
+	if(tp && !dr_strnicmp(tp, ".p*t", 4))	/* and check for an ext */
 	    strcpy(tp, ".p?t");			/* of "P*T".		*/
 #endif
 	
@@ -737,7 +737,7 @@ MLOCAL BYTE * skip_switch(BYTE *cmd)
 	if(*cmd == *switchar) {			/* If this is a valid 	    */
 	    do {				/* switch sequence then skip*/
 	    	cmd++;				/* the following alpha chars*/
-		ch = tolower(*cmd);
+		ch = dr_tolower(*cmd);
 	    } while(ch >= 'a' && ch <= 'z');
 	}
 	return cmd;

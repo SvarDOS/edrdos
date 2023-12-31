@@ -128,39 +128,39 @@ DRDOS BUXTON
  * 07-Jul-92 IF EXIST now finds hidden files. 
 */
 
-#include	"defines.h"
+#include "defines.h"
 
-#include	<string.h>
+#include <string.h>
+#include <ctype.h>
 #if defined(MWC) && defined(strlen)
 #undef strcmp			/* These are defined as macros in string.h */
 #undef strcpy			/* which are expanded in line under */
 #undef strlen			/* Metaware C. These undefs avoid this. */
 #endif
 
-#include	<portab.h>
+#include <portab.h>
 
 #if !defined(DOSPLUS)
-#include	<ccpm.h>
+#include <ccpm.h>
 #endif
 
-#include	"command.h"
-#include	"toupper.h"
-#include	"support.h"
-#include	"dosif.h"
-#include	"global.h"
-#include	"dos.h"
-
-#include	<setjmp.h>
+#include "command.h"
+#include "toupper.h"
+#include "support.h"
+#include "dosif.h"
+#include "global.h"
+#include "dos.h" 
+#include <setjmp.h>
 
 /*RG-01*/
 #if defined(CDOSTMP) || defined(CDOS)
-#include    <pd.h>
+#include <pd.h>
 #define	PATH_LEN	    65		 /* max path length (null terminated) */
 EXTERN PD FAR * CDECL pd;	/* Far pointer to Current PD */
 EXTERN VOID CDECL cmd_set(BYTE *);	            /* COMINT.C */
 #if !defined (NOSECURITY) 
-#include    "security.h"
-#include    "login.h"
+#include "security.h"
+#include "login.h"
 #endif
 #endif
 /*RG-01-end*/
@@ -1225,7 +1225,7 @@ GLOBAL VOID CDECL cmd_goto( REG BYTE *label )	/* goto label in batch file */
 	while(!batch->eof) {		/* while not end of file read next  */
 	    batch_read(s, YES); 	/* line and return the next command  */
 	    bp = deblank(s);
-	    if((*bp == ':') && !strnicmp(make_label(bp+1),label, 8))
+	    if((*bp == ':') && !dr_strnicmp(make_label(bp+1),label, 8))
 		return;
 	}
 
@@ -1268,7 +1268,7 @@ GLOBAL VOID CDECL cmd_gosub( REG BYTE *label )	 /* gosub label in batch file */
 	while(!batch->eof) {		/* while not end of file read next  */
 	    batch_read(s, YES); 	/* line and return the next command  */
 	    bp = deblank(s);
-	    if((*bp == ':') && !strnicmp(make_label(bp+1),label, 8))
+	    if((*bp == ':') && !dr_strnicmp(make_label(bp+1),label, 8))
 		return;
 	}
 
@@ -1371,7 +1371,7 @@ MLOCAL UWORD if_index( BYTE **cmd )
 	for(i = 0; if_opt[i]; i++) {		/* Scan Through the option   */
 	    j = strlen(if_opt[i]);		/* list and return the index */
 						/* of the matching option    */
-	    if(strnicmp(*cmd, if_opt[i], j))	/* and update the string     */
+	    if(dr_strnicmp(*cmd, if_opt[i], j))	/* and update the string     */
 	        continue;			/* pointer.		     */
 	    *cmd = deblank(*cmd+j);
 
@@ -1437,7 +1437,7 @@ MLOCAL BOOLEAN CDECL test_cond( BYTE **cptr )
         cmd=*cptr;
         not = cond = NO;			/* Initialise the Flags     */
 
-	if(!strnicmp(cmd = deblank(cmd), "not", 3)) {
+	if(!dr_strnicmp(cmd = deblank(cmd), "not", 3)) {
 	    not = YES;
 	    cmd = deblank(cmd+3);
 	}
@@ -1476,7 +1476,7 @@ MLOCAL BOOLEAN CDECL test_cond( BYTE **cptr )
 		    cmd++;
 		}
 
-		if(!isdigit(*cmd) && !isletter(*cmd)) {	/* SYNTAX error if the	    */ 
+		if(!isdigit(*cmd) && !isalpha(*cmd)) {	/* SYNTAX error if the	    */ 
 		    syntax();				/* first character is not a */
 		    return FALSE;			/* digit.		    */
 		}
@@ -1485,7 +1485,7 @@ MLOCAL BOOLEAN CDECL test_cond( BYTE **cptr )
 		  while(isdigit(*cmd))
 		    level = level * 10 + (*cmd++ - '0');
 		else
-		  level=tolower(*cmd++)-'a'+1;
+		  level=dr_tolower(*cmd++)-'a'+1;
 
 		level = level & 0x00FF;
 
@@ -1529,7 +1529,7 @@ MLOCAL BOOLEAN CDECL test_cond( BYTE **cptr )
 	        crlf();			/* print cr/lf			*/
                 
                 /* check if it matches */
-                if((tolower(c[0])==*cmd)||(toupper(c[0])==*cmd))
+                if((dr_tolower(c[0])==*cmd)||(dr_toupper(c[0])==*cmd))
                     cond=TRUE;
                 else 
                     cond=FALSE;
@@ -1557,7 +1557,7 @@ MLOCAL BOOLEAN CDECL test_cond( BYTE **cptr )
                 
                 do {   /* skip past the user id */
                     if ((*cmd>='0' && *cmd<='9')
-                        ||(tolower(*cmd)>='a' && tolower(*cmd)<='f'))
+                        ||(dr_tolower(*cmd)>='a' && dr_tolower(*cmd)<='f'))
                         cmd++; /* skip the hex digit */
                     else {
                		    syntax();	
@@ -1696,7 +1696,7 @@ BOOLEAN is_it_or(BYTE *cmd)
 	if ((*cmd != 0) && (*cmd != '\t') && (*cmd != ' '))
 	    return FALSE;
         cmd++;
-	if (strnicmp(cmd, "or", 2) != 0)
+	if (dr_strnicmp(cmd, "or", 2) != 0)
 	    return FALSE;
 	cmd+=2;    
 	if ((*cmd != '\t') && (*cmd != ' '))
@@ -1718,7 +1718,7 @@ GLOBAL VOID CDECL cmd_if(BYTE *cmd)
 #if !defined(NOXBATCH)
 	    while (!is_it_or(cmd) &&
 		       (*cmd != 0)) {
-	        if (strnicmp(cmd,"ECHO",4)==0) return;       
+	        if (dr_strnicmp(cmd,"ECHO",4)==0) return;       
 	        cmd++;
 	    }
             if (*cmd==0) return; /* no OR's so quit now */
@@ -1732,7 +1732,7 @@ GLOBAL VOID CDECL cmd_if(BYTE *cmd)
 	else {
 	    cmd = deblank(cmd);
 
-	    if (strnicmp(cmd,"AND",3)) {
+	    if (dr_strnicmp(cmd,"AND",3)) {
 		if (parse(cmd)) return;	  /* IF won't have been 'parsed' for */
 					  /* > or < redirectors so do it now */
 	    }
@@ -1760,7 +1760,7 @@ GLOBAL VOID CDECL cmd_or( BYTE *cmd )
        	    org_cmd = cmd;			/* now look for "OR" */
 	    while (!is_it_or(cmd) &&
 		   (*cmd != 0)) {
-		if (strnicmp(cmd,"ECHO",4)==0) while(*cmd) cmd++;
+		if (dr_strnicmp(cmd,"ECHO",4)==0) while(*cmd) cmd++;
 		else cmd++;
 	    }
             if (*cmd==0) { /* oh dear, no ORs */
@@ -1774,7 +1774,7 @@ GLOBAL VOID CDECL cmd_or( BYTE *cmd )
 	else {
             cmd = deblank(cmd);
 	    
-	    if (strnicmp(cmd,"AND",3)) {
+	    if (dr_strnicmp(cmd,"AND",3)) {
 	        if (parse(cmd)) return;	  /* IF won't have been 'parsed' for */
 					  /* > or < redirectors so do it now */
 	    }
@@ -1803,7 +1803,7 @@ GLOBAL VOID CDECL cmd_for( BYTE *s )
 	    (fc->forvar = *s++) < ' ')		/* character and save	   */
 	    goto for_error;
 
-	if(strnicmp(s = deblank(s), "in", 2))	/* Check for the correct   */
+	if(dr_strnicmp(s = deblank(s), "in", 2))	/* Check for the correct   */
 	    goto for_error;			/* command syntax.	   */
 
 	s = deblank(s+2);
@@ -1833,7 +1833,7 @@ GLOBAL VOID CDECL cmd_for( BYTE *s )
 	if(*s++ != ')')
 	    goto for_error;
 	
-	if(strnicmp(s = deblank(s), "do", 2))
+	if(dr_strnicmp(s = deblank(s), "do", 2))
 	    goto for_error;
 
 	if(in_flag & REDIR_ACTIVE)	/* If Input redirection has been */
@@ -1920,7 +1920,7 @@ REG BYTE *prmptcp = prmptcpbuf;
 		putc (c);
 	    else {
 		c = *cp++;
-		switch(tolower(c)) {	/* else get next character */
+		switch(dr_tolower(c)) {	/* else get next character */
 		 case '\0':		/* Treat "$\0" as an invalid 	    */
 		     cp--;		/* prompt command sequence	    */
 		     break;

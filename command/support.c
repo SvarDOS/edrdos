@@ -117,7 +117,8 @@ Version 1.2
 
 #include	"defines.h"
 #include	<setjmp.h>
-/*#include	<string.h>*/
+#include	<string.h>
+#include <ctype.h>
 
 #if defined(MWC) && defined(strlen)
 #undef strcmp			/* These are defined as macros in string.h */
@@ -413,20 +414,10 @@ MLOCAL VOID outs(BYTE *s)
  *	============================================
  *
  */
-GLOBAL BYTE tolower(BYTE b)
+GLOBAL BYTE dr_tolower(BYTE b)
 {
 	if (b==0x8D) return('i'); /* For turkish dotted capital I */
 	return((b < 'A' || b > 'Z') ? b : b + 0x20);
-}
-
-GLOBAL BOOLEAN isdigit(BYTE b)
-{
-	return (b >= '0' && b <= '9');
-}
-
-GLOBAL BOOLEAN isletter(BYTE b)
-{
-	return ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z'));
 }
 
 GLOBAL BYTE * skip_char(REG BYTE *s)
@@ -514,12 +505,12 @@ GLOBAL BYTE *strlwr(BYTE *s)
 		    break;		/*  no - invalid DBCS, exit loop */
 	    }
 	    else
-	    	*bp = tolower(*bp);	/*  no - lower case it */
+	    	*bp = dr_tolower(*bp);	/*  no - lower case it */
 	}
     }
     else
     	for (bp = s; *bp; bp++)
-    	    *bp = tolower(*bp);
+    	    *bp = dr_tolower(*bp);
 
     return s;
 }
@@ -544,12 +535,12 @@ GLOBAL BYTE *strupr(BYTE *s)
 		    break;		/*  no - invalid DBCS, exit loop */
 	    }
 	    else
-	    	*bp = toupper(*bp);	/*  no - upper case it */
+	    	*bp = dr_toupper(*bp);	/*  no - upper case it */
 	}
     }
     else
     	for (bp = s; *bp; bp++)
-    	    *bp = toupper(*bp);
+    	    *bp = dr_toupper(*bp);
 
     return s;
 }
@@ -561,7 +552,7 @@ GLOBAL BYTE *strupr(BYTE *s)
  *	characters. This function is only used for token matching for
  *	commands like FOR and IF. Double byte character set aware.
  */
-GLOBAL WORD strnicmp(REG BYTE *str1, REG BYTE *str2, UWORD len)
+GLOBAL WORD dr_strnicmp(REG BYTE *str1, REG BYTE *str2, UWORD len)
 {
 	while (len--)			/* loop until len == 0 */
 	{
@@ -579,7 +570,7 @@ GLOBAL WORD strnicmp(REG BYTE *str1, REG BYTE *str2, UWORD len)
 		    return -1;		/*  no - return SMALLER */
 	    }
 	    else
-	    	if (toupper(*str1) != toupper(*str2))
+	    	if (dr_toupper(*str1) != dr_toupper(*str2))
 		    return -1;
 
 	    if(!*str1)
@@ -906,12 +897,12 @@ GLOBAL WORD onoff(BYTE *cmd)
 	    cmd = deblank(cmd+1);
 
 	sprintf(heap(), "%s", MSG_ON);		/* Check for ON		    */
-	if(!strnicmp(cmd, heap(), strlen(heap())))
+	if(!dr_strnicmp(cmd, heap(), strlen(heap())))
 	    if (*(deblank (cmd + strlen(heap()))) == 0)	/* end of line?	    */
 		return YES;
 
 	sprintf(heap(), "%s", MSG_OFF);		/* Check for OFF	    */
-	if(!strnicmp(cmd, heap(), strlen(heap())))
+	if(!dr_strnicmp(cmd, heap(), strlen(heap())))
 	    if (*(deblank (cmd + strlen(heap()))) == 0)	/* end of line?	    */
 		return NO;
 
@@ -1063,7 +1054,7 @@ GLOBAL BYTE * d_check(REG BYTE *path)
 	if(!*path || path[1] != ':')		/* then DDRIVE is set to    */
 	    return(path);			/* the default drive.	    */
 
-	ddrive = toupper(path[0]) - 'A';	/* Otherwise the requested  */
+	ddrive = dr_toupper(path[0]) - 'A';	/* Otherwise the requested  */
 	path += 2;				/* drive is selected and    */
 						/* range checked	    */
 	if(ddrive == drive)			/* If the requested drive is*/
@@ -1105,7 +1096,7 @@ GLOBAL BOOLEAN f_check(REG BYTE *cmd, BYTE *fchars, UWORD *farray, BOOLEAN ignor
 	    flg_skip = FALSE;			/* No Chars skipped	    */
 	    flg_error = TRUE;			/* Assume first char is bad */
 	    FOREVER {
-	        c = tolower(*cmd);		/* Scan the string till the */
+	        c = dr_tolower(*cmd);		/* Scan the string till the */
 		if(!((c>='a' && c<='z')||(c>='0' && c<='9')))
 		    break;			/* first non-alpha character*/
 
@@ -1293,7 +1284,7 @@ GLOBAL	VOID optional_line(BYTE *line)
 #else
 	  yn = (BYTE) msdos((MS_C_RAWIN), NULL);	 
 #endif						/* read the response	*/
-	  yn=toupper(yn);			/* both upper and lower case */
+	  yn=dr_toupper(yn);			/* both upper and lower case */
 	  if (yn==13)				/* accept <CR> for Y */
 	    yn=YES_CHAR;
 	  if (yn==32)				/* <SPACE> for N */

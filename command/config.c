@@ -354,7 +354,7 @@ struct {
 	memset(apb.name, ' ', 8);	/* Blank fill the Name Buffer	*/
 	
 	for(i=0; i < 8 && is_filechar(cmd); cmd++, i++)
-	    apb.name[i] = toupper(*cmd);
+	    apb.name[i] = dr_toupper(*cmd);
 
 	if(i == 0) {			/* If no valid process name was */
 	    printf(MSG_BADSTOP);	/* given then return with a	*/

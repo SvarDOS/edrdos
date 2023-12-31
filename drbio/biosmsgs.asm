@@ -29,7 +29,7 @@ _div_by_zero_msg	db	CR, LF, "Divide Error", CR, LF, NUL
 
 drdosprojects_msg		label	byte
 ifdef SVARDOS
-	_drdosprojects_msg	db	CR, LF, "SvarDOS Enhanced DR-DOS kernel fork           https://github.com/svardos/edrdos", CR, LF, NUL
+	_drdosprojects_msg	db	CR, LF, "Enhanced DR-DOS continuation                  https://github.com/svardos/edrdos", CR, LF, NUL
 else
 	_drdosprojects_msg	db	CR, LF, "The DR-DOS/OpenDOS Enhancement Project              http://www.drdosprojects.de", CR, LF, NUL
 endif
