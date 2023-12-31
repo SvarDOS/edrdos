@@ -2419,10 +2419,22 @@ load_com:
 	 jc	open_err
 	mov	bx,ax
 
-	xor	dx,dx			; Take account of EXE header
+	xor	dx,dx
 	cmp	exe_file,FALSE		; if we were loaded as an EXE
 	je	load_com_10
-	add	dx,200h			; Assume header is 200h bytes
+
+	; read .EXE header size
+	push	ds
+	mov	cx,16			; read first paragraph of EXE header
+	mov	ds,code_seg		; DS:DX - > High memory area
+	mov	ah,MS_X_READ		; Read the code into memory
+	int	DOS_INT
+	mov	si,8			; headersize / paras at offset 8
+	mov	dx,[si]
+	pop	ds
+	 jc	read_err		; exit on error
+	mov	cl,4			; multiply header size by paragraph
+	shl	dx,cl			; DX now contains EXE header size
 
 load_com_10:
 	xor	cx,cx			; Now read the command processor code
