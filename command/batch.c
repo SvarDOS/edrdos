@@ -879,6 +879,35 @@ BYTE	*l;		/* we need to deblank line */
 	} while(!batch->eof);
 }
 
+MLOCAL VOID swallow_line(s)
+BYTE	*s;
+/* there is a syntax error on this line - swallow it and say so */
+{
+BYTE	c;
+
+	prompt();				/* possibly echo the prompt */
+	if (echoflg)				/* echo to screen if wanted */
+	    printf("%s%c",s,PIPE_CHAR);
+	
+	do {
+	    c = *batch_ptr();
+	    if (c ==  0x1a) {
+		c = '\r';			/* pretend to be end of line*/
+		batch->eof = YES;		/* We have come to the end  */
+		break;				/* flag and mark end of line*/
+	    }
+	    if (echoflg)			/* echo to screen if wanted */
+		putc(c);
+	} while (c != '\r' && c != '\n');
+	if (echoflg)
+	    putc('\n');
+
+	if (c == '\r' && *batch_ptr() != '\n')		/*  skip line feed */
+		   batch->offset--;		/* if present	   */
+
+	eprintf(MSG_SYNTAX);			/* report syntax error	*/
+}
+
 /*
  *	Read one line from the batch file and place the expanded data into
  *	the buffer LINE.
@@ -965,7 +994,8 @@ int j;
 		    if(*batch_ptr() != '\n')	/*  skip line feed */
 			batch->offset--;	/* if present	   */
 		    break;
-
+		case '\n':			/* LF line ending */
+			break;
 		case '"':			/* Support Quoted strings   */
 		    quote = !quote;		/* in batch files.	    */
 		    goto save_it;
@@ -980,10 +1010,10 @@ int j;
 			c = '\r';		/* simulate a CR and set    */
 			pipe_out = YES;		/* Pipe Output flag.	    */
 		    } else if (c == ':') {	/* if it's a label */
-		    	for(;(c != '\r') && (c != 0x1A); c = *batch_ptr())
+		    	for(;(c != '\r') && (c != '\n') && (c != 0x1A); c = *batch_ptr())
 			    if (c == 0x1A)	/* eat rest of the line     */
 				batch->eof = YES;
-			if(*batch_ptr() != '\n')/*  skip line feed */
+			if((c == '\r') && *batch_ptr() != '\n')/*  skip line feed */
 			    batch->offset--;	/* if present	   */
 			c = '\r';
 		    } else {			/* if it's a syntax error    */
@@ -1017,7 +1047,7 @@ int j;
 		    }
 		    
 		    c = *batch_ptr();
-		    if (c == '\r') {
+		    if (c == '\r' || c == '\n') {
 			batch->offset--;	/* rewind to point to '\r'   */
 		    	break;			/* then break to normal code */
 		    }
@@ -1054,7 +1084,7 @@ int j;
 			    line[i++] = c;
 		    }
 		}
-	} while (c != '\r');			/* repeat until CR	   */
+	} while (c != '\r' && c != '\n');			/* repeat until CR	   */
 
 	line[i] = '\0'; 			/* Terminate the line and  */
 
@@ -1080,7 +1110,7 @@ BYTE	*s;
 	old_offset = batch->offset;		/* save batch offset */
 	while (TRUE) {
 	    s = batch_ptr();			/* look ahead at batch file */
-	    if (*s == '\r' || *s == 0x1a || (!dbcs_lead(*s) && *s == PIPE_CHAR))
+	    if (*s == '\r' || *s == '\n' || *s == 0x1a || (!dbcs_lead(*s) && *s == PIPE_CHAR))
 		break;
 	    if (!is_blank(s)) {
 	        res = TRUE;			/* possible command if we   */
@@ -1088,41 +1118,12 @@ BYTE	*s;
 	    }
 	    if (dbcs_lead(*s)) {
 		s = batch_ptr();
-		if (*s == '\r' || *s == 0x1a)
+		if (*s == '\r' || *s == '\n' || *s == 0x1a)
 		    break;
 	    }
 	}
 	batch->offset = old_offset;		/* restore batch offset */
 	return res;
-}
-
-MLOCAL VOID swallow_line(s)
-BYTE	*s;
-/* there is a syntax error on this line - swallow it and say so */
-{
-BYTE	c;
-
-	prompt();				/* possibly echo the prompt */
-	if (echoflg)				/* echo to screen if wanted */
-	    printf("%s%c",s,PIPE_CHAR);
-	
-	do {
-	    c = *batch_ptr();
-	    if (c ==  0x1a) {
-		c = '\r';			/* pretend to be end of line*/
-		batch->eof = YES;		/* We have come to the end  */
-		break;				/* flag and mark end of line*/
-	    }
-	    if (echoflg)			/* echo to screen if wanted */
-		putc(c);
-	} while (c != '\r');
-	if (echoflg)
-	    putc('\n');
-
-	if (*batch_ptr() != '\n')		/*  skip line feed */
-		   batch->offset--;		/* if present	   */
-
-	eprintf(MSG_SYNTAX);			/* report syntax error	*/
 }
 
 /*
