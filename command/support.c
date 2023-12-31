@@ -154,6 +154,9 @@ GLOBAL VOID putc(BYTE);
 GLOBAL VOID c_write(BYTE *, UWORD);
 GLOBAL BYTE * fptr(BYTE *);
 GLOBAL BYTE * day_names(UWORD);
+GLOBAL VOID append_slash(BYTE *s);
+
+EXTERN VOID docmd(BYTE *, BOOLEAN);		/* COM.C		*/
 
 /*.pa*/
 /*
@@ -201,8 +204,7 @@ MLOCAL BYTE	invalid_filechar[] = "*?\\.:;,=+<>|/\"[]";
  */
 MLOCAL BYTE	date_fmt []    = "%2d%c%02d%c%02d";
 
-GLOBAL VOID disp_filetime(time)
-unsigned time;
+GLOBAL VOID disp_filetime(unsigned time)
 {
 	WORD	h, m;
 	BYTE	ap;
@@ -228,8 +230,7 @@ unsigned time;
 		m, ap); 		/* print minute, am/pm (if enabled) */
 }
 
-GLOBAL VOID disp_filedate(date)
-unsigned date;
+GLOBAL VOID disp_filedate(unsigned date)
 {
 	WORD	y, m, d;
 	WORD	b;
@@ -256,7 +257,7 @@ unsigned date;
 	};
 }
 
-GLOBAL VOID disp_systime()
+GLOBAL VOID disp_systime(VOID)
 {
 	SYSTIME  time;
 	WORD	b = country.dtime[0];
@@ -271,8 +272,8 @@ GLOBAL VOID disp_systime()
 
 /* Return address of null terminated day name, given index (day). */
 
-GLOBAL BYTE * day_names(day)
-UWORD	day;			/* day of week: 0=sunday, 1=monday, .. */
+GLOBAL BYTE * day_names(UWORD day)
+  /* day: day of week: 0=sunday, 1=monday, .. */
 {
     switch (day)
     {
@@ -326,7 +327,7 @@ GLOBAL VOID disp_sysdate()
  *	Screen handling routines to CLEAR the screen and emphasise text
 */
 
-GLOBAL VOID CDECL cmd_cls()
+GLOBAL VOID CDECL cmd_cls(VOID)
 {
 #if defined(DOSPLUS)
  	if(!int10_cls())			/* If no console device is */
@@ -339,21 +340,21 @@ GLOBAL VOID CDECL cmd_cls()
 						/* Column count.	   */
 }
 
-GLOBAL VOID revon()
+GLOBAL VOID revon(VOID)
 {
 	screen(REVON_KEY, REVON_DEF);
 }
 
-GLOBAL VOID revoff()
+GLOBAL VOID revoff(VOID)
 {
 	screen(REVOFF_KEY, REVOFF_DEF);
 }
 
-MLOCAL VOID screen(key, def)
-BYTE	*key;		/* Key name to match in the environment */
-BYTE	*def;		/* Default string to output if no match */
+MLOCAL VOID screen(BYTE *key, BYTE *def)
+  /* key: Key name to match in the environment */
+  /* def: Default string to output if no match */
 {
-REG BYTE *cp;
+	REG BYTE *cp;
 
 	if(!env_scan(key, cp = (BYTE *)heap()))
 					/* and then search for the key  */
@@ -367,11 +368,10 @@ REG BYTE *cp;
  *	a C format imbedded Octal number. This is mainly used for the
  *	CLS function.
  */
-MLOCAL VOID outs(s)
-BYTE *s;
+MLOCAL VOID outs(BYTE *s)
 {
-BYTE	b = 0;
-REG WORD f = 0;
+	BYTE	b = 0;
+	REG WORD f = 0;
 
 	for(; *s; s++) {
 		if(f) { 			/* Generating an OCTAL number*/
@@ -413,27 +413,23 @@ REG WORD f = 0;
  *	============================================
  *
  */
-GLOBAL BYTE tolower(b)
-BYTE b;
+GLOBAL BYTE tolower(BYTE b)
 {
 	if (b==0x8D) return('i'); /* For turkish dotted capital I */
 	return((b < 'A' || b > 'Z') ? b : b + 0x20);
 }
 
-GLOBAL BOOLEAN isdigit(b)
-BYTE b;
+GLOBAL BOOLEAN isdigit(BYTE b)
 {
 	return (b >= '0' && b <= '9');
 }
 
-GLOBAL BOOLEAN isletter(b)
-BYTE b;
+GLOBAL BOOLEAN isletter(BYTE b)
 {
 	return ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z'));
 }
 
-GLOBAL BYTE * skip_char(s)
-REG BYTE *s;
+GLOBAL BYTE * skip_char(REG BYTE *s)
 {
 	s++;
 	if (dbcs_lead(*(s - 1)) && *s >= ' ')
@@ -441,8 +437,7 @@ REG BYTE *s;
 	return(s);
 }
 
-GLOBAL BYTE * copy_char(dest, source)
-REG BYTE **dest, **source;
+GLOBAL BYTE * copy_char(REG BYTE **dest, REG BYTE **source)
 {
 	if (dbcs_lead(**source))
 	{
@@ -463,10 +458,9 @@ REG BYTE **dest, **source;
 /* Check if character in string is blank.
    Return size in bytes of blank character, zero if not blank character. */
 
-GLOBAL WORD is_blank(s)
-REG BYTE *s;
+GLOBAL WORD is_blank(REG BYTE *s)
 {
-WORD blank_size;
+	WORD blank_size;
 
 	if (*s == ' ' || *s == '\t')
 	    blank_size = 1;
@@ -477,8 +471,8 @@ WORD blank_size;
 	return(blank_size);
 }
 
-GLOBAL BYTE * deblank(s) 		/* scan off leading white space */
-REG BYTE *s;				/* starting address of scan */
+GLOBAL BYTE * deblank(REG BYTE *s) 		/* scan off leading white space */
+  /* s: starting address of scan */
 {
 REG WORD blank_size;
 
@@ -488,8 +482,7 @@ REG WORD blank_size;
 }
 
 #if !(defined(MSC) || defined(MWC) || defined(TURBOC) || defined(WATCOMC))
-GLOBAL BYTE * strchr(s, b)
-BYTE *s, b;
+GLOBAL BYTE * strchr(BYTE *s, BYTE *b)
 {
 	while(b != *s && *s)
 	    s++;
@@ -506,11 +499,9 @@ BYTE *s, b;
    escape code followed immediatly by 8 bit Kanji character code) are 
    not changed. */
 
-GLOBAL BYTE 	*strlwr(s)
-BYTE	*s;
+GLOBAL BYTE *strlwr(BYTE *s)
 {
-REG BYTE *bp;
-
+	REG BYTE *bp;
 
     if (dbcs_expected())		/* are we looking out for DBCS? */
     {					/*  yes - DON'T CHANGE DBCS CODES */
@@ -538,11 +529,9 @@ REG BYTE *bp;
 /* Convert all lowercase characters in ASCIIZ string to uppercase. 
    Double byte characters are not changed. */
 
-GLOBAL BYTE 	*strupr(s)
-BYTE	*s;
+GLOBAL BYTE *strupr(BYTE *s)
 {
-REG BYTE *bp;
-
+	REG BYTE *bp;
 
     if (dbcs_expected())		/* are we looking out for DBCS? */
     {					/*  yes - DON'T CHANGE DBCS CODES */
@@ -572,11 +561,8 @@ REG BYTE *bp;
  *	characters. This function is only used for token matching for
  *	commands like FOR and IF. Double byte character set aware.
  */
-GLOBAL WORD 	strnicmp(str1, str2, len)
-REG BYTE *str1, *str2;
-UWORD	 len;
+GLOBAL WORD strnicmp(REG BYTE *str1, REG BYTE *str2, UWORD len)
 {
-
 	while (len--)			/* loop until len == 0 */
 	{
 	    if (dbcs_lead(*str1) || dbcs_lead(*str2))
@@ -610,10 +596,9 @@ UWORD	 len;
 /*
  *	ZAP_SPACES removes all white space from a string
  */
-GLOBAL VOID zap_spaces(cp)
-REG BYTE *cp;
+GLOBAL VOID zap_spaces(REG BYTE *cp)
 {
-REG BYTE *cp1;
+	REG BYTE *cp1;
 
 	do {
 	    cp1 = deblank(cp);		/* Skip leading whitespace   */
@@ -628,9 +613,7 @@ REG BYTE *cp1;
 }
 
 
-GLOBAL VOID strip_path(path, dir)
-BYTE	*path;
-BYTE	*dir;
+GLOBAL VOID strip_path(BYTE *path, BYTE *dir)
 {
 	REG BYTE *cp;
 	REG WORD i;
@@ -649,11 +632,10 @@ BYTE	*dir;
 	dir[i] = '\0';				/* discard all but path */
 }
 
-GLOBAL BOOLEAN getdigit(n, s)
-WORD *n;			/* Pointer to the word number to save */
-BYTE **s;			/* String to Process */
+GLOBAL BOOLEAN getdigit(WORD *n, BYTE **s)
+  /* n: Pointer to the word number to save */
+  /* s: String to Process */
 {
-
 	*n = 0; 			/* Zero the number */
 
 	while(!isdigit(**s) && **s)	/* Skip all non digits */
@@ -676,10 +658,10 @@ BYTE **s;			/* String to Process */
  *	VALUE and return SUCCESS otherwise VALUE is unchabged and 
  *	return FAILURE.
  */
-GLOBAL BOOLEAN check_num(s, min, max, value)
-BYTE *s;	/* Input String */
-WORD min, max;	/* Minimum and Maximum values */
-UWORD *value;	 /* Value Input */
+GLOBAL BOOLEAN check_num(BYTE *s, WORD min, WORD max, UWORD *value)
+  /* s: Input String */
+  /* min, max: Minimum and Maximum values */
+  /* value: Value Input */
 {
 	WORD u;
 
@@ -698,16 +680,14 @@ UWORD *value;	 /* Value Input */
 	return SUCCESS;
 }
 
-GLOBAL BOOLEAN iswild (path)
-REG BYTE *path;
+GLOBAL BOOLEAN iswild (REG BYTE *path)
 {
 	while (*path && (*path != '*') && (*path != '?'))
 	    path ++;
 	return (*path != '\0');
 }
 
-GLOBAL BOOLEAN is_filechar(s)
-REG BYTE *s;
+GLOBAL BOOLEAN is_filechar(REG BYTE *s)
 {
 	if (*s == 0) return FALSE;
 	
@@ -717,8 +697,7 @@ REG BYTE *s;
 	return TRUE;
 }
 
-GLOBAL BOOLEAN is_pathchar(s)
-REG BYTE *s;
+GLOBAL BOOLEAN is_pathchar(REG BYTE *s)
 {
 	if (is_filechar(s) ||
 	   *s == *pathchar ||
@@ -737,12 +716,10 @@ REG BYTE *s;
  *	Remove any terminating ':' character from the file specification
  *	as the FDOS/PCMODE will try to match all characters in the string.
  */
-GLOBAL BYTE * get_filename(newpath, oldpath, ambiguous)
-REG BYTE *oldpath, *newpath;
-BOOLEAN ambiguous;
+GLOBAL BYTE * get_filename(REG BYTE *newpath, REG BYTE *oldpath, BOOLEAN ambiguous)
 {
-UWORD	count = 0;
-BYTE	*pathname = oldpath;
+	UWORD	count = 0;
+	BYTE	*pathname = oldpath;
 
 #if defined(PASSWORD)
 	while(is_pathchar(oldpath) ||
@@ -781,8 +758,7 @@ BYTE	*pathname = oldpath;
  *	Returns the offset of the filename in a correctly formatted 
  *	pathname string.
  */
-GLOBAL BYTE * fptr(s)
-REG BYTE  *s;
+GLOBAL BYTE * fptr(REG BYTE *s)
 {
 	REG BYTE  *tp;
 
@@ -810,11 +786,10 @@ REG BYTE  *s;
  * 
  *	nb dest must be in a buffer with room for expansion
  */
-GLOBAL VOID repwild(src,dest)
-REG BYTE  *src,*dest;
+GLOBAL VOID repwild(REG BYTE *src, REG BYTE *dest)
 {
 /*        BYTE    t[13];*/
-        BYTE    t[MAX_LFNLEN];
+   BYTE    t[MAX_LFNLEN];
 	BYTE	*temp;
 	
 	temp=&t[0];				/* ptr to temp array */
@@ -899,10 +874,9 @@ EXTERN BYTE FAR * CDECL farptr(BYTE *);
 
 EXTERN UWORD	boot_key_scan_code;
 
-GLOBAL BOOLEAN yes(abort, def)
-BOOLEAN abort, def;
+GLOBAL BOOLEAN yes(BOOLEAN abort, BOOLEAN def)
 {
-BYTE	yn;
+	BYTE	yn;
 
 #if defined(CDOSTMP)
 	yn = (BYTE) bdos(C_RAWIO, 0xFD);	/* Input a character and */
@@ -924,8 +898,7 @@ BYTE	yn;
  *	ONOFF scans the command line for [=](ON|OFF) and returns
  *	YES, NO or FAILURE 
  */
-GLOBAL WORD onoff(cmd)
-BYTE *cmd;
+GLOBAL WORD onoff(BYTE *cmd)
 {
 
 	cmd = deblank(cmd);			/* Deblank the string and    */
@@ -945,43 +918,38 @@ BYTE *cmd;
 	return FAILURE;
 }
 
-GLOBAL VOID syntax()
+GLOBAL VOID syntax(VOID)
 {
 	eprintf(MSG_SYNTAX);
 	crlfflg = YES;
 }
 
-GLOBAL VOID crlf()
+GLOBAL VOID crlf(VOID)
 {
 	printf("\n");
 }
 
-GLOBAL VOID putc(c)
-BYTE	c;
+GLOBAL VOID putc(BYTE c)
 {
 	printf("%c", c);
 }
 
 
-GLOBAL VOID puts(s)
-BYTE	*s;
+GLOBAL VOID puts(BYTE *s)
 {
 	printf("%s",s);
 }
 
 
-GLOBAL VOID c_write(s, l)
-BYTE	*s;
-UWORD	 l;
+GLOBAL VOID c_write(BYTE *s, UWORD l)
 {
 	ms_x_write (err_flag ? STDERR : STDOUT, s, l);
 }
 
 
-GLOBAL WORD e_check(ret)
-REG WORD    ret;
+GLOBAL WORD e_check(REG WORD ret)
 {
-REG BYTE   *s;
+	REG BYTE   *s;
 
     if (ret >= 0)			/* if no error code */
 	return ret; 			/* it's O.K. */
@@ -1086,8 +1054,7 @@ GLOBAL BOOLEAN UNC(char *path) {
 }
 
 
-GLOBAL BYTE * d_check(path)
-REG BYTE *path;
+GLOBAL BYTE * d_check(REG BYTE *path)
 {
 
 	ddrive = -1;				/* return -1 for UNC names  */
@@ -1121,11 +1088,8 @@ REG BYTE *path;
 }
 
 
-GLOBAL BOOLEAN f_check(cmd, fchars, farray, ignore)
-REG BYTE *cmd;
-BYTE	 *fchars;
-UWORD	 *farray;
-BOOLEAN  ignore;		/* Ignore Illegal Options */
+GLOBAL BOOLEAN f_check(REG BYTE *cmd, BYTE *fchars, UWORD *farray, BOOLEAN ignore)
+  /* ignore: Ignore Illegal Options */
 {
 	BYTE 	*s, *flg_start;
 	BOOLEAN	 flg_skip, flg_error;
@@ -1171,11 +1135,10 @@ BOOLEAN  ignore;		/* Ignore Illegal Options */
 }
 
 
-GLOBAL BOOLEAN nofiles(path, attrib, exist, append_stardotstar)
-REG BYTE *path; 		/* Search Path		*/
-WORD	 attrib;		/* Search Attributes	*/
-BOOLEAN  exist; 		/* Must files exist	*/
-BOOLEAN  append_stardotstar;
+GLOBAL BOOLEAN nofiles(REG BYTE *path, WORD attrib, BOOLEAN exist, BOOLEAN append_stardotstar)
+  /* path: Search Path		*/
+  /* attrib: Search Attributes	*/
+  /* exist: Must files exist	*/
 {
 	REG BYTE *cp;
 	DTA	search;
@@ -1250,12 +1213,11 @@ BOOLEAN  append_stardotstar;
  *	Check if FILENAME can be opened in Read Only mode and return the
  *	result. The file is then closed
  */
-GLOBAL BOOLEAN file_exist(filename)
-BYTE *filename;
+GLOBAL BOOLEAN file_exist(BYTE *filename)
 {
-/*BYTE filebuf[MAX_PATHLEN];*/
-BYTE filebuf[MAX_LFNLEN];
-WORD h;
+	/*BYTE filebuf[MAX_PATHLEN];*/
+	BYTE filebuf[MAX_LFNLEN];
+	WORD h;
 
 	get_filename(filebuf, filename, NO);
 	h=ms_l_open(filebuf,OPEN_READ);
@@ -1274,8 +1236,7 @@ WORD h;
  *	Check if the handle passed to this routine is open on a FILE
  *	or a DEVICE.
  */
-GLOBAL BOOLEAN isdev(handle)
-UWORD handle;
+GLOBAL BOOLEAN isdev(UWORD handle)
 {
 	return (0x0080 & ms_x_ioctl(handle) ? TRUE : FALSE);
 }
@@ -1283,10 +1244,9 @@ UWORD handle;
 /*
  *	If the string that has been passed doesn't end with a '\' add one
  */
-GLOBAL	append_slash(s)
-BYTE	*s;
+GLOBAL VOID append_slash(BYTE *s)
 {
-BYTE	lastchar;
+	BYTE	lastchar;
     while (*s) {
     	lastchar = *s;
 	if (dbcs_lead(*s))		/* is this first of a DBCS pair? */
@@ -1298,15 +1258,14 @@ BYTE	lastchar;
 }
 
 
-GLOBAL	VOID prompt_exec()
+GLOBAL	VOID prompt_exec(VOID)
 {
 	BYTE	temp[128];
 	
 	if (!env_scan("PEXEC=",temp)) docmd(temp,TRUE);
 }
 
-GLOBAL	VOID optional_line(line)
-BYTE	*line;
+GLOBAL	VOID optional_line(BYTE *line)
 {
 	BYTE	c;
 	BYTE	*s;

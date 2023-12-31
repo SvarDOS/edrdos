@@ -35,6 +35,7 @@
 */
 
 #include	"defines.h"
+#include	<stdlib.h>
 #include	<string.h>
 
 #if defined(MWC) && defined(strlen)
@@ -148,8 +149,7 @@ MLOCAL BYTE msg_appeq  [] = "APPEND=";	/* Static Environment String	*/
 #define	APPEND_X	(flags & 2)	/* /X Append Option		*/
 #define	APPEND_E	(flags & 1)	/* /E Append Option		*/
 
-GLOBAL VOID CDECL cmd_append(path)
-REG BYTE *path;
+GLOBAL VOID CDECL cmd_append(REG BYTE *path)
 {
 	REG BYTE *s;
 	UWORD	 flags;				/* Command Flags	    */
@@ -235,8 +235,7 @@ REG BYTE *path;
  *	ASSIGN_DRV returns TRUE if the drive pointed to by BP
  *	is a valid physical drive.
  */
-MLOCAL BOOLEAN assign_drv(bp)
-BYTE *bp;
+MLOCAL BOOLEAN assign_drv(BYTE *bp)
 {
 	if(!d_check(bp))
 	    return FALSE;
@@ -254,8 +253,7 @@ BYTE *bp;
 /*RG-03-end*/
 #define	ASSIGN_ALL	(flags & 1)	/* Display Current Assignments	*/
 
-GLOBAL VOID CDECL cmd_assign(s)
-REG BYTE *s;
+GLOBAL VOID CDECL cmd_assign(REG BYTE *s)
 {
 	BYTE temp[7];			/* Temporary Command Buffer	*/
 	BYTE path[MAX_PATHLEN];
@@ -370,8 +368,7 @@ REG BYTE *s;
 
 EXTERN	UWORD CDECL heap_size(VOID);
 
-GLOBAL VOID CDECL cmd_call(line)
-REG BYTE *line;
+GLOBAL VOID CDECL cmd_call(REG BYTE *line)
 {
 	BYTE	path[MAX_FILELEN];
 	UWORD	loadtype;
@@ -405,13 +402,11 @@ REG BYTE *line;
 #define	CHDIR_BAT	(flags & 2)	/* Display dir in command line compatible form	*/
 
 #if !defined(NOXBATCH) && (defined(CDOS) || defined(CDOSTMP))
-MLOCAL VOID display_cd(drv,flags)
+MLOCAL VOID display_cd(REG WORD drv, UWORD flags)
 #else
-MLOCAL VOID display_cd(drv)
+MLOCAL VOID display_cd(REG WORD drv)
 #endif
-REG WORD drv;
 #if !defined(NOXBATCH) && (defined(CDOS) || defined(CDOSTMP))
-UWORD	flags;			/* Command Flags		*/
 #endif
 {
 /*BYTE	dispbuf[MAX_PATHLEN];*/
@@ -439,8 +434,7 @@ WORD	ret;
 
 #define	CHDIR_ALL	(flags & 1)	/* Display Current Assignments	*/
 
-GLOBAL VOID CDECL cmd_cd(s)
-REG BYTE *s;
+GLOBAL VOID CDECL cmd_cd(REG BYTE *s)
 {
 	BYTE	*cp;
 	ULONG	login;			/* Login Vector 		*/
@@ -545,8 +539,7 @@ while ( (*p!=' ') && *p)
 #endif
 /*RG-03-end*/
 
-GLOBAL VOID CDECL cmd_subst(s)
-BYTE	*s;
+GLOBAL VOID CDECL cmd_subst(BYTE *s)
 {
 	BYTE	cp[MAX_FILELEN+3];	/* CHDIR Path Buffer		*/
 	BYTE	root[4];
@@ -632,8 +625,7 @@ BYTE	*s;
  */
 #define	DATE_SHOW	(flags & 1)
 
-GLOBAL VOID CDECL cmd_date(s)
-BYTE	*s;
+GLOBAL VOID CDECL cmd_date(BYTE	*s)
 {
 	BYTE	buffer[18];			/* Local Input Buffer */
 	UWORD	flags;
@@ -675,8 +667,7 @@ BYTE	*s;
 }
 
 
-MLOCAL char * thousands(v)
-ULONG	v;
+MLOCAL char * thousands(ULONG v)
 {
 	char	s[15];
 	int	i1,i2,i3,sl,sp;
@@ -702,8 +693,7 @@ ULONG	v;
 	return n;
 }
 
-MLOCAL BYTE * date_format(fmt)
-UWORD			fmt;
+MLOCAL BYTE * date_format(UWORD fmt)
 {
     switch (fmt)
     {
@@ -725,8 +715,7 @@ UWORD			fmt;
 
 MLOCAL BYTE date_sep[] = "/.-";
 
-MLOCAL BOOLEAN check_date(s)
-BYTE *s;
+MLOCAL BOOLEAN check_date(BYTE *s)
 {
 	SYSDATE date;
 	WORD	p1, p2, p3;		/* Input Parameters */
@@ -776,8 +765,7 @@ BYTE *s;
  *	Erase a file(s) as specified by the path if no path is given
  *	erase all files on the default|specified drive.
  */
-GLOBAL VOID CDECL cmd_del(path)
-BYTE	*path;
+GLOBAL VOID CDECL cmd_del(BYTE *path)
 {
 	erase (path, NO);		/* erase files, don't confirm */
 }
@@ -797,8 +785,7 @@ BYTE	*path;
 
 MLOCAL UWORD dir_default = DIR_DIR | DIR_LONG;
 
-MLOCAL UWORD dir_flags(flags)
-REG UWORD flags;
+MLOCAL UWORD dir_flags(REG UWORD flags)
 {
 	if(OPT(DIR_NOPAGE))		/* Force DIR_PAGE to be cleared	*/
 	    flags &= ~DIR_PAGE;		/* if NOPAGE has be selected	*/
@@ -836,8 +823,7 @@ REG UWORD flags;
 }
 
 
-GLOBAL VOID CDECL cmd_dir (cmd)
-REG BYTE *cmd;
+GLOBAL VOID CDECL cmd_dir(REG BYTE *cmd)
 {
 	WORD	 nfiles, system, others, i;
 	ULONG	 nfree = 0UL;
@@ -1228,9 +1214,9 @@ REG BYTE *cmd;
 	}
 }
 
-GLOBAL VOID CDECL cmd_echo(s, o)
-REG BYTE	*s;		/* Deblanked Command Line	*/
-REG BYTE	*o;		/* Original Untainted Commmand	*/
+GLOBAL VOID CDECL cmd_echo(REG BYTE *s, REG BYTE *o)
+  /* s: Deblanked Command Line	*/
+  /* o: Original Untainted Commmand	*/
 {
 	
 	if (*o) o++;				/* delete 1 whitespace or   */
@@ -1260,9 +1246,9 @@ REG BYTE	*o;		/* Original Untainted Commmand	*/
 }
 #if !defined(NOXBATCH) && (defined(CDOS) || defined(CDOSTMP))
 /*RG-02-*/
-GLOBAL VOID CDECL cmd_echoerr(s, o)
-REG BYTE	*s;		/* Deblanked Command Line	*/
-REG BYTE	*o;		/* Original Untainted Commmand	*/
+GLOBAL VOID CDECL cmd_echoerr(REG BYTE *s, REG BYTE *o)
+  /* s: Deblanked Command Line	*/
+  /* o: Original Untainted Commmand	*/
 {
         BOOLEAN  err_save;
 
@@ -1275,8 +1261,7 @@ REG BYTE	*o;		/* Original Untainted Commmand	*/
 /*RG-02-end*/
 
 
-GLOBAL VOID CDECL cmd_exit(cmd)
-BYTE *cmd;
+GLOBAL VOID CDECL cmd_exit(BYTE *cmd)
 {
 	err_ret = 0;
 	
@@ -1315,8 +1300,7 @@ BYTE *cmd;
 }
 
 
-GLOBAL VOID CDECL cmd_md(s)
-REG BYTE *s;
+GLOBAL VOID CDECL cmd_md(REG BYTE *s)
 {
 	/*BYTE	 path[MAX_FILELEN];*/
 
@@ -1351,8 +1335,7 @@ REG BYTE *s;
  */
 GLOBAL BYTE msg_patheq [] = "PATH=";	/* Static Environment String   */
 
-GLOBAL VOID CDECL cmd_path(path)
-REG BYTE *path;
+GLOBAL VOID CDECL cmd_path(REG BYTE *path)
 {
 	REG BYTE *s;
 #if !STACK
@@ -1385,10 +1368,9 @@ REG BYTE *path;
 	cmd_set(s); 			/* set new path using "SET"	    */
 }
 
-GLOBAL VOID CDECL cmd_pause(msg)
-BYTE	*msg;
+GLOBAL VOID CDECL cmd_pause(BYTE *msg)
 {
-BYTE	c;
+	BYTE	c;
 
 	if (*msg) printf("%s\n",msg);
 
@@ -1423,8 +1405,8 @@ BYTE	c;
  */
 GLOBAL VOID CDECL cmd_stdin_pause(void)
 {
-UWORD	in_h,stderr_h;
-BYTE	c;
+	UWORD	in_h,stderr_h;
+	BYTE	c;
 
 	batch_close();			/* Close Any Batch files in case */
 					/* the user is going to swap the */
@@ -1462,7 +1444,7 @@ BYTE	c;
  *	of its destination. However it will ensure that the character is read
  *	from the console device by "POKING" the PSP.
  */
-GLOBAL VOID CDECL cmd_pauseerr()
+GLOBAL VOID CDECL cmd_pauseerr(VOID)
 {
         BOOLEAN  err_save;
 
@@ -1483,8 +1465,7 @@ GLOBAL VOID CDECL cmd_pauseerr()
  */
 GLOBAL BYTE msg_prmeq  [] = "PROMPT=";	/* Static Environment String */
 
-GLOBAL VOID CDECL cmd_prompt(s)
-REG BYTE    *s;
+GLOBAL VOID CDECL cmd_prompt(REG BYTE *s)
 {
 	REG BYTE *bp;
 #if !STACK
@@ -1507,7 +1488,7 @@ REG BYTE    *s;
 }
 
 
-GLOBAL VOID CDECL cmd_rem ()
+GLOBAL VOID CDECL cmd_rem(VOID)
 {
 	crlfflg = 0;
 /* Make sure REM turns off pipes too */
@@ -1521,8 +1502,7 @@ GLOBAL VOID CDECL cmd_rem ()
 
 #define	REN_CHECK	(flags & 1)
 
-GLOBAL VOID CDECL cmd_ren(s)
-REG BYTE *s;
+GLOBAL VOID CDECL cmd_ren(REG BYTE *s)
 {
 /*	BYTE	 srcfile[MAX_FILELEN], dstfile[MAX_FILELEN];*/
 	BYTE	 srcfile[MAX_LFNLEN], dstfile[MAX_LFNLEN];
@@ -1694,8 +1674,7 @@ REG BYTE *s;
 /*
  *
  */
-GLOBAL VOID CDECL cmd_rd(s)
-REG BYTE *s;
+GLOBAL VOID CDECL cmd_rd(REG BYTE *s)
 {
 	/*BYTE	 path[MAX_FILELEN];*/
 
@@ -1723,8 +1702,7 @@ REG BYTE *s;
 }
 
 
-GLOBAL VOID CDECL cmd_set(s)
-BYTE *s;
+GLOBAL VOID CDECL cmd_set(BYTE *s)
 {
 	BYTE	 c;
 	REG BYTE *key;
@@ -1807,8 +1785,7 @@ BYTE *s;
 #define	TIME_CON	(flags & 1)
 #define	TIME_SHOW	(flags & 2)
 
-GLOBAL VOID CDECL cmd_time(s)
-REG BYTE *s;
+GLOBAL VOID CDECL cmd_time(REG BYTE *s)
 {
 	BYTE	buffer[18];			/* Local Input Buffer */
 	UWORD	flags;				/* Continuous Display	*/
@@ -1872,8 +1849,7 @@ REG BYTE *s;
 /*
  *
  */
-GLOBAL VOID CDECL cmd_truename(s)
-REG BYTE *s;
+GLOBAL VOID CDECL cmd_truename(REG BYTE *s)
 {
 /*	BYTE	 path[MAX_FILELEN];*/
 	BYTE	 path[MAX_LFNLEN];
@@ -1923,8 +1899,7 @@ REG BYTE *s;
 MLOCAL BYTE    hour_sep[] = ":.";
 MLOCAL BYTE    sec_sep[]  = ".,";
 
-MLOCAL BOOLEAN check_time(s)
-BYTE *s;
+MLOCAL BOOLEAN check_time(BYTE *s)
 {
 	SYSTIME time;
 	WORD	hour, min, sec, hsec;
@@ -1972,8 +1947,7 @@ BYTE *s;
 
 #define BUFSIZE 256		/* SHOW_FILE buffer size	*/
 
-MLOCAL VOID show_crlf(paging)
-BOOLEAN paging;
+MLOCAL VOID show_crlf(BOOLEAN paging)
 {
 	crlf();
 	if(paging && (--linesleft == 0)) {
@@ -1990,10 +1964,10 @@ BOOLEAN paging;
  */
 /*RG-00-make this one public*/
 /* MLOCAL VOID show_file(h, paging) */
-VOID show_file(h, paging)
+VOID show_file(UWORD h, BOOLEAN paging)
 /*RG-00-end*/
-UWORD h;		/* Channel for File access */
-BOOLEAN paging; 	/* Page Mode Flag	   */
+  /* h: Channel for File access */
+  /* paging: Page Mode Flag	   */
 {
 	BYTE FAR *cp;			/* pointer to end of path	  */
 	BYTE FAR *ptr;			/* temporary address for printing */
@@ -2065,8 +2039,7 @@ BOOLEAN paging; 	/* Page Mode Flag	   */
  */
 #define	TYPE_PAGE	(flags & 1)
 
-GLOBAL VOID CDECL cmd_type(cmd)
-REG BYTE *cmd;
+GLOBAL VOID CDECL cmd_type(REG BYTE *cmd)
 {
 	WORD 	ret, h;			/* file handle			  */
 /*	BYTE	path[MAX_FILELEN];*/	/* Path and File Name		  */
@@ -2192,7 +2165,7 @@ REG BYTE *cmd;
  *	MORE will only enable PAGING if the output device is the CONSOLE
  *	otherwise paging is disabled.
  */
-GLOBAL VOID CDECL cmd_more()
+GLOBAL VOID CDECL cmd_more(VOID)
 {
 	linesleft = page_len -1;		/* Set the Page length and */
 	show_file(STDIN, YES);			/* display STDIN till EOF  */
@@ -2203,7 +2176,7 @@ GLOBAL VOID CDECL cmd_more()
 /*
  *
  */
-GLOBAL VOID CDECL cmd_ver()
+GLOBAL VOID CDECL cmd_ver(VOID)
 {
 	printf(MSG_VERSION, (env_scan("VER=", heap()) ? "" : heap()));
 	printf(MSG_CPYRIGHT);
@@ -2213,8 +2186,7 @@ GLOBAL VOID CDECL cmd_ver()
 #endif
 }
 
-GLOBAL VOID CDECL cmd_vol(path)
-BYTE *path;
+GLOBAL VOID CDECL cmd_vol(BYTE *path)
 {
 	BYTE	*s;
 	BYTE	temp[7];
@@ -2260,8 +2232,7 @@ BYTE *path;
 /*
  *
  */
-GLOBAL VOID CDECL cmd_delq(path)		  /* erase files with query */
-BYTE	*path;
+GLOBAL VOID CDECL cmd_delq(BYTE	*path)		  /* erase files with query */
 {
 	erase (path, YES);		/* erase files, confirm deletes */
 }
@@ -2273,9 +2244,7 @@ EXTERN BYTE FAR * CDECL farptr(BYTE *);
 #define	ERASE_CONFIRM	(flags & 3)
 #define	ERASE_SYS	(flags & 4)
 
-MLOCAL VOID erase(s, confirm)
-BYTE *s;
-BOOLEAN  confirm;
+MLOCAL VOID erase(BYTE *s, BOOLEAN confirm)
 {
 /*	BYTE	path[MAX_FILELEN];*/		/* FileName Buffer	    */
 	BYTE	path[MAX_LFNLEN];		/* FileName Buffer	    */
@@ -2491,8 +2460,7 @@ fcbdel_end:
  *	It will attempt to execute the command line, running any programs
  *	specified in high memory.
  */
-GLOBAL VOID CDECL cmd_hiload(s)
-REG BYTE *s;
+GLOBAL VOID CDECL cmd_hiload(REG BYTE *s)
 {
 int	region, i;
 
@@ -2556,8 +2524,7 @@ int	region, i;
 
 #endif
 
-GLOBAL VOID CDECL cmd_colour(s)
-BYTE	*s;
+GLOBAL VOID CDECL cmd_colour(BYTE *s)
 {
 	COLDATA	colset;
 	WORD	fg,bg;

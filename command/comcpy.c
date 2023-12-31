@@ -229,8 +229,7 @@ MLOCAL UWORD	amount; 	/* amount of real data in buffer */
 
 /* ---- start of code ---------------------------------------------*/
 
-GLOBAL VOID CDECL cmd_copy(cmd)
-BYTE	*cmd;
+GLOBAL VOID CDECL cmd_copy(BYTE	*cmd)
 {
 	WORD	rmode = 0x0000; 	/* read mode - normal files only */
 	BYTE	delim;
@@ -688,16 +687,12 @@ nextfile:    while (*cmd==',')		   /* skip over commas */
 	    end2:  ;
 	}	/* end of scheme 2 */
 
-
-
-sum1:
 	if(dstopen) {			/* tidy up if dest still open */
 	    dclose(dest,dfh,dfailed);	
 	    if(!dfailed)			
 		nfiles++;	 /* nfiles refers to no of dest files */
 	}			/* nb nfiles only incremented if dest was open */
 	
-summary:
 	printf("%8d",nfiles);		/* do summary */
 	printf(MSG_FCOPIED);
 	
@@ -735,10 +730,9 @@ summary:
  *	sequence. This allows copy to correctly support Multiple
  *	options.
  */
-MLOCAL BYTE * skip_switch(cmd)
-BYTE *cmd;
+MLOCAL BYTE * skip_switch(BYTE *cmd)
 {
-BYTE ch;
+	BYTE ch;
 
 	if(*cmd == *switchar) {			/* If this is a valid 	    */
 	    do {				/* switch sequence then skip*/
@@ -754,10 +748,7 @@ BYTE ch;
  *	PARAM and set DELIM to be the delimiting character. The return
  *	value is the start address of the next parameter.
  */
-MLOCAL BYTE * get_p1(param, s, delp)
-BYTE 	 *param;
-REG BYTE *s;
-BYTE	 *delp;
+MLOCAL BYTE * get_p1(BYTE *param, REG BYTE *s, BYTE *delp)
 {
 	REG BYTE *ep;
 
@@ -787,11 +778,10 @@ BYTE	 *delp;
  *	in string. Returns the address of the last command
  *	line parameter.
  */
-MLOCAL BYTE * get_pno(s, nptr)
-BYTE	*s,*nptr;
+MLOCAL BYTE * get_pno(BYTE *s, BYTE *nptr)
 {
-REG BYTE *tp;
-BYTE	temp;
+	REG BYTE *tp;
+	BYTE	temp;
 
 	*nptr = 0;
 	tp = s;
@@ -811,8 +801,7 @@ BYTE	temp;
  *	(nb may not yet have been created)
  *	ie isnt just a drive designator or just a path
  */
-MLOCAL BOOLEAN isfile(s)
-REG BYTE  *s;
+MLOCAL BOOLEAN isfile(REG BYTE *s)
 {
 	REG WORD  ret;
 	
@@ -845,8 +834,7 @@ REG BYTE  *s;
  *	if s is just a drive designator or just a path, add *.*  
  *	(or \*.* as appropriate) to it
  */
-MLOCAL VOID addwild(s)
-REG BYTE  *s;
+MLOCAL VOID addwild(REG BYTE *s)
 {
 	REG BYTE  tb;
 
@@ -866,8 +854,8 @@ REG BYTE  *s;
  *	dstopen
  *	tstamp		sets tstamp=NO if dest is a device
  */
-MLOCAL BOOLEAN dopen(dest)
-REG BYTE  *dest;			/* destination filename */
+MLOCAL BOOLEAN dopen(REG BYTE *dest)
+  /* dest: destination filename */
 {
 	if(dstopen)
 	    return (FAILURE);	/* already open */
@@ -917,10 +905,9 @@ REG BYTE  *dest;			/* destination filename */
  *		dflag
  *		sascii
  */
-MLOCAL VOID dclose(dest,dfh,failed)
-BYTE	*dest;			/* destination filename */
-REG WORD  dfh;			/* destination filehandle */
-BOOLEAN failed; 		
+MLOCAL VOID dclose(BYTE	*dest, REG WORD dfh, BOOLEAN failed)
+  /* dest: destination filename */
+  /* dfh: destination filehandle */	
 {
 	BOOLEAN dascii; 		/* destination is ascii */
 	UWORD	 dattrib; 
@@ -991,8 +978,8 @@ BOOLEAN failed;
  *		amount
  *		sfh
  */
-MLOCAL BOOLEAN preread(src)
-BYTE	*src;			/* source filename */
+MLOCAL BOOLEAN preread(BYTE	*src)
+  /* src: source filename */
 {
 	srcopen=NO;
 	fullbuf=NO;
@@ -1071,7 +1058,7 @@ BYTE	*src;			/* source filename */
  *		sfh
  */
 
-MLOCAL BOOLEAN readsrc()
+MLOCAL BOOLEAN readsrc(VOID)
 {
 	WORD	ret;		/* return code from source open */
 	UWORD	i;
@@ -1146,9 +1133,9 @@ MLOCAL BOOLEAN readsrc()
  *		amount
  *		concat
  */
-MLOCAL BOOLEAN copy1(src,dest)
-BYTE	*src;			/* source filename */
-BYTE	*dest;			/* destination filename */
+MLOCAL BOOLEAN copy1(BYTE *src, BYTE *dest)
+  /* src: source filename */
+  /* dest: destination filename */
 {
 	UWORD	ret;		/* return code from source open */
 	UWORD	bytes_left;
@@ -1286,8 +1273,8 @@ BYTE	*dest;			/* destination filename */
  *	Uses/sets static variables -
  *		dfh		destination file handle
  */
-MLOCAL BOOLEAN lseek(dest)
-REG BYTE  *dest;			/* destination filename */
+MLOCAL BOOLEAN lseek(REG BYTE *dest)
+  /* dest: destination filename */
 {
 	LONG	lsize;
 	BOOLEAN seof;
@@ -1366,15 +1353,13 @@ REG BYTE  *dest;			/* destination filename */
  *
  *	Prints message if same file, and returns YES or NO
  */
-MLOCAL BOOLEAN samefs(src,dest,mess)
-REG BYTE *src,*dest;
-BOOLEAN  mess;
+MLOCAL BOOLEAN samefs(REG BYTE *src, REG BYTE *dest, BOOLEAN mess)
 {
 #if 1
-/*BYTE	sp[MAX_PATHLEN+MAX_FILELEN+3];
-BYTE	dp[MAX_PATHLEN+MAX_FILELEN+3];*/
-BYTE	sp[MAX_PATHLEN+MAX_LFNLEN+3];
-BYTE	dp[MAX_PATHLEN+MAX_LFNLEN+3];
+	/*BYTE	sp[MAX_PATHLEN+MAX_FILELEN+3];
+	BYTE	dp[MAX_PATHLEN+MAX_FILELEN+3];*/
+	BYTE	sp[MAX_PATHLEN+MAX_LFNLEN+3];
+	BYTE	dp[MAX_PATHLEN+MAX_LFNLEN+3];
 
  	ret=ms_l_expand(sp, src);
 	if (ret==ED_FUNCTION)
@@ -1436,8 +1421,7 @@ BYTE	dp[MAX_PATHLEN+MAX_LFNLEN+3];
  *	Checks for single physical floppy disk drive, 
  *	with src and dest being different diskettes
  */
-MLOCAL BOOLEAN ABcheck(src,dest)
-REG BYTE *src,*dest;
+MLOCAL BOOLEAN ABcheck(REG BYTE *src, REG BYTE *dest)
 {
 	BYTE	sd,dd;
 	
@@ -1471,8 +1455,7 @@ REG BYTE *src,*dest;
  *		\fred  prints out as a:\fred  
  *		ie adds drive if 1st char = pathchar
  */
-MLOCAL VOID prtsrc(src)
-REG BYTE  *src;
+MLOCAL VOID prtsrc(REG BYTE *src)
 {
 	strupr(src);			 /* convert to upper case */
 	if(*src==*pathchar && src[1] != *pathchar)
@@ -1487,10 +1470,9 @@ REG BYTE  *src;
  * prints filename and asks Y/N
  * returns TRUE if confirmed 
  */
-MLOCAL BOOLEAN conf_src(src)
-REG BYTE  *src;
+MLOCAL BOOLEAN conf_src(REG BYTE *src)
 {
-BOOLEAN answer;
+	BOOLEAN answer;
 
 	strupr(src);			 /* convert to upper case */
 
@@ -1504,8 +1486,7 @@ BOOLEAN answer;
 }
 
 
-MLOCAL VOID e_check2(ecode)	/* e_check() + CR/LF */
-REG WORD ecode;
+MLOCAL VOID e_check2(REG WORD ecode)	/* e_check() + CR/LF */
 {
 	e_check(ecode);
 	crlf();
@@ -1516,8 +1497,7 @@ REG WORD ecode;
  *	modifies file s's timestamp to todays date and time
  *	s maybe wild
  */
-MLOCAL BOOLEAN touch (s)
-REG BYTE  *s;
+MLOCAL BOOLEAN touch(REG BYTE *s)
 {
 	SYSDATE tdate;
 	SYSTIME ttime;
@@ -1550,8 +1530,8 @@ REG BYTE  *s;
 }
 
 #if defined(PASSWORD)
-MLOCAL BYTE * get_pswd(s)		/* return ptr to password part of s */
-REG BYTE   *s;				/* (including the ';' )		   */
+MLOCAL BYTE * get_pswd(REG BYTE *s)		/* return ptr to password part of s */
+  /* s: (including the ';' )		   */
 					/* return ptr to '\0' if no password */
 {
 	while(*s) {			/* while not at end	   */

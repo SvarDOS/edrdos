@@ -191,8 +191,9 @@ EXTERN	VOID	CDECL copy_crit_msgs(VOID);	/* CSUP.ASM */
 EXTERN	VOID	CDECL copy_rld_msgs(VOID);	/* CSUP.ASM */
 EXTERN	WORD	CDECL dos_parse_filename(BYTE *);
 EXTERN	UWORD 	CDECL docmd_int2f(BYTE *, BYTE *, UWORD);
+GLOBAL VOID process_config_env(VOID);
 #endif
-EXTERN	void	CDECL flush_cache(void);
+EXTERN	void	CDECL flush_cache(VOID);
 
 EXTERN BYTE 	*kbdptr;
 EXTERN BYTE msg_patheq[];	/* Static Environ String "PATH="	*/
@@ -222,7 +223,7 @@ GLOBAL VOID docmd(BYTE *, BOOLEAN);		/* COM.C		*/
 MLOCAL VOID cmd_loop (BYTE *);			/* COM.C		*/
 MLOCAL VOID error_code(UWORD);			/* COM.C		*/
 
-MLOCAL VOID cmd_cleantp(VOID);			/* COM.C		*/
+MLOCAL VOID cmd_cleanup(VOID);			/* COM.C		*/
 GLOBAL BOOLEAN parse(BYTE *);			/* COM.C		*/
 MLOCAL VOID init(BYTE *);			/* COM.C		*/
 MLOCAL BOOLEAN doexec(BYTE *, BYTE *, UWORD, BYTE *);
@@ -239,6 +240,7 @@ EXTERN VOID CDECL install_perm(VOID);		   /* CSTART.ASM	 */
 EXTERN VOID CDECL master_env(UWORD);		   /* CSTART.ASM	 */ 
 GLOBAL WORD CDECL findfile(BYTE *, UWORD *);	   /* COM.C for MS-DOS	 */
 MLOCAL WORD checkfile(BYTE *, UWORD *, BYTE *, BYTE *, BYTE *, BYTE *);
+MLOCAL VOID init_switchar(VOID);
 EXTERN BYTE cbreak_ok;		/* control break handler initialised */
 #else
 EXTERN WORD CDECL findfile(BYTE *, UWORD *);	    /* DOSIF.A86 (P_PATH) */
@@ -273,8 +275,7 @@ void	check_psp(void);
 WORD	psp_xsum;
 #endif
 
-VOID FAR CDECL _main(cmd)
-BYTE	*cmd;
+VOID FAR CDECL _main(BYTE *cmd)
 {
 /*	BYTE    cmd_buf[128];*/
 	BYTE    cmd_buf[MAX_LINE];
@@ -368,12 +369,11 @@ BYTE	*cmd;
         } 
 }
 
-/*MLOCAL*/ VOID cmd_loop (cmd)
-BYTE	*cmd;
+/*MLOCAL*/ VOID cmd_loop (BYTE *cmd)
 {
-WORD	echoing;	    
-REG BYTE *cmdline;
-BYTE	first_ch;
+	WORD	echoing;	    
+	REG BYTE *cmdline;
+	BYTE	first_ch;
 	  
 	cmd_cleanup();				/* Cleanup after the command */
 	cmdline = cmd;
@@ -426,8 +426,7 @@ BYTE	first_ch;
 #define	COMMAND_T	(cflag & 4)	/* CDOS TSR option		*/
 
 
-MLOCAL VOID init(cmd)
-BYTE *cmd;
+MLOCAL VOID init(BYTE *cmd)
 {
 	UBYTE	console = 1;			/* Concurrent Console No. +1 */
 	SYSDATE date;				/* System Date Structure     */
@@ -864,9 +863,9 @@ BYTE *cmd;
  *	2)	I/O Redirection
  *	3)	Hiloading off
  */
-MLOCAL VOID cmd_cleanup()
+MLOCAL VOID cmd_cleanup(VOID)
 {
-BYTE	cmdbuf[128];
+	BYTE	cmdbuf[128];
 #if 0
 	hiload_set(NO);				/* HILOADing off now */
 #endif
@@ -956,9 +955,8 @@ BYTE	cmdbuf[128];
  */
 /*RG-00*/
 /*MLOCAL VOID error_code(error)*/
-VOID error_code(error)
+VOID error_code(UWORD error)
 /*RG-00-end*/
-UWORD error;
 {
 	switch(error) {
 	    case 0:				/* Setting JMPBUF. Enable    */
@@ -1044,17 +1042,16 @@ int	i;
  *	ie. If redirection is enabled on a batch file all redirection
  *	commands of the same type inside the file are ignored.
  */
-GLOBAL BOOLEAN parse(s)		   	/* Parse the command line looking    */
-BYTE *s;				/* for Redirection commands	     */
+GLOBAL BOOLEAN parse(BYTE *s) /* Parse the command line looking */
 {
-REG BYTE *bps;
-BYTE *bpi, *bpo;
-BYTE infile[MAX_FILELEN];		/* Input Redirection FileName	    */
-BYTE outfile[MAX_FILELEN];		/* Output Redirection FileName	    */
-BYTE cmdbuf[128];			/* Command buffer for Aborted Pipe  */
-WORD h;
-BOOLEAN quote = NO;			/* Check for Quoted Statements	     */
-BOOLEAN append; 			/* Out Redirection Append	     */
+	REG BYTE *bps;
+	BYTE *bpi, *bpo;
+	BYTE infile[MAX_FILELEN];		/* Input Redirection FileName	    */
+	BYTE outfile[MAX_FILELEN];		/* Output Redirection FileName	    */
+	BYTE cmdbuf[128];			/* Command buffer for Aborted Pipe  */
+	WORD h;
+	BOOLEAN quote = NO;			/* Check for Quoted Statements	     */
+	BOOLEAN append; 			/* Out Redirection Append	     */
 
 	crlfflg = YES;			/* Force a CRLF in case an error     */
 					/* occurs in the command line parsing*/
@@ -1191,9 +1188,9 @@ assume_root:
 
 MLOCAL	BOOLEAN docmd_offer(BYTE *cp, BYTE *command, UWORD internal_flag)
 {
-BYTE	*lcp;
-int	i;
-UWORD	int2f_gotit = 0;
+	BYTE	*lcp;
+	int	i;
+	UWORD	int2f_gotit = 0;
 
 	lcp = heap();
 
@@ -1217,17 +1214,17 @@ UWORD	int2f_gotit = 0;
 	return 0;		/* docmd_offer = FALSE, cos the int2f didn't want it */
 }
 
-GLOBAL VOID docmd(cp, internal)
-REG BYTE  *cp;			/* Command Line To be Parsed	*/
-BOOLEAN   internal;		/* Search for INTERNAL Commands */
+GLOBAL VOID docmd(REG BYTE *cp, BOOLEAN internal)
+  /* cp: Command Line To be Parsed	*/
+  /* internal: Search for INTERNAL Commands */
 {
 	REG S_CMD FAR *s_cmd_p;
 	WORD	  i;
 	BYTE FAR  *cpf;
-EXTERN	BYTE	  loadfile[MAX_FILELEN];
+	EXTERN	BYTE	  loadfile[MAX_FILELEN];
 	BYTE	  *cp1, *lcp;
 	UWORD	  loadtype;
-EXTERN	BYTE	  argv0[MAX_FILELEN];
+	EXTERN	BYTE	  argv0[MAX_FILELEN];
 
 	heap_get(0);				/* check for stack overflow */
 	lcp = cp;				/* in case 1st parse fails.. */
@@ -1388,9 +1385,9 @@ EXTERN	BYTE	  argv0[MAX_FILELEN];
  *	check the current directory and then all entries in the path.
  */
 #if !defined(CDOSTMP)
-GLOBAL WORD CDECL findfile(loadpath, loadtype)
-BYTE	*loadpath;		/* Command Name expanded to full path	*/
-UWORD	*loadtype;		/* Command file Type			*/
+GLOBAL WORD CDECL findfile(BYTE	*loadpath, UWORD *loadtype)
+  /* loadpath: Command Name expanded to full path */
+  /* loadtype: Command file Type */
 {
 	REG BYTE *s;
 	BYTE	sppath[MAX_PATHLEN];		/* Buffer for the optional  */
@@ -1548,10 +1545,8 @@ UWORD	*loadtype;		/* Command file Type			*/
 
 #define	ATTR_SEARCH ATTR_STD + ATTR_HID
 
-MLOCAL WORD checkfile(loadpath, loadtype, path, fname, ftype, pwd)
-BYTE	*loadpath;
-UWORD	*loadtype;
-BYTE	*path, *fname, *ftype, *pwd;
+MLOCAL WORD checkfile(BYTE *loadpath, UWORD	*loadtype, 
+	BYTE *path, BYTE *fname, BYTE *ftype, BYTE *pwd)
 {
 	UWORD	type;
 	WORD	ret;
@@ -1644,11 +1639,11 @@ BYTE	*path, *fname, *ftype, *pwd;
 }
 #endif
 
-MLOCAL BOOLEAN doexec(argv0, loadpath, loadtype, tail)
-BYTE	*argv0;			/* Invoking Command		*/
-BYTE	*loadpath;		/* Fully expanded filename	*/
-UWORD	loadtype;		/* File Type .BAT, .EXE etc.	*/
-BYTE	*tail;			/* Command line options		*/
+MLOCAL BOOLEAN doexec(BYTE	*argv0, BYTE *loadpath, UWORD loadtype, BYTE *tail)
+  /* argv0: Invoking Command */
+  /* loadpath: Fully expanded filename */
+  /* loadtype: File Type .BAT, .EXE etc. */
+  /* tail: Command line options */
 {
 	WORD	ret;
 	WORD	i;
@@ -1733,11 +1728,10 @@ printf("DOEXEC Load File \"%s\" Command Line \"%s\"\n",
 }
 
 #if !defined(CDOSTMP)
-VOID	FAR CDECL	int2e_handler (cmd)
-BYTE	*cmd;
+VOID	FAR CDECL	int2e_handler (BYTE	*cmd)
 {
-BYTE	*p;
-jmp_buf save_jmpbuf;
+	BYTE	*p;
+	jmp_buf save_jmpbuf;
 
 /*	save the normal setjmp environment and reset it to ourselves	*/
 /*	so that the int2e caller does not get aborted on criterr or	*/
@@ -1769,7 +1763,7 @@ jmp_buf save_jmpbuf;
 }
 
 
-MLOCAL VOID init_switchar()
+MLOCAL VOID init_switchar(VOID)
 {
 	*switchar = ms_switchar();		/* get switch character      */
 	if (*switchar == '/')			/* if not UNIX path char     */
@@ -1782,7 +1776,7 @@ MLOCAL VOID init_switchar()
 
 #if defined(DOSPLUS)
 
-GLOBAL VOID process_config_env()
+GLOBAL VOID process_config_env(VOID)
 {
 	BYTE FAR *config_env;
 	WORD i;
@@ -1832,7 +1826,7 @@ void	save_psp()
 	for  (i=64;i<128;i++) psp_xsum += fp[i];
 }
 
-void	check_psp()
+void check_psp(VOID)
 {
 	BYTE far *fp;
 	WORD	xsum;

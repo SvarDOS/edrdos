@@ -246,7 +246,10 @@ EXTERN VOID CDECL int_break(VOID);			/* COM.C		    */
 GLOBAL BOOLEAN getcmd(BYTE *);
 GLOBAL VOID for_end();
 GLOBAL VOID batch_start(BYTE *, BYTE *, BYTE *);
+GLOBAL VOID batch_new(VOID);
+MLOCAL VOID batch_old(VOID);
 GLOBAL VOID batch_end(VOID);
+GLOBAL VOID batch_endall(VOID);
 GLOBAL VOID batch_close(VOID);
 MLOCAL VOID for_in(BYTE *);
 MLOCAL WORD batch_open(VOID);
@@ -254,6 +257,7 @@ MLOCAL VOID batch_read(BYTE *, BOOLEAN);
 MLOCAL VOID batch_line(BYTE *, BOOLEAN);
 MLOCAL BYTE *batch_ptr(VOID);
 MLOCAL VOID prompt(VOID);
+MLOCAL BOOLEAN following_command(VOID);
 MLOCAL BOOLEAN novell_extension(BYTE *, BYTE *);
 
 #if !defined(CDOSTMP)
@@ -630,14 +634,14 @@ BYTE	quoteflag;
 	crlfflg  = YES;			/* print CR/LF after this  */
 }
 
-GLOBAL VOID batch_endall()		/* This terminates BATCH	*/
+GLOBAL VOID batch_endall(VOID)		/* This terminates BATCH	*/
 {					/* processing by closing ALL	*/
 	while(batchflg) {		/* active batch files		*/
 	    batch_end();
 	}
 }
 
-GLOBAL VOID batch_end()			/* This function is called for	*/
+GLOBAL VOID batch_end(VOID)			/* This function is called for	*/
 {					/* both NORMAL and ABNORMAL	*/
 	if(batchflg == 0)		/* termination of batch file	*/
 	    return;			/* processing			*/
@@ -656,10 +660,10 @@ GLOBAL VOID batch_end()			/* This function is called for	*/
 }
 
 
-MLOCAL BOOLEAN batch_open()
+MLOCAL BOOLEAN batch_open(VOID)
 {
-WORD	h, i;
-BYTE	*name;
+	WORD	h, i;
+	BYTE	*name;
 
 	if(batch->eof) {		/* If the End of the batch file */
 	    batch_end();		/* was discovered last time then*/
@@ -685,7 +689,7 @@ BYTE	*name;
 	return TRUE;
 }
 
-GLOBAL VOID batch_close()
+GLOBAL VOID batch_close(VOID)
 {
 	if(batchflg != 0 && 
 	       batch->stream != CLOSED) {	/* Check if the batch file  */
@@ -697,8 +701,7 @@ GLOBAL VOID batch_close()
 
 #if defined(DOSPLUS)
 
-GLOBAL VOID inherit_batch_file(bc)
-BCONTROL FAR *bc;
+GLOBAL VOID inherit_batch_file( BCONTROL FAR *bc )
 {
 	WORD	i;
 	BYTE	FAR *p_heap;
@@ -737,7 +740,7 @@ BCONTROL FAR *bc;
 }
 
 
-GLOBAL VOID inherit_parent_state()
+GLOBAL VOID inherit_parent_state(VOID)
 {
 	UWORD	FAR *p;
 	BCONTROL FAR *bc;
@@ -772,7 +775,7 @@ GLOBAL VOID inherit_parent_state()
 }
 #endif
 
-GLOBAL VOID batch_new()
+GLOBAL VOID batch_new(VOID)
 /* save current batch file heap contexts to high memory */
 {
 BYTE   *hp_start;
@@ -832,7 +835,7 @@ UWORD FAR *ptr;
 }
 
 
-MLOCAL VOID batch_old()
+MLOCAL VOID batch_old(VOID)
 /* restore current batch file heap contents from high memory */
 {
 BCONTROL FAR *bc;
@@ -861,9 +864,9 @@ UWORD FAR *ptr;
  *	the correct format is read from the batch file or the EOF
  *	has been reached.
  */
-MLOCAL VOID batch_read(line, goto_flg)
-BYTE	*line;		/* Command Line Buffer		*/
-BOOLEAN goto_flg;	/* Goto Command Flag		*/
+MLOCAL VOID batch_read( BYTE *line, BOOLEAN goto_flg )
+  /* line: Command Line Buffer		*/
+  /* goto_flag: Goto Command Flag	*/
 {
 BYTE	*l;		/* we need to deblank line */
 	do {
@@ -879,8 +882,7 @@ BYTE	*l;		/* we need to deblank line */
 	} while(!batch->eof);
 }
 
-MLOCAL VOID swallow_line(s)
-BYTE	*s;
+MLOCAL VOID swallow_line( BYTE *s )
 /* there is a syntax error on this line - swallow it and say so */
 {
 BYTE	c;
@@ -912,9 +914,9 @@ BYTE	c;
  *	Read one line from the batch file and place the expanded data into
  *	the buffer LINE.
  */
-MLOCAL VOID batch_line(line, goto_flg)
-BYTE	*line;		/* Command Line Buffer		*/
-BOOLEAN goto_flg;	/* Goto Command Flag		*/
+MLOCAL VOID batch_line( BYTE *line, BOOLEAN goto_flg )
+  /* line: Command Line Buffer		*/
+  /* goto_flg: Goto Command Flag	*/
 {
 REG WORD i;
 REG BYTE *s;
@@ -1070,7 +1072,6 @@ int j;
 		    break;
 
 		case 0x1a:
-	    end_of_file:
 		    batch->eof = YES;		/* We have come to the end  */
 		    c = '\r';			/* of the batch file so set */
 		    break;			/* flag and mark end of line*/
@@ -1100,12 +1101,12 @@ int j;
 	return; 				/* return to the caller    */
 }
 
-MLOCAL BOOLEAN following_command()
+MLOCAL BOOLEAN following_command(VOID)
 /* return true if we have a possible command on the rest of the line */
 {
-LONG	old_offset;
-BOOLEAN	res = FALSE;
-BYTE	*s;
+	LONG	old_offset;
+	BOOLEAN	res = FALSE;
+	BYTE	*s;
 
 	old_offset = batch->offset;		/* save batch offset */
 	while (TRUE) {
@@ -1132,7 +1133,7 @@ BYTE	*s;
  *	and the routine BATCH_CHAR then returns a pointer to a character
  *	from the buffer (filling the buffer if required).
  */
-MLOCAL BYTE *batch_ptr()
+MLOCAL BYTE *batch_ptr(VOID)
 {
 	BYTE FAR *buf;
 	UWORD bufsize;
@@ -1165,14 +1166,13 @@ MLOCAL BYTE *batch_ptr()
  *	The following commands are used almost entirely in BATCH files and
  *	have little or no meaning outside that environment.
  */
-GLOBAL VOID CDECL cmd_shift ()
+GLOBAL VOID CDECL cmd_shift(VOID)
 {
 	batch->batshift++;		/* Increment the Shift Offset	*/
 }
 
 
-MLOCAL WORD label_ignore_char(s)
-BYTE	*s;
+MLOCAL WORD label_ignore_char( BYTE	*s )
 {
 	if (*s == '=') return(1);
 	if (*s == ';') return(1);
@@ -1185,11 +1185,10 @@ BYTE	*s;
  *	Extract the first a valid characters from the label and then
  *	zero terminate the resulting string.
  */
-MLOCAL BYTE * make_label(label)
-BYTE *label;  
+MLOCAL BYTE * make_label( BYTE *label )
 {
-REG BYTE *bp;
-UWORD i;
+	REG BYTE *bp;
+	UWORD i;
 
 	label = deblank(label);		/* remove leading white space */
 	while (label_ignore_char(label))
@@ -1204,11 +1203,10 @@ UWORD i;
 	return label;
 }
 
-GLOBAL VOID CDECL cmd_goto (label)		  /* goto label in batch file */
-REG BYTE    *label;
+GLOBAL VOID CDECL cmd_goto( REG BYTE *label )	/* goto label in batch file */
 {
-UWORD	i;
-BYTE	*bp, s[MAX_LINE+2]; 		/* Allocate buffer for Batch Input  */
+	UWORD	i;
+	BYTE	*bp, s[MAX_LINE+2]; 	/* Allocate buffer for Batch Input  */
 	
 	if (!batchflg)			/* if not in batch mode 	    */
 	    return;			/* this command is ignored	    */
@@ -1237,11 +1235,10 @@ BYTE	*bp, s[MAX_LINE+2]; 		/* Allocate buffer for Batch Input  */
 }
 
 
-GLOBAL VOID CDECL cmd_gosub (label)	  /* gosub label in batch file */
-REG BYTE    *label;
+GLOBAL VOID CDECL cmd_gosub( REG BYTE *label )	 /* gosub label in batch file */
 {
-UWORD	i;
-BYTE	*bp, s[MAX_LINE+2]; 		/* Allocate buffer for Batch Input  */
+	UWORD	i;
+	BYTE	*bp, s[MAX_LINE+2]; 		/* Allocate buffer for Batch Input  */
 	
 	if (!batchflg)			/* if not in batch mode 	    */
 	    return;			/* this command is ignored	    */
@@ -1280,7 +1277,7 @@ BYTE	*bp, s[MAX_LINE+2]; 		/* Allocate buffer for Batch Input  */
 	eprintf(MSG_LABEL, label);
 }
 
-GLOBAL	VOID CDECL cmd_return()
+GLOBAL	VOID CDECL cmd_return(VOID)
 {
 	UWORD i;
 	
@@ -1298,8 +1295,7 @@ GLOBAL	VOID CDECL cmd_return()
 }
 
 #if SWITCH_ENABLED
-GLOBAL	VOID CDECL cmd_switch(list)
-REG BYTE	*list;
+GLOBAL	VOID CDECL cmd_switch( REG BYTE *list )
 {
 	BYTE	*list_start;
 	BYTE	*label;
@@ -1368,10 +1364,9 @@ MLOCAL BYTE *if_opt[] = {"exist", "direxist", "errorlevel", NULL };
 #endif
 /*RG-02-end*/
 
-MLOCAL UWORD if_index(cmd)
-BYTE **cmd;
+MLOCAL UWORD if_index( BYTE **cmd )
 {
-UWORD	i, j;
+	UWORD	i, j;
 
 	for(i = 0; if_opt[i]; i++) {		/* Scan Through the option   */
 	    j = strlen(if_opt[i]);		/* list and return the index */
@@ -1396,8 +1391,7 @@ UWORD	i, j;
 #define OP_GE 4
 #define OP_GT 5
 
-MLOCAL	WORD get_operator(op)
-BYTE	*op;
+MLOCAL	WORD get_operator( BYTE *op )
 {
 	if (op[0] == '=') return(OP_EQ);
 	if (op[0] == '!' && op[1] == '=') return(OP_NE);
@@ -1413,8 +1407,7 @@ BYTE	*op;
 	return(-1);
 }
 
-MLOCAL	LONG	get_decimal(s)
-BYTE	*s;
+MLOCAL	LONG	get_decimal( BYTE *s )
 {
 	LONG	total = 0;
 	
@@ -1429,8 +1422,7 @@ BYTE	*s;
 	return(total);
 }
 
-MLOCAL BOOLEAN CDECL test_cond(cptr)
-BYTE	**cptr;
+MLOCAL BOOLEAN CDECL test_cond( BYTE **cptr )
 {
 	BYTE	*cmd,*str1, *str2, *ptr;
 	DTA	search;
@@ -1712,8 +1704,7 @@ BOOLEAN is_it_or(BYTE *cmd)
 	return TRUE;
 }
 #endif
-GLOBAL VOID CDECL cmd_if(cmd)
-BYTE	*cmd;
+GLOBAL VOID CDECL cmd_if(BYTE *cmd)
 {
         BOOLEAN cond;
         
@@ -1755,8 +1746,7 @@ BYTE	*cmd;
 
 /*RG-03*/
 #if !defined(NOXBATCH)
-GLOBAL VOID CDECL cmd_or(cmd)
-BYTE	*cmd;
+GLOBAL VOID CDECL cmd_or( BYTE *cmd )
 {
         BOOLEAN cond;
         BYTE    *org_cmd;
@@ -1797,11 +1787,10 @@ BYTE	*cmd;
 /*RG-03-end*/
 
 
-GLOBAL VOID CDECL cmd_for(s)
-BYTE *s;
+GLOBAL VOID CDECL cmd_for( BYTE *s )
 {
-FCONTROL *fc;
-BYTE *bp1;
+	FCONTROL *fc;
+	BYTE *bp1;
 
 	fc = (FCONTROL *) heap_get(sizeof(FCONTROL));
 
@@ -1869,7 +1858,7 @@ for_error:				/* When a Syntax error occurs	*/
 	return;
 }
 
-GLOBAL VOID for_end()
+GLOBAL VOID for_end(VOID)
 {
 	if(for_flag) {
 	    heap_set((BYTE *) forptr);	/* Terminate FOR processing	*/
@@ -1887,7 +1876,7 @@ GLOBAL VOID for_end()
 
 MLOCAL BOOLEAN prompt_flg = FALSE;	/* Prompt Flag 			*/
 
-MLOCAL VOID prompt()			/* display command line prompt	*/
+MLOCAL VOID prompt(VOID)			/* display command line prompt	*/
 {
 	REG BYTE *cp;
 	BYTE	 buf[MAX_PATHLEN];
@@ -2041,7 +2030,7 @@ REG BYTE *prmptcp = prmptcpbuf;
  * restored when INT 2E returns. - EJH 
  */
  
-GLOBAL VOID int2e_start()
+GLOBAL VOID int2e_start(VOID)
 {
 	batchflg_save = batchflg;
 	batchflg = 0;
@@ -2050,7 +2039,7 @@ GLOBAL VOID int2e_start()
 	echoflg = ECHO_ON;
 }
 
-GLOBAL VOID int2e_finish()
+GLOBAL VOID int2e_finish(VOID)
 {
 	batchflg = batchflg_save;
 	batch = batch_save;
@@ -2273,9 +2262,7 @@ EXTERN BOOLEAN CDECL nov_station(WORD *);
 EXTERN WORD    CDECL nov_connection();
 
 
-MLOCAL	BOOLEAN novell_extension(src,dst)
-BYTE	*src;
-BYTE	*dst;
+MLOCAL	BOOLEAN novell_extension(BYTE *src, BYTE *dst)
 /*
  * Check if src string is a novell string to be expanded. eg login_name.
  * if so, put expansion in dst.
@@ -2309,8 +2296,7 @@ BYTE	*dst;
 
 
 
-GLOBAL	VOID	CDECL get_login_name(dst)
-BYTE	*dst;
+GLOBAL	VOID	CDECL get_login_name(BYTE *dst)
 {
 	struct s_nov_e346_in {
 	    WORD	len;
@@ -2354,8 +2340,7 @@ BYTE	*dst;
 
 }
 
-GLOBAL	VOID CDECL get_pstation(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_pstation(BYTE *dst)
 {
 	WORD	sn[3];
 	
@@ -2368,8 +2353,7 @@ BYTE	*dst;
 }
 
 
-GLOBAL	VOID CDECL get_full_name(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_full_name(BYTE *dst)
 {
 /* scan bindery */
 struct s_nov_e337_in {
@@ -2516,8 +2500,7 @@ for(;;){
 
 
 
-GLOBAL	VOID CDECL get_hour(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_hour(BYTE *dst)
 {
 	SYSTIME  time;
 		
@@ -2529,8 +2512,7 @@ BYTE	*dst;
 	sprintf(dst,"%d",time.hour);
 }
 
-GLOBAL	VOID CDECL get_hour24(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_hour24(BYTE *dst)
 {
 	SYSTIME  time;
 		
@@ -2539,8 +2521,7 @@ BYTE	*dst;
 	sprintf(dst,"%02d",time.hour);
 }
 
-GLOBAL	VOID CDECL get_hour2(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_hour2(BYTE *dst)
 {
 	SYSTIME  time;
 		
@@ -2549,8 +2530,7 @@ BYTE	*dst;
 	sprintf(dst,"%d",time.hour);
 }
 
-GLOBAL	VOID CDECL get_minute(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_minute(BYTE *dst)
 {
 	SYSTIME  time;
 		
@@ -2559,8 +2539,7 @@ BYTE	*dst;
 	sprintf(dst,"%02d",time.min);
 }
 
-GLOBAL	VOID CDECL get_second(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_second(BYTE *dst)
 {
 	SYSTIME  time;
 		
@@ -2569,8 +2548,7 @@ BYTE	*dst;
 	sprintf(dst,"%02d",time.sec);
 }
 
-GLOBAL	VOID CDECL get_am_pm(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_am_pm(BYTE *dst)
 {
 	SYSTIME	time;
 	BYTE	FAR *p;
@@ -2584,8 +2562,7 @@ BYTE	*dst;
 	*dst = 0;
 }
 
-GLOBAL	VOID CDECL get_greeting(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_greeting(BYTE *dst)
 {
 	SYSTIME	time;
 	BYTE	FAR *p;
@@ -2603,8 +2580,7 @@ BYTE	*dst;
 	*dst = 0;
 }
 
-GLOBAL	VOID CDECL get_year(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_year(BYTE *dst)
 {
 	SYSDATE	date;
 	
@@ -2613,8 +2589,7 @@ BYTE	*dst;
 	sprintf(dst,"%d",date.year);
 }
 
-GLOBAL	VOID CDECL get_short_year(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_short_year(BYTE *dst)
 {
 	SYSDATE date;
 	
@@ -2623,8 +2598,7 @@ BYTE	*dst;
 	sprintf(dst,"%d",date.year%100);
 }
 
-GLOBAL	VOID CDECL get_month(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_month(BYTE *dst)
 {
 	SYSDATE	date;
 	
@@ -2633,8 +2607,7 @@ BYTE	*dst;
 	sprintf(dst,"%d",date.month);
 }
 
-GLOBAL	VOID CDECL get_moy(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_moy(BYTE *dst)
 {
 	SYSDATE	date;
 	
@@ -2643,8 +2616,7 @@ BYTE	*dst;
 	sprintf(dst,"%02d",date.month);
 }
 
-GLOBAL	VOID CDECL get_month_name(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_month_name(BYTE *dst)
 {
 	SYSDATE	date;
 	BYTE	*m;
@@ -2672,8 +2644,7 @@ BYTE	*dst;
 
 
 
-GLOBAL	VOID CDECL get_day(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_day(BYTE *dst)
 {
 	SYSDATE	date;
 	
@@ -2682,8 +2653,7 @@ BYTE	*dst;
 	sprintf(dst,"%d",date.day);
 }
 
-GLOBAL	VOID CDECL get_dom(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_dom(BYTE *dst)
 {
 	SYSDATE	date;
 	
@@ -2692,8 +2662,7 @@ BYTE	*dst;
 	sprintf(dst,"%02d",date.day);
 }
 
-GLOBAL	VOID CDECL get_nday_of_week(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_nday_of_week(BYTE *dst)
 {
 	SYSDATE date;
 	
@@ -2702,8 +2671,7 @@ BYTE	*dst;
 	sprintf(dst,"%d",date.dow+1);
 }
 
-GLOBAL	VOID CDECL get_day_of_week(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_day_of_week(BYTE *dst)
 {
 	SYSDATE date;
 	
@@ -2712,14 +2680,12 @@ BYTE	*dst;
 	sprintf(dst,"%s",day_names(date.dow));
 }
 
-GLOBAL	VOID CDECL get_os_version(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_os_version(BYTE *dst)
 {
 	env_scan("VER=",dst);
 }
 
-GLOBAL	VOID CDECL get_connection(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_connection(BYTE *dst)
 {
 	int	i;
 	
@@ -2732,20 +2698,17 @@ BYTE	*dst;
 	sprintf(dst,"%d",i);
 }
 
-GLOBAL	VOID CDECL get_errorlevel(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_errorlevel(BYTE *dst)
 {
 	sprintf(dst,"%d",err_ret & 255);
 }
 
-GLOBAL	VOID CDECL get_errorlvl(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_errorlvl(BYTE *dst)
 {
 	sprintf(dst,"%03d",err_ret & 255);
 }
 
-GLOBAL	VOID CDECL get_codepage(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_codepage(BYTE *dst)
 {
 	UWORD	currentcp,defaultcp;
 
@@ -2754,16 +2717,14 @@ BYTE	*dst;
 	sprintf(dst,"%d",currentcp);
 }
 
-GLOBAL	VOID CDECL get_country(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_country(BYTE *dst)
 {
 	country.code=ms_s_country(&country);
 
 	sprintf(dst,"%d",country.code);
 }
 
-GLOBAL	VOID CDECL get_rows(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_rows(BYTE *dst)
 {
 	UWORD	rows;
 
@@ -2772,8 +2733,7 @@ BYTE	*dst;
 	sprintf(dst,"%d",rows);
 }
 
-GLOBAL	VOID CDECL get_columns(dst)
-BYTE	*dst;
+GLOBAL	VOID CDECL get_columns(BYTE *dst)
 {
 	UWORD	columns;
 
