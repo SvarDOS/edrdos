@@ -481,11 +481,13 @@ MLOCAL VOID init(BYTE *cmd)
 	parent_psp = MK_FP(_psp2, 0x16);	/* our parental PSP is here  */
 	ret = ioctl_ver();			/* Get the BDOS Version No.  */
 
-	if(ret < 0x1071) {			/* Abort if this is not DOS  */
-	    eprintf(MSG_BADOS);			/* PLUS with a BDOS version  */
+	if(ret < 0x1071) {			/* warn if this is not DR-DOS  */
+	    eprintf(MSG_BADOS);
+#if 0
 	    if ((*parent_psp) && (*parent_psp != _psp2))
 		ms_x_exit(-1);			/* abort unless root process */
 	    while(1){};
+#endif
 	}
 
 #if 0

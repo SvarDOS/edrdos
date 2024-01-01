@@ -249,7 +249,7 @@ _msg_enverr	db	"Environment error", NUL
 	public	_msg_bados
 	public	msg_bados
 msg_bados	label	byte
-_msg_bados	db	"Incorrect version of Operating System", LF, NUL
+_msg_bados	db	"Warning: Operating System not supported by COMMAND.COM", LF, NUL
 	public	_msg_loadpath
 	public	msg_loadpath
 msg_loadpath	label	byte
