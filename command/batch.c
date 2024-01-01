@@ -283,8 +283,7 @@ GLOBAL VOID inherit_TMP_state(VOID);
 #endif
 
 /*.pa*/
-GLOBAL BOOLEAN getcmd(line)		/* read command line */
-BYTE *line;
+GLOBAL BOOLEAN getcmd(BYTE *line)		/* read command line */
 {
 	BYTE *s,*s1;
 	BOOLEAN quote = FALSE;
@@ -392,7 +391,12 @@ batch_restart:
 
 	    crlf();
 	    
-            kbdbuf[kbdbuf[1] + 2]='\0'; /* terminate input		*/
+        if (kbdbuf[kbdbuf[1] + 1] == '\r') {
+        	/* remove trailing \r */
+        	kbdbuf[1]--;
+        }
+        
+        kbdbuf[kbdbuf[1] + 2]='\0'; /* terminate input		*/
 	    kbdptr = kbdbuf + 2;
 	}
 
@@ -476,8 +480,8 @@ batch_restart:
 					/* next invocation and save CCP */
 }
 
-MLOCAL VOID for_in(line)	 	/* A FOR command is currently	*/
-BYTE *line; 				/* executing so build the line	*/
+MLOCAL VOID for_in(BYTE *line)	 	/* A FOR command is currently	*/
+  /* line: executing so build the line	*/
 {					/* from the internal FOR data	*/
 	BYTE *s,*t;			/* initialized by CMD_FOR	*/
 	BYTE *bp1, *fp;
@@ -545,15 +549,15 @@ BYTE *line; 				/* executing so build the line	*/
  *	reads a line of data from the batch file and expands it to contain the
  *	command line variables and variables from the environment.
  */
-GLOBAL VOID batch_start(argv0, path, tail)
-BYTE	*argv0;			/* Invoking Command	*/ 
-BYTE	*path;			/* Complete filename	*/
-BYTE	*tail;			/* Command Line Options	*/
+GLOBAL VOID batch_start(BYTE *argv0, BYTE *path, BYTE *tail)
+  /* argv0: Invoking Command	*/ 
+  /* path: Complete filename	*/
+  /* tail: Command Line Options	*/
 {
-BYTE *s2;
-BYTE	dirbuf[MAX_PATHLEN];
-WORD	i;
-BYTE	quoteflag;
+	BYTE *s2;
+	BYTE	dirbuf[MAX_PATHLEN];
+	WORD	i;
+	BYTE	quoteflag;
 
 	if(batchflg)			/* If a batch file is currently */
 	    batch_close();		/* close it. So minimum number	*/
@@ -918,14 +922,14 @@ MLOCAL VOID batch_line( BYTE *line, BOOLEAN goto_flg )
   /* line: Command Line Buffer		*/
   /* goto_flg: Goto Command Flag	*/
 {
-REG WORD i;
-REG BYTE *s;
-WORD	n, env_start;
-BYTE	c, *bp;
-BYTE	env_str[128];
-BOOLEAN quote = FALSE;
-LONG old_offset;
-int j;
+	REG WORD i;
+	REG BYTE *s;
+	WORD	n, env_start;
+	BYTE	c, *bp;
+	BYTE	env_str[128];
+	BOOLEAN quote = FALSE;
+	LONG old_offset;
+	int j;
 
 	env_start = NULL;		/* Copy the environment into a	 */
 
