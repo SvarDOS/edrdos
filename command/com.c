@@ -449,8 +449,6 @@ MLOCAL VOID init(BYTE *cmd)
 	BYTE	*h;
 	strcpy(kbdptr, "");			/* start with no commands */
 
-	if (!(get_cmdname(heap())))
-	    set_reload_file();
 #if 0
 #if defined(DLS)
 	dls_msg_ver(MSG_VER);			/* check message file version*/
