@@ -12,6 +12,7 @@ RASM_SH = $(LTOOLS)\rasm_sh.exe
 RASM_FLAGS =
 
 FIXUPP = $(LTOOLS)\fixupp.exe
+ROUND = $(LTOOLS)\round.exe
 
 objs  = bin/buffers.obj bin/dirs.obj bin/fdos.obj bin/fcbs.obj bin/bdevio.obj
 objs += bin/cdevio.obj bin/fioctl.obj bin/redir.obj bin/header.obj
@@ -21,17 +22,16 @@ objs += bin/network.obj bin/int2f.obj bin/history.obj bin/cmdline.obj
 objs += bin/dos7.obj bin/lfn.obj bin/dosgrps.obj
 
 bin/drdos.sys : bin/drdos.exe
-	$(EXE2BIN) -q $< $@
+	$(EXE2BIN) -q bin\drdos.exe bin\drdos.tmp
+	$(ROUND) bin\drdos.tmp bin\drdos.sys 128
+	rm -f bin/drdos.tmp
 	$(LTOOLS)\compbdos .\bin\drdos.sys
 
-bin/drdos.exe: bin/drdos.inp version.inc $(objs) drdos.lnk
+bin/drdos.exe: version.inc $(objs) drdos.lnk
 	$(WLINK) @drdos.lnk
 
 version.inc: ../version.inc
 	copy ..\version.inc .
-
-bin/drdos.inp: drdos.inp
-	copy drdos.inp bin\drdos.inp
 
 bin/dosgrps.obj: dosgrps.asm
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
