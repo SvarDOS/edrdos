@@ -232,8 +232,8 @@ MLOCAL BOOLEAN doexec(BYTE *, BYTE *, UWORD, BYTE *);
 MLOCAL BYTE msg_comspec[] = "COMSPEC=";
 /*EXTERN BYTE *reload_file;			   CSTART.ASM	 */
 
-EXTERN VOID CDECL get_reload_file(VOID);	/* CSUP.ASM */
-EXTERN VOID CDECL set_reload_file(VOID);	/* CSUP.ASM */
+EXTERN VOID CDECL get_reload_file(VOID);	/* CSTART.ASM */
+EXTERN VOID CDECL set_reload_file(VOID);	/* CSTART.ASM */
 EXTERN VOID CDECL get_out_pipe(VOID);		/* CSUP.ASM */
 
 EXTERN VOID CDECL install_perm(VOID);		   /* CSTART.ASM	 */ 
@@ -725,8 +725,7 @@ MLOCAL VOID init(BYTE *cmd)
 	    cmd_set(buf);
 	}
 #else
-	/* BAP changed this */
-	get_reload_file();
+	/* set COMSPEC if it is not defined */
 	if(env_scan(msg_comspec,heap())) {
 	    sprintf(buf,"%s%s",msg_comspec,heap());
 	    cmd_set(buf);
