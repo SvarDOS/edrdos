@@ -1,4 +1,4 @@
-# DRBIO Makefile for Open Watcom
+# DRBIO.SYS Makefile for Open Watcom
 # currently only for DOS because of proprietary Digital Research tools
 # Tools needed to build:
 #   - JWASM assembler
