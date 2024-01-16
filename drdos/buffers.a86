@@ -403,7 +403,7 @@ getnblk10:
 getblk:
 ;------
 	push	es ! push bx
-	call	fatptr			; get address of block AX in buffer
+	call	fatptr			; get address of block DX:AX in buffer
 	mov	ax,es:[bx]		; get the word from FAT
 	 jnz	getblk10		; skip if on odd address (must be 12 bit)
 	cmp	dosfat,FAT12		; else check if 16/32 or 12 bit
@@ -1705,6 +1705,9 @@ read_fsinfo05:
 	mov	ds:word ptr DDSC_BFREE+2[bx],dx
 	mov	ax,es:word ptr BCB_DATA+FS_BBLOCK[si]	; next free block in FS info block
 	mov	dx,es:word ptr BCB_DATA+FS_BBLOCK+2[si]
+
+	; TODO: why is DDSC_BBLOCK not actually set here? (Boeckmann)
+
 	pop	ds
 	pop	es
 read_fsinfo10:
