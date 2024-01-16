@@ -1993,37 +1993,36 @@ div64:					; 64-bit division
 ; Modified registers:
 ;	AX,CX,DX,BP,SI
 	mov	bp,sp			; base address of temporary variables
-	add	bp,2
 	xor	ax,ax			; clear work registers
 	xor	dx,dx
 	xor	si,si
 	mov	cx,64			; 64 bits
 div64_loop:
-	shl	word ptr 4[bp],1	; multiply quotient with two
-	rcl	word ptr 6[bp],1
-	shl	word ptr 12[bp],1	; shift one bit from dividend
-	rcl	word ptr 14[bp],1
-	rcl	word ptr 16[bp],1
-	rcl	word ptr 18[bp],1
+	shl	word ptr 2+4[bp],1	; multiply quotient with two
+	rcl	word ptr 2+6[bp],1
+	shl	word ptr 2+12[bp],1	; shift one bit from dividend
+	rcl	word ptr 2+14[bp],1
+	rcl	word ptr 2+16[bp],1
+	rcl	word ptr 2+18[bp],1
 	rcl	ax,1			; to work registers
 	rcl	dx,1
 	rcl	si,1
 	cmp	si,0			; larger than divisor?
 	 jne	div64_1
-	cmp	dx,10[bp]		; compare second word with divisor
+	cmp	dx,2+10[bp]		; compare second word with divisor
 	 jb	div64_2
 	 ja	div64_1
-	cmp	ax,8[bp]		; compare first word
+	cmp	ax,2+8[bp]		; compare first word
 	 jb	div64_2
 div64_1:
-	or	word ptr 4[bp],1	; divisor fits one time
-	sub	ax,8[bp]		; subtract divisor
-	sbb	dx,10[bp]
+	or	word ptr 2+4[bp],1	; divisor fits one time
+	sub	ax,2+8[bp]		; subtract divisor
+	sbb	dx,2+10[bp]
 	sbb	si,0
 div64_2:
 	loop	div64_loop		; loop back if more bits to shift
-	mov	[bp],ax			; save remainder onto stack
-	mov	2[bp],dx
+	mov	2[bp],ax		; save remainder onto stack
+	mov	2+2[bp],dx
 	ret
 
 div32:					; 32-bit division
@@ -2038,50 +2037,48 @@ div32:					; 32-bit division
 ; Modified registers:
 ;	AX,CX,DX,BP
 	mov	bp,sp			; base address of temporary variables
-	inc	bp
-	inc	bp
 	xor	dx,dx
-	cmp	10[bp],dx		; if divisor high != 0 => 32bit div
+	cmp	2+10[bp],dx		; if divisor high != 0 => 32bit div
 	 jne	div32_full
-	mov	cx,8[bp]		; CX <- divisor low
-	mov	2[bp],dx		; clear remainder high, guaranteed to
+	mov	cx,2+8[bp]		; CX <- divisor low
+	mov	2+2[bp],dx		; clear remainder high, guaranteed to
 					; ...be zero here
-	mov	ax,14[bp]		; AX <- dividend high
+	mov	ax,2+14[bp]		; AX <- dividend high
 	test	ax,ax			; if both dividend and divisor are
 					; ...16bit, perform one 16bit division
 	 jz	div16			; ...else perform two 16bit divisions
 	div	cx			; divide dividend high by divisor low
-div16:	mov	6[bp],ax		; 6[bp] <- quotient high
-	mov	ax,12[bp]		; AX <- dividend low
+div16:	mov	2+6[bp],ax		; 6[bp] <- quotient high
+	mov	ax,2+12[bp]		; AX <- dividend low
 	div	cx			; divide dividend low by divisor low
 					; ...DX -> remainder of previous
 					; ...      division or zero
-	mov	[bp],dx			; store remainder low
-	mov	4[bp],ax		; store quotient low
+	mov	2[bp],dx		; store remainder low
+	mov	2+4[bp],ax		; store quotient low
 	ret
 div32_full:
 	xor	ax,ax			; clear registers, DX cleared above
 	mov	cx,32			; 32 iterations (bits)
 div32_loop:
-	shl	word ptr 4[bp],1	; multiply quotient with two
-	rcl	word ptr 6[bp],1
-	shl	word ptr 12[bp],1	; shift one bit from dividend
-	rcl	word ptr 14[bp],1
+	shl	word ptr 2+4[bp],1	; multiply quotient with two
+	rcl	word ptr 2+6[bp],1
+	shl	word ptr 2+12[bp],1	; shift one bit from dividend
+	rcl	word ptr 2+14[bp],1
 	rcl	ax,1			; to work registers
 	rcl	dx,1
-	cmp	dx,10[bp]		; compare high word with divisor
+	cmp	dx,2+10[bp]		; compare high word with divisor
 	 jb	div32_2
 	 ja	div32_1
-	cmp	ax,8[bp]		; compare low word
+	cmp	ax,2+8[bp]		; compare low word
 	 jb	div32_2
 div32_1:
-	or	word ptr 4[bp],1	; divisor fits one time
-	sub	ax,8[bp]		; subtract divisor
-	sbb	dx,10[bp]
+	or	word ptr 2+4[bp],1	; divisor fits one time
+	sub	ax,2+8[bp]		; subtract divisor
+	sbb	dx,2+10[bp]
 div32_2:
 	loop	div32_loop		; loop back if more bits to shift
-	mov	[bp],ax			; save remainder onto stack
-	mov	2[bp],dx
+	mov	2[bp],ax		; save remainder onto stack
+	mov	2+2[bp],dx
 	ret
 
 
@@ -2174,30 +2171,29 @@ mul32:					; 32-bit multiplication
 ;	AX,DX
 	push	bp			; save BP
 	mov	bp,sp			; base address of temporary variables
-	add	bp,4
-	mov	ax,10[bp]		; multiply high word of factors
-	mul	word ptr 14[bp]
-	mov	4[bp],ax		; store result
-	mov	6[bp],dx
-	mov	ax,10[bp]		; multiply high word of first factor with low word of second
-	mul	word ptr 12[bp]
-	mov	2[bp],ax		; add result to previous
-	add	4[bp],dx
-	adc	word ptr 6[bp],0
-	mov	ax,8[bp]		; multiply low word of first factor with high word of second
-	mul	word ptr 14[bp]
-	add	2[bp],ax		; add result to previous
-	adc	4[bp],dx
-	adc	word ptr 6[bp],0
-	mov	ax,8[bp]		; multiply low word of first factor with low word of second
-	mul	word ptr 12[bp]
-	mov	[bp],ax			; add result
-	add	2[bp],dx
-	adc	word ptr 4[bp],0
-	adc	word ptr 6[bp],0
-	cmp	word ptr 4[bp],0	; 64-bit result?
+	mov	ax,4+10[bp]		; multiply high word of factors
+	mul	word ptr 4+14[bp]
+	mov	4+4[bp],ax		; store result
+	mov	4+6[bp],dx
+	mov	ax,4+10[bp]		; multiply high word of first factor with low word of second
+	mul	word ptr 4+12[bp]
+	mov	4+2[bp],ax		; add result to previous
+	add	4+4[bp],dx
+	adc	word ptr 4+6[bp],0
+	mov	ax,4+8[bp]		; multiply low word of first factor with high word of second
+	mul	word ptr 4+14[bp]
+	add	4+2[bp],ax		; add result to previous
+	adc	4+4[bp],dx
+	adc	word ptr 4+6[bp],0
+	mov	ax,4+8[bp]		; multiply low word of first factor with low word of second
+	mul	word ptr 4+12[bp]
+	mov	4[bp],ax		; add result
+	add	4+2[bp],dx
+	adc	word ptr 4+4[bp],0
+	adc	word ptr 4+6[bp],0
+	cmp	word ptr 4+4[bp],0	; 64-bit result?
 	 jnz	mul32_1			; yes
-	cmp	word ptr 6[bp],0
+	cmp	word ptr 4+6[bp],0
 	 jz	mul32_2			; no
 mul32_1:
 	stc				; yes, set carry flag to indicate this
