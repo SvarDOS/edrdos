@@ -726,8 +726,9 @@ MLOCAL VOID init(BYTE *cmd)
 	}
 #else
 	/* set COMSPEC if it is not defined */
-	if(env_scan(msg_comspec,heap())) {
-	    sprintf(buf,"%s%s",msg_comspec,heap());
+	get_reload_file(); /* reload_file now on heap */
+	if(env_scan(msg_comspec, buf) || stricmp(heap(), buf)) {
+	    sprintf(buf,"%s%s", msg_comspec, heap());
 	    cmd_set(buf);
 	}
 #endif

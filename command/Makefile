@@ -51,3 +51,4 @@ clean: .SYMBOLIC
 	rm -f bin/*.obj
 	rm -f bin/*.lst
 	rm -f bin/*.map
+	rm -f version.inc
