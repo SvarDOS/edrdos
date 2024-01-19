@@ -128,8 +128,6 @@ DRDOS BUXTON
  * 07-Jul-92 IF EXIST now finds hidden files. 
 */
 
-#include "defines.h"
-
 #include <ctype.h>
 #include <string.h>
 #if defined( MWC ) && defined( strlen )

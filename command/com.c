@@ -113,17 +113,6 @@ memory.
  *   ENDLOG
  */
 
-#include "defines.h"
-
-#if 0
-#if defined( DLS )
-#define MSG_VER 111 /* required message file version No. */
-#else
-#define MSG_VER msg_ver111 /* required message file version No. */
-extern char 		*MSG_VER;
-#endif
-#endif
-
 #include <setjmp.h>
 #include <string.h>
 

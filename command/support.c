@@ -115,7 +115,6 @@ Version 1.2
 -----------------------------------------------------------------------------
 */
 
-#include "defines.h"
 #include <ctype.h>
 #include <setjmp.h>
 #include <string.h>

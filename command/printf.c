@@ -54,7 +54,6 @@
  *           on a NOVELL drive when we are in seg FFFF.
  */
 
-#include "defines.h"
 #include <ctype.h>
 #include <string.h>
 

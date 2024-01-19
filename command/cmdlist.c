@@ -55,7 +55,6 @@
 * 23 Nov 90  add ECHOERR command
 */
 
-#include	"defines.h"
 #include	<portab.h>
 #include	"command.h"		/* Command Definitions */
 #include	"txhelp.h"

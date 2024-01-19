@@ -140,571 +140,636 @@ DRDOS PANTHER
 ----------------------------------------------------------------------------
 */
 
-#include	"defines.h"
+#include <string.h>
 
-#include	<string.h>
-
-#if defined(MWC) && defined(strlen)
-#undef strcmp			/* These are defined as macros in string.h */
-#undef strcpy			/* which are expaneded in line under */
-#undef strlen			/* Metaware C. These undefs avoid this. */
+#if defined( MWC ) && defined( strlen )
+#undef strcmp /* These are defined as macros in string.h */
+#undef strcpy /* which are expaneded in line under */
+#undef strlen /* Metaware C. These undefs avoid this. */
 #endif
 
-#include	<portab.h>
-#include	<mserror.h>
+#include <mserror.h>
+#include <portab.h>
 
-#include	"command.h"		/* COMMAND Definitions */
-#include	"dos.h" 		/* MSDOS Functions */
-#include	"dosif.h"		/* DOS interface definitions	 */
-#include	"toupper.h"
-#include	"support.h"		/* Support routines		 */
-#include	"global.h"
+#include "command.h" /* COMMAND Definitions */
+#include "dos.h"     /* MSDOS Functions */
+#include "dosif.h"   /* DOS interface definitions	 */
+#include "global.h"
+#include "support.h" /* Support routines		 */
+#include "toupper.h"
 
+EXTERN VOID batch_close( VOID ); /* BATCH.C		*/
 
-EXTERN VOID batch_close(VOID);		/* BATCH.C		*/
-
-MLOCAL BYTE * skip_switch(BYTE *);
-MLOCAL BYTE * get_p1(BYTE *, BYTE *, BYTE *);
-MLOCAL BYTE * get_pno(BYTE *, BYTE *);
-MLOCAL BOOLEAN isfile(BYTE *);
-MLOCAL VOID addwild(BYTE *);
-MLOCAL BOOLEAN dopen(BYTE *);
-MLOCAL VOID dclose(BYTE *, WORD, WORD);
-MLOCAL BOOLEAN preread(BYTE *);
-MLOCAL WORD readsrc(VOID);
-MLOCAL WORD copy1(BYTE *, BYTE *);
-MLOCAL BOOLEAN lseek(BYTE *);
-MLOCAL BOOLEAN samefs(BYTE *, BYTE *, WORD);
-MLOCAL WORD ABcheck(BYTE *, BYTE *);
-MLOCAL VOID prtsrc(BYTE *);
-MLOCAL WORD conf_src(BYTE *);
-MLOCAL VOID e_check2(WORD);
-MLOCAL BOOLEAN touch(BYTE *);
-MLOCAL BYTE * get_pswd(BYTE *);
+MLOCAL BYTE *skip_switch( BYTE * );
+MLOCAL BYTE *get_p1( BYTE *, BYTE *, BYTE * );
+MLOCAL BYTE *get_pno( BYTE *, BYTE * );
+MLOCAL BOOLEAN isfile( BYTE * );
+MLOCAL VOID addwild( BYTE * );
+MLOCAL BOOLEAN dopen( BYTE * );
+MLOCAL VOID dclose( BYTE *, WORD, WORD );
+MLOCAL BOOLEAN preread( BYTE * );
+MLOCAL WORD readsrc( VOID );
+MLOCAL WORD copy1( BYTE *, BYTE * );
+MLOCAL BOOLEAN lseek( BYTE * );
+MLOCAL BOOLEAN samefs( BYTE *, BYTE *, WORD );
+MLOCAL WORD ABcheck( BYTE *, BYTE * );
+MLOCAL VOID prtsrc( BYTE * );
+MLOCAL WORD conf_src( BYTE * );
+MLOCAL VOID e_check2( WORD );
+MLOCAL BOOLEAN touch( BYTE * );
+MLOCAL BYTE *get_pswd( BYTE * );
 MLOCAL WORD ret;
 
 /* define external variables used */
 
+#define COPY_VERIFY  ( global_flg & 1 ) /* Set Verify Flag	*/
+#define COPY_SYS     ( global_flg & 2 ) /* Include SYSTEM Files	*/
+#define COPY_ZERO    ( global_flg & 4 ) /* Zero the eighth Bit	*/
+#define COPY_CONFIRM ( global_flg & 8 ) /* Confirm each file	*/
+#define COPY_YES     ( global_flg & 16 )
 
-#define	COPY_VERIFY	(global_flg & 1)	/* Set Verify Flag	*/
-#define	COPY_SYS	(global_flg & 2)	/* Include SYSTEM Files	*/
-#define	COPY_ZERO	(global_flg & 4)	/* Zero the eighth Bit	*/
-#define	COPY_CONFIRM	(global_flg & 8)	/* Confirm each file	*/
-#define COPY_YES	(global_flg & 16)
+#define COPYSRC_ASC ( sflag & 1 ) /* Source is ASCII	*/
+#define COPYSRC_BIN ( sflag & 2 ) /* Source is Binary	*/
 
-#define	COPYSRC_ASC	(sflag & 1)		/* Source is ASCII	*/
-#define	COPYSRC_BIN	(sflag & 2)		/* Source is Binary	*/
+#define COPYDST_ASC ( dflag & 1 ) /* Destination is ASCII	*/
+#define COPYDST_BIN ( dflag & 2 ) /* Destination is BINARY*/
 
-#define	COPYDST_ASC	(dflag & 1)		/* Destination is ASCII	*/
-#define	COPYDST_BIN	(dflag & 2)		/* Destination is BINARY*/
-
-#define	MIN_COPYBUF	(10 * (1024/16))	/* Minimum Copy Buffer Size */
-#define	MAX_COPYBUF	(50 * (1024/16))	/* Maximum Copy Buffer Size */
+#define MIN_COPYBUF ( 10 * ( 1024 / 16 ) ) /* Minimum Copy Buffer Size */
+#define MAX_COPYBUF ( 50 * ( 1024 / 16 ) ) /* Maximum Copy Buffer Size */
 
 /* define static variables for this module */
 
-MLOCAL BYTE	*lp;
-MLOCAL UWORD	global_flg;	/* Global Flags	Verify, System & Zero	*/
-MLOCAL UWORD	dflag;
-MLOCAL BOOLEAN	sascii; 	/* treat current source file as ascii */
-MLOCAL BOOLEAN	sbin;
-MLOCAL BOOLEAN	concat;
-MLOCAL WORD	nfiles; 	/* number of files copied */
+MLOCAL BYTE *lp;
+MLOCAL UWORD global_flg; /* Global Flags	Verify, System & Zero	*/
+MLOCAL UWORD dflag;
+MLOCAL BOOLEAN sascii; /* treat current source file as ascii */
+MLOCAL BOOLEAN sbin;
+MLOCAL BOOLEAN concat;
+MLOCAL WORD nfiles; /* number of files copied */
 
-MLOCAL WORD	dfh;		/* destination file handle */
-MLOCAL BOOLEAN	dstopen;	/* destination open */
-MLOCAL WORD	sfh;
-MLOCAL ULONG	src_len;
-MLOCAL BOOLEAN	srcopen;	/* flag whether src is still open */
-MLOCAL BOOLEAN	srcdev; 
-MLOCAL BOOLEAN  dstdev;
-MLOCAL BOOLEAN	fullbuf;	/* buffer contains data */
-MLOCAL BOOLEAN	dfailed;
-MLOCAL BOOLEAN	ABswap; 	/* single floppy disk drive copy with disk swap */
-MLOCAL BOOLEAN	tstamp; 	/* set destination timestamp to same as source */
-MLOCAL UWORD	date,time;	/* source date and time      */
-MLOCAL UWORD	attrib; 	/* source file attributes    */
+MLOCAL WORD dfh;        /* destination file handle */
+MLOCAL BOOLEAN dstopen; /* destination open */
+MLOCAL WORD sfh;
+MLOCAL ULONG src_len;
+MLOCAL BOOLEAN srcopen; /* flag whether src is still open */
+MLOCAL BOOLEAN srcdev;
+MLOCAL BOOLEAN dstdev;
+MLOCAL BOOLEAN fullbuf; /* buffer contains data */
+MLOCAL BOOLEAN dfailed;
+MLOCAL BOOLEAN ABswap;   /* single floppy disk drive copy with disk swap */
+MLOCAL BOOLEAN tstamp;   /* set destination timestamp to same as source */
+MLOCAL UWORD date, time; /* source date and time      */
+MLOCAL UWORD attrib;     /* source file attributes    */
 
-MLOCAL UWORD	amount; 	/* amount of real data in buffer */
+MLOCAL UWORD amount; /* amount of real data in buffer */
 
 /* ---- start of code ---------------------------------------------*/
 
-GLOBAL VOID CDECL cmd_copy(BYTE	*cmd)
+GLOBAL VOID CDECL cmd_copy( BYTE *cmd )
 {
-	WORD	rmode = 0x0000; 	/* read mode - normal files only */
-	BYTE	delim;
-	BYTE	npara;
-/*	BYTE	src[MAX_FILELEN];*/	/* buffer in which to expand wild source filespec */
-/*	BYTE	dest[MAX_FILELEN];*/	/* buffer in which to expand wild destination filespec */
-	BYTE	src[MAX_LFNLEN];	/* buffer in which to expand wild source filespec */
-	BYTE	dest[MAX_LFNLEN];	/* buffer in which to expand wild destination filespec */
-#if defined(PASSWORD)
-	BYTE	password[10];		/* keep note of src password    */
+   WORD rmode = 0x0000; /* read mode - normal files only */
+   BYTE delim;
+   BYTE npara;
+   /*	BYTE	src[MAX_FILELEN];*/ /* buffer in which to expand wild source filespec */
+   /*	BYTE	dest[MAX_FILELEN];*/ /* buffer in which to expand wild destination filespec */
+   BYTE src[MAX_LFNLEN]; /* buffer in which to expand wild source filespec */
+   BYTE dest
+      [MAX_LFNLEN]; /* buffer in which to expand wild destination filespec */
+#if defined( PASSWORD )
+   BYTE password[10]; /* keep note of src password    */
 #endif
-	BYTE	*olp, *tp;
-	BYTE	*last_delim;
-	WORD	ret;
-	BOOLEAN scheme1;
-	BOOLEAN init = YES;		/* do initialisations during 1st loop */
-	BOOLEAN pflag;
-	BOOLEAN tflag;			/* touch flag (special case) */
-	BOOLEAN confirmed;
-	UWORD	dosvf;			/* used to save current dos verify state */
-	UWORD	sflag;			/* Source File Options		*/
-					/* scheme2 extra bits */
-/*	BYTE	wdfn[13];*/		/* used by scheme2 to save wild destination filename */
-	BYTE	wdfn[MAX_LFNLEN];	/* used by scheme2 to save wild destination filename */
-	BYTE	*dfptr;
-	BYTE	*ocmd;	 
-/*	BYTE	src2[MAX_FILELEN];*/	/* 2nd src buffer for scheme2 */
-	BYTE	src2[MAX_LFNLEN];	/* 2nd src buffer for scheme2 */
-	DTA	search; 		/* DOS Search Buffer		*/
-	FINDD	finddata;
-	BOOLEAN	lfnsearch;
-	UWORD	shandle;
+   BYTE *olp, *tp;
+   BYTE *last_delim;
+   WORD ret;
+   BOOLEAN scheme1;
+   BOOLEAN init = YES; /* do initialisations during 1st loop */
+   BOOLEAN pflag;
+   BOOLEAN tflag; /* touch flag (special case) */
+   BOOLEAN confirmed;
+   UWORD dosvf;                /* used to save current dos verify state */
+   UWORD sflag;                /* Source File Options		*/
+                               /* scheme2 extra bits */
+   /*	BYTE	wdfn[13];*/ /* used by scheme2 to save wild destination filename */
+   BYTE wdfn
+      [MAX_LFNLEN]; /* used by scheme2 to save wild destination filename */
+   BYTE *dfptr;
+   BYTE *ocmd;
+   /*	BYTE	src2[MAX_FILELEN];*/ /* 2nd src buffer for scheme2 */
+   BYTE src2[MAX_LFNLEN];               /* 2nd src buffer for scheme2 */
+   DTA search;                          /* DOS Search Buffer		*/
+   FINDD finddata;
+   BOOLEAN lfnsearch;
+   UWORD shandle;
 
-	sascii = NO;		/* indicates if current source is ascii or not */
-	sbin   = NO;		/* sbin indicates if an explicit /b found */
-	concat = NO;
-	dfailed = ABswap = NO;		
-	srcopen = dstopen = NO;		/* No file are Open		*/
-	nfiles=0;			/* number of files copied	*/
-	cmd = deblank(cmd);		/* remove leading spaces */
-	strlwr(cmd);			/* force it all to lower case first */
-	strcpy(heap(),cmd);		/* make temp copy of cmd line */
-	if(f_check(heap(), "vszcyab", &global_flg, NO))	/* check for any bad flags */
-	   return;				/* exit if any (with message) */    
-						/* also zaps any valid flags but not important is this is a temp copy */
-	f_check(cmd,"vszcy",&global_flg,YES);	/* check for, and zap verify, sys, zero and confirm flags */
-	if(COPY_SYS) {
-	    rmode |= ATTR_SYS;			/* read system files also*/
-	    rmode |= ATTR_HID;			/* read hidden files also*/
-	}					/* nb  /s flag acts globally */
+   sascii = NO; /* indicates if current source is ascii or not */
+   sbin = NO;   /* sbin indicates if an explicit /b found */
+   concat = NO;
+   dfailed = ABswap = NO;
+   srcopen = dstopen = NO; /* No file are Open		*/
+   nfiles = 0;             /* number of files copied	*/
+   cmd = deblank( cmd );   /* remove leading spaces */
+   strlwr( cmd );          /* force it all to lower case first */
+   strcpy( heap(), cmd );  /* make temp copy of cmd line */
+   if ( f_check( heap(), "vszcyab", &global_flg,
+                 NO ) ) { /* check for any bad flags */
+      return;             /* exit if any (with message) */
+   }
+   /* also zaps any valid flags but not important is this is a temp copy */
+   f_check(
+      cmd, "vszcy", &global_flg,
+      YES ); /* check for, and zap verify, sys, zero and confirm flags */
+   if ( COPY_SYS ) {
+      rmode |= ATTR_SYS; /* read system files also*/
+      rmode |= ATTR_HID; /* read hidden files also*/
+   }                     /* nb  /s flag acts globally */
 
-	cmd = deblank (cmd);			/* deblank incase /v was at start of line */
+   cmd = deblank( cmd ); /* deblank incase /v was at start of line */
 
-	while(*cmd == *switchar) {	       /* process any initial switches */
-	    if(*(cmd+1)=='a')
-		sascii=YES;
-	    if(*(cmd+1)=='b') {
-		sascii=NO;
-		sbin=YES;
-	    }
-	    cmd = deblank (cmd+2);
-	}		    
-	
-	lp = get_pno(cmd,&npara);
-	olp =lp;			/* save lp ptr (as lp possibly modified later) */
-					/* olp is used as the end of the list of source parameters */
-	if(npara > 1)	       /* dont remove switches if npara=1 as they will be processed when fn1 switches are checked */
-	    f_check( lp, "ab", &dflag, YES);	/* check for, and zap destination a and b flags */
-					/* store them in dflag for later use */
+   while ( *cmd == *switchar ) { /* process any initial switches */
+      if ( *( cmd + 1 ) == 'a' ) {
+         sascii = YES;
+      }
+      if ( *( cmd + 1 ) == 'b' ) {
+         sascii = NO;
+         sbin = YES;
+      }
+      cmd = deblank( cmd + 2 );
+   }
 
-	last_delim = lp-1;	
-	while (*last_delim == 32) last_delim--;
-	
-	zap_spaces(lp);
-		
-	cmd = get_p1(src, deblank(cmd), &delim); 		/* separate 1st filename spec from rest */
+   lp = get_pno( cmd, &npara );
+   olp = lp; /* save lp ptr (as lp possibly modified later) */
+             /* olp is used as the end of the list of source parameters */
+   if (
+      npara >
+      1 ) { /* dont remove switches if npara=1 as they will be processed when fn1 switches are checked */
+      f_check( lp, "ab", &dflag,
+               YES ); /* check for, and zap destination a and b flags */
+   }
+   /* store them in dflag for later use */
 
-	if(delim == '=') {			/* if the user spells PIP as COPY */
-	    syntax();				/* exit with syntax error */
-	    return;
-	}
+   last_delim = lp - 1;
+   while ( *last_delim == 32 ) {
+      last_delim--;
+   }
 
-	if(npara>2 && delim!='+') {
-	    printf(MSG_INOP);		    /* invalid number of parameters */
-	    return;
-	}
+   zap_spaces( lp );
 
+   cmd = get_p1( src, deblank( cmd ),
+                 &delim ); /* separate 1st filename spec from rest */
 
-	if(!d_check(src))
-	    return;			    /* invalid	drive */
+   if ( delim == '=' ) { /* if the user spells PIP as COPY */
+      syntax();          /* exit with syntax error */
+      return;
+   }
 
-	f_check( src, "ab", &sflag, YES);	/* check for, and zap flags in fn1 */
+   if ( npara > 2 && delim != '+' ) {
+      printf( MSG_INOP ); /* invalid number of parameters */
+      return;
+   }
 
-	if(COPYSRC_ASC)
-	    sascii=YES;
-	if(COPYSRC_BIN) {
-	    sascii=NO;		/* nb /b checked last by default */
-	    sbin=YES;
-	}
+   if ( !d_check( src ) ) {
+      return; /* invalid	drive */
+   }
 
-	zap_spaces (src);
+   f_check( src, "ab", &sflag, YES ); /* check for, and zap flags in fn1 */
 
-/* do adjustments for special cases */
+   if ( COPYSRC_ASC ) {
+      sascii = YES;
+   }
+   if ( COPYSRC_BIN ) {
+      sascii = NO; /* nb /b checked last by default */
+      sbin = YES;
+   }
 
-	if (COPYDST_BIN) {
-	    sbin = YES;		/* Does it make sense to have source ascii */
-	    sascii = NO;	/* and dest binary? I think not. */
-	}
-	
-	if(lp[strlen(lp)-1] == ',') 
-	    lp[strlen(lp)-1] = '\0';	/* remove comma from end of lp */
-	
-	if(npara==1 && delim!='+')
-	    if(isfile(lp)) {		/* strip drive and path from lp    */
-		lp = fptr(lp);		/* ie path\file becomes \path\file */
-	    }				/* to file but not if \path\file+  */
-	    else
-		lp=lp+strlen(lp);  	/* if dir, lp=\0  */
-	 
-	if(npara==1 && delim=='+') {
-	    delim=' ';			/* not concat if 1 parameter */
-	    tp=lp;
-	    while (*tp) {			/* remove the + sign from end of lp filespec */
-		if(*tp == '+') 
-		    *tp = ' ';
-		tp++;
-	    }
-	}
-		
-	if(npara>=2 && delim=='+' && *last_delim=='+') {	
-					/* copy fred+bill   dest is fred   */
-	    lp = fptr(src); 		/* copy path\fred+bill	dest is fred */
-	    olp=cmd+strlen(cmd);	/* fiddle olp to end of list of source parameters */
-	}
-		
-	if(npara==2 && iswild(src) && 		/* handle special case */
-	     isfile(lp) && !iswild(lp)) 	/* of copy *.lst file */
-		concat = YES;			/* (implied concatination) */
+   zap_spaces( src );
 
-	tflag = (npara>=3 && delim=='+' && *cmd==',');	/* touch special case so set tflag */
-	
-	if(delim == '+')
-	    concat = YES;
+   /* do adjustments for special cases */
 
-	if(concat && !sbin)		/* concat is ascii unless a /b switch has occured */
-	    sascii = YES;
+   if ( COPYDST_BIN ) {
+      sbin = YES;  /* Does it make sense to have source ascii */
+      sascii = NO; /* and dest binary? I think not. */
+   }
 
-	dstdev = NO;
+   if ( lp[strlen( lp ) - 1] == ',' ) {
+      lp[strlen( lp ) - 1] = '\0'; /* remove comma from end of lp */
+   }
 
-	if (!iswild(lp) && *lp)
-	{
-	    get_filename(dest,lp,YES);		/* this turns lpt1: into lpt1 */
-	    
-	    ret = ms_l_open(dest, OPEN_READ);	/* Check if destination	is */
-	    if (ret==ED_FUNCTION)
-	      ret=ms_x_open(dest,OPEN_READ);
-	    if (ret >= 0)			/* a device. If so, if /b  */
-	    {					/* on src OR dst, copy is  */
-	    	if (isdev(ret))			/* binary		   */
-	       	{
-		   dstdev = YES;
-	           if (COPYSRC_BIN || (COPYDST_BIN && !concat) || sbin)
-		   {
-		       sbin = YES;
-		       sascii = NO;
-		   }				/* If no /b, default to    */
-		   else				/* ascii		   */
-		   {
-		       sbin = NO;
-		       sascii = YES;
-		   }
-		}
+   if ( npara == 1 && delim != '+' ) {
+      if ( isfile( lp ) ) { /* strip drive and path from lp    */
+         lp = fptr( lp );   /* ie path\file becomes \path\file */
+      }                     /* to file but not if \path\file+  */
+      else {
+         lp = lp + strlen( lp ); /* if dir, lp=\0  */
+      }
+   }
 
-		ms_x_close (ret);
-	    }
-	}
-	
-	mem_alloc(&bufaddr, &bufsize, MIN_COPYBUF, MAX_COPYBUF);
-	bufsize <<= 4;			/* Allocate the Buffer		*/
-	bufsize &= ~511;		/* Force the buffer size to be a*/
-					/* multiple of 512 Bytes	*/
-	if(bufsize == 0) {		/* If the memory allocation	*/
-	    e_check(ED_MEMORY);		/* print a memory error and 	*/
-	    return;			/* return to the caller.	*/
-	}
-#if 0 /* UNBODGE */
+   if ( npara == 1 && delim == '+' ) {
+      delim = ' '; /* not concat if 1 parameter */
+      tp = lp;
+      while ( *tp ) { /* remove the + sign from end of lp filespec */
+         if ( *tp == '+' ) {
+            *tp = ' ';
+         }
+         tp++;
+      }
+   }
+
+   if ( npara >= 2 && delim == '+' && *last_delim == '+' ) {
+      /* copy fred+bill   dest is fred   */
+      lp = fptr( src ); /* copy path\fred+bill	dest is fred */
+      olp =
+         cmd +
+         strlen( cmd ); /* fiddle olp to end of list of source parameters */
+   }
+
+   if ( npara == 2 && iswild( src ) &&    /* handle special case */
+        isfile( lp ) && !iswild( lp ) ) { /* of copy *.lst file */
+      concat = YES;                       /* (implied concatination) */
+   }
+
+   tflag = ( npara >= 3 && delim == '+' &&
+             *cmd == ',' ); /* touch special case so set tflag */
+
+   if ( delim == '+' ) {
+      concat = YES;
+   }
+
+   if ( concat &&
+        !sbin ) { /* concat is ascii unless a /b switch has occured */
+      sascii = YES;
+   }
+
+   dstdev = NO;
+
+   if ( !iswild( lp ) && *lp ) {
+      get_filename( dest, lp, YES ); /* this turns lpt1: into lpt1 */
+
+      ret = ms_l_open( dest, OPEN_READ ); /* Check if destination	is */
+      if ( ret == ED_FUNCTION ) {
+         ret = ms_x_open( dest, OPEN_READ );
+      }
+      if ( ret >= 0 )        /* a device. If so, if /b  */
+      {                      /* on src OR dst, copy is  */
+         if ( isdev( ret ) ) /* binary		   */
+         {
+            dstdev = YES;
+            if ( COPYSRC_BIN || ( COPYDST_BIN && !concat ) || sbin ) {
+               sbin = YES;
+               sascii = NO;
+            }    /* If no /b, default to    */
+            else /* ascii		   */
+            {
+               sbin = NO;
+               sascii = YES;
+            }
+         }
+
+         ms_x_close( ret );
+      }
+   }
+
+   mem_alloc( &bufaddr, &bufsize, MIN_COPYBUF, MAX_COPYBUF );
+   bufsize <<= 4;           /* Allocate the Buffer		*/
+   bufsize &= ~511;         /* Force the buffer size to be a*/
+                            /* multiple of 512 Bytes	*/
+   if ( bufsize == 0 ) {    /* If the memory allocation	*/
+      e_check( ED_MEMORY ); /* print a memory error and 	*/
+      return;               /* return to the caller.	*/
+   }
+#if 0  /* UNBODGE */
 /** BODGE **/
 	if(dstdev)			/* copy to dev 1 char at a time */
 	    bufsize = 1;		/* so retry operates correctly  */
 /** BODGE **/
 #endif /* UNBODGE */
 
-	if(batchflg)			/* close the BATCH file if OPEN cos  */
-	    batch_close();		/* installation routines copy over   */
-					/* the current batch file.	     */
+   if ( batchflg ) { /* close the BATCH file if OPEN cos  */
+      batch_close(); /* installation routines copy over   */
+   }
+   /* the current batch file.	     */
 
-	dosvf = ms_f_getverify(); 	/* read present dos verify flag*/
-	if(COPY_VERIFY)
-	    ms_f_verify(1); 		/* set verify */
-	
+   dosvf = ms_f_getverify(); /* read present dos verify flag*/
+   if ( COPY_VERIFY ) {
+      ms_f_verify( 1 ); /* set verify */
+   }
 
-	if (lp == get_filename(dest, lp, YES)) {
-	    if (strlen(lp)) {
-		printf(MSG_SYNTAX);	/* bad filename specified */
-		return;
-	    }
-	}
+   if ( lp == get_filename( dest, lp, YES ) ) {
+      if ( strlen( lp ) ) {
+         printf( MSG_SYNTAX ); /* bad filename specified */
+         return;
+      }
+   }
 
 #if TRUE
-/* ##jc##
+   /* ##jc##
  *	This Code is a Special for IBM Display Write 4 which attempts
  *	to copy "A:DEFAULT.P*TÌ". Treat this as a special case and convert
  *	it to "A:DEFAULT.P*".
  */
-	tp = strchr(fptr(src), '.');		/* Search for . in the 	*/
-	if(tp && !dr_strnicmp(tp, ".p*t", 4))	/* and check for an ext */
-	    strcpy(tp, ".p?t");			/* of "P*T".		*/
+   tp = strchr( fptr( src ), '.' );             /* Search for . in the 	*/
+   if ( tp && !dr_strnicmp( tp, ".p*t", 4 ) ) { /* and check for an ext */
+      strcpy( tp, ".p?t" );                     /* of "P*T".		*/
+   }
 #endif
-	
-	/* never add *.* to CON */
-	if (stricmp(src,"CON")) addwild(src);
-				/* if just a drive or path, add *.*  */
 
-/*	cant do addwild(dest); yet as it will cause a drive B access on single floppy copy */
-		
-	
-	tstamp = !concat;	/* if concatinating, then dont alter timestamp */
-	/*tstamp = NO;*/	/* ie leave timestamp as current time */
+   /* never add *.* to CON */
+   if ( stricmp( src, "CON" ) ) {
+      addwild( src );
+   }
+   /* if just a drive or path, add *.*  */
 
-	pflag = concat || iswild(src);	/* pflag indicates whether to print out */
-					/* intermediate file names as they are copied */
+   /*	cant do addwild(dest); yet as it will cause a drive B access on single floppy copy */
 
+   tstamp = !concat; /* if concatinating, then dont alter timestamp */
+   /*tstamp = NO;*/  /* ie leave timestamp as current time */
 
-	/* see later for a description of schemes 1 and 2 */
+   pflag = concat || iswild( src ); /* pflag indicates whether to print out */
+   /* intermediate file names as they are copied */
 
-	/* common start for schemes 1 and 2 */
+   /* see later for a description of schemes 1 and 2 */
+
+   /* common start for schemes 1 and 2 */
 
 more1:
-#if defined(PASSWORD)
-	strcpy(password,get_pswd(src));	/* keep copy of the src password */
-					/* password incorporates the leading ';' */
-					/* password = '\0' if no password */
+#if defined( PASSWORD )
+   strcpy( password, get_pswd( src ) ); /* keep copy of the src password */
+   /* password incorporates the leading ';' */
+   /* password = '\0' if no password */
 #endif
 
-	tp=fptr(src);			/* get ptr to filename part of src  */
+   tp = fptr( src ); /* get ptr to filename part of src  */
 
-	ret=ms_l_first(src,rmode,&finddata); /* get first explicit source (if src wild) */
-					/* if(ret < 0) check moved till after prtsrc */
-	if (ret!=ED_FUNCTION) {
-	  shandle=finddata.handle;
-	  lfnsearch=1;
-	}
-	else {
-	  ret = ms_x_first(src,rmode,&search);
-	  if (!ret) {
-	    strcpy(finddata.lname,search.fname);
-	  }
-	  lfnsearch=0;
-	}
+   ret = ms_l_first(
+      src, rmode, &finddata ); /* get first explicit source (if src wild) */
+                               /* if(ret < 0) check moved till after prtsrc */
+   if ( ret != ED_FUNCTION ) {
+      shandle = finddata.handle;
+      lfnsearch = 1;
+   }
+   else {
+      ret = ms_x_first( src, rmode, &search );
+      if ( !ret ) {
+         strcpy( finddata.lname, search.fname );
+      }
+      lfnsearch = 0;
+   }
 
-loop12: 
-	if(ret >= 0) {			/* copy explicit filename to src */
-	    strcpy(tp,finddata.lname);	/* only do this if a file was found */
-#if defined(PASSWORD)
-	    strcat(tp,password);	/* add the src password             */
+loop12:
+   if ( ret >= 0 ) {                /* copy explicit filename to src */
+      strcpy( tp, finddata.lname ); /* only do this if a file was found */
+#if defined( PASSWORD )
+      strcat( tp, password ); /* add the src password             */
 #endif
-	}
-				
-	strlwr(tp);		 	/* convert to lower case */
-		
-	if(pflag && (!COPY_CONFIRM || COPY_YES))
-	    prtsrc(src);		/* print name of this file */
+   }
 
-	if(COPY_CONFIRM && !COPY_YES && ret>=0) 
-	    confirmed = conf_src(src);	/* print source name and ask whether to copy */
-	else
-	    confirmed = YES;
-	     		
-	if(ret < 0) {			/* break out of wild src loop    */
-	    if(ret == ED_ROOM) {
-		printf(ERR02);		/* print "File not found" error  */
-		crlf();			/* to STDOUT, not STDERR, because*/
-	    }
-	    else
-	    	e_check2(ret);		/* dst open or not determines if */
-	    goto nextfile;	    		/* nfiles gets incremented	 */
-	}		
+   strlwr( tp ); /* convert to lower case */
 
-	if(preread(src)==FAILURE) 	/* pre read a buffer full if error */
-	    /* goto sum1; */	    	/* break out of wild src loop - too drastic ! */
-	    confirmed=NO; 		/* if error just skip this file */
+   if ( pflag && ( !COPY_CONFIRM || COPY_YES ) ) {
+      prtsrc( src ); /* print name of this file */
+   }
 
-	if(init) {		/* if 1st time round the loop do dest checks */
-	    if (!dstdev) addwild(dest);
-	    scheme1 = !iswild(dest);
-						/* do bits for scheme 2    */
-	    dfptr=fptr(dest);		/* ptr to filename (wild)  */
-	    strcpy(wdfn,dfptr);		/* copy wild dest filename */
-	    ABswap=ABcheck(src,dest);	/* check for single drive copy */
-	    init=NO;
-	}
+   if ( COPY_CONFIRM && !COPY_YES && ret >= 0 ) {
+      confirmed =
+         conf_src( src ); /* print source name and ask whether to copy */
+   }
+   else {
+      confirmed = YES;
+   }
 
-	/* now we branch to scheme 1 or 2 */
-	
-	if(scheme1) {			/* ----- scheme1 ----- */
-	   if(confirmed) {
-   	      if(!dstopen && concat &&		/* special case for copy bill+fred */
-   	               samefs(src,dest,NO)) {	/* bill, copy ref.lst+*.lst etc    */
-   		 if(lseek(dest)==FAILURE)	/* opens dest and lseeks to the end of it */
-   		    goto end1;			/* exit if dest error */
-   	      }		
-   	      else {				/* this is the normal case */
-   		 if(!samefs(src,dest,YES)) {	/* check src!=dest */
-   					/* if src=dest then prints message and skips copying */
-		    if(copy1(src,dest)==FAILURE) {	/* copy src to dest */
-   			if(dfailed)			/* also opens destination if necessary */
-   			    goto end1;		/* dfailed if disk full or dest error */
-   		    }
-   		 }			/* nb nfiles++ done on dclose as refers to no of destination files */
-   	      }
-	   }				/* above section skipped in not confirmed */
-	   else {
-	     if (srcopen) ms_x_close(sfh);
-	   }
-/*	   ret = ms_x_next(&search);*/
-	   if (lfnsearch) {
-	     ret = ms_l_next(shandle,&finddata);	/* get the next file and    */
-	   }
-	   else {
-	     ret = ms_x_next(&search);	/* get the next file and    */
-	     if (!ret) {
-	       strcpy(finddata.lname,search.fname);
-	     }
-	   }
+   if ( ret < 0 ) { /* break out of wild src loop    */
+      if ( ret == ED_ROOM ) {
+         printf( ERR02 ); /* print "File not found" error  */
+         crlf();          /* to STDOUT, not STDERR, because*/
+      }
+      else {
+         e_check2( ret ); /* dst open or not determines if */
+      }
+      goto nextfile; /* nfiles gets incremented	 */
+   }
 
-	   if(!ret)  goto loop12;	    /* loop round and do it again */
-					    /* if more files match wild src */
-	 
-	/* concatinate under scheme1 */
-	/* if not concat or !dstopen could goto end1 */
-nextfile:    while (*cmd==',')		   /* skip over commas */
-		cmd++;	   	
+   if ( preread( src ) == FAILURE ) { /* pre read a buffer full if error */
+      /* goto sum1; */ /* break out of wild src loop - too drastic ! */
+      confirmed = NO;  /* if error just skip this file */
+   }
 
-	    if(cmd < olp && *cmd) {	   /* if there are more source parameters */
-		cmd = get_p1(src, deblank(cmd), &delim); 		/* separate filename spec from rest */
-		f_check( src, "ab", &sflag, YES);	/* check for, and zap flags in fn1 */
+   if ( init ) { /* if 1st time round the loop do dest checks */
+      if ( !dstdev ) {
+         addwild( dest );
+      }
+      scheme1 = !iswild( dest );
+      /* do bits for scheme 2    */
+      dfptr = fptr( dest );          /* ptr to filename (wild)  */
+      strcpy( wdfn, dfptr );         /* copy wild dest filename */
+      ABswap = ABcheck( src, dest ); /* check for single drive copy */
+      init = NO;
+   }
 
-		if(COPYSRC_ASC)
-		    sascii=YES;
+   /* now we branch to scheme 1 or 2 */
 
-		if(COPYSRC_BIN) {
-		    sascii=NO;		/* nb /b checked last by default */
-		    sbin=YES;
-		    if (dstdev)		/* 4 Aug JJS */
-		        ms_x_setdev (dfh, ms_x_ioctl (dfh) | 0x20);
-					/* set device to binary		*/
-		}
+   if ( scheme1 ) { /* ----- scheme1 ----- */
+      if ( confirmed ) {
+         if ( !dstopen && concat && /* special case for copy bill+fred */
+              samefs( src, dest,
+                      NO ) ) { /* bill, copy ref.lst+*.lst etc    */
+            if ( lseek( dest ) ==
+                 FAILURE ) { /* opens dest and lseeks to the end of it */
+               goto end1;    /* exit if dest error */
+            }
+         }
+         else {                                /* this is the normal case */
+            if ( !samefs( src, dest, YES ) ) { /* check src!=dest */
+               /* if src=dest then prints message and skips copying */
+               if ( copy1( src, dest ) == FAILURE ) { /* copy src to dest */
+                  if ( dfailed ) { /* also opens destination if necessary */
+                     goto end1;    /* dfailed if disk full or dest error */
+                  }
+               }
+            } /* nb nfiles++ done on dclose as refers to no of destination files */
+         }
+      } /* above section skipped in not confirmed */
+      else {
+         if ( srcopen ) {
+            ms_x_close( sfh );
+         }
+      }
+      /*	   ret = ms_x_next(&search);*/
+      if ( lfnsearch ) {
+         ret = ms_l_next( shandle, &finddata ); /* get the next file and    */
+      }
+      else {
+         ret = ms_x_next( &search ); /* get the next file and    */
+         if ( !ret ) {
+            strcpy( finddata.lname, search.fname );
+         }
+      }
 
-		zap_spaces(src);
-		addwild(src);		/* if just a drive or path, add *.*  */
+      if ( !ret ) {
+         goto loop12; /* loop round and do it again */
+      }
+      /* if more files match wild src */
 
-		goto more1;			/* loop back and copy next lot */
-	    }
-		
-	    end1:			/* closing of dest (if necessary) */
-	    ;				/* done by sum1 		  */
+      /* concatinate under scheme1 */
+      /* if not concat or !dstopen could goto end1 */
+   nextfile:
+      while ( *cmd == ',' ) { /* skip over commas */
+         cmd++;
+      }
 
-	}	/* end of scheme1 */
+      if ( cmd < olp && *cmd ) { /* if there are more source parameters */
+         cmd = get_p1( src, deblank( cmd ),
+                       &delim ); /* separate filename spec from rest */
+         f_check( src, "ab", &sflag,
+                  YES ); /* check for, and zap flags in fn1 */
 
-	else {		/* ----- scheme2 ----- */
+         if ( COPYSRC_ASC ) {
+            sascii = YES;
+         }
 
-	    if(!confirmed) {
-	        if (srcopen) ms_x_close(sfh);
-	        goto skip2;		/* forget it if user doesnt want to copy */
-	    }		
+         if ( COPYSRC_BIN ) {
+            sascii = NO; /* nb /b checked last by default */
+            sbin = YES;
+            if ( dstdev ) { /* 4 Aug JJS */
+               ms_x_setdev( dfh, ms_x_ioctl( dfh ) | 0x20 );
+            }
+            /* set device to binary		*/
+         }
 
-	    strcpy(dfptr,wdfn);		/* get back wild dest fname */
-	    repwild(src,dest);		/* replace wild part of dest with corresponding explicit details from src */
-	  
-	    if(tflag && samefs(src,dest,NO)) {	/* touch special case */
-		if(touch(src)==SUCCESS) 	/* set timestamp */
-		    nfiles++;	 		/* inc count if successful*/
+         zap_spaces( src );
+         addwild( src ); /* if just a drive or path, add *.*  */
 
-		goto skip2;		 	/* jump to end of do loop */
-	    }
-		
-	    if(samefs(src,dest,YES))	/* check src!=dest */
-		goto end2;	    /* if src=dest then prints message */
-			
-	    copy1(src,dest);	/* copy src to dest */
-				/* also opens destination if necessary */
+         goto more1; /* loop back and copy next lot */
+      }
 
-	    if(dfailed) {		/* dfailed if disk full or dest error */
-		dclose(dest,dfh,YES);
-		goto end2;		    /* get out of loop */
-	    }
-		
-	    while(*cmd==',')		/* skip over commas */
-		cmd++;
+   end1: /* closing of dest (if necessary) */
+      ;  /* done by sum1 		  */
 
-	    if(cmd < olp) {			/* if there are more source */
-		ocmd=cmd;			/* parameters (concat only) */
-		dfailed=NO;
-					
-		while (cmd < olp && *cmd) {
-		    cmd = get_p1(src2, deblank(cmd), &delim); /* separate filename spec from rest */
-		    f_check(src2, "ab", &sflag, YES);	    /* check for, and zap flags in fn1 */
-		    if(COPYSRC_ASC)
-		        sascii=YES;
-		    if(COPYSRC_BIN) {
-			sascii=NO;		/* nb /b checked last by default */
-			sbin=YES;
-		    }
+   } /* end of scheme1 */
 
-		    zap_spaces (src2);	/* use src2 for these parameters so */
-		    addwild(src2);		/* if just a drive or path, add *.*  */
-		    repwild(dest,src2);		/* replace wild part of src2 */
-		    if(pflag) 
-			prtsrc(src2); 	/* print name of this file */
+   else { /* ----- scheme2 ----- */
 
-		    samefs(src2,dest,YES);	 /* do 'content of dest lost' mssg if applicable */
+      if ( !confirmed ) {
+         if ( srcopen ) {
+            ms_x_close( sfh );
+         }
+         goto skip2; /* forget it if user doesnt want to copy */
+      }
 
-		    copy1(src2,dest);		/* copy src2 to dest */
-		    if(dfailed)		/* dfailed if disk full or dest error */
-			break;		/* break out of while cmd<olp loop */
-		} 			/* end of while cmd<olp */
+      strcpy( dfptr, wdfn ); /* get back wild dest fname */
+      repwild(
+         src,
+         dest ); /* replace wild part of dest with corresponding explicit details from src */
 
-		cmd=ocmd;		/* restore cmd for next time round */
-	    }			
-		
-	    if(dstopen) {
-		dclose(dest,dfh,dfailed);	  /* for concat case */
+      if ( tflag && samefs( src, dest, NO ) ) { /* touch special case */
+         if ( touch( src ) == SUCCESS ) {       /* set timestamp */
+            nfiles++;                           /* inc count if successful*/
+         }
 
-		if(!dfailed) 		  
-		    nfiles++;		 /* nfiles refers to no of dest files */
-		else
-		    goto end2;		/* break out of loop */
-	    }
-						     
-	    skip2:
+         goto skip2; /* jump to end of do loop */
+      }
 
-/*	    ret = ms_x_next(&search);*/
-	    if (lfnsearch) {
-	      ret = ms_l_next(shandle,&finddata);	/* get the next file and    */
-	    }
-	    else {
-	      ret = ms_x_next(&search);	/* get the next file and    */
-	      if (!ret) {
-	        strcpy(finddata.lname,search.fname);
-	      }
-	    }
-	    if(!ret) 			/* loop round and do it again */
-		goto loop12;		/* if wild src */
+      if ( samefs( src, dest, YES ) ) { /* check src!=dest */
+         goto end2;                     /* if src=dest then prints message */
+      }
 
-	    end2:  ;
-	}	/* end of scheme 2 */
+      copy1( src, dest ); /* copy src to dest */
+                          /* also opens destination if necessary */
 
-	if(dstopen) {			/* tidy up if dest still open */
-	    dclose(dest,dfh,dfailed);	
-	    if(!dfailed)			
-		nfiles++;	 /* nfiles refers to no of dest files */
-	}			/* nb nfiles only incremented if dest was open */
-	
-	printf("%8d",nfiles);		/* do summary */
-	printf(MSG_FCOPIED);
-	
-	mem_free(&bufaddr);			/* Free the COPY buffer	*/
+      if ( dfailed ) { /* dfailed if disk full or dest error */
+         dclose( dest, dfh, YES );
+         goto end2; /* get out of loop */
+      }
 
-	if(COPY_VERIFY)
-	    ms_f_verify(dosvf);			/* retore verify state */
+      while ( *cmd == ',' ) { /* skip over commas */
+         cmd++;
+      }
 
-	if (lfnsearch) ms_l_findclose(shandle);
+      if ( cmd < olp ) { /* if there are more source */
+         ocmd = cmd;     /* parameters (concat only) */
+         dfailed = NO;
 
-}	/* end of cmd_copy */
+         while ( cmd < olp && *cmd ) {
+            cmd = get_p1( src2, deblank( cmd ),
+                          &delim ); /* separate filename spec from rest */
+            f_check( src2, "ab", &sflag,
+                     YES ); /* check for, and zap flags in fn1 */
+            if ( COPYSRC_ASC ) {
+               sascii = YES;
+            }
+            if ( COPYSRC_BIN ) {
+               sascii = NO; /* nb /b checked last by default */
+               sbin = YES;
+            }
 
+            zap_spaces( src2 );    /* use src2 for these parameters so */
+            addwild( src2 );       /* if just a drive or path, add *.*  */
+            repwild( dest, src2 ); /* replace wild part of src2 */
+            if ( pflag ) {
+               prtsrc( src2 ); /* print name of this file */
+            }
+
+            samefs( src2, dest,
+                    YES ); /* do 'content of dest lost' mssg if applicable */
+
+            copy1( src2, dest ); /* copy src2 to dest */
+            if ( dfailed ) {     /* dfailed if disk full or dest error */
+               break;            /* break out of while cmd<olp loop */
+            }
+         } /* end of while cmd<olp */
+
+         cmd = ocmd; /* restore cmd for next time round */
+      }
+
+      if ( dstopen ) {
+         dclose( dest, dfh, dfailed ); /* for concat case */
+
+         if ( !dfailed ) {
+            nfiles++; /* nfiles refers to no of dest files */
+         }
+         else {
+            goto end2; /* break out of loop */
+         }
+      }
+
+   skip2:
+
+      /*	    ret = ms_x_next(&search);*/
+      if ( lfnsearch ) {
+         ret = ms_l_next( shandle, &finddata ); /* get the next file and    */
+      }
+      else {
+         ret = ms_x_next( &search ); /* get the next file and    */
+         if ( !ret ) {
+            strcpy( finddata.lname, search.fname );
+         }
+      }
+      if ( !ret ) {   /* loop round and do it again */
+         goto loop12; /* if wild src */
+      }
+
+   end2:;
+   } /* end of scheme 2 */
+
+   if ( dstopen ) { /* tidy up if dest still open */
+      dclose( dest, dfh, dfailed );
+      if ( !dfailed ) {
+         nfiles++; /* nfiles refers to no of dest files */
+      }
+   } /* nb nfiles only incremented if dest was open */
+
+   printf( "%8d", nfiles ); /* do summary */
+   printf( MSG_FCOPIED );
+
+   mem_free( &bufaddr ); /* Free the COPY buffer	*/
+
+   if ( COPY_VERIFY ) {
+      ms_f_verify( dosvf ); /* retore verify state */
+   }
+
+   if ( lfnsearch ) {
+      ms_l_findclose( shandle );
+   }
+
+} /* end of cmd_copy */
 
 /*
  *  Notes about schemes 1 and 2
@@ -723,24 +788,23 @@ nextfile:    while (*cmd==',')		   /* skip over commas */
  *       copy fred+,,		 (special case using touch)	 
  */
 
-
 /* ---- functions defined in this module --------------------------*/
 /*
  *	SKIP_SWITCH will skip over the next switch character 
  *	sequence. This allows copy to correctly support Multiple
  *	options.
  */
-MLOCAL BYTE * skip_switch(BYTE *cmd)
+MLOCAL BYTE *skip_switch( BYTE *cmd )
 {
-	BYTE ch;
+   BYTE ch;
 
-	if(*cmd == *switchar) {			/* If this is a valid 	    */
-	    do {				/* switch sequence then skip*/
-	    	cmd++;				/* the following alpha chars*/
-		ch = dr_tolower(*cmd);
-	    } while(ch >= 'a' && ch <= 'z');
-	}
-	return cmd;
+   if ( *cmd == *switchar ) { /* If this is a valid 	    */
+      do {                    /* switch sequence then skip*/
+         cmd++;               /* the following alpha chars*/
+         ch = dr_tolower( *cmd );
+      } while ( ch >= 'a' && ch <= 'z' );
+   }
+   return cmd;
 }
 
 /*
@@ -748,29 +812,32 @@ MLOCAL BYTE * skip_switch(BYTE *cmd)
  *	PARAM and set DELIM to be the delimiting character. The return
  *	value is the start address of the next parameter.
  */
-MLOCAL BYTE * get_p1(BYTE *param, REG BYTE *s, BYTE *delp)
+MLOCAL BYTE *get_p1( BYTE *param, REG BYTE *s, BYTE *delp )
 {
-	REG BYTE *ep;
+   REG BYTE *ep;
 
-	ep = s = get_filename(param, s, YES);	/* Copy the Filename	    */
-	s = deblank (s);			/* skip trailing spaces     */
-	while( *s=='"' || *s=='[' || *s==']' || *s==';')
-	    s++;		/* Ignore non file character params*/
-	s = deblank (s);			/* skip trailing spaces     */
-	
-	while (*s == *switchar)			/* Skip any Switches	    */
-	    s = deblank(skip_switch(s));
-	
-	if(s-ep)				/* Concatinate any switches */
-	    strncat(param, ep, s - ep);		/* to the end of PARAM.	    */
+   ep = s = get_filename( param, s, YES ); /* Copy the Filename	    */
+   s = deblank( s );                       /* skip trailing spaces     */
+   while ( *s == '"' || *s == '[' || *s == ']' || *s == ';' ) {
+      s++; /* Ignore non file character params*/
+   }
+   s = deblank( s ); /* skip trailing spaces     */
 
-	if(*s && strchr("+=,", *s)) {		/* Check for a separator    */
-	    *delp = *s;				/* return it in DELP and    */
-	    return deblank(s+1);		/* skip the character	    */
-	}
+   while ( *s == *switchar ) { /* Skip any Switches	    */
+      s = deblank( skip_switch( s ) );
+   }
 
-	*delp = (*s ? ' ' : '\0');
-	return s;
+   if ( s - ep ) {                  /* Concatinate any switches */
+      strncat( param, ep, s - ep ); /* to the end of PARAM.	    */
+   }
+
+   if ( *s && strchr( "+=,", *s ) ) { /* Check for a separator    */
+      *delp = *s;                     /* return it in DELP and    */
+      return deblank( s + 1 );        /* skip the character	    */
+   }
+
+   *delp = ( *s ? ' ' : '\0' );
+   return s;
 }
 
 /*
@@ -778,22 +845,21 @@ MLOCAL BYTE * get_p1(BYTE *param, REG BYTE *s, BYTE *delp)
  *	in string. Returns the address of the last command
  *	line parameter.
  */
-MLOCAL BYTE * get_pno(BYTE *s, BYTE *nptr)
+MLOCAL BYTE *get_pno( BYTE *s, BYTE *nptr )
 {
-	REG BYTE *tp;
-	BYTE	temp;
+   REG BYTE *tp;
+   BYTE temp;
 
-	*nptr = 0;
-	tp = s;
+   *nptr = 0;
+   tp = s;
 
-	do {
-	    (*nptr)++;
-	    tp = s;
-	    s = get_p1(heap(), s, &temp);
-	}
-	while (*s && s!=tp);
-	
-	return (tp);
+   do {
+      ( *nptr )++;
+      tp = s;
+      s = get_p1( heap(), s, &temp );
+   } while ( *s && s != tp );
+
+   return ( tp );
 }
 
 /* 
@@ -801,51 +867,58 @@ MLOCAL BYTE * get_pno(BYTE *s, BYTE *nptr)
  *	(nb may not yet have been created)
  *	ie isnt just a drive designator or just a path
  */
-MLOCAL BOOLEAN isfile(REG BYTE *s)
+MLOCAL BOOLEAN isfile( REG BYTE *s )
 {
-	REG WORD  ret;
-	
-	if(strlen(fptr(s)) == 0)	/* point to the file sub-string */
-	    return(NO); 		/* if this is zero length then  */
-	    				/* this is not a file.		*/
-        if (!strcmp(s,dotdot))
-		return(NO);
-		
-	if(iswild(s))			/* If an ambiguous reference    */
-	    return (NO);		/* then no a specific file ref. */
-		
-	ret = ms_l_chmod (s, ATTR_ALL, 0);	/* get attributes of filespec */
-	if (ret==ED_FUNCTION)
-	  ret=ms_x_chmod(s,ATTR_ALL,0);
-	
-	if(ret == ED_FILE)		/* file not found (file yet to be created) */
-	    return (YES);		/* it will be a file */
+   REG WORD ret;
 
-	if(ret < 0)
-	    return (NO);			/* any other error is not a file */
-		
-	if(!(ret & ATTR_DIR))
-	    return (YES);			/* if not a dir, then its a file */
+   if ( strlen( fptr( s ) ) == 0 ) { /* point to the file sub-string */
+      return ( NO );                 /* if this is zero length then  */
+   }
+   /* this is not a file.		*/
+   if ( !strcmp( s, dotdot ) ) {
+      return ( NO );
+   }
 
-	return (NO);
+   if ( iswild( s ) ) { /* If an ambiguous reference    */
+      return ( NO );    /* then no a specific file ref. */
+   }
+
+   ret = ms_l_chmod( s, ATTR_ALL, 0 ); /* get attributes of filespec */
+   if ( ret == ED_FUNCTION ) {
+      ret = ms_x_chmod( s, ATTR_ALL, 0 );
+   }
+
+   if ( ret == ED_FILE ) { /* file not found (file yet to be created) */
+      return ( YES );      /* it will be a file */
+   }
+
+   if ( ret < 0 ) {
+      return ( NO ); /* any other error is not a file */
+   }
+
+   if ( !( ret & ATTR_DIR ) ) {
+      return ( YES ); /* if not a dir, then its a file */
+   }
+
+   return ( NO );
 }
 
 /* 
  *	if s is just a drive designator or just a path, add *.*  
  *	(or \*.* as appropriate) to it
  */
-MLOCAL VOID addwild(REG BYTE *s)
+MLOCAL VOID addwild( REG BYTE *s )
 {
-	REG BYTE  tb;
+   REG BYTE tb;
 
-	if(!iswild(s) && !isfile(s)) {	 /* if s is sub dir only, add *.*  */
-	    if(*fptr(s))
-	        append_slash(s);
+   if ( !iswild( s ) && !isfile( s ) ) { /* if s is sub dir only, add *.*  */
+      if ( *fptr( s ) ) {
+         append_slash( s );
+      }
 
-	    strcat(s,d_slash_stardotstar+3);
-	}
+      strcat( s, d_slash_stardotstar + 3 );
+   }
 }
-
 
 /* 
  *	Opens destination file (sets static variable dfh to destination file handle) 
@@ -854,42 +927,45 @@ MLOCAL VOID addwild(REG BYTE *s)
  *	dstopen
  *	tstamp		sets tstamp=NO if dest is a device
  */
-MLOCAL BOOLEAN dopen(REG BYTE *dest)
-  /* dest: destination filename */
+MLOCAL BOOLEAN dopen( REG BYTE *dest )
+/* dest: destination filename */
 {
-	if(dstopen)
-	    return (FAILURE);	/* already open */
+   if ( dstopen ) {
+      return ( FAILURE ); /* already open */
+   }
 
-	if(iswild(dest) || !*dest)
-	    return (FAILURE);	/* DONT create if wild */
-					/* or nul	       */
-		
-	if(!d_check(dest)) {
-	    crlf();
-	    return (FAILURE);	/* invalid dest drive */
-	}
-		
-	dfh=ms_l_creat(dest,0);
-	if (dfh==ED_FUNCTION)
-	  dfh=ms_x_creat(dest,0);
-/*	if((dfh=ms_x_creat(dest,0)) < 0) {*/  /* create destination file or truncate to empty */
-	if(dfh<0) { 		 /* create destination file or truncate to empty */
-	    e_check2(dfh);		/* if error */
-	    return (FAILURE);
-	}
+   if ( iswild( dest ) || !*dest ) {
+      return ( FAILURE ); /* DONT create if wild */
+   }
+   /* or nul	       */
 
-	if(isdev(dfh))			/* if writing to a device */
-	{
-	    tstamp = NO;		/* dont set timestamp	  */	
+   if ( !d_check( dest ) ) {
+      crlf();
+      return ( FAILURE ); /* invalid dest drive */
+   }
 
-	    if (sbin)			/* if binary, set device to binary */
-	    {
-	        ms_x_setdev (dfh, ms_x_ioctl (dfh) | 0x20);
-	    }
-	}
-	
-	dstopen = YES;
-	return (SUCCESS);	
+   dfh = ms_l_creat( dest, 0 );
+   if ( dfh == ED_FUNCTION ) {
+      dfh = ms_x_creat( dest, 0 );
+   }
+   /*	if((dfh=ms_x_creat(dest,0)) < 0) {*/ /* create destination file or truncate to empty */
+   if ( dfh < 0 ) {    /* create destination file or truncate to empty */
+      e_check2( dfh ); /* if error */
+      return ( FAILURE );
+   }
+
+   if ( isdev( dfh ) ) /* if writing to a device */
+   {
+      tstamp = NO; /* dont set timestamp	  */
+
+      if ( sbin ) /* if binary, set device to binary */
+      {
+         ms_x_setdev( dfh, ms_x_ioctl( dfh ) | 0x20 );
+      }
+   }
+
+   dstopen = YES;
+   return ( SUCCESS );
 }
 
 /* 
@@ -905,45 +981,52 @@ MLOCAL BOOLEAN dopen(REG BYTE *dest)
  *		dflag
  *		sascii
  */
-MLOCAL VOID dclose(BYTE	*dest, REG WORD dfh, BOOLEAN failed)
-  /* dest: destination filename */
-  /* dfh: destination filehandle */	
+MLOCAL VOID dclose( BYTE *dest, REG WORD dfh, BOOLEAN failed )
+/* dest: destination filename */
+/* dfh: destination filehandle */
 {
-	BOOLEAN dascii; 		/* destination is ascii */
-	UWORD	 dattrib; 
-	BYTE	xeof = ('Z'-64);	/* ^Z */
-	
-	dascii = sascii;	/* use the (last) source ascii flag */
+   BOOLEAN dascii; /* destination is ascii */
+   UWORD dattrib;
+   BYTE xeof = ( 'Z' - 64 ); /* ^Z */
 
-	if(dstopen) {		/* dont do anything if not open */
-	    if(!failed) {
+   dascii = sascii; /* use the (last) source ascii flag */
 
-		if(isdev(dfh))  
-		    dascii=NO;  	/* dont send ^Z if dest is a device */
-	
-		if(COPYDST_ASC)
-		    dascii=YES;
+   if ( dstopen ) { /* dont do anything if not open */
+      if ( !failed ) {
 
-		if(COPYDST_BIN)
-		    dascii=NO;	/* check for explicit /b last */
-		
-		if(dascii)
-		    ms_x_write(dfh,&xeof,1);	/* add ^Z */
-		
-		if(tstamp)		/* change timestamp from current time to source files timestamp */
-		    ms_x_datetime(1,dfh,&time,&date);
-	    }
+         if ( isdev( dfh ) ) {
+            dascii = NO; /* dont send ^Z if dest is a device */
+         }
 
-	    ms_x_close(dfh);	/* close destination */
-	    dstopen = NO;
+         if ( COPYDST_ASC ) {
+            dascii = YES;
+         }
 
-	    if(failed) {	/* if failed, delete incomplete destination */
-		ret=ms_l_unlink(dest,0);
-		if (ret==ED_FUNCTION)
-		  ms_x_unlink(dest);
-	    }
-	    
-	    else {			/* (didnt fail) */
+         if ( COPYDST_BIN ) {
+            dascii = NO; /* check for explicit /b last */
+         }
+
+         if ( dascii ) {
+            ms_x_write( dfh, &xeof, 1 ); /* add ^Z */
+         }
+
+         if (
+            tstamp ) { /* change timestamp from current time to source files timestamp */
+            ms_x_datetime( 1, dfh, &time, &date );
+         }
+      }
+
+      ms_x_close( dfh ); /* close destination */
+      dstopen = NO;
+
+      if ( failed ) { /* if failed, delete incomplete destination */
+         ret = ms_l_unlink( dest, 0 );
+         if ( ret == ED_FUNCTION ) {
+            ms_x_unlink( dest );
+         }
+      }
+
+      else { /* (didnt fail) */
 #if 0
 	        if(tstamp) {
 		    dattrib = attrib;		/* dest attribs = src attribs */
@@ -955,9 +1038,9 @@ MLOCAL VOID dclose(BYTE	*dest, REG WORD dfh, BOOLEAN failed)
 		      ms_x_chmod(dest,dattrib,1);
 	        }				/* under same conditions as tstamp */
 #endif
-	    }					/* nb must be done after dest closed */
-	}
-	return;
+      } /* nb must be done after dest closed */
+   }
+   return;
 }
 
 /* 
@@ -978,55 +1061,60 @@ MLOCAL VOID dclose(BYTE	*dest, REG WORD dfh, BOOLEAN failed)
  *		amount
  *		sfh
  */
-MLOCAL BOOLEAN preread(BYTE	*src)
-  /* src: source filename */
+MLOCAL BOOLEAN preread( BYTE *src )
+/* src: source filename */
 {
-	srcopen=NO;
-	fullbuf=NO;
-			
-	if(!d_check(src)) {
-	    crlf();
-	    return (FAILURE);	/* invalid src drive */
-	}
+   srcopen = NO;
+   fullbuf = NO;
 
-	sfh = ms_l_open(src, OPEN_READ);	/* Open the File/Device using*/
-	if (sfh==ED_FUNCTION)
-	  sfh=ms_x_open(src,OPEN_READ);
-	if(sfh == ED_ACCESS) {			/* a sharing mode if Access  */
-	    sfh = ms_l_open(src, OPEN_RO);	/* denied try compatibility  */
-	    if (sfh==ED_FUNCTION)
-	      sfh=ms_x_open(src,OPEN_RO);
-	}
-						/* mode. FrameWork Setup     */
-	if(sfh < 0) {				/* leaves a control file Open*/
-	    e_check2(sfh);			/* during the copy.	     */
-	    return (FAILURE);
-	}
+   if ( !d_check( src ) ) {
+      crlf();
+      return ( FAILURE ); /* invalid src drive */
+   }
 
-	srcdev = isdev(sfh);		/* Check if Source is a Device	*/
-	if(srcdev) {			/* Don't set the timestamp if   */
-	    tstamp = NO;		/* the source is a device	*/
-	    if(sbin) {			/* If a Binary Read has been    */
-	    	ms_x_close(sfh);	/* specified then terminate as  */
-	    	printf(MSG_BINRD);	/* the source is a Device	*/
-	    	return (FAILURE);
-	    }
-	}
-	else {
-	   ms_x_datetime(0,sfh,&time,&date);	/* read files time stamp */
-	   /*tstamp = YES;*/
-	}
+   sfh = ms_l_open( src, OPEN_READ ); /* Open the File/Device using*/
+   if ( sfh == ED_FUNCTION ) {
+      sfh = ms_x_open( src, OPEN_READ );
+   }
+   if ( sfh == ED_ACCESS ) {           /* a sharing mode if Access  */
+      sfh = ms_l_open( src, OPEN_RO ); /* denied try compatibility  */
+      if ( sfh == ED_FUNCTION ) {
+         sfh = ms_x_open( src, OPEN_RO );
+      }
+   }
+   /* mode. FrameWork Setup     */
+   if ( sfh < 0 ) {    /* leaves a control file Open*/
+      e_check2( sfh ); /* during the copy.	     */
+      return ( FAILURE );
+   }
 
-	src_len = ms_x_lseek(sfh,0,2);
-	ms_x_lseek(sfh,0,0);
+   srcdev = isdev( sfh );     /* Check if Source is a Device	*/
+   if ( srcdev ) {            /* Don't set the timestamp if   */
+      tstamp = NO;            /* the source is a device	*/
+      if ( sbin ) {           /* If a Binary Read has been    */
+         ms_x_close( sfh );   /* specified then terminate as  */
+         printf( MSG_BINRD ); /* the source is a Device	*/
+         return ( FAILURE );
+      }
+   }
+   else {
+      ms_x_datetime( 0, sfh, &time, &date ); /* read files time stamp */
+      /*tstamp = YES;*/
+   }
 
-	srcopen=YES;
-	attrib=ms_l_chmod(src,attrib,0);	/* read src file attributes */
-	if (attrib==ED_FUNCTION)
-	  attrib=ms_x_chmod(src,attrib,0);
+   src_len = ms_x_lseek( sfh, 0, 2 );
+   ms_x_lseek( sfh, 0, 0 );
 
-	/* Don't copy 0 length files */
-	if (src_len == 0L && !srcdev) return(FAILURE);
+   srcopen = YES;
+   attrib = ms_l_chmod( src, attrib, 0 ); /* read src file attributes */
+   if ( attrib == ED_FUNCTION ) {
+      attrib = ms_x_chmod( src, attrib, 0 );
+   }
+
+   /* Don't copy 0 length files */
+   if ( src_len == 0L && !srcdev ) {
+      return ( FAILURE );
+   }
 #if 0
 	if(readsrc()==FAILURE) 		/* read a buffer full */
 	    return (FAILURE);
@@ -1035,8 +1123,8 @@ MLOCAL BOOLEAN preread(BYTE	*src)
 	/* srcopen set if source is still open		       */
 	
 	fullbuf=YES;			/* buffer contains data */
-#endif	
-	return (SUCCESS);	
+#endif
+   return ( SUCCESS );
 }
 
 /* 
@@ -1058,56 +1146,58 @@ MLOCAL BOOLEAN preread(BYTE	*src)
  *		sfh
  */
 
-MLOCAL BOOLEAN readsrc(VOID)
+MLOCAL BOOLEAN readsrc( VOID )
 {
-	WORD	ret;		/* return code from source open */
-	UWORD	i;
-	BOOLEAN eofsrc;
-	
-	fullbuf = NO;		/* Buffer Empty		*/
-	eofsrc = NO;		/* EOF not found	*/
-	amount = 0;		/* 0 Bytes read so far	*/
-		
-	while(!eofsrc) {
-	    ret = far_read(sfh, bufaddr+amount, bufsize-amount);
-	    if((ret&(-256))==(-256)) {		/* if error */
-		e_check2(ret);
-		ms_x_close(sfh);
-		return (FAILURE);		
-	    }
+   WORD ret; /* return code from source open */
+   UWORD i;
+   BOOLEAN eofsrc;
 
-	    if(sascii || srcdev) {		/* Check data for ^Z	    */
-	    	i = findeof(bufaddr+amount, ret);/* if FINDEOF returns a    */
-	    	if(i < ret) {			/* count less than RET	    */
-		    eofsrc=YES;			/* then end of transfer     */
-		    amount += i-ret;		/* using the updated size   */
-		}
-	    }
-	    amount += ret;
-		
-	    if(amount == bufsize)		/* Check for a full buffer  */
-	        break;				/* and break when full. Else*/
-	    else if(!srcdev || ret == 0)	/* if the source is not a   */
-	        eofsrc = YES;			/* device then must have    */
-						/* reached the EOF.	    */
-	}
-	
-	if(eofsrc) {			/* if eof src then close src */
-	    ms_x_close(sfh);
-	    srcopen=NO;
-	}
-		
-	/* amount contains the size of real data in the buffer */	  
-	/* srcopen set if source is still open		       */
-	
-	fullbuf=YES;			/* buffer contains data */
+   fullbuf = NO; /* Buffer Empty		*/
+   eofsrc = NO;  /* EOF not found	*/
+   amount = 0;   /* 0 Bytes read so far	*/
+
+   while ( !eofsrc ) {
+      ret = far_read( sfh, bufaddr + amount, bufsize - amount );
+      if ( ( ret & ( -256 ) ) == ( -256 ) ) { /* if error */
+         e_check2( ret );
+         ms_x_close( sfh );
+         return ( FAILURE );
+      }
+
+      if ( sascii || srcdev ) {                /* Check data for ^Z	    */
+         i = findeof( bufaddr + amount, ret ); /* if FINDEOF returns a    */
+         if ( i < ret ) {                      /* count less than RET	    */
+            eofsrc = YES;                      /* then end of transfer     */
+            amount += i - ret;                 /* using the updated size   */
+         }
+      }
+      amount += ret;
+
+      if ( amount == bufsize ) { /* Check for a full buffer  */
+         break;                  /* and break when full. Else*/
+      }
+      else if ( !srcdev || ret == 0 ) { /* if the source is not a   */
+         eofsrc = YES;                  /* device then must have    */
+      }
+      /* reached the EOF.	    */
+   }
+
+   if ( eofsrc ) { /* if eof src then close src */
+      ms_x_close( sfh );
+      srcopen = NO;
+   }
+
+   /* amount contains the size of real data in the buffer */
+   /* srcopen set if source is still open		       */
+
+   fullbuf = YES; /* buffer contains data */
 
 #if 0
 	if (amount == 0) return(FAILURE); /* BAP - if file is 0 bytes, don't */
 					  /* copy it */
 #endif
 
-	return (SUCCESS);	
+   return ( SUCCESS );
 }
 
 /* 
@@ -1133,29 +1223,30 @@ MLOCAL BOOLEAN readsrc(VOID)
  *		amount
  *		concat
  */
-MLOCAL BOOLEAN copy1(BYTE *src, BYTE *dest)
-  /* src: source filename */
-  /* dest: destination filename */
+MLOCAL BOOLEAN copy1( BYTE *src, BYTE *dest )
+/* src: source filename */
+/* dest: destination filename */
 {
-	UWORD	ret;		/* return code from source open */
-	UWORD	bytes_left;
-	UWORD	bytes_written;
-	BYTE FAR *tp;
-	BOOLEAN ABloop1;	/* special case if single drive copy */
-				/* must not leave destination open   */
+   UWORD ret; /* return code from source open */
+   UWORD bytes_left;
+   UWORD bytes_written;
+   BYTE FAR *tp;
+   BOOLEAN ABloop1; /* special case if single drive copy */
+   /* must not leave destination open   */
 
-	ABloop1=NO;
+   ABloop1 = NO;
 
-	/*printf("copying %s to %s\n",src,dest);*/
+   /*printf("copying %s to %s\n",src,dest);*/
 
-	if (!ABswap && !concat && srcopen && !sascii) {
-	    dfailed=dopen(dest);
-	    if(dfailed) {
-	    	if(srcopen) 
-		    ms_x_close(sfh);
-	        return (FAILURE);	/* error - cant open dest */
-	    }
-	    
+   if ( !ABswap && !concat && srcopen && !sascii ) {
+      dfailed = dopen( dest );
+      if ( dfailed ) {
+         if ( srcopen ) {
+            ms_x_close( sfh );
+         }
+         return ( FAILURE ); /* error - cant open dest */
+      }
+
 #if 0
 	    src_len = ms_x_lseek(sfh,0,2);
 	    ms_x_lseek(sfh,0,0);
@@ -1173,93 +1264,110 @@ MLOCAL BOOLEAN copy1(BYTE *src, BYTE *dest)
 		return(SUCCESS);
 	    }
 #endif
-	}
-	
-	do {
-	    if(!fullbuf) {			/* if buffer not prefilled */
-						/* then fill the buffer    */
-		if(!srcopen) {			/* if src not open then use preread */
-		    if(preread(src)==FAILURE)	/* (opens src)*/
-			return (FAILURE);	
-		}
-		/*else {*/		/* source open, therefore use readsrc */
-		    if(readsrc()==FAILURE) 	/* read next buffer full */
-			return (FAILURE);
-		/*}*/
-	    }
-	
-	/* at this point we have a buffer full		 */
-	/* src is closed if this is the last buffer full */
+   }
 
-	    if(!dstopen) {		/* if destination not open, open it */
-		if(ABloop1) {		/* special case if 2nd time round the loop */
-					/* and single drive copy */
-		    dfh=ms_l_open(dest,OPEN_RDWR);	/* open dest for rw	*/
-		    if (dfh==ED_FUNCTION)
-		      dfh=ms_x_open(dest,OPEN_RDWR);
-		    dstopen=YES;
-		    ms_x_lseek(dfh, (LONG) 0,2);	/* lseek to end of dest */
-		}
-		else {			/* normal case */
-		    dfailed=dopen(dest);
-		    if(dfailed) {
-		    	if(srcopen) 
-			    ms_x_close(sfh);
-		        return (FAILURE);	/* error - cant open dest */
-		    }
-		}
-	    }
+   do {
+      if ( !fullbuf ) {    /* if buffer not prefilled */
+                           /* then fill the buffer    */
+         if ( !srcopen ) { /* if src not open then use preread */
+            if ( preread( src ) == FAILURE ) { /* (opens src)*/
+               return ( FAILURE );
+            }
+         }
+         /*else {*/ /* source open, therefore use readsrc */
+         if ( readsrc() == FAILURE ) { /* read next buffer full */
+            return ( FAILURE );
+         }
+         /*}*/
+      }
 
-	    /* write to destination */
-	    if(COPY_ZERO) {
-		for(tp = bufaddr, ret = 0; ret < amount; ret++, tp++)
-		    *tp &= 0x7F;
-	    }
-	    
+      /* at this point we have a buffer full		 */
+      /* src is closed if this is the last buffer full */
+
+      if ( !dstopen ) {   /* if destination not open, open it */
+         if ( ABloop1 ) { /* special case if 2nd time round the loop */
+                          /* and single drive copy */
+            dfh = ms_l_open( dest, OPEN_RDWR ); /* open dest for rw	*/
+            if ( dfh == ED_FUNCTION ) {
+               dfh = ms_x_open( dest, OPEN_RDWR );
+            }
+            dstopen = YES;
+            ms_x_lseek( dfh, (LONG)0, 2 ); /* lseek to end of dest */
+         }
+         else { /* normal case */
+            dfailed = dopen( dest );
+            if ( dfailed ) {
+               if ( srcopen ) {
+                  ms_x_close( sfh );
+               }
+               return ( FAILURE ); /* error - cant open dest */
+            }
+         }
+      }
+
+      /* write to destination */
+      if ( COPY_ZERO ) {
+         for ( tp = bufaddr, ret = 0; ret < amount; ret++, tp++ ) {
+            *tp &= 0x7F;
+         }
+      }
 
 #if TRUE
-	/* This is a better way to do do things */
-	    bytes_left = amount;
-	    bytes_written = 0;
-	    while(bytes_left > 0) {
-		ret = far_write(dfh, bufaddr+bytes_written, bytes_left);
-		if ((ret > 0xFF00)||(ret == 0)) {
-			if (isdev(dfh)) printf(MSG_DEVFAIL);
-			else printf(MSG_FULL);
-			dfailed=YES;
-			if (srcopen) ms_x_close(sfh);
-	    		return(FAILURE);
-		}
-		bytes_left -= ret;
-		bytes_written += ret;
-	    }
-#else 
-	    if(far_write(dfh, bufaddr, amount)!=amount)  {
-		if (isdev(dfh)) printf(MSG_DEVFAIL);
-		else printf(MSG_FULL);	 /* disk full error */
-		dfailed=YES;
-		if(srcopen)
-		    ms_x_close(sfh);
-		return (FAILURE);
-	    }
+      /* This is a better way to do do things */
+      bytes_left = amount;
+      bytes_written = 0;
+      while ( bytes_left > 0 ) {
+         ret = far_write( dfh, bufaddr + bytes_written, bytes_left );
+         if ( ( ret > 0xFF00 ) || ( ret == 0 ) ) {
+            if ( isdev( dfh ) ) {
+               printf( MSG_DEVFAIL );
+            }
+            else {
+               printf( MSG_FULL );
+            }
+            dfailed = YES;
+            if ( srcopen ) {
+               ms_x_close( sfh );
+            }
+            return ( FAILURE );
+         }
+         bytes_left -= ret;
+         bytes_written += ret;
+      }
+#else
+      if ( far_write( dfh, bufaddr, amount ) != amount ) {
+         if ( isdev( dfh ) ) {
+            printf( MSG_DEVFAIL );
+         }
+         else {
+            printf( MSG_FULL ); /* disk full error */
+         }
+         dfailed = YES;
+         if ( srcopen ) {
+            ms_x_close( sfh );
+         }
+         return ( FAILURE );
+      }
 #endif
-	    fullbuf=NO;
+      fullbuf = NO;
 
-	    if(srcopen && ABswap) {	/* must temp close destination if */
-		ms_x_close(dfh);	/* single drive copy with AB swap */
-		dstopen=NO;
-		ABloop1=YES;
-	    }
-	} while(srcopen);		/* loop till end of source */
-	
-	if(!concat) {			/* CLOSE dest except if concatinating */
-	    dclose(dest,dfh,dfailed);
-	    if(!dfailed)			
-		nfiles++;	 /* nfiles refers to no of dest files */
-	    if(dfailed)
-		return (FAILURE);
-	}
-	return (SUCCESS);	
+      if ( srcopen && ABswap ) { /* must temp close destination if */
+         ms_x_close( dfh );      /* single drive copy with AB swap */
+         dstopen = NO;
+         ABloop1 = YES;
+      }
+   } while ( srcopen ); /* loop till end of source */
+
+   if ( !concat ) { /* CLOSE dest except if concatinating */
+      dclose( dest, dfh, dfailed );
+      if ( !dfailed ) {
+         nfiles++; /* nfiles refers to no of dest files */
+      }
+      if ( dfailed ) {
+         return ( FAILURE );
+      }
+   }
+   return ( SUCCESS );
 }
 
 /* 
@@ -1273,72 +1381,78 @@ MLOCAL BOOLEAN copy1(BYTE *src, BYTE *dest)
  *	Uses/sets static variables -
  *		dfh		destination file handle
  */
-MLOCAL BOOLEAN lseek(REG BYTE *dest)
-  /* dest: destination filename */
+MLOCAL BOOLEAN lseek( REG BYTE *dest )
+/* dest: destination filename */
 {
-	LONG	lsize;
-	BOOLEAN seof;
-	WORD	ret;
-	REG UWORD  u, i;
-	
-	if(!d_check(dest)) {
-	    crlf();
-	    return (FAILURE);	/* invalid drive */
-	}
+   LONG lsize;
+   BOOLEAN seof;
+   WORD ret;
+   REG UWORD u, i;
 
-	/* dont need to read files date and time as always concat case */
-	/* but must set todays date */
-	
-	touch(dest);			/* set timestamp */
-		
-	dfh=ms_l_open(dest,OPEN_RDWR);		/* open file for read and write */
-	if (dfh==ED_FUNCTION)
-	  dfh=ms_x_open(dest,OPEN_RDWR);
+   if ( !d_check( dest ) ) {
+      crlf();
+      return ( FAILURE ); /* invalid drive */
+   }
 
-/*	if(dfh==ED_FILE)		  */ /* if file doesnt exist, create it */
-/*		return(dopen(dest)); */ /* not necessary as src/dest must exist as found by ms_x_first */
-		 
-	if(dfh < 0) {
-	    e_check2(dfh);			/* error (not necessary to set dfailed) */
-	    return (FAILURE);
-	}
-	
-	dstopen=YES;			/* dest in now open */
+   /* dont need to read files date and time as always concat case */
+   /* but must set todays date */
 
-	if(sascii) {			/* ascii file so look for 1st ^Z */
-	    lsize=0;
-	    seof=NO;		
-	    do {		/* do while !seof */
-		u=ret=far_read(dfh, bufaddr, bufsize);    /* read a buffer full */
-		if((u&(-256))==(-256)) {			/* if error */
-		    e_check2(ret);
-		    return (FAILURE);		
-		}
-	
-	        i = findeof(bufaddr, u);	/* if FINDEOF returns a     */
-	        if(i < u) {			/* count less than AMOUNT   */
-		    seof=YES;			/* then end of transfer     */
-		    u = i;			/* using the updated size   */
-	        }
-		
-		if(u!=bufsize)		  /* if not full */
-		    seof=YES;		/* then eof    */
+   touch( dest ); /* set timestamp */
 
-		lsize += u;
-			
-	    } while (!seof);	/* lsize = size of file up to 1st ^Z (or total size if no ^Z) */
+   dfh = ms_l_open( dest, OPEN_RDWR ); /* open file for read and write */
+   if ( dfh == ED_FUNCTION ) {
+      dfh = ms_x_open( dest, OPEN_RDWR );
+   }
 
-	    if(ms_x_lseek(dfh,lsize,0) < 0)	/* lseek to ^Z or end of file (mode 0) */
-		return (FAILURE);		/* if error */
-				
-	}
-	else {				/* binary file so just lseek to end */
-	    lsize=0;	
-	    if(ms_x_lseek(dfh,lsize,2) < 0)		/* lseek to end of file (mode 2) */
-		return (FAILURE);		/* if error */
-	}
+   /*	if(dfh==ED_FILE)		  */ /* if file doesnt exist, create it */
+   /*		return(dopen(dest)); */ /* not necessary as src/dest must exist as found by ms_x_first */
 
-	return (SUCCESS);	
+   if ( dfh < 0 ) {
+      e_check2( dfh ); /* error (not necessary to set dfailed) */
+      return ( FAILURE );
+   }
+
+   dstopen = YES; /* dest in now open */
+
+   if ( sascii ) { /* ascii file so look for 1st ^Z */
+      lsize = 0;
+      seof = NO;
+      do {                                            /* do while !seof */
+         u = ret = far_read( dfh, bufaddr, bufsize ); /* read a buffer full */
+         if ( ( u & ( -256 ) ) == ( -256 ) ) {        /* if error */
+            e_check2( ret );
+            return ( FAILURE );
+         }
+
+         i = findeof( bufaddr, u ); /* if FINDEOF returns a     */
+         if ( i < u ) {             /* count less than AMOUNT   */
+            seof = YES;             /* then end of transfer     */
+            u = i;                  /* using the updated size   */
+         }
+
+         if ( u != bufsize ) { /* if not full */
+            seof = YES;        /* then eof    */
+         }
+
+         lsize += u;
+
+      } while (
+         !seof ); /* lsize = size of file up to 1st ^Z (or total size if no ^Z) */
+
+      if ( ms_x_lseek( dfh, lsize, 0 ) <
+           0 ) {             /* lseek to ^Z or end of file (mode 0) */
+         return ( FAILURE ); /* if error */
+      }
+   }
+   else { /* binary file so just lseek to end */
+      lsize = 0;
+      if ( ms_x_lseek( dfh, lsize, 2 ) <
+           0 ) {             /* lseek to end of file (mode 2) */
+         return ( FAILURE ); /* if error */
+      }
+   }
+
+   return ( SUCCESS );
 }
 
 /*
@@ -1353,99 +1467,111 @@ MLOCAL BOOLEAN lseek(REG BYTE *dest)
  *
  *	Prints message if same file, and returns YES or NO
  */
-MLOCAL BOOLEAN samefs(REG BYTE *src, REG BYTE *dest, BOOLEAN mess)
+MLOCAL BOOLEAN samefs( REG BYTE *src, REG BYTE *dest, BOOLEAN mess )
 {
 #if 1
-	/*BYTE	sp[MAX_PATHLEN+MAX_FILELEN+3];
+   /*BYTE	sp[MAX_PATHLEN+MAX_FILELEN+3];
 	BYTE	dp[MAX_PATHLEN+MAX_FILELEN+3];*/
-	BYTE	sp[MAX_PATHLEN+MAX_LFNLEN+3];
-	BYTE	dp[MAX_PATHLEN+MAX_LFNLEN+3];
+   BYTE sp[MAX_PATHLEN + MAX_LFNLEN + 3];
+   BYTE dp[MAX_PATHLEN + MAX_LFNLEN + 3];
 
- 	ret=ms_l_expand(sp, src);
-	if (ret==ED_FUNCTION)
-	  ms_x_expand(sp,src);
- 	ret=ms_l_expand(dp, dest);
-	if (ret==ED_FUNCTION)
-	  ms_x_expand(dp,dest);
- 
- 	if(strcmp(sp,dp)!=0)
- 	    return (NO);
- 
+   ret = ms_l_expand( sp, src );
+   if ( ret == ED_FUNCTION ) {
+      ms_x_expand( sp, src );
+   }
+   ret = ms_l_expand( dp, dest );
+   if ( ret == ED_FUNCTION ) {
+      ms_x_expand( dp, dest );
+   }
+
+   if ( strcmp( sp, dp ) != 0 ) {
+      return ( NO );
+   }
+
 #else
-/* EJH 27-11-90 START */
+   /* EJH 27-11-90 START */
 
- 	BYTE	sd,dd;
-	
-	sd=drive + 'a';			/* assume current drive */    
-	dd=sd;
-		
-	/* if either src or dest end in a dot, remove dot */
-	if(*src && src[strlen(src)-1]=='.')
-	    src[strlen(src)-1]='\0'; 
-	if(*dest && dest[strlen(dest)-1]=='.')
-	    dest[strlen(dest)-1]='\0'; 
-	
-	if(strlen(src)>2 && src[1]==':') {
-	    sd=src[0];		/* get drive */
-	    src=src+2;		/* skip drive */
-	}
+   BYTE sd, dd;
 
-	if(strlen(dest)>2 && dest[1]==':') {
-	    dd=dest[0];		/* get drive */
-	    dest=dest+2;		/* skip drive */
-	}
+   sd = drive + 'a'; /* assume current drive */
+   dd = sd;
 
-	if(sd!=dd)
-	    return (NO);
-		
-	if(strcmp(src,dest)!=0)
-	    return (NO);
+   /* if either src or dest end in a dot, remove dot */
+   if ( *src && src[strlen( src ) - 1] == '.' ) {
+      src[strlen( src ) - 1] = '\0';
+   }
+   if ( *dest && dest[strlen( dest ) - 1] == '.' ) {
+      dest[strlen( dest ) - 1] = '\0';
+   }
+
+   if ( strlen( src ) > 2 && src[1] == ':' ) {
+      sd = src[0];   /* get drive */
+      src = src + 2; /* skip drive */
+   }
+
+   if ( strlen( dest ) > 2 && dest[1] == ':' ) {
+      dd = dest[0];    /* get drive */
+      dest = dest + 2; /* skip drive */
+   }
+
+   if ( sd != dd ) {
+      return ( NO );
+   }
+
+   if ( strcmp( src, dest ) != 0 ) {
+      return ( NO );
+   }
 
 /* EJH 27-11-90 END */
 #endif
-	if(mess) {
-	    if(concat)
-		eprintf(MSG_DLOST);
-	    else
-		eprintf(MSG_CPYSELF);
-	}
+   if ( mess ) {
+      if ( concat ) {
+         eprintf( MSG_DLOST );
+      }
+      else {
+         eprintf( MSG_CPYSELF );
+      }
+   }
 
-	if(srcopen)			/* if same file, close src */ 
-	    ms_x_close(sfh);		/* as this is always an error return */
-					/* or a special case */
-	return (YES);			
+   if ( srcopen ) {      /* if same file, close src */
+      ms_x_close( sfh ); /* as this is always an error return */
+   }
+   /* or a special case */
+   return ( YES );
 }
-
 
 /*
  *	Checks for single physical floppy disk drive, 
  *	with src and dest being different diskettes
  */
-MLOCAL BOOLEAN ABcheck(REG BYTE *src, REG BYTE *dest)
+MLOCAL BOOLEAN ABcheck( REG BYTE *src, REG BYTE *dest )
 {
-	BYTE	sd,dd;
-	
-	sd=drive+'a';			/* assume current drive */    
-	dd=sd;
-		
-	if(strlen(src)>2 && src[1]==':')
-	    sd=src[0];		/* get drive */
+   BYTE sd, dd;
 
-	if(strlen(dest)>2 && dest[1]==':')
-	    dd=dest[0];		/* get drive */
+   sd = drive + 'a'; /* assume current drive */
+   dd = sd;
 
-	/* should do logical to physical drive conversion */
-	/* sd=pdrive(sd-'a')+'a'  etc			  */
+   if ( strlen( src ) > 2 && src[1] == ':' ) {
+      sd = src[0]; /* get drive */
+   }
 
-	if(sd>'b' || dd>'b' || sd==dd)
-	    return (NO);		/* either src or dest is not floppy, */
-					/* or they are on the same disk */
-					/* then 'normal' case		*/
-	/* reasonably safe to assume only A and B can be mapped onto a single physical floppy disk */
-	 
-	return (YES);		/* single physical floppy drive special case */
-				/* src and dest possibly on different diskettes */
-	/* Returns YES even if there are two physical floppy disk drives */
+   if ( strlen( dest ) > 2 && dest[1] == ':' ) {
+      dd = dest[0]; /* get drive */
+   }
+
+   /* should do logical to physical drive conversion */
+   /* sd=pdrive(sd-'a')+'a'  etc			  */
+
+   if ( sd > 'b' || dd > 'b' || sd == dd ) {
+      return ( NO ); /* either src or dest is not floppy, */
+   }
+   /* or they are on the same disk */
+   /* then 'normal' case		*/
+   /* reasonably safe to assume only A and B can be mapped onto a single physical floppy disk */
+
+   return ( YES ); /* single physical floppy drive special case */
+                   /* src and dest possibly on different diskettes */
+   /* Returns YES even if there are two physical floppy disk drives */
 }
 
 /*
@@ -1455,90 +1581,92 @@ MLOCAL BOOLEAN ABcheck(REG BYTE *src, REG BYTE *dest)
  *		\fred  prints out as a:\fred  
  *		ie adds drive if 1st char = pathchar
  */
-MLOCAL VOID prtsrc(REG BYTE *src)
+MLOCAL VOID prtsrc( REG BYTE *src )
 {
-	strupr(src);			 /* convert to upper case */
-	if(*src==*pathchar && src[1] != *pathchar)
-	    printf("%c:", drive+'A');
+   strupr( src ); /* convert to upper case */
+   if ( *src == *pathchar && src[1] != *pathchar ) {
+      printf( "%c:", drive + 'A' );
+   }
 
-	printf("%s\n",src);
-	strlwr(src);			 /* convert back to lower case */
-	return;
+   printf( "%s\n", src );
+   strlwr( src ); /* convert back to lower case */
+   return;
 }
 
 /* Confirm copy message routine
  * prints filename and asks Y/N
  * returns TRUE if confirmed 
  */
-MLOCAL BOOLEAN conf_src(REG BYTE *src)
+MLOCAL BOOLEAN conf_src( REG BYTE *src )
 {
-	BOOLEAN answer;
+   BOOLEAN answer;
 
-	strupr(src);			 /* convert to upper case */
+   strupr( src ); /* convert to upper case */
 
-	/* could do *src==*pathchar check etc as per prtsrc  */
+   /* could do *src==*pathchar check etc as per prtsrc  */
 
-	printf(MSG_ERAQ,src);		/* same format as delq message */
-	answer = yes(YES,NO);		/* get answer, default = NO    */
+   printf( MSG_ERAQ, src ); /* same format as delq message */
+   answer = yes( YES, NO ); /* get answer, default = NO    */
 
-	strlwr(src);			 /* convert back to lower case */
-	return(answer);
+   strlwr( src ); /* convert back to lower case */
+   return ( answer );
 }
 
-
-MLOCAL VOID e_check2(REG WORD ecode)	/* e_check() + CR/LF */
+MLOCAL VOID e_check2( REG WORD ecode ) /* e_check() + CR/LF */
 {
-	e_check(ecode);
-	crlf();
-	return;
+   e_check( ecode );
+   crlf();
+   return;
 }
 
 /* 
  *	modifies file s's timestamp to todays date and time
  *	s maybe wild
  */
-MLOCAL BOOLEAN touch(REG BYTE *s)
+MLOCAL BOOLEAN touch( REG BYTE *s )
 {
-	SYSDATE tdate;
-	SYSTIME ttime;
+   SYSDATE tdate;
+   SYSTIME ttime;
 
-	WORD	fh;
-	
-	ms_getdate(&tdate);
-	ms_gettime(&ttime);
-	
-	/* covert todays date to timestamp format  */
-	/* date = (year-1980)*512 + month*32 + day */
-	/* time = hour*2048 + minute*32 + second/2 */
-	
-	date=((tdate.year-1980)<<9) + (tdate.month<<5) + tdate.day;
-	time=(ttime.hour<<11) + (ttime.min<<5) + (ttime.sec>>1);
-	
-	fh=ms_l_open(s,OPEN_RDWR);
-	if (fh==ED_FUNCTION)
-	  fh=ms_x_open(s,OPEN_RDWR);
-/*	if((fh=ms_x_open(s,OPEN_RDWR)) >=0) {*/	/* open file for r/w if no error */
-	if(fh >=0) {			/* open file for r/w if no error */
-	    ms_x_datetime(1,fh,&time,&date); /* change files timestamp */
-	    ms_x_close(fh);
-	    return (SUCCESS);
-	}
-	else {
-	    e_check2(fh);		/* if error */
-	    return (FAILURE);
-	}
+   WORD fh;
+
+   ms_getdate( &tdate );
+   ms_gettime( &ttime );
+
+   /* covert todays date to timestamp format  */
+   /* date = (year-1980)*512 + month*32 + day */
+   /* time = hour*2048 + minute*32 + second/2 */
+
+   date = ( ( tdate.year - 1980 ) << 9 ) + ( tdate.month << 5 ) + tdate.day;
+   time = ( ttime.hour << 11 ) + ( ttime.min << 5 ) + ( ttime.sec >> 1 );
+
+   fh = ms_l_open( s, OPEN_RDWR );
+   if ( fh == ED_FUNCTION ) {
+      fh = ms_x_open( s, OPEN_RDWR );
+   }
+   /*	if((fh=ms_x_open(s,OPEN_RDWR)) >=0) {*/ /* open file for r/w if no error */
+   if ( fh >= 0 ) { /* open file for r/w if no error */
+      ms_x_datetime( 1, fh, &time, &date ); /* change files timestamp */
+      ms_x_close( fh );
+      return ( SUCCESS );
+   }
+   else {
+      e_check2( fh ); /* if error */
+      return ( FAILURE );
+   }
 }
 
-#if defined(PASSWORD)
-MLOCAL BYTE * get_pswd(REG BYTE *s)		/* return ptr to password part of s */
-  /* s: (including the ';' )		   */
-					/* return ptr to '\0' if no password */
+#if defined( PASSWORD )
+MLOCAL BYTE *get_pswd( REG BYTE *s ) /* return ptr to password part of s */
+                                     /* s: (including the ';' )		   */
+                                     /* return ptr to '\0' if no password */
 {
-	while(*s) {			/* while not at end	   */
-	    if(*s == *pwdchar)		/* if next char is password delimiter */
-		return (s);		/* return its address	   */
-	    s ++;			/* else goto next position */
-	}				
-	return (s);			/* if end, return ptr to '\0' terminator */
+   while ( *s ) {             /* while not at end	   */
+      if ( *s == *pwdchar ) { /* if next char is password delimiter */
+         return ( s );        /* return its address	   */
+      }
+      s++; /* else goto next position */
+   }
+   return ( s ); /* if end, return ptr to '\0' terminator */
 }
 #endif

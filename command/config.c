@@ -60,7 +60,6 @@
  *		(You can save and restore state in batch files)
  */
 
-#include "defines.h"
 #include <string.h>
 
 #if defined( MWC ) && defined( strlen )

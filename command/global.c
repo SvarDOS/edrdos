@@ -39,7 +39,6 @@
  21 Sep 88  Change the default ECHO state to be ON.
 */
 
-#include	"defines.h"
 #include	<portab.h>
 #include	<command.h>		/* Command Definitions */
 /*.pa*/
