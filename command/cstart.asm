@@ -1029,6 +1029,12 @@ acm_5:
 	mov	ah,MS_M_ALLOC		; block at the end of memory
 	int	DOS_INT			; AX=Segment of new block of memory
 	mov	alloc_seg,ax		; save address so we can free it
+if ThreeCOM
+	cmp	bx,1000h		; do we have at least 64k ?
+	 jb	acm_6			; if so do 3-Com fix and start
+	mov	si,1000h		; Transient portion 64k down
+acm_6:
+endif
 	add	ax,bx			; go to top of memory we allocated
 
 	cmp	ax,0a000h		; dont use memory above A000 as this
