@@ -278,13 +278,3 @@ GLOBAL VOID CDECL cmd_idle( REG BYTE *cmd )
    }
 }
 
-#if !defined( FINAL ) && !defined( DOSPLUS )
-/*
- *	DBG [ON|OFF]
- */
-GLOBAL VOID CDECL cmd_dbg( cmd )
-REG BYTE *cmd;
-{
-   setflag( cmd, MSG_DEBUG, (UWORD FAR *)&pd->P_SFLAG, PSF_DEBUG );
-}
-#endif

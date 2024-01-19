@@ -108,22 +108,7 @@ GLOBAL UWORD	bufsize; 		/* External Copy Buffer Size	*/
 
 GLOBAL INTERNAT country;	/* country data structure	     */
 
-#if defined(DOSPLUS)
 GLOBAL BYTE	*ftypes[] = { "com", "exe", "bat", NULL};
-#else
-GLOBAL BYTE	*ftypes[] = { "cmd", "com", "exe", "bat", NULL};
-#endif
-
-/* This pointer is initialized by the Startup routine and   */
-/* would be defined there if I could persuade the compiler  */
-/* to reference it correctly.				    */
-
-#if !defined(DOSPLUS)
-#include	<pd.h>		/* PD Structure Declaration */
-
-GLOBAL	PD FAR * CDECL pd = (PD FAR *) 1234L;	/* FAR pointer to our PD    */
-GLOBAL WORD CDECL sysdat_seg = 0;		/* Segment address of SYSDAT */
-#endif
 
 GLOBAL	BOOLEAN	c_option = FALSE;
 GLOBAL	BOOLEAN k_option = FALSE;

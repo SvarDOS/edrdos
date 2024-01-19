@@ -8,9 +8,9 @@
 .ERASE
 
 WCC = wcc
-CFLAGS = -q -os -s -dDOSPLUS -dFINAL -dWATCOMC -i=.
+CFLAGS = -q -os -s -dFINAL -dWATCOMC -i=.
 WASM = jwasm
-WASM_FLAGS = -q -c -Zm -Zg -DDOSPLUS -DWATCOMC -DPASCAL -DFINAL -I./
+WASM_FLAGS = -q -c -Zm -Zg -DWATCOMC -DPASCAL -DFINAL -I./
 WLINK = wlink
 EXE2BIN = exe2bin
 
