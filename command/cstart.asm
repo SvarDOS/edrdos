@@ -245,79 +245,24 @@ RLSTACK_SIZE	equ	256+256		; Reserve for ReadLine stack
 					; a disaster - we will just re-load
            				; COMMAND.COM
 
-ifdef CDOSTMP
-C_HEAP_SIZE	equ	1200h		; C routine Heap Size - TMP has
-else					;  extra to save ENV in
+
 ;C_HEAP_SIZE	equ	0800h		; C routine Heap Size
-;endif					; (observed sizes 500h-600h - IJ)
+					; (observed sizes 500h-600h - IJ)
 C_HEAP_SIZE	equ	0CC0h		; C routine Heap Size
 ; For safety increased that value as UNC filenames require 128 byte buffers
 ; allocated dynamically on tha stack. With respect to the observed sizes
 ; above it might be dangerous to leave that value at 0800h. I would have
 ; increased the value to 0A00 but then it does no longer fit into HMA. (JBM)
-endif
 
-ifdef DOSPLUS
+
 include f52data.def
-else
-.xlist
-include	system.def
-include pd.def
-.list
 
-XIOS_HISTBUF	equ	44		; Get the History Buffer Address
-XIOS_PCKBD	equ	32		; Set keyboard/screen modes
-
-NETMOD_BIT	equ	040h		; Network Module in MODULE_MAP
-
-; Concurrent DOS System Data Page Format
-XIOS_ENTRY	equ	ds:dword ptr 0028h	; XIOS function Entry
-CCPMSEG		equ	es:word ptr 0040h	; OS Starting Paragraph
-MODULE_MAP	equ	es:byte ptr 0046h	; Concurrent Module Map
-NVCNS		equ	es:byte ptr 0047h	; Number of Virtual Consoles
-MFL		equ	es:word ptr 005Ah	; Memory Free List
-RLR		equ	es:word ptr 0068h	; Ready List Root	
-VERSION		equ	es:word ptr 0078h	; OS Version String Offset
-MWDR		equ	es:word ptr 0098h	; Memory Window Decriptor
-BOOTDRV		equ	es:byte ptr 009Dh	; System Boot Drive
-ENVSIZE 	equ	es:word ptr 00B8h	; Environment Size Bytes
-DRNET_NODE	equ	es:byte ptr 00BAh	; DR-NET Node Number
-DRNET_FLAG	equ	es:byte ptr 00BB	; DR-NET Flags
-V386_PTR	equ	es:word ptr 00C8h	; 386 Data pointer
-
-CCBLIST		equ	es:word ptr 0C3Eh	; XIOS CCB$LIST
-INT17_PTR	equ	es:word ptr 0C46h	; XIOS INT 17 Mapping Array
-INT14_PTR	equ	es:word ptr 0C48h	; XIOS INT 14 Mapping Array
-
-CCB_OWNER	equ	es:word ptr 0		; CCB Owning Process
-CCB_PCNS	equ	es:byte ptr 10		; CCB Physical Console Number
-CCB_VCNS	equ	es:byte ptr 11		; CCB Virtual Console Number
-
-MF_CODE		equ	0004h			; MD flag bit
-endif
 ;
 ;	Standard definitions for PSP variable
 ;
 PSP_TERM_IP	equ	es:word ptr 000Ah
 PSP_PARENT	equ	es:word ptr 0016h
 PSP_ENVIRON	equ	es:word ptr 002ch
-
-
-ifndef DOSPLUS
-;	The following Macro takes one parameter which is the Concurrent DOS
-;	function number.
-
-bdos	MACRO	func
-ifnb	<func>
-	mov	cl,func
-endif
-	int	224
-	ENDM
-
-.xlist
-include	ccpm.equ
-.list
-endif
 
 swap	MACRO	reg1, reg2
 	push	reg1
@@ -327,52 +272,8 @@ swap	MACRO	reg1, reg2
 	ENDM
 	
 	page
-ifdef CDOSTMP
-;
-;	For the Concurrent DOS TMP the CGROUP segments are defined
-;	first so that the CGROUP appears first in the .EXE file and
-;	can be converted to a .COM by "RELOC" or "EXE2BIN". This .COM
-;	file is then converted to a .CMD by the COM2CMD utility which
-;	uses the data embeded at the start of the code to generate the
-;	right groups.
-;
-HGROUP	GROUP	HEADER
-HEADER		SEGMENT para public 'HEADER'
-HEADER		ENDS
 
-DGROUP	GROUP	RSP_SEG,PD_SEG,UDA_SEG,NULL,EXEC_CODE,_DATA,DATA,CONST,FIXED,_BSS,HEAP,c_common,STACK,DYNAMIC
 
-RSP_SEG		SEGMENT para public 'CDOS_DATA'
-RSP_SEG		ENDS
-PD_SEG		SEGMENT para public 'CDOS_DATA'
-PD_SEG		ENDS
-UDA_SEG		SEGMENT para public 'CDOS_DATA'
-UDA_SEG		ENDS
-NULL		SEGMENT para public 'BEGDATA'
-NULL		ENDS
-EXEC_CODE	SEGMENT byte public 'DATA'
-EXEC_CODE	ENDS
-_DATA		SEGMENT byte public 'DATA'
-_DATA		ENDS
-DATA		SEGMENT byte public 'DATA'
-DATA		ENDS
-CONST		SEGMENT byte public 'CONST'
-CONST		ENDS
-FIXED		SEGMENT para public 'FDATA'
-FIXED		ENDS
-_BSS		SEGMENT word public 'BSS'
-_BSS		ENDS
-HEAP		SEGMENT word public 'BSS'
-HEAP		ENDS
-c_common	SEGMENT byte public 'BSS'
-c_common	ENDS
-STACK		SEGMENT para public 'BSS'
-STACK		ENDS
-DYNAMIC		SEGMENT para public 'DDATA'
-DYNAMIC		ENDS
-endif
-
-ifndef CDOSTMP
 ;	The following declarations declare the presence and order of
 ;	various data segments within the DATA Group of the command
 ;	processor.
@@ -409,7 +310,7 @@ _argv0		db	MAX_FILELEN dup(?)
 ED_TEXT		ENDS
 DYNAMIC		SEGMENT para public 'DDATA'
 DYNAMIC		ENDS
-endif
+
 
 CGROUP	GROUP	_TEXT, _MSG, _TEXTEND
 _TEXT		SEGMENT para public 'CODE'
@@ -456,36 +357,7 @@ page
 public	__acrtused		; trick to force in startup
 	__acrtused = 9876h	; funny value not easily matched in SYMDEB
 
-ifdef CDOSTMP
-HEADER		SEGMENT public 'HEADER'
-	dw	0EDCh				; Header Signature
-	dw	offset HGROUP:CGROUP		; Code Group
-	dw	real_code			; Real Code Size
-	dw	offset HGROUP:DGROUP
-	dw	total_length
-	dw	static_length
-HEADER		ENDS
 
-;	These Segments are forced into the correct order for a CDOS 
-;	Resident System Process. First the RSP header which contains
-;	the regeneration information required by GENSYS.
-;
-RSP_SEG	SEGMENT
-sysdatseg	dw	0			; system data segment
-sdatvar		dw	0047h			; # of system consoles
-defconsole	db	0,0			; console # | copy #
-		dw	0,0
-		dw	RSF_DYNAMIC+RSF_SPECIAL+RSF_ENVIRON
-		dw	0
-		dw	0
-
-RSP_SEG	ENDS
-
-_DATA		SEGMENT byte public 'DATA'
-	extrn	_gp_far_buff:word
-_DATA		ENDS
-
-else
 R_TEXT	SEGMENT
 	assume cs:DGROUP, ds:nothing, es:nothing, ss:nothing
 
@@ -505,10 +377,7 @@ endif
 endif
 
 	extrn	_gp_far_buff:word
-
-ifdef	DOSPLUS
 	extrn	com_criterr:near
-endif
 
 
 cstart:					; start address of all "C" programs
@@ -574,15 +443,7 @@ int2E_seg	dw	0
 batch_seg_ptr	dw 0ffffh		; file filename. For novell remote
 					; boot support.
 
-ifdef DOSPLUS
 reload_file	db	'A:\COMMAND.COM',0
-else
-ifdef NETWARE
-reload_file	db	'A:\NETWARE.COM',0
-else
-reload_file	db	'A:\CDOS.COM',0
-endif
-endif
 		db	(80-15) dup ('n')	; Expanded LoadPath
 
 ;cmdline	db	128 dup ('c')	; Local Copy of Initial Command Line
@@ -623,43 +484,10 @@ _cbreak_ok	db	0	; set when ctrl-break handler initialised
 
 R_TEXT	ENDS
 
-endif
 
 _TEXT	SEGMENT
-ifdef  CDOSTMP
-	assume cs:CGROUP, ds:DGROUP, ss:DGROUP
-;
-;	This entry point is used when the startup is executed as an
-;	RSP. CS is CGROUP and DS is DGROUP. From here on we initialise
-;	internal data structures etc. 
-;
 
-ifdef	WATCOMC
-	Public	_small_code_		; Watcom C requires this label to
-_small_code_	label	near		; be declared in the start-up module
-else
-ifdef	MWC
-	Public	_mwINIT			; MetaWare requires this label
-_mwINIT		label	near		; to be declared in the start-up
-					; module
-else
-    Public  __cstart       
-__cstart	label	near		; to be declared in the start-up
-					; module
-endif
-endif
-
-cstart:
-	call	RSP_start		; Push the IP register and Skip the
-retIP:					; version control messages.
-	dw	0EDCh			; Digital Research Marker
-	dw	code_length		; Length of the Code Group
-	dw	static_length		; Length of the Fixed Data Group
-	dw	total_length		; Minimum Length of the Runtime
-					; Data Group
-else
  	extrn	_int2e_handler:far
-endif
 	extrn	__main:far		; C main program
 
 
@@ -673,11 +501,6 @@ _DATA	SEGMENT
 ;	startup module.
 ;
 psp_save_area	dw	6 dup (?)
-
-ifndef DOSPLUS
-	extrn	_pd:dword		; Concurrent Process Descriptor
-	extrn	_sysdat_seg:word	; Concurrent System Data Page
-endif
 
 	extrn	_n_option:word
 ;
@@ -693,254 +516,6 @@ data_seg	dw	?			; DGROUP segment
 alloc_seg	dw	?			; the start of hi mem allocated
 low_seg		dw	?			; segment of low memory stub.
 
-ifdef CDOSTMP	
-
-	Public	__psp2
-__psp2		dw	0
-
-cmd_histbuf	dw	0		; Command Processor History Buffer
-prog_histbuf	dw	0		; Program History Buffer
-
-mpb		label	word
-mpb_start	dw	?
-mpb_min		dw	?
-mpb_max		dw	?
-mpb_pdadr	dw	?
-mpb_flags	dw	?
-	
-sysdat		dw	?		; Concurrent System Data Page
-uda		dw	?		; Concurrent User Data Area
-;
-;	The following buffer is used by the P_EXEC function. Used
-;	by CDOS_EXEC to load DOS and CP/M programs.
-;
-exec_block	label	byte
-exec_pathoff	dw	?		; Offset of ASCIIZ Load file
-exec_pathseg	dw	?		; Segment of ASCIIZ Load File
-exec_filetype	db	?		; File Type Index
-exec_loadtype	db	?		; EXEC or CHAIN to application
-exec_clineoff	dw	?		; ASCIIZ Command line Offset
-exec_clineseg	dw	?		; ASCIIZ Command Line Segment
-
-exec		label	dword		; FAR pointer to EXEC routine
-		dw	dataOFFSET cdos_exec
-exec_seg	dw	?
-
-cmdline		db	0		; Blank Command Line
-
-EXEC_CODE	SEGMENT
-
-	Assume	CS:DGROUP, DS:DGROUP, SS:DGROUP
-
-err_tbl		db	0		; 00 Success
-		db	-101		; 01 System Call Not Implemented
-		db	-102		; 02 Illegal System Call
-		db	ED_MEMORY	; 03 Cannot Find Memory
-		db	-104		; 04 Illegal Flag Number
-		db	-105		; 05 Flag Overrun
-		db	-106		; 06 Flag Underrun
-		db	-107		; 07 No Unused Queue Descriptors
-		db	-108		; 08 No free Queue Buffer
-		db	-109		; 09 Cannot find Queue
-		db	-110		; 10 Queue in Use
-		db	-111		; 11
-		db	-112		; 12 No Free Process Descriptors
-		db	-113		; 13 No Queue Access
-		db	-114		; 14 Empty Queue
-		db	-115		; 15 Full Queue
-		db	-116		; 16 CLI Queue missing
-		db	-117		; 17 No 8087 in system
-		db	ED_DMD		; 18 No Unused Memory Descriptors
-		db	-119		; 19 Illegal Console Number
-		db	-120		; 20 No Process Descriptor Match
-		db	-121		; 21 No Console Match
-		db	-122		; 22 No CLI Process ??
-		db	-123		; 23 Illegal Disk Number
-		db	-124		; 24 Illegal FileName
-		db	-125		; 25 Illegal FileType 
-		db	-126		; 26 Character Not Ready
-		db	ED_BLOCK	; 27 Illegal Memory Descriptor
-		db	-128		; 28 Bad Return from BDOS load
-		db	ED_FAIL		; 29 Bad Return from BDOS read
-		db	ED_ACCESS	; 30 Bad Return from BDOS Open
-		db	-131		; 31 Null Command
-		db	ED_ENVIRON	; 32 Not owner of resource
-		db	-133		; 33 No Cseg in Load File
-		db	-134		; 34 PD exists on Thread Root
-		db	-135		; 35 Could Not Terminate Process
-		db	-136		; 36 Cannot ATTACH to Process
-		db	-137		; 37 Illegal List Device Number
-		db	ED_PASSWORD	; 38 Illegal Password
-		db	-139		; 39
-		db	-140		; 40 External Termination
-		db	-141		; 41 Fixup Error on Load
-		db	-142		; 42 Flag Set Ignored
-		db	-143		; 43 Illegal Aux Device Number
-
-cdos2dos PROC NEAR
-	cmp	ax,0000			; Check for Success
-	jz	c2d10			; and skip lookup
-	lea	bx,err_tbl		; xlat the error code in AL
-	xlat	err_tbl			; into a Negated DOS compatible
-	mov	ah,0FFH			; error code
-c2d10:
-	ret
-cdos2dos ENDP
-
-; WORD FAR CDECL cdos_exec(BYTE *path, UWORD type, BYTE *line, BOOLEAN back);
-;
-; On Entry:
-;	back	10[bp]
-;	line	08[bp]
-;	type	06[bp]
-;	path	04[bp]
-;
-;	ES = SYSDAT
-;
-; On Exit:
-;	AX = exit error code
-;
-cdos_exec PROC FAR
-	lea	si,P_MEM[bx]		; SI -> root of MD's
-ce_10:					; find our code segment
-	mov	si,es:[si]		; get next memory descriptor
-	test	si,si			; end of list?
-	 jz	ce_40			; yes, we don't own any separate code
-	test	es:word ptr 6[si],MF_CODE
-	 jz	ce_10			; loop back if not code segment
-	mov	si,es:8[si]		; get MPAD for code segment
-	lea	di,P_MPAR[bx]		; get MPAD root
-ce_20:
-	cmp	si,es:[di]		; is this the predecessor?
-	 je	ce_30
-	mov	di,es:[di]		; else check next MPAD
-	jmp	short ce_20
-ce_30:					; SI -> our MPAD, DI -> previous MPAD
-	xor	ax,ax
-	xchg	ax,es:[si]		; get next MPAD
-	mov	es:[di],ax		; unlink our MPAD from list
-ce_40:
-	push	di
-	push	si			; SI = 0 if no separate code alloc
-
-	push	ds
-	mov	ds,es:P_PSP[bx]		; point to our PSP
-	mov	ds:word ptr [5eh],si	; stash TMP mpad away in here
-	pop	ds
-
-	mov	dx,198			; Raise the priority of the TMP
-	bdos	P_PRIORITY		; while we wait for the child
-
-	mov	dx,dataOFFSET exec_block
-	push	es			; do a P_EXEC but save /restore
-	bdos	P_EXEC			; ES around it since DRNET trashes
-	pop	es			; it sometimes.
-
-	mov	ax,cx			; Get the Concurrent Error Code
-	call	cdos2dos		; and convert to a standard DOS
-	push	ax
-					; Error Code for COMMAND.RSP
-	test	ax,ax			; If any errors occured during the 
-	 jnz	ce_60			; exec or the child process is not
-	cmp	word ptr 10[bp],0	; inheriting the console the do not
-	 jnz	ce_60			; execute a Console Attach function
-	bdos	C_ATTACH		; process to terminate
-ce_60:	
-	mov	dx,200			; Return to the normal priority
-	bdos	P_PRIORITY		; now that we have the console back
-	pop	ax
-	pop	si
-	pop	di
-	test	si,si			; separate code allocation?
-	 jz	ce_50			; no, don't have to un-kludge!
-	push	ax
-	mov	ax,es:[di]		; get link of previous MPAD
-	mov	es:[si],ax		; link it to our MPAD
-	mov	es:[di],si		; link our MPAD to previous MPAD
-	mov	dx,1			; make sure code gets banked in
-	bdos	P_DELAY			; this gets us off/on RLR
-	pop	ax
-ce_50:
-	ret
-cdos_exec ENDP	
-
-EXEC_CODE	ENDS
-
-_TEXT	SEGMENT
-	assume cs:CGROUP, ds:DGROUP, es:nothing, ss:nothing
-	public	_exec			; EXEC routine
-
-;
-; WORD CDECL exec(BYTE *path, UWORD type, BYTE *line, BOOLEAN back);
-;
-; On Entry:
-;	back	10[bp]		; This value is ignored for MSDOS_EXEC
-;	line	08[bp]
-;	type	06[bp]
-;	path	04[bp]
-;
-; On Exit:
-;	AX = exit error code
-;
-_exec:
-;-----
-	push	bp
-	mov	bp,sp
-	push	si
-	push	di
-	mov	ax,04[bp]		; Get the Full Command Name
-	mov	exec_pathoff,ax
-	mov	exec_pathseg,ds
-
-	mov	ax,08[bp]		; and the Command Line
-	mov	exec_clineoff,ax
-	mov	exec_clineseg,ds
-
-	mov	ax,06[bp]		; Get the Command Type (.CMD etc)
-	mov	exec_filetype,al	; Save the Command type
-	mov	exec_loadtype, 0	; The default is to load the command
-	cmp	word ptr 10[bp],0	; and for the child to inherit the
-	 jz	exec_10			; console
-	mov	exec_loadtype,2
-exec_10:
-
-	test	al,al			; is command type a CMD
-	 jnz	exec20			; no, skip XIOS call
-	mov	ax,XIOS_PCKBD		; CMD's expect 24 lines
-	mov	cl,40h			; so tell XIOS thats what we must have
-	mov	dl,defconsole		; on this console
-	call	xios
-exec20:
-
-	les	bx,_pd			; Get the process Descriptor Address
-	mov	cx,prog_histbuf		; and force the system to use the
-	mov	es:P_SB_SEG[bx],cx	; Program Level History Buffer
-
-	call	exec			; do FAR call to cdos_exec
-
-	les	bx,_pd			; Get the process Descriptor Address
-	mov	cx,cmd_histbuf		; and force the system to use the
-	mov	es:P_SB_SEG[bx],cx	; Command Level History Buffer
-
-	cmp	exec_filetype,0		; was it a CMD
-	 jne	exec30
-	push	ax
-	mov	ax,XIOS_PCKBD		; we are in must-be-24 line
-	mov	cl,0			; mode, get back to default mode
-	mov	dl,defconsole		; for console number
-	call	xios
-	pop	ax
-exec30:
-	pop	di
-	pop	si
-	pop	bp
-	ret
-
-_TEXT	ENDS
-
-
-	Assume	CS:DGROUP, DS:DGROUP, SS:DGROUP
-else
 ;
 ;	Novell 2.1 intercepts the DOSPLUS 4B00  return by updating the
 ;	PSP USER_SS/SP and  when it returns ALL registers except CS:IP
@@ -1025,8 +600,8 @@ i2e_i24vec	label	dword
 i2e_i24off	dw	?
 i2e_i24seg	dw	?
 
-endif
 _DATA	ENDS
+
 
 _BSS	SEGMENT
 Public	_edata
@@ -1047,23 +622,6 @@ ETEXT	SEGMENT
 rlstack		label	word
 
 ETEXT	ENDS
-
-ifdef CDOSTMP
-STACK	SEGMENT
-
-Public	_end
-_end	label	BYTE		; end of bss (start of starup/stack)
-
- 		db	(C_HEAP_SIZE - 6) dup (0DDh)	; C Heap Area
-stack_top	label	word
-stack_ip	dw	?		; Initial Offset	
-stack_cs	dw	?		; Initial Code Segment (Unknown)
-stack_flags	dw	?		; Initial Flags (Unknown)
-
-temp_buffer	db	512 dup(0)	; temp far buffer for *gp_far_buff
-
-STACK	ENDS
-else
 
 STACK	SEGMENT
 
@@ -1099,8 +657,6 @@ getIP	PROC	FAR
 	ret				; a RETF instruction to correct CS.
 getIP	ENDP
 
-ifdef DOSPLUS
-
 ; Most of the PSP (FCB's and command buffer) is unused - we reclaim this space
 ; by relocating the resident part of COMMAND.COM
 
@@ -1115,55 +671,13 @@ reloc_code:
 ; address into a FAR. We then setup our registers appropriately and execute
 ; this code.
 ;
-if 1
-	ret
-else
-	cmp	ds:byte ptr 0080h,7fh	; discard garbage cmdline lengths
-	jb	reloc_code10
 	ret
 
-reloc_code10:	 
-	pop	bx			; recover return offset
-
-	mov	ax,0
-	push	ax			; 0 (part of RETF 6)
-	mov	ax,006cah
-	push	ax			; RETF 6 on stack
-
-	mov	ax,0a4f3h
-	push	ax			; REP MOVSB on stack
-
-	mov	al,ds:0080h		; Get the Command length
-	xor	ah,ah
-	mov	cl,4			; convert AX to cmdline length
-	shr	ax,cl			; in rounded down para's
-	add	ax,9			; keep at least this much
-	mov	si,ds
-	add	ax,si			; add in PSP
-	mov	es,ax
-	mov	cx,sp			; save address of code on stack
-	push	ax
-	push	bx			; new RETF address on stack
-
-	push	ss
-	push	cx			; address of CODE on stack
-
-	push	cs
-	pop	ds			; DS -> DGROUP
-	xor	si,si			; setup DS:SI, ES:DI and CX
-	xor	di,di			;  ready to do REP MOVSB
-	mov	cx,total_length		; DGROUP length
-	add	cx,real_code		;+CGROUP length
-	
-	db	0cbh			; RETF to code on stack
-endif	
-endif
 
 gotCS:
 	;out	0fdh,al			; for debug purposes
 	
 	mov	[__psp2],ds		; Save our PSP in the local variable
-ifdef DOSPLUS
 	mov	ax,cs			; put our stack somewhere safe
 	mov	ss,ax
 	mov	sp,dataOFFSET rlstack
@@ -1172,7 +686,6 @@ ifdef DOSPLUS
 	call	reloc_code		; relocate code over unused bit of PSP
 	pop	di
 	pop	ds
-endif
 ifdef DLS
 	call	_my_dls_init
 endif
@@ -1286,12 +799,10 @@ carry_on:
 	int	DOS_INT
 	
 cstart_10:
-ifdef	DOSPLUS
 	mov	ax,4457h		; terminate HILOAD operation
 	mov	dx,200h
 	int	DOS_INT
 	call	dbcs_init		; initialise the DBCS support
-endif
 	call	get_cs
 	push	ax
 	mov	ax,codeOFFSET memory_init
@@ -1334,13 +845,6 @@ exec_n05:				; Scan through the Environment
 	mov	ah,60h
 	int	DOS_INT
 exec_n15:
-if 0
-	mov	di,dataOFFSET reload_file ; this ASCIIZ string is on the heap
-	xor	ax,ax			;  so now we need to find out how
-	mov	cx,-1			;  much space it takes up and reserve
-	repne	scasb			;  that amount of the heap
-	mov	heap_top,di		; byte after the NUL is available
-endif
 	pop	ds
 	pop	es
 	ret
@@ -1357,7 +861,6 @@ exec_n11:
 	;mov	es,ax			 ; ES -> Command Processor Data Seg
 	jmp	exec_n15
 
-ifdef	DOSPLUS
 DI_BUF_PTR	equ	dword ptr -4	; pointer to DBCS lead byte table
 DI_BUF_ID	equ	byte ptr -5	; buffer id
 DI_BUF		equ	byte ptr -5	; buffer
@@ -1421,8 +924,6 @@ di_exit:
 	pop	bp
 	ret
 dbcs_init	endp
-
-endif
 
 ; I want to do
 ;	db	(C_HEAP_SIZE - 6 - ($ - stack_start)) dup (0DDh)
@@ -1528,12 +1029,6 @@ acm_5:
 	mov	ah,MS_M_ALLOC		; block at the end of memory
 	int	DOS_INT			; AX=Segment of new block of memory
 	mov	alloc_seg,ax		; save address so we can free it
-if ThreeCOM
-	cmp	bx,1000h		; do we have at least 64k ?
-	 jb	acm_6			; if so do 3-Com fix and start
-	mov	si,1000h		; Transient portion 64k down
-acm_6:
-endif
 	add	ax,bx			; go to top of memory we allocated
 
 	cmp	ax,0a000h		; dont use memory above A000 as this
@@ -1582,13 +1077,6 @@ free_com_memory:
 
 ;	Set up the default Control Break Handler.
 handler_init:
-ifndef DOSPLUS
-	mov	ax,4453h			; Get the address of the
-	int	DOS_INT				; internal Critical Error
-	jc	handler_i10			; handler Ignore on Error
-	mov	word ptr critical+0,ax		; Save the handler Offset (AX)
-	mov	word ptr critical+2,bx		; and Segment (BX)
-endif
 	mov	al,24h				; Set the default Critical
 	mov	dx,dataOFFSET critical_error	; Error Handler
 	mov	bx,dataOFFSET crit_error_entry
@@ -1687,7 +1175,6 @@ critical_error	PROC FAR
 	push	ax
 	call	get_ds			; Get the Command Processor DS
 	mov		ds,ax			; and call the original routine
-ifdef DOSPLUS
 	mov 	ax, _n_option	; check for /n command line option
 	cmp		ax, 0
 	pop		ax
@@ -1697,11 +1184,6 @@ ifdef DOSPLUS
 skip_criterr:
 	mov		al,3			; /n option => always return fail
 criterr_cont:
-else
-	pop		ax
-	pushf
-	call	critical		; stored previous handler
-endif
 	cmp	al,02h			; Did the user request a Terminate
 	 jne	critical_e20		; Yes so check if they are trying to
 	push	ax			; terminate the command processor
@@ -2174,16 +1656,9 @@ _readline:
 	push	si
 	push	di
 	push	es
-ifdef	DOSPLUS
 	mov	ax,4456h		; Swap to the Command process
 	mov	dl,1			; History Buffer in DR DOS
 	int	DOS_INT
-else
-	push	ds
-	call	get_history_buffers	; get history buffers
-	mov	P_SB_SEG[bx],ax		; swap to command one
-	pop	ds
-endif
 	mov	ax,5d09h
 	int	DOS_INT			; close remote spool files
 	mov	ax,5d08h
@@ -2197,43 +1672,14 @@ endif
 	mov	dx,4[bp]		; get the buffer address and current
 	mov	ax,cs			; AX = transient code segment
 	call	readline		; do far call to msdos_readline
-ifdef	DOSPLUS
 	mov	ax,4456h		; Swap to the Application process
 	mov	dl,0			; History Buffer in DR DOS
 	int	DOS_INT
-else
-	push	ds
-	call	get_history_buffers	; get history buffers
-	mov	P_SB_SEG[bx],dx		; swap to application one
-	pop	ds
-endif
 	pop	es
 	pop	di
 	pop	si
 	pop	bp
 	ret
-
-ifdef CDOS
-get_history_buffers	proc	near
-; On Entry:
-;	None
-; On Exit:
-;	AX = command history buffers
-;	DX = application history buffers
-;	DS:BX -> pd
-;	NB. both DS and ES are corrupted by this call
-;
-	mov	ds,_sysdat_seg		; DS points to SYSDAT and ES to the
-	mov	bx,ds:word ptr [68h]	; current process's UDA
-	mov	dl,P_CNS[bx]		; DL = console number
-	mov	es,P_UDA[bx]
-	push	bx
-	mov	ax,XIOS_HISTBUF		; Get the History Buffer Address's
-	call	XIOS_ENTRY		;  by calling ths XIOS
-	pop	bx
-	ret
-get_history_buffers	endp
-endif
 
 _TEXT	ENDS
 
@@ -2503,160 +1949,12 @@ reload_err10:
 	ret
 
 ED_TEXT	ENDS
-endif
+
 
 	page
 _TEXT	SEGMENT
-	assume cs:CGROUP, ds:DGROUP, ss:DGROUP
-ifdef CDOSTMP
-RSP_start:
-	mov	ax,ds
-	mov	es,ax
-	cli				; Swap stacks with interrupts disabled
-	mov	ss,ax			; just in case we're on an 8088/86
-	mov	sp,dataOFFSET stack_top
-	sti
-	mov	insys,0			; Reset the INSYS Flag
+	assume cs:CGROUP, ds:DGROUP, es:DGROUP, ss:DGROUP
 
-	mov	_gp_far_buff,dataOFFSET temp_buffer
-	mov	_gp_far_buff+2,ax	; save address of temp buffer
-
-	mov	dl,defconsole		; Set this process's Default Console
-	bdos	C_SET
-	bdos	C_ATTACH
-
-	bdos	P_PDADR			; Get the address of the current
-	mov	sysdat,es		; PD and SYSDAT
-
-	mov	dl,BOOTDRV		; Get the BOOT Drive
-	mov	es:P_DSK[bx],dl		; Update the running process
-	mov	bx,dataOFFSET pd_seg	; Update the default drive field
-	mov	P_DSK[bx],dl		; In the P_CREATE process descriptor
-
-	mov	bx,es:INT17_PTR		; Initialise the default printer
-	mov	al,defconsole		; from the INT17 Mapping Array
-	mul	es:byte ptr [bx]
-	add	bx,ax
-	mov	dl,es:1[bx]
-	bdos	L_SET
-
-	mov	bx,es:INT14_PTR		; Initialise the default printer
-	mov	al,defconsole		; from the INT14 Mapping Array
-	mul	es:byte ptr [bx]
-	add	bx,ax
-	mov	dl,es:1[bx]
-	bdos	A_SET
-
-	mov	[code_seg],cs		; Update the CODE_SEG and EXEC_SEG
-	mov	[exec_seg],ds		;     variables
-
-	mov	dl,0FFh			; Set the BDOS Error Mode to Return
-	bdos	F_ERRMODE		; with No Display
-
-	mov	dx,ds			; Initialise the DMA Segment
-	bdos	F_DMASEG		; Pointer to Our DS
-
-	bdos	P_PDADR			; Set ES:BX to the Process Descriptor
-	mov	word ptr _pd,bx		; Save these values locally
-	mov	word ptr _pd+2,es
-	mov	_sysdat_seg,es
-
-	or	es:P_CONMODE[bx],PCM_FCTLC
-	mov	es:P_PARENT[bx],0	; Zero the Parent Pointer
-	mov	ax,es:P_UDA[bx]		; Finally get our UDA and save it. 
-	mov	uda,ax
-	
-	
-	mov	ax,es:P_PSP[bx]
-	mov	[__psp2],ax
-	
-	mov	ax,XIOS_HISTBUF		; Get the History Buffer Address's
-	mov	dl,defconsole		; for console number
-	call	xios
-	mov	cmd_histbuf,ax		; AX == Command Level History Buffer
-	mov	prog_histbuf,dx		; DX == Program History Buffer
-
-	les	bx,_pd			; Get the Process descriptor address
-	mov	es:P_SB_SEG[bx],ax	; and use the Command Line 
-					; History Buffer
-
-; File Ownership stuff
-	les	bx,_pd			; Get our process descriptor address
-	mov	al,es:P_CNS[bx]		; get the current VC No.
-	xor	ah,ah
-	mov	bx,CCBLIST		; XIOS CCB$LIST
-	add	bx,ax
-	add	bx,ax
-	mov	bx,es:word ptr [bx]	; extract the correct
-	mov	ah,CCB_PCNS[bx]		; Physical Console Number.
-
-	mov	ch,0
-	mov	cl,NVCNS		; now work through all consoles
-	mov	bx,CCBLIST		; looking for 1st one with this PC
-RSP_start10:
-	mov	di,es:word ptr [bx]	; Get the CCB address
-	cmp	ah,CCB_PCNS[di]		; Is this the same physical console
-	 je	RSP_start20		; no, ignore this one
-	add	bx,2			; onto next CCB
-	loop	RSP_start10
-	jmp	RSP_start60		; impossible....
-
-RSP_start20:
-	cmp	al,CCB_VCNS[di]		; is it the same virtual console ?
-	 je	RSP_start40		;  yes, allocate new FA_ structure
-RSP_start30:
-	push	di
-	mov	dx,5
-	bdos	P_DELAY			; wait a bit
-	pop	di			; then see if it has been allocated
-	mov	si,CCB_OWNER[di]	; si -> owning process
-	mov	si,es:P_FILE_ACCESS[si]	; File Access structure
-	test	es:FA_FLAGS[si],FAF_TMP_INIT ; is it the new one ?
-	 jz	RSP_start30		; no, delay again
-	inc	es:FA_COUNT[si]		; one more user for this structure
-	les	bx,_pd
-	xchg	si,es:P_FILE_ACCESS[bx]	; replace existing one
-	dec	es:FA_COUNT[si]		; one less user for old one
-	jmp	RSP_start60
-
-RSP_start40:
-	push	ax			; save PC/VC
-	cmp	ah,0			; is it the main box ?
-	 je	RSP_start45
-	mov	dx,5*50			; delay PC Terminals 5 secs while
-	bdos	P_DELAY			;  main box starts up
-RSP_start45:
-	mov	DX,FA_LENGTH		; we need this much SYSDAT memory
-	bdos	S_MEMORY		;  for our file access structure
-	pop	dx			; recover PC/VC
-	cmp	ax,0FFFFh		; if no memory
-	 je	RSP_start50		;  then just keep root one
-	les	di,_pd			; replace file access structure
-	xchg	ax,es:P_FILE_ACCESS[di]
-	xchg	ax,di
-	dec	es:FA_COUNT[di]		; we have stopped using this structure
-	mov	es:FA_USER[bx],0	; user # is super user
-	mov	es:FA_GROUP[bx],0	; and group is super group
-	mov	es:FA_DEF_ACCESS[bx],0	; initialise the new structure
-	mov	es:FA_COUNT[bx],1
-RSP_start50:
-	les	bx,_pd
-	mov	bx,es:P_FILE_ACCESS[bx]
-	mov	es:FA_FLAGS[bx],FAF_TMP_INIT
-RSP_start60:
-; File Ownership stuff ends
-
-	push	ds
-	mov	es,sysdat		; Get SYSDAT
-	mov	dx,VERSION		; get OS label offset in SUP segment
-	mov	ds,CCPMSEG		; get SUP segment for signon string
-	bdos	C_WRITESTR		; print OS label on current console
-	pop	ds
-endif
-;
-;
-	assume cs:CGROUP, ds:DGROUP, es:DGROUP
-;
 ;	zero data areas (_BSS and c_common)
 ;
 memory_init:
@@ -2678,36 +1976,15 @@ memory_init:
 
 ;	do necessary initialization BEFORE command line processing !
 
-ifndef CDOSTMP
+
 	push	es
 	mov	ax,4458h		; We now have an IOCTL function
 	int	21h			;  to get our private data
      jc mem_init10  
-ifdef DOSPLUS       
-	;les	ax,DRDOS_PD
-	;les	ax,es:dword ptr 0000h[bx]
-	;mov	word ptr _pd,ax	
-	;mov	word ptr _pd+2,es
-	;mov	_sysdat_seg,es
-else
-	mov	es:byte ptr [bx],-1	; say COMSPEC is loaded
-	mov	cl,P_PDADR		; Set ES:BX to the Process Descriptor
-	mov	ax,4459h		; use Int 21h so we don't crash if
-	int	21h			;  under DOS and we will give an error
-	mov	word ptr _pd,bx		;  from COM.C init().
-	mov	word ptr _pd+2,es	; Save these values locally
-	mov	_sysdat_seg,es
-endif
 mem_init10:
 	pop	es
-endif
 	xor	bp,bp			; mark top stack frame for SYMDEB
-
-ifdef CDOSTMP
-	mov	ax,dataOFFSET cmdline	; Pass a pointer to a NULL string
-else
 	call	get_cmdline		; Copy the command line to a local
-endif
 	push	ax			; buffer and pass the address to MAIN
 	call	C_code_entry		; main ( cmd )
 	add	sp,2			; Restore the Stack
@@ -2796,7 +2073,6 @@ dummy_lang	db	0		; default to primary language
 endif
 
 page
-ifndef	CDOSTMP
 
 ;
 ;	This following routine copies the initial command line from the PSP
@@ -2806,11 +2082,7 @@ ifndef	CDOSTMP
 ;
 
 get_cmdline:
-if 0
-	mov	di,dataOFFSET cmdline
-else
 	mov	di,heap_top			; copy cmdline onto the heap
-endif
 	push	ds				; Preserve DS and point to PSP
 	mov	ds,__psp2			; Get the PSP address
 	xor	cx,cx				; Now copy the command line
@@ -2830,12 +2102,8 @@ get_cmdl20:
 	xor	al,al				; Zero Terminate the command
 	stosb					; line copy for C.
 	pop	ds
-if 0
-	mov	ax,dataOFFSET cmdline		; Return the command line 
-else
 	mov	ax,di				; new bottom of heap
 	xchg	ax,heap_top			; return old one = cmdline
-endif
 	ret
 
 ;
@@ -2947,11 +2215,6 @@ _master_env:
 	push	si
 	push	di
 	push	es
-ifdef DOSPLUS
-;	mov	ax,(MS_M_STRATEGY*256)+1
-;	mov	bx,1			; set memory strategy to best fit
-;	int	DOS_INT
-endif
 	mov	bx,04[bp]		; Save the Specified Size
 	add	bx,15			; and force it to be an integer 
 	and	bx,not 15		; multiple of 16
@@ -3001,16 +2264,9 @@ master_env15:
 	jcxz	master_env20		; If this was a Desqview exec then
 	rep	movsb			; skip the environment copy and
 					; just initialize to 0000
-
-if TRUE					; Invalidate the contents of the
+					; Invalidate the contents of the
 	not	ds:word ptr 00h		; current environment so Novell
-else					; Netware finds the correct Master
-	push	es			; environment under Concurrent DOS.
-	mov	es,ax			;
-	mov	ah,MS_M_FREE		; A possible alternative is to free
-	int	DOS_INT			; the old environment but this would
-	pop	es			; change the memory allocations for
-endif					; sub-sequent loads.
+					; Netware finds the correct Master
 
 master_env20:
 	pop	ds
@@ -3018,38 +2274,13 @@ master_env20:
 	stosw
 
 master_env30:
-ifdef DOSPLUS
-;	mov	ax,(MS_M_STRATEGY*256)+1
-;	xor	bx,bx			; set memory strategy to first fit
-;	int	DOS_INT
-endif
 	pop	es
 	pop	di
 	pop	si
 	pop	bp
 	ret
 
-endif
 	page
-ifndef DOSPLUS
-;
-;	UWORD FAR *sysdat(WORD *);
-;
-	Public _sysdat
-_sysdat:
-	push	bp
-	mov	bp,sp
-	push	es
-	BDOS	S_SYSDAT		; Get the SYSDAT segment address
-	mov	ax,word ptr 04[bp]	; and the SYSDAT byte offset
-	mov	bx,es			; and return a FAR pointer to the
-	mov	dx,bx			; data required. MSC uses DX:AX
-	pop	es			; but cater for other compilers 
-	pop	bp			; just in case.
-	ret
-endif
-
-ifdef DOSPLUS
 ;
 ;	BOOLEAN CDECL int10_cls();
 ;
@@ -3155,153 +2386,10 @@ cginfo:
 	int	10h
 	ret				; dl = nlines - 1
 
-endif
-
-ifdef CDOSTMP
-
-xios:
-	push	ds			; Save the entry segment registers
-	push	es			; then call the XIOS correctly with 
-					; DS pointing to SYSDAT and ES to the
-	mov	es,uda			; current process's UDA
-	mov	ds,sysdat
-	call	XIOS_ENTRY
-	pop	es
-	pop	ds
-	ret
-
-endif
-
-ifndef DOSPLUS
-;
-;	_vc_data(&vc_base, &vc_num, &pc_num)
-;
-;	VC_DATA returns the first Virtual Console attached to the current
-;	physical console, the number of virtual consoles attached and the
-;	physical console.
-;
-	Public	_vc_data
-_vc_data:
-	push	bp
-	mov	bp,sp
-	push	es
-	push	si
-	push	di
-	mov	si,04[bp]		; SI == &VC_BASE
-	mov	word ptr [si],0000	; *vc_base = 0
-
-	les	bx,_pd			; Get our process descriptor address
-	mov	ah,0
-	mov	al,NVCNS
-	mov	cx,ax
-	mov	al,es:P_CNS[bx]		; get the current VC No.
-	mov	bx,CCBLIST		; XIOS CCB$LIST
-	mov	di,ax			; Calculate the correct entry in
-	shl	di,1			; the CCB$LIST which points to our
-	mov	di,es:word ptr [di+bx]	; CCB and then extract the correct
-	mov	al,CCB_PCNS[di]		; Physical Console Number.
-	mov	di,08[bp]		; Get the address of the PC_NUM
-	mov	word ptr [di],ax	; and save the Physical Console Number
-	mov	di,0000			; From CCB 0
-
-vc_d10:
-	push	di
-	mov	di,es:word ptr [di+bx]	; Get the CCB ad…ress
-	cmp	al,CCB_PCNS[di]		; Is this theY$ame physical console
-	pop	di			; Restore the original DI
-	jz	vc_d30			; Yes then save info
-vc_d20:
-	inc	word ptr [si]		; *VC_BASE++
-	inc	di			; Point to the next entry in
-	inc	di			; the CCB$LIST and try again
-	loop	vc_d10
-	jmp	vc_exit
-
-vc_d30:
-	mov	si,06[bp]		; VC_NUM
-	mov	word ptr [si],0000	; *VC_NUM = 0
-vc_d40:
-	push	di
-	mov	di,es:word ptr [di+bx]	; Get the CCB address
-	cmp	al,CCB_PCNS[di]		; Is this the same physical console
-	pop	di			; Yes then increment the count
-	jnz	vc_exit			; and continue.
-	inc	word ptr [si]		; *VC_NUM++
-	inc	di			; Point to the next entry in
-	inc	di			; the CCB$LIST and try again
-	loop	vc_d40
-	
-vc_exit:
-	pop	di
-	pop	si
-	pop	es
-	pop	bp
-	ret
-endif
-
 _TEXT	ENDS
+
 	page
-ifdef CDOSTMP
 
-RSF_DYNAMIC	equ	0001h			; create at boot time
-RSF_NONBANK	equ	0002h			; allocate non-banked
-RSF_SPECIAL	equ	0004h			; requires separate code
-RSF_ENVIRON	equ	0008h			; requires large environment
-
-PD_SEG	SEGMENT
-;
-;	This is the standard process descriptor for a TMP. During 
-;	the Concurrent P_CREATE function the contents of this process 
-;	descriptor are copied to a full size descriptor inside SYSDAT.
-;
-		dw	0,0			; link fields
-		db	PS_RUN			; status
-		db	200			; priority
-		dw	PF_SYS+PF_KEEP+PF_SPECIAL; flags
-		db	'Tmp     '		; Process Name
-		dw	40h/10h			; uda seg
-		db	0,0			; disk,user
-                db      0,0             	; ldisk,luser
-		dw	0FFFFh 			; mem (Shared Code)
-		dw	0,0			; dvract,wait
-                db      0,0             	; org,net
-                dw      0               	; parent
-cns             db      0,0             	; cns,abort
-                db      0,0             	; cin,cout
-                db      0,0             	; lst,sf3
-                db      0,0             	; sf4,sf5
-		dw	0,0			; reserved
-                dw      0,0             	; pret,scratch
-PD_SEG	ENDS
-
-UDA_SEG	SEGMENT
-uda_size	dw	ULEN,80h,0,0		;0-7
-		dw	0,0,0,0			;8-fh
-		dw	0,0,0,0			;10-17
-		dw	0,0,0,0			;18-1f
-		dw	0,0,0,0			;20-27
-		dw	0,0,0,0			;28-2f
-		dw	0,0			;30-33
-uda_SP		dw	dataOFFSET uda_stack,0	;34-37
-		dw	0,0,0,0			;38-3f
-		dw	0,0,0,0			;40-47
-		dw	0,0,0,0			;48-4f
-uda_CS		dw	0			;50-51
-uda_DS		dw	0			;52-53
-uda_ES		dw	0			;54-55	
-uda_SS		dw	0			;56-57
-		dw	0,0,0,0			;58-5f
-insys		db	1,0			;60-61
-		dw	0,0,0			;62-67
-		db	(ULEN-6Eh)dup(0CCH)	; Initialise System Stack
-uda_stack	dw	codeOFFSET RSP_start	; Initial Offset	
-		dw	?			; Initial Segment (Unknown)
-		dw	?			; Initial Flags (Unknown)
-UDA_SEG	ENDS
-
-endif
-
-ifdef DOSPLUS
 _TEXT	SEGMENT
 	public	_show_help
 	public	_put_resident_high
@@ -3743,9 +2831,7 @@ _get_original_envsize	ENDP
 
 
 _TEXT	ENDS
-endif
 
-ifndef CDOSTMP
 
 R_TEXT	SEGMENT
 	extrn	_out_pipe:byte
@@ -3896,7 +2982,5 @@ docmd_int2f_exit:
 	ret
 
 _TEXT	ENDS
-
-endif
 
 	end				; start address

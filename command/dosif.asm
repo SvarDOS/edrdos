@@ -128,105 +128,18 @@ CRET	MACRO	num
 ;endif
 
 
-ifndef	CDOSTMP
 include	msdos.equ
-endif
-
-ifndef DOSPLUS
-include system.def
-include pd.def
-include	ccpm.equ
-;include udaa.def
-include	net.def
-include	mserror.equ
-else
 include	f52data.def
-endif
 include doshndl.def
-;
-ifdef	CDOSTMP
-OK_RIF		equ	00111000b	; All Responsese are Valid
-OK_RI		equ	00110000b	; Retry and Ignore are Valid
-OK_RF		equ	00011000b	; Retry and Fail are Valid
-;
-;		      Structure of DOS DPB
-;		      --------------------
-;	The  layout  of  this  structure  is  a  guess  based  on
-;	examples.  It is returned by PC MODE on functions 1Fh and
-;	32h  and is required  by various  disk-related  utilities
-;	like disk editors and CHKDSK.
-
-DDSC_UNIT	equ	es:byte ptr 0		; absolute drive number
-DDSC_RUNIT	equ	es:byte ptr 1		; relative unit number
-DDSC_SECSIZE	equ	es:word ptr 2		; sector size in bytes
-DDSC_CLMSK	equ	es:byte ptr 4		; sectors/cluster - 1
-DDSC_CLSHF	equ	es:byte ptr 5		; log2 (sectors/cluster)
-DDSC_FATADDR	equ	es:word ptr 6		; sector address of FAT
-DDSC_NFATS	equ	es:byte ptr 8		; # of FAT copies
-DDSC_DIRENT	equ	es:word ptr 9		; size of root directory
-DDSC_DATADDR	equ	es:word ptr 11		; sector address of cluster #2
-DDSC_NCLSTRS	equ	es:word ptr 13		; # of clusters on disk
-DDSC_NFATRECS	equ	es:byte ptr 15		; # of sectors per FAT
-DDSC_DIRADDR	equ	es:word ptr 16		; sector address of root dir
-DDSC_DEVHEAD	equ	es:dword ptr 18		; device driver header
-DDSC_MEDIA	equ	es:byte ptr 22		; current media byte
-DDSC_FIRST	equ	es:byte ptr 23		; "drive never accessed" flag
-DDSC_LINK	equ	es:dword ptr 24		; next drive's DDSC
-DDSC_BLOCK	equ	es:word ptr 28		; next block to allocate
-DDSC_FREE	equ	es:word ptr 30		; total free clusters on drive
-DDSC_MAP	equ	es:word ptr 32		; free blocks/FAT sector
-endif
 
 BDOS_INT	equ	224		; ##jc##
 
 
 _DATA	SEGMENT	byte public 'DATA'
 	extrn	__psp2:word
-ifndef DOSPLUS
-	extrn	_pd:dword		; Process Descriptor Pointer
-endif
 	extrn	_country:WORD
-
-ifdef DOSPLUS
 	extrn	dbcs_table_ptr:dword	; points to system DBCS table
-endif
 
-ifdef CDOSTMP
-;
-;	The following buffer is used by the P_PATH function.
-;	FINDFILE uses the first three fields to get the full path and
-;	filename of the command. 
-;
-exec_block	label	byte
-exec_pathoff	dw	?		; Offset of ASCIIZ Load file
-exec_pathseg	dw	?		; Segment of ASCIIZ Load File
-exec_filetype	db	?		; File Type Index
-
-fdos_data	dw	7 dup(0)	; FDOS parameter Block
-
-mpb_start	dw	?		; Memory parameter Block
-mpb_min		dw	?
-mpb_max		dw	?
-mpb_pdadr	dw	?
-mpb_flags	dw	?
-
-mfpb_start	dw	?		; Memory Free Parameter Block
-mfpb_res	dw	?
-
-country_data	label	word		; GET country data
-cd_country	dw	?		; Requested Country Code
-cd_codepage	dw	?		; Requested Code Page
-cd_table	dw	?		; Table Number
-cd_offset	dw	?		; Buffer Offset
-cd_segment	dw	?		; Buffer Segment
-
-valid		dw	0		; Valid Error Responses
-retry_ip	dw	0		; Critical Error Retry IP
-retry_sp	dw	0		; Critical Error Retry SP
-crit_flg	db	FALSE		; Critical Section of Error Handler
-
-include fdos.def
-endif
 
 ifdef NETWARE
 ipx		label	dword
@@ -263,16 +176,6 @@ _TEXT	SEGMENT	byte public 'CODE'
 
 extrn	_int_break:near		; Control-C Break Handler
 
-ifdef	CDOSTMP
-ifdef MWC
-extrn	_critical_error:near	; Default Critical Error Handler
-CRITICAL_ERR	equ	_critical_error
-else
-extrn	CRITICAL_ERROR:near	; Default Critical Error Handler
-CRITICAL_ERR	equ	CRITICAL_ERROR
-endif
-endif
-
 ;
 ;	UWORD	psp_poke(WORD handle, BYTE ifn);
 ;
@@ -281,14 +184,9 @@ _psp_poke:
 	push	bp
 	mov	bp,sp
 	push	es
-
-ifdef CDOSTMP
-	mov	es,__psp2		; ES:0 -> our PSP
-else
 	mov	ah,MS_P_GETPSP
 	int	DOS_INT			; for software carousel
 	mov	es,bx
-endif
 	les	bx,es:[0034h]		; ES:BX -> external file table
 	add	bx,4[bp]		; ES:BX -> XFT entry for our handle
 	mov	al,6[bp]		; get new value to use
@@ -298,9 +196,6 @@ endif
 	pop	es
 	pop	bp
 	ret
-
-ifndef	CDOSTMP
-
 
 	Public	_ms_drv_set
 ;-----------
@@ -1209,16 +1104,6 @@ _ms_switchar:
 	sub	ah,ah
 	mov	al,dl
 	ret
-if 0
-	Public	_ms_p_getpsp
-;-----------
-_ms_p_getpsp:
-;-----------
-	mov	ah,51h			; Note: SeCRET DOS 2.x entry
-	int	DOS_INT
-	xchg	ax,bx
-	ret
-endif
 
 	Public	_get_lastdrive
 ;-----------
@@ -1313,7 +1198,6 @@ _ms_f_getverify:
 	cbw
 	ret
 
-ifndef	CDOSTMP
 	Public	_ms_f_parse
 ;-----------
 _ms_f_parse:
@@ -1352,7 +1236,7 @@ _ms_f_delete:
 	cbw					; return code
 	pop	bp
 	ret
-endif
+
 ;
 ;	The SET BREAK function returns the previous Break Flag Status
 ;	
@@ -1369,18 +1253,6 @@ _ms_set_break:
 	mov	al,dl
 	cbw
 	ret
-
-if 0
-	Public _ms_get_break
-;------------
-_ms_get_break:
-;------------
-	mov	ax,MS_S_BREAK SHL 8
-	int	DOS_INT
-	mov	al,dl
-	cbw
-	ret
-endif
 
 ;
 ;	mem_alloc(BYTE FAR * NEAR * bufaddr, UWORD * bufsize, UWORD min, UWORD max);
@@ -1462,11 +1334,7 @@ _msdos:
 ;---------
 _ioctl_ver:	
 ;---------
-ifdef DOSPLUS
  	mov	ax,4452h		; Get DOS Plus BDOS version Number
-else
- 	mov	ax,4451h		; Get Concurrent BDOS Version
-endif
 	int	DOS_INT			; Real DOS returns with Carry Set
 	jc	cdos_v10
 	and	ax,not 0200h		; Reset the Networking Bit
@@ -1475,7 +1343,6 @@ cdos_v10:
 	xor	ax,ax
 	ret
 
-ifdef DOSPLUS
 ;
 ;	Get CodePage information form the system. Return both the currently
 ;	active CodePage and the System CodePage.
@@ -1520,905 +1387,8 @@ _ms_x_setcp:
 	xor	ax,ax
 	pop	bp
 	ret
-endif
-endif
-
-ifdef CDOSTMP
-
-
-	Public	_ms_drv_set
-;-----------
-_ms_drv_set:
-;-----------
-	push	bp
-	mov	bp,sp
-	mov	dl,04[bp]		; Get the Specified drive
-	or	dl,80h			; Prevent any Select Errors
-	mov	cl,DRV_SET		; and go select the bugger
-	int	BDOS_INT
-	pop	bp
-	ret
-
-	Public	_ms_drv_get
-;-----------
-_ms_drv_get:
-;-----------
-	mov	cl,DRV_GET		; Return the Currently selected
-	int	BDOS_INT		; disk drive
-	cbw
-	ret
-
-	Public	_ms_drv_space
-;------------
-_ms_drv_space:
-;------------
-;
-;	ret = _ms_drv_space (drive, &free, &secsiz, &nclust);
-;	where:	drive	= 0, 1-16 is drive to use
-;		free    = free cluster count
-;		secsiz  = bytes/sector
-;		nclust	= clusters/disk
-;		ret	= sectors/cluster -or- (0xFFFFh)
-
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RF			; Retry or Fail
-	call	fdos_retry
-	mov	FD_FUNC, FD_DISKINFO
-	mov	ax,04[bp]
-	mov	FD_DRIVE,ax
-	call	fdos_entry
-	or	ax,ax				; Check for Errors
-	mov	ax,0FFFFh
-	jnz	ms_drv_exit			; Error Exit
-
-	push	es				; Save ES
-	push	di
-	les	di,FD_DPB			; Get the DPB Address
-
-	mov	ax,es:DDSC_FREE[di]		; Get the number of free
-	mov	bx,06[bp]			; clusters on the drive
-	mov	[bx],ax
-
-	mov	ax,es:DDSC_SECSIZE[di]		; Get the Physical Sector Size
-	mov	bx,08[bp]			; in bytes
-	mov	[bx],ax
 	
-	mov	ax,es:DDSC_NCLSTRS[di]		; Get the disk size in
-	mov	bx,10[bp]			; clusters and save in DX
-	mov	[bx],ax
 
-	mov	al,es:DDSC_CLMSK[di]		; Get the sectors per Cluster -1
-	cbw					; and save in AX
-	inc	ax
-	pop	di
-	pop	es
-
-ms_drv_exit:
-	pop	bp
-	CRET	8
-
-	Public	_ms_s_country
-;------------
-_ms_s_country:
-;------------
-	push	bp
-	mov	bp,sp
-	mov	ax,04[bp]		; Get the data Block Offset
-
-	mov	cd_country,0		; Get the Current Country	
-	mov	cd_codepage,0		; Current CodePage
-	mov	cd_table,0		; Country Information
-	mov	cd_offset,ax		; Save the Buffer Offset
-	mov	cd_segment,ds		; and the Buffer Segment
-
-	mov	dx,dataOFFSET country_data
-	mov	cl,S_GETCOUNTRY		; Get the country information
-	int	BDOS_INT		; and return the current country
-	pop	bp			; code to the caller
-	CRET	2
-
-	Public _ms_x_mkdir
-;----------
-_ms_x_mkdir:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RIF			; Retry, Ignore or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_MKDIR	; Make Directory
-
-mkdir_10:
-	mov	ax,04[bp]
-	mov	FD_NAMEOFF,ax
-	mov	FD_NAMESEG,ds
-	call	fdos_entry
-	pop	bp
-	CRET	2
-	
-	Public	_ms_x_rmdir
-;----------
-_ms_x_rmdir:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RIF			; Retry, Ignore or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_RMDIR
-	jmp	mkdir_10
-
-	Public	_ms_x_chdir
-;----------
-_ms_x_chdir:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RF			; Retry or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_CHDIR
-	jmp	mkdir_10
-
-	Public	_ms_x_creat
-;----------
-_ms_x_creat:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RF			; Retry or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_CREAT
-	jmp	ms_open_creat
-
-
-	Public	_ms_x_open
-;---------
-_ms_x_open:
-;---------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RF			; Retry or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_OPEN
-ms_open_creat:
-	mov	ax,4[bp]
-	mov	FD_NAMEOFF,ax
-	mov	FD_NAMESEG,ds
-	mov	ax,6[bp]		; get mode for new file (CREAT)
-	mov	FD_MODE,ax		; or the OPEN mode
-	call	fdos_entry		; Call the FDOS and return either
-	pop	bp			; a handle or error code
-	CRET	4
-
-	Public _ms_x_close
-;----------
-_ms_x_close:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RIF			; Retry, Ignore or Fail
-	call	fdos_retry
-	mov	ax,4[bp]		; get the open handle
-	mov	FD_FUNC,FD_CLOSE
-	mov	FD_HANDLE,ax
-	call	fdos_entry
-	pop	bp
-	CRET	2
-
-	Public	_ms_x_unique
-;----------
-_ms_x_unique:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RF			; Retry or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_MKTEMP
-	jmp	ms_open_creat
-
-	Public	_ms_x_fdup
-;----------
-_ms_x_fdup:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RIF			; Retry, Ignore or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_FDUP
-	mov	ax,4[bp]		; get the destination handle
-	mov	FD_NEWHND,ax
-	mov	ax,6[bp]		; Get the current handle	
-	mov	FD_HANDLE,ax
-	call	fdos_entry
-	pop	bp
-	CRET	4
-
-	Public	_far_read
-;---------
-_far_read:
-;---------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RF			; Retry or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_READ
-	jmp	far_read_write
-
-	Public	_far_write
-;----------
-_far_write:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RIF			; Retry, Ignore or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_WRITE
-
-far_read_write:
-	mov	ax,4[bp]		; get file handle
-	mov	FD_HANDLE,ax
-	mov	ax,6[bp]		; get buffer offset address
-	mov	FD_BUFOFF,ax
-	mov	ax,8[bp]		; get buffer Segment address
-	mov	FD_BUFSEG,ax
-	mov	ax,10[bp]		; get byte count
-	mov	FD_COUNT,ax
-	call	fdos_entry
-	or	ax,ax
-	jnz	far_rw_fail	
-	mov	ax,FD_COUNT		; Get the Byte Count
-far_rw_fail:
-	pop	bp
-	CRET	6
-
-	Public	_ms_x_read
-;---------
-_ms_x_read:
-;---------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RF			; Retry or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_READ
-	jmp	ms_read_write
-
-	Public	_ms_x_write
-;----------
-_ms_x_write:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RIF			; Retry, Ignore or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_WRITE
-
-ms_read_write:
-	mov	ax,4[bp]		; get file handle
-	mov	FD_HANDLE,ax
-	mov	ax,6[bp]		; get buffer address
-	mov	FD_BUFOFF,ax
-	mov	FD_BUFSEG,ds
-	mov	ax,8[bp]		; get byte count
-	mov	FD_COUNT,ax
-	call	fdos_entry
-	or	ax,ax
-	jnz	ms_rw_fail	
-	mov	ax,FD_COUNT		; Get the Byte Count
-ms_rw_fail:
-	pop	bp
-	CRET	6
-
-	Public	_ms_x_unlink
-;-----------
-_ms_x_unlink:
-;-----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RIF			; Retry, Ignore or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_UNLINK
-	jmp	mkdir_10
-
-
-	Public	_ms_x_lseek
-;----------
-_ms_x_lseek:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RIF			; Retry, Ignore or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_LSEEK	; get the function
-	mov	ax,4[bp]		; get the file handle
-	mov	FD_HANDLE,ax
-	mov	ax,6[bp]		; get the offset
-	mov	word ptr FD_OFFSET+0,ax
-	mov	ax,8[bp]
-	mov	word ptr FD_OFFSET+2,ax
-	mov	ax,10[bp]		; get the seek mode
-	mov	FD_METHOD,ax
-	call	fdos_entry
-	cwd
-	or	ax,ax
-	jnz	ms_lseek_fail		; skip if errors
-	mov	ax,word ptr FD_OFFSET+0 ; Return the New Location
-	mov	dx,word ptr FD_OFFSET+2
-ms_lseek_fail:
-	mov	bx,dx			; AX:BX = DRC long return
-	pop	bp
-	CRET	8
-
-
-	Public	_ms_x_ioctl
-;----------
-_ms_x_ioctl:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RF		; Retry or Fail
-	call	fdos_retry
-	mov	ax,4[bp]		; get Enquiry Handle
-	mov	FD_FUNC,FD_IOCTL	; Use the IOCTL function
-	mov	FD_HANDLE,ax		; For Handle AX
-	mov	FD_CTLFUNC,0000		; Get the Handle Status
-	mov	FD_CTLSTAT,0		; Invalidate CTLSTAT
-	call	fdos_entry		; Call the FDOS
-	mov	ax,FD_CTLSTAT		; and return the STATUS
-	pop	bp
-	CRET	2
-
-	Public	_ms_x_setdev
-;------------
-_ms_x_setdev:
-;------------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RF		; Retry or Fail
-	call	fdos_retry
-	mov	ax,4[bp]		; get Handle
-	mov	FD_HANDLE,ax
-	mov	FD_FUNC,FD_IOCTL	; Use the IOCTL function
-	mov	FD_CTLFUNC,1		; Set device info
-	mov	ax, 6[bp]		; status to set
-	sub	ah, ah
-	mov	FD_CTLSTAT,ax
-	call	fdos_entry		; Call the FDOS
-	mov	ax,FD_CTLSTAT		; and return the STATUS
-	pop	bp
-	CRET	2
-
-	Public	_ms_x_chmod
-;----------
-_ms_x_chmod:			;	ms_x_chmod(path, attrib, get/set)
-;----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RIF		; Retry, Ignore or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_CHMOD
-	mov	ax,4[bp]		; Get the FileName
-	mov	FD_NAMEOFF,ax
-	mov	FD_NAMESEG,ds
-	mov	ax,6[bp]		; Get the Required Attributes
-	mov	FD_ATTRIB,ax
-	mov	ax,8[bp]		; Finally Get the GET/SET flag
-	mov	FD_FLAG,ax
-	call	fdos_entry		; Returns with AX equal to the  
-	or	ax,ax			; error code or with the file
-	js	chmod10			; attributes.
-	mov	ax,FD_ATTRIB
-chmod10:
-	pop	bp
-	CRET	6
-
-
-	Public	_ms_x_curdir
-;-----------
-_ms_x_curdir:
-;-----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RF		; Retry or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_GETDIR
-	mov	ax,04[bp]		; Get the drive
-	mov	FD_DRIVE,ax
-	mov	bx,06[bp]		; and then the path
-	mov	byte ptr [bx],0		; Put a Zero byte in the buffer in
-	mov	FD_PATHOFF,bx		; case the command fails and the
-	mov	FD_PATHSEG,ds		; user selects the FAIL Option
-	call	fdos_entry
-	pop	bp
-	CRET	4
-
-;
-;	ms_x_expand(dstbuf, srcbuf) returns the full path of SRCBUF
-;
-	Public	_ms_x_expand
-;-----------
-_ms_x_expand:
-;-----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RF		; Retry or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_EXPAND
-	mov	ax,06[bp]		; Get Source Buffer Offset
-	mov	FD_ONAMEOFF,ax
-	mov	FD_ONAMESEG,ds
-	mov	bx,04[bp]		; Get the destination string
-	mov	byte ptr [bx],0		; address and force it to be a NULL
-	mov	FD_NNAMEOFF,bx		; terminated string in case of errors
-	mov	FD_NNAMESEG,ds
-	call	fdos_entry
-	pop	bp
-	CRET	4
-
-	Public	_ms_x_wait
-;---------
-_ms_x_wait:		; retrieve child return code
-;---------
-	mov	cl,P_EXITCODE		; Return the Exit Code
-	mov	dx,0FFFFh		; Get the Exit Code
-	int	BDOS_INT
-	CRET	0
-
-	Public	_ms_x_first
-;----------
-_ms_x_first:
-;----------
-	push	bp
-	mov	bp,sp
-
-	mov	dx,8[bp]		; get DMA buffer address
-	mov	cl,F_DMAOFF
-	call	bdos_entry
-
-	mov	dx,ds			;##jc##
-	mov	cl,F_DMASEG		;##jc##
-	call	bdos_entry		;##jc##
-
-	mov	al,OK_RF		; Retry or Fail
-	call	fdos_retry
-
-	mov	FD_FUNC,FD_FFIRST	; Search First
-	mov	ax,04[bp]		; Get the FileName
-	mov	FD_NAMEOFF,ax
-	mov	FD_NAMESEG,ds
-	mov	ax,06[bp]		; Get the Attributes
-	mov	FD_ATTRIB,ax
-	mov	FD_COUNT, 0		; Search for a File at a time
-	call	fdos_entry
-	cmp	ax,1			; Did we match 1 entry
-	jnz	ms_x_f10		; No so return Error Code
-	mov	ax,0			; Return Zero on sucess
-ms_x_f10:
-	pop	bp
-	CRET	6
-
-	Public	_ms_x_next
-;---------
-_ms_x_next:
-;---------
-	push	bp
-	mov	bp,sp
-
-	mov	dx,4[bp]		; get DMA buffer address
-	mov	cl,F_DMAOFF
-	call	bdos_entry
-
-	mov	dx,ds			;##jc##
-	mov	cl,F_DMASEG		;##jc##
-	call	bdos_entry		;##jc##
-
-	mov	al,OK_RF		; Retry or Fail
-	call	fdos_retry
-
-	mov	FD_FUNC,FD_FNEXT	; Search Next
-	mov	FD_NEXTCNT, 0		; Search for a File at a time
-	call	fdos_entry
-	cmp	ax,1			; Did we match 1 entry
-	jnz	ms_x_n0		; No so return Error Code
-	mov	ax,0			; Return Zero on sucess
-ms_x_n0:
-	pop	bp
-	CRET	2
-
-
-	Public _ms_x_rename
-;-----------
-_ms_x_rename:
-;-----------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RIF		; Retry, Ignore or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_RENAME
-	mov	ax,04[bp]		; Get the Old Name
-	mov	FD_ONAMEOFF,ax
-	mov	FD_ONAMESEG,ds
-	mov	ax,06[bp]		; Get the New Name
-	mov	FD_NNAMEOFF,ax
-	mov	FD_NNAMESEG,ds
-	call	fdos_entry
-	pop	bp
-	CRET	4
-
-	Public	_ms_x_datetime
-;-------------
-_ms_x_datetime:			; ms_x_datetime (gsflag, h, &time, &date);
-;-------------
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RIF		; Retry, Ignore or Fail
-	call	fdos_retry
-	mov	FD_FUNC,FD_DATETIME	; set/get Time Stamp
-	mov	ax,4[bp]		; get/set subfunction (0/1)
-	mov	FD_SFLAG,ax
-	mov	ax,6[bp]		; get handle
-	mov	FD_HANDLE,ax
-	mov	bx,8[bp]		; get address of time
-	mov	ax,[bx]			; get time
-	mov	FD_TIME,ax		; and Save
-	mov	bx,10[bp]		; get address of date
-	mov	ax,[bx]			; get date
-	mov	FD_DATE,ax
-	call	fdos_entry
-	or	ax,ax			; Skip if Failed
-	jnz	ms_dt_ret
-	mov	ax,FD_TIME
-	mov	bx,8[bp]		; get time address
-	mov	[bx],ax			; update time
-	mov	ax,FD_DATE
-	mov	bx,10[bp]		; get date address
-	mov	[bx],ax			; update date
-	xor	ax,ax
-ms_dt_ret:
-	pop	bp
-	CRET	8
-
-
-;
-;	The following routines allow COMMAND.COM to manipulate
-;	the system time and date. Four functions are provided and
-;	these are GETDATE, SETDATE, GETTIME and SETTIME
-;
-;	Date information is passed and return in a structure which 
-;	has the following format.
-;
-;	WORD		Year (1980 - 2099)
-;	BYTE		Month
-;	BYTE		Day
-;	BYTE		Day of the Week (Ignored on SET DATE)
-
-	Public	_ms_getdate
-;-----------
-_ms_getdate:
-;-----------
-	push	bp
-	mov	bp,sp
-	mov	dx,04[bp]		; Get the structure address
-	mov	cl,T_GETDATE		; and call the BDOS
-	call	bdos_entry
-	pop	bp
-	CRET	2
-
-	Public	_ms_setdate
-;----------
-_ms_setdate:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	dx,4[bp]		; and get the structure address
-	mov	cl,T_SETDATE		; and call the BDOS to do the work
-	call	bdos_entry		; Return 0 Good and FFFF Bad
-	pop	bp
-	CRET	2
-
-
-;	Time information is passed and return in a structure which 
-;	has the following format.
-;
-;	BYTE		Hours (0 - 23)
-;	BYTE		Minutes (0 - 59)
-;	BYTE		Seconds (0 - 59)
-;	BYTE		Hundredths of a second (0 - 99)
-
-	Public	_ms_gettime
-;----------
-_ms_gettime:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	dx,04[bp]		; Get the Time Structure address
-	mov	cl,T_GETTIME		; and call the OS
-	call	bdos_entry
-	pop	bp
-	CRET	2
-
-	Public _ms_settime
-;----------
-_ms_settime:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	dx,4[bp]		; and get the structure address
-	mov	cl,T_SETTIME		; and call the BDOS SET Time Function
-	call	bdos_entry		; Return 0 Good and FFFF Bad
-	pop	bp
-	CRET	2
-
-	Public	_ms_f_verify
-;-----------
-_ms_f_verify:
-;-----------
-	push	bp
-	mov	bp,sp
-	push	es
-	mov	ax,04[bp]			; Get the required state
-	les	bx,_pd				; Update the Verify flag in
-	and	es:P_SFLAG[bx],not PSF_VERIFY	; current PD
-	or	ax,ax				; Set the Flag
-	jz	ms_fv10				; No
-	or	es:P_SFLAG[bx],PSF_VERIFY	; Flag set in PD
-ms_fv10:
-	pop	es
-	pop	bp
-	ret
-
-	Public	_ms_f_getverify
-;--------------
-_ms_f_getverify:
-;--------------
-	push	es
-	xor	ax,ax				; Assume the flag is RESET
-	les	bx,_pd				; now test the state of the
-	test	es:P_SFLAG[bx],PSF_VERIFY	; flag in the current PD
-	jz	ms_fgv10			; Verify = OFF
-	inc	ax				; Verify = ON
-ms_fgv10:
-	pop	es
-	ret
-
-;
-;	mem_alloc(BYTE FAR * NEAR * bufaddr, UWORD * bufsize, UWORD min, UWORD max);
-;
-;	max		10[bp]
-;	min		08[bp]
-;	bufsize		06[bp]
-;	buffadr 	04[bp]
-;
-	Public _mem_alloc
-;---------
-_mem_alloc:
-;---------
-	push	bp
-	mov	bp,sp
-
-	mov	mpb_start,0
-	mov	ax,08[bp]		; Get the Minimum and Maximum values
-	mov	mpb_min,ax		; and fill in the parameter block
-	mov	ax,10[bp]
-	mov	mpb_max,ax
-	mov	mpb_pdadr,0
-	mov	mpb_flags,0
-	
-	mov	cx,M_ALLOC		; Call the Concurrent Allocate function
-	mov	dx,dataOFFSET mpb_start	; 
-	call	bdos_entry
-	xor	cx,cx			; Assume that the function fails
-	mov	dx,cx			; and zero the start and size fields
-	cmp	ax,0
-	jnz	mem_all10
-	mov	cx,mpb_min		; Get the Allocation Size
-	mov	dx,mpb_start		; and the starting segment
-
-mem_all10:
-	mov	bx,04[bp]		; Update the Buffer Address
-	mov	word ptr 00[bx],0	; Offset 0
-	mov	word ptr 02[bx],dx	; Segment DX
-	mov	bx,06[bp]		; Now Update the Buffer Size
-	mov	word ptr 00[bx],cx	; and return to the caller
-	pop	bp
-	ret
-;
-;	mem_free(BYTE FAR * NEAR * bufaddr);
-;
-;	buffadr 	04[bp]
-;
-	Public _mem_free
-;---------
-_mem_free:
-;---------
-	push	bp
-	mov	bp,sp
-	xor	ax,ax
-	mov	bx,04[bp]		; Get the Buffer Pointer address
-	xchg	ax,word ptr 02[bx]	; and from this the segment of the
-	cmp	ax,0			; allocated memory. If the memory
-	jz	mem_free10		; has already been freed the quit
-	mov	mfpb_start,ax		; Otherwise Free the Memory
-	mov	mfpb_res,0
-	mov	cx,M_FREE
-	mov	dx,dataOFFSET mfpb_start
-	call	bdos_entry
-
-mem_free10:
-	pop	bp
-	ret
-;
-;	findfile(BYTE *loadpath, UWORD *loadtype)
-; 
-	Public	_findfile
-_findfile:
-	push	bp
-	mov	bp,sp
-	mov	al,OK_RF		; Retry, Ignore or Fail
-	call	fdos_retry
-	mov	ax,word ptr 04[bp]
-	mov	exec_pathoff,ax
-	mov	exec_pathseg,ds
-	mov	cx,P_PATH
-	mov	dx,dataOFFSET exec_block
-	call	ppath_entry
-	or	ax,ax
-	jnz	ff_error
-	mov	al,exec_filetype
-	cbw
-	mov	bx,word ptr 06[bp]
-	mov	word ptr [bx],ax
-	xor	ax,ax
-ff_error:	
-	pop	bp
-	ret
-
-;
-fdos_retry:
-	xor	ah,ah
-	mov	valid,ax		; Save the Valid Error responses
-	pop	retry_ip		; Get the return Address
-	mov	retry_sp,sp		; and Stack Pointer
-	jmp	retry_ip
-;
-;	FDOS_ENTRY is an internal function entry point which makes the
-;	F_DOS function call. As the F_DOS data area used by COMMAND.COM 
-;	is always FDOS_DATA.
-;
-;	WORD PASCAL critical_error(error, valid, drive, mode, server);
-;
-;	critical_error will return an WORD response which (R,I,A,F)
-;	after displaying the appropriate error message and get the
-;	correct response from the user.
-;
-fdos_entry:
-	mov	cl,F_DOS
-	mov	dx,dataOFFSET fdos_data
-ppath_entry:
-	call	bdos_entry
-	cmp	ax,ED_LASTERROR		; Did an Error Occur
-	jb	fdos_exit		; No So Exit OK
-	cmp	crit_flg,TRUE		; Already in handler
-	jz	fdos_exit		; Yes Skip Critical Error
-	cmp	ax,ED_PROTECT		; Is this a Physical Error
-	jg	fdos_exit		; if so then simulate a 
-	cmp	ax,ED_GENFAIL		; Critical Error by calling
-	jge	fdos_e05		; the COMMAND routine Critical
-					; error
-	cmp	ax,ED_NETPWD		; Now check for DR-NET errors
-	jg	fdos_exit		; if so then simulate a 
-	cmp	ax,ED_NETLOG		; Critical Error by calling
-	jge	fdos_e05		; the COMMAND routine Critical
-					; error
-fdos_exit:
-	ret
-
-fdos_e05:
-	push	retry_ip		; Save Retry IP and SP and valid
-	push	retry_sp		; responses
-	push	valid
-	mov	crit_flg,TRUE		; Start Critical Section
-	mov	cx,es			; Save the Segment Regsiter
- 	push	ax 			; Save the Error Code
-	push	valid			; Save the Valid Responses (R,I,F)
-	les	bx,_pd			; Get the PD address
-	mov	es,es:P_UDA[bx]		; and then the UDA address
-	xor	ah,ah			; Zero the top byte of AX and
-	mov	al,es:byte ptr 15h ;;U_ERR_DRV		; Get the Failing Drive
-	push	ax			; Save on the Stack
-	mov	al,es:byte ptr 14h ;;U_ERR_RW		; Get the Error Mode
-	push	ax			; and Save
-
-	mov	ax,00FFH		; Default Server NO is (INVALID)
-	les	bx,_pd			; Get the PD address Again
-	mov	bx,es:P_NDA[bx]		; and then the NDA address
-	cmp	bx,0			; Are we attached to DR-NET
-	jz	fdos_e08		; NO
-	mov	es,bx			; ES -> DR-Net NDA
-	mov	al,es:byte ptr 0Ch 	;; NDA_CXRTN
-
-fdos_e08:	
-	push	ax			; Pass the DR-NET Server No.
-	mov	es,cx			; Restore ES
-	call	CRITICAL_ERR		; Handle the Critical Error. Parameters
-					; are removed by the CALLEE
-	mov	crit_flg,FALSE		; Critical Section complete
-	pop	valid			; Restore our original RETRY IP
-	pop	retry_sp		; and SP values which have been
-	pop	retry_ip		; corrupted by the "CRITICAL_ERROR"
-					; routine during message printing
-	cmp	ax,0			; Ignore the Error
-	jz	fdos_exit		; Then Exit with no Error
-
-	cmp	ax,1			; Retry the Operation
-	jnz	fdos_e10		; using information saved by FDOS_RETRY
-	mov	sp,retry_sp		; Reset the Stack Pointer
-	jmp	retry_ip		; and retry the Operation
-
-fdos_e10:
-	cmp	ax,3			; FAIL this function
-	mov	ax,ED_FAIL		; Fail the function
-	jz	fdos_exit		; Yes otherwise ABORT
-
-	call	_int_break		; Simulate a Control C to terminate
-					; We are never coming back
-;
-;	BDOS_ENTRY is the usual method of calling the Operating System.
-;	In order to provide a DOS compatible environment this function.
-;	does Control-C checking on function exit.
-; 
-bdos_entry:
-	int	BDOS_INT
-	push	es
-	les	bx,_pd			; Get our process descriptor address
-	test	es:P_SFLAG[bx],PSF_CTLC	; Check if a Control-C has been typed
-	jnz	bdos_e10		; Jump to Abort Handler
-	mov	bx,ax			; Restore BX and Return.
-	pop	es
-	ret
-
-bdos_e10:
-	and	es:P_SFLAG[bx],not PSF_CTLC
-	pop	es
-bdos_e20:
-	mov	cl,C_RAWIO		; Flush the Character buffer until
-	mov	dl,0FFh			; Return the character or 00 if queue
-	int	BDOS_INT		; is empty. Repeat till the Keyboard
-	or 	al,al			; Buffer has been flushed
-	jnz	bdos_e20
-	push	ds
-	push	cs
-	pop	ds
-	mov	cl,C_WRITESTR
-	mov	dx,offset break_str	; echo ^C to screen
-	int	BDOS_INT
-	pop	ds
-	call	_int_break		; Place the Control Break Code on the 
-					; Stack and the call the error handler
-					; ** We will never return **
-
-break_str	db	'^C$'
-
-endif
-
-ifndef DOSPLUS
-	Public	__BDOS
-;-------
-__BDOS:
-;-------
-	push	bp
-	mov	bp,sp
-	push	si
-	push	di
-	mov	cl,4[bp]
-	mov	dx,6[bp]
-	int	BDOS_INT
-	pop	di
-	pop	si
-	pop	bp
-	ret
-;
-endif
-
-ifdef DOSPLUS
 ifndef EXT_SUBST
 	Public	_physical_drvs		; Physical Drives returns a LONG
 _physical_drvs:				; Vector with bits set for every drive
@@ -2715,112 +1685,6 @@ _network_drive	ENDP
 
 endif	;EXT_SUBST
 
-else	;!DOSPLUS
-	
-	Public	_physical_drvs		; Physical Drives returns a LONG
-_physical_drvs:				; Vector with bits set for every
-	mov	cx,DRV_LOGINVEC		; Physical or Networked Drive 
-	int	BDOS_INT		; attached to the system
-	xor	dx,dx			; Return the LONG value in both
-	mov	bx,dx			; AX:DX and AX:BX for maximum
-	ret				; compatibility
-
-	Public	_network_drvs		; Network Drives returns a LONG
-_network_drvs:				; vector with bits set for every
-	push	es			; physical drive which has been
-	mov	ax,0			; mapped to a remote DRNET server
-	mov	dx,ax
-	les	bx,_pd			; Get Our Process Descriptor
-	mov	cx,es:P_NDA[bx]		; and then the NDA Segment
-	 jcxz	n_d20			; Skip Drive Test if no NDA
-	mov	es,cx			; Get the RCT Address
-	les	bx,es:dword ptr 04h	;; NDA_RCT ; From the NDA
-	mov	cx,16
-n_d10:
-	test	es:RCT_DSK[bx],080h	; Is this a Remote drive
-	 jz	n_d15			; No
-	or	ax,1			; Set Drive Bit
-n_d15:
-	ror	ax,1			; Rotate Drive Bit Vector
-	add	bx,2			; Update the Drive Pointer
-	loop	n_d10			; Loop Till Done
-n_d20:
-	mov	bx,dx			; Return the long value in both
-	pop	es			; AX:BX and AX:DX
-	ret
-
-ifndef	EXT_SUBST
-
-	Public	_logical_drvs		; Logical Drives returns a LONG
-_logical_drvs:				; vector with bits set for every
-	push	es
-	push	si
-	push	di
-
-	les	si,_pd			; Get Our Process Descriptor
-	mov	si,es:P_CAT[si]		; and then the address of the 
-	mov	cx,16			; first HDS and check the first
-	mov	ax,0			; 16 Drives
-	mov	bx,ax	
-
-l_d10:
-	mov	di,es:word ptr [si]	; Has this drive got an HDS
-	test	di,di			; then skip setting the bit in 
-	 jz	l_d20			; the vector register
-	cmp	es:byte ptr [di],bl	; Is the HDS pointing to same drive
-	 jz	l_d20			; Yes then this is a Physical Drive
-	or	ax,1
-l_d20:
-	ror	ax,1
-	add	si,2
-	inc	bx
-	loop	l_d10			; Loop 16 Tines
-
-	mov	cx,10			; Finally check the last 10 HDS
-	mov	dx,0
-l_d30:
-	mov	di,es:word ptr [si]	; Has this drive got an HDS
-	test	di,di			; then skip setting the bit in 
-	 jz	l_d40			; the vector register
-	cmp	es:byte ptr [di],bl	; Is the HDS pointing to same drive
-	 jz	l_d40			; Yes then this is a Physical Drive
-	or	dx,1
-l_d40:
-	ror	dx,1
-	add	si,2
-	inc	bx
-	loop	l_d30			; Loop 10 Tines
-
-	mov	cl,6			; Now rotate the contents of 
-	ror	dx,cl			; DX 6 more times for correct
-					; alignment of bits
-	pop	di
-	pop	si
-	pop	es
-	mov	bx,dx			; Return the long value in both
-	ret				; AX:BX and AX:DX
-
-
-;
-;	This function use the CONCURRENT 5.xx CP/M function to translate
-;	a logical to physical drive.
-;
-	Public	_pdrive
-;------
-_pdrive:
-;------
-	push	bp
-	mov	bp,sp
-	mov	dl,4[bp]		; get the logical drive
-	mov	cl,175			; Logical to Physical Xlat
-	int	BDOS_INT
-	cbw
-	pop	bp
-	CRET	2
-
-endif	;!EXT_SUBST
-endif	;!DOSPLUS
-
 
 	Public	_dr_toupper
 
@@ -2863,36 +1727,6 @@ exit_toupper:
 	ret
 
 _dr_toupper	endp
-
-
-
-ifdef DOSPLUS
-if 0
-	Public	_hiload_status
-;----------
-_hiload_status:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	dx,100h			; get hiload state
-	mov	ax,(MS_X_IOCTL*256)+57h	; IO Control function
-	int	DOS_INT			; do INT 21h
-	pop	bp			; 
-	ret
-
-	Public	_hiload_set
-;----------
-_hiload_set:
-;----------
-	push	bp
-	mov	bp,sp
-	mov	dx,4[bp]		; get state
-	mov	dh,2			; set hiload state
-	mov	ax,(MS_X_IOCTL*256)+57h	; IO Control function
-	int	DOS_INT			; do INT 21h
-	pop	bp			; 
-	ret
-endif
 
 	Public	_get_upper_memory_link
 _get_upper_memory_link:
@@ -2965,7 +1799,6 @@ _free_region:
 	pop	bp
 	ret
 
-endif
 
 ; The Double Byte Character Set lead byte table.
 ; Each entry in the table except the last specifies a valid lead byte range.
@@ -2995,8 +1828,6 @@ _dbcs_expected	proc	near
 ; Exit
 ;	ax	= 1 - double byte characters are currently possible
 ;		  0 - double byte characters are not currently possible
-
-ifdef DOSPLUS
 	push	ds
 	push	si
 	lds	si, dbcs_table_ptr	; DS:SI -> system DBCS table
@@ -3007,9 +1838,6 @@ ifdef DOSPLUS
 de_exit:
 	pop	si
 	pop	ds
-else
-	xor	ax,ax			; CDOS doesn't support them
-endif
 	ret
 _dbcs_expected	endp
 
@@ -3025,8 +1853,6 @@ _dbcs_lead	proc	near
 ; Exit
 ;	ax	= 1 - is a valid lead byte
 ;		  0 - is not a valid lead byte
-
-ifdef DOSPLUS
 	push	bp
 	mov	bp, sp
 	push	ds
@@ -3053,9 +1879,6 @@ dl_not_valid:
 	pop	si
 	pop	ds
 	pop	bp
-else
-	xor	ax,ax			; CDOS doesn't support them
-endif
 	ret
 _dbcs_lead	endp
 

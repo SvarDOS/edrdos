@@ -96,12 +96,6 @@ dos_ES		equ	word ptr 16[bp]
 ;
 ;
 ;
-ifdef CDOSTMP
-DGROUP	GROUP	R_TEXT
-
-R_TEXT		SEGMENT byte public 'CDOS_DATA'
-
-else
 
 DGROUP	GROUP	_DATA, R_TEXT, ED_TEXT
 
@@ -110,7 +104,6 @@ R_TEXT		ENDS
 
 _DATA		SEGMENT byte public 'DATA'
 
-endif
 	extrn	_country:WORD
 	extrn	__psp2:WORD
 
@@ -193,10 +186,10 @@ crit_top	dw	offset DGROUP:msg0	; (00) Write to Read Only Disk
 	Extrn	ignore_char:byte, ignore_msg:byte
 	Extrn	fail_char:byte, fail_msg:byte, prompt_msg:byte
 endif
-ifndef CDOSTMP
+
 _DATA	ends
 ED_TEXT		SEGMENT para public 'CDATA'
-endif
+
 
 	assume cs:DGROUP, ds:nothing, es:nothing, ss:nothing
 ;
@@ -581,9 +574,6 @@ i24_print:
 	int	DOS_INT
 	ret
 
-ifdef CDOSTMP
-R_TEXT	ENDS
-else
 ED_TEXT	ENDS
-endif
+
 	end
