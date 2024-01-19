@@ -36,8 +36,6 @@
 
 #include <portab.h>
 #define SWITCH_ENABLED 1
-#define BETA           1
-#define PASSWORD       1
 
 /*
  *	DOS Plus Command Line Processor definitions
