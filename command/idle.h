@@ -34,19 +34,19 @@
 ;    ENDLOG
 */
 
-#include	<portab.h>
+#include <portab.h>
 
-#define	IDLE_COMMAND	0x0001
-#define	IDLE_DOSFUNC	0x0002
-#define IDLE_ON		0x4000
-#define	IDLE_ENABLE	0x8000
+#define IDLE_COMMAND 0x0001
+#define IDLE_DOSFUNC 0x0002
+#define IDLE_ON      0x4000
+#define IDLE_ENABLE  0x8000
 
 typedef struct _idle_state {
-	WORD	count;
-	WORD	max;
-	WORD	flags;
-	VOID FAR *vec;
-	WORD	delay;
-	WORD	reload;
-	WORD	indos;
+   WORD count;
+   WORD max;
+   WORD flags;
+   VOID FAR *vec;
+   WORD delay;
+   WORD reload;
+   WORD indos;
 } IDLE_STATE;

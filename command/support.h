@@ -34,53 +34,53 @@
 ;    ENDLOG
 */
 
-EXTERN VOID      disp_filetime(UWORD);
-EXTERN VOID      disp_filedate(UWORD);
-EXTERN VOID      disp_systime(VOID);
-EXTERN VOID      disp_sysdate(VOID);
-EXTERN VOID      revon(VOID);
-EXTERN VOID      revoff(VOID);
-EXTERN VOID CDECL cmd_cls(VOID);
-EXTERN BYTE      dr_tolower(BYTE);
-EXTERN BYTE *    skip_char (BYTE *);
-EXTERN BYTE *    copy_char (BYTE **, BYTE **);
-EXTERN WORD      is_blank (BYTE *);
-EXTERN BYTE *    deblank (BYTE *);
-EXTERN BOOLEAN   iswild (BYTE *);
-EXTERN VOID      zap_spaces(BYTE *);
-EXTERN VOID      strip_path(BYTE *, BYTE *);
-EXTERN BOOLEAN   getdigit(WORD *, BYTE **);
-EXTERN BOOLEAN   check_num(BYTE *, UWORD, UWORD, UWORD *);
-EXTERN BOOLEAN   is_filechar(BYTE *);
-EXTERN BOOLEAN   is_pathchar(BYTE *);
-EXTERN BYTE *    get_filename(BYTE *, BYTE *, BOOLEAN);
-EXTERN BYTE *    fptr(BYTE *);
-EXTERN VOID      repwild(BYTE *, BYTE *);
-EXTERN BOOLEAN   yes(BOOLEAN ,BOOLEAN);
-EXTERN WORD      onoff(BYTE *);
-EXTERN VOID      syntax (VOID);
-EXTERN VOID      crlf (VOID);
-EXTERN VOID      putc (BYTE);
-EXTERN VOID      puts(BYTE *);
-	
-EXTERN BYTE *	strlwr(BYTE *);
-EXTERN BYTE *	strupr(BYTE *);
-EXTERN WORD		dr_strnicmp(const BYTE *, const BYTE *, UWORD);
+EXTERN VOID disp_filetime( UWORD );
+EXTERN VOID disp_filedate( UWORD );
+EXTERN VOID disp_systime( VOID );
+EXTERN VOID disp_sysdate( VOID );
+EXTERN VOID revon( VOID );
+EXTERN VOID revoff( VOID );
+EXTERN VOID CDECL cmd_cls( VOID );
+EXTERN BYTE dr_tolower( BYTE );
+EXTERN BYTE *skip_char( BYTE * );
+EXTERN BYTE *copy_char( BYTE **, BYTE ** );
+EXTERN WORD is_blank( BYTE * );
+EXTERN BYTE *deblank( BYTE * );
+EXTERN BOOLEAN iswild( BYTE * );
+EXTERN VOID zap_spaces( BYTE * );
+EXTERN VOID strip_path( BYTE *, BYTE * );
+EXTERN BOOLEAN getdigit( WORD *, BYTE ** );
+EXTERN BOOLEAN check_num( BYTE *, UWORD, UWORD, UWORD * );
+EXTERN BOOLEAN is_filechar( BYTE * );
+EXTERN BOOLEAN is_pathchar( BYTE * );
+EXTERN BYTE *get_filename( BYTE *, BYTE *, BOOLEAN );
+EXTERN BYTE *fptr( BYTE * );
+EXTERN VOID repwild( BYTE *, BYTE * );
+EXTERN BOOLEAN yes( BOOLEAN, BOOLEAN );
+EXTERN WORD onoff( BYTE * );
+EXTERN VOID syntax( VOID );
+EXTERN VOID crlf( VOID );
+EXTERN VOID putc( BYTE );
+EXTERN VOID puts( BYTE * );
 
-EXTERN WORD      e_check(WORD);
-EXTERN BYTE *    d_check(BYTE *);
-EXTERN BOOLEAN   f_check(BYTE *, BYTE *, UWORD *, BOOLEAN);
-EXTERN BOOLEAN   nofiles(BYTE *, WORD, BOOLEAN, BOOLEAN);
-EXTERN BOOLEAN   file_exist(BYTE *);
-EXTERN BOOLEAN   isdev(UWORD);
+EXTERN BYTE *strlwr( BYTE * );
+EXTERN BYTE *strupr( BYTE * );
+EXTERN WORD dr_strnicmp( const BYTE *, const BYTE *, UWORD );
 
-EXTERN VOID CDECL printf(BYTE *, ...);
-EXTERN VOID CDECL eprintf(BYTE *, ...);
-EXTERN VOID CDECL sprintf(BYTE *, BYTE *, ...);
+EXTERN WORD e_check( WORD );
+EXTERN BYTE *d_check( BYTE * );
+EXTERN BOOLEAN f_check( BYTE *, BYTE *, UWORD *, BOOLEAN );
+EXTERN BOOLEAN nofiles( BYTE *, WORD, BOOLEAN, BOOLEAN );
+EXTERN BOOLEAN file_exist( BYTE * );
+EXTERN BOOLEAN isdev( UWORD );
 
-EXTERN UWORD CDECL findeof(BYTE FAR *, UWORD);
+EXTERN VOID CDECL printf( BYTE *, ... );
+EXTERN VOID CDECL eprintf( BYTE *, ... );
+EXTERN VOID CDECL sprintf( BYTE *, BYTE *, ... );
 
-EXTERN VOID	append_slash(BYTE *);
-EXTERN VOID	prompt_exec(VOID);
-EXTERN VOID	optional_line(BYTE *);
-EXTERN BYTE	*day_names(UWORD);
+EXTERN UWORD CDECL findeof( BYTE FAR *, UWORD );
+
+EXTERN VOID append_slash( BYTE * );
+EXTERN VOID prompt_exec( VOID );
+EXTERN VOID optional_line( BYTE * );
+EXTERN BYTE *day_names( UWORD );
