@@ -274,69 +274,6 @@ EXTERN	BYTE * cdecl dls_msg1(UWORD);
 
 #define MSG_DRV_INVALID		msg_drv_invalid
 
-#if	defined(CPM)
-#define	CUR_USER	cur_user	
-#define	INV_USER	inv_user	
-#define	MSG_SINGLECPM	msg_singlecpm	
-#endif
-
-
-#if	defined(CDOSTMP) || defined(CPM)
-#define	MSG_CE_NO0	msg_ce_no0	
-#define	MSG_CE_NO2	msg_ce_no2	
-#define	MSG_CE_NO3	msg_ce_no3	
-#define	MSG_CE_NO4	msg_ce_no4	
-#define	MSG_CE_NO6	msg_ce_no6	
-#define	MSG_CE_NO7	msg_ce_no7	
-#define	MSG_CE_NO8	msg_ce_no8	
-#define	MSG_DRIVE	msg_drive	
-#define	MSG_READ	msg_read	
-#define	MSG_WRITE	msg_write	
-#define	MSG_ABORT	msg_abort	
-#define	MSG_RETRY	msg_retry	
-#define	MSG_IGNORE	msg_ignore	
-#define	MSG_FAIL	msg_fail	
-#define	MSG_NE_NO0	msg_ne_no0	
-#define	MSG_NE_NO1	msg_ne_no1	
-#define	MSG_NE_NO2	msg_ne_no2	
-#define	MSG_NE_NO3	msg_ne_no3	
-#define	MSG_NE_NO4	msg_ne_no4	
-#define	MSG_NE_NO5	msg_ne_no5	
-#define	MSG_NE_NO6	msg_ne_no6	
-#define	MSG_SERVER	msg_server	
-#endif
-
-
-#if	defined(CDOSTMP) || defined(CDOS)
-#define	MSG_NOGOOD	msg_nogood	
-#define	MSG_NOFAIL	msg_nofail	
-#define	MSG_NOATCH	msg_noatch	
-#define	MSG_NFGOOD	msg_nfgood	
-#define	MSG_NFFAIL	msg_nffail	
-#define	MSG_NFATCH	msg_nfatch	
-#define	MSG_PWDPRMPT	msg_pwdprmpt	
-#define	MSG_BADSTOP	msg_badstop	
-#define	MSG_BANK	msg_bank	
-#define	MSG_SUSPEND	msg_suspend	
-#define	MSG_MEMSIZE	msg_memsize	
-#define	MSG_LIMSIZE	msg_limsize	
-#define	MSG_LOCAL	msg_local	
-#define	MSG_REMOTE	msg_remote	
-#define	MSG_APPEND	msg_append	
-#define	MSG_CPYPRMPT	msg_cpyprmpt	
-#define	ERR_RSC		err_rsc		
-#define	MSG_LIMOFF	msg_limoff	
-/*RG-01*/
-#if !defined(NOSECURITY)
-#define MSG_UHAVEMAIL msg_uhavemail
-#endif
-/*RG-01-end*/
-/*RG-05-*/
-#define MSG_HELP    msg_help
-/*RG-05-end*/
-#endif
-
-#if	defined(DOSPLUS)
 #define	MSG_CURCP	msg_curcp	
 #define	MSG_BADCP	msg_badcp	
 #define	MSG_CPNF	msg_cpnf	
@@ -344,7 +281,6 @@ EXTERN	BYTE * cdecl dls_msg1(UWORD);
 #define	MSG_NETASSIGN	msg_netassign
 #define	MSG_OEMCPYRT	msg_oemcpyrt	
 #define	MSG_SERIALNO	msg_serialno
-#endif
 
 #endif
 

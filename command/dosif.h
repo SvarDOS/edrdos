@@ -133,7 +133,6 @@ EXTERN UWORD  CDECL psp_poke(UWORD, UWORD);	/* Poke Handle Table	    */
 EXTERN BOOLEAN	CDECL	dbcs_expected(VOID);
 EXTERN BOOLEAN	CDECL	dbcs_lead(BYTE);
 
-#if !defined(CDOSTMP)
 EXTERN UWORD CDECL    ioctl_ver(VOID);
 EXTERN VOID CDECL     ms_x_exit();
 EXTERN VOID CDECL     ms_f_verify(BOOLEAN);
@@ -142,13 +141,11 @@ EXTERN WORD CDECL     ms_f_getverify(VOID);
 EXTERN WORD CDECL     ms_f_parse (BYTE *, BYTE *, UBYTE);
 EXTERN WORD CDECL     ms_f_delete (BYTE *);
 EXTERN VOID CDECL     restore_term_addr();
-#endif
 
 EXTERN UWORD CDECL     get_lastdrive(VOID);
 EXTERN UWORD CDECL     get_driveflags(UWORD);
 EXTERN UWORD CDECL     conv64(ULONG *, ULONG *);
 
-#if defined(DOSPLUS)
 EXTERN WORD CDECL     ms_x_getcp(UWORD *, UWORD *);
 EXTERN WORD CDECL     ms_x_setcp(UWORD);
 /*EXTERN VOID CDECL     hiload_set(BOOLEAN);*/
@@ -158,7 +155,6 @@ EXTERN WORD CDECL     get_alloc_strategy(VOID);
 EXTERN VOID CDECL     set_alloc_strategy(WORD);
 EXTERN WORD CDECL     alloc_region();
 EXTERN VOID CDECL     free_region(WORD);
-#endif
 
 EXTERN BOOLEAN CDECL  env_entry(BYTE *, UWORD); 	/* CSUP.ASM	*/
 EXTERN BOOLEAN CDECL  env_scan(BYTE *, BYTE *); 	/* CSUP.ASM	*/
@@ -167,18 +163,10 @@ EXTERN BOOLEAN CDECL  env_ins(BYTE *);			/* CSUP.ASM	*/
 
 EXTERN BOOLEAN CDECL  get_cmdname(BYTE *);		/* CSUP.ASM	*/
 
-#if defined(CDOSTMP)
-#define	system	bdos	/* Call the BDOS Function for Common routines	*/
-#else
 #define	system	msdos	/* Call the MSDOS Function for Common routines	*/
 EXTERN WORD CDECL     msdos();
 EXTERN WORD CDECL     readline(BYTE *);
-#endif
 
-#if defined(CDOSTMP) || defined(CDOS)
-EXTERN VOID CDECL     vc_data(UWORD *, UWORD *, UWORD *);
-EXTERN WORD CDECL     bdos(WORD,...);
-#endif
 
 #if !defined(DOSPLUS) || !defined(EXT_SUBST)
 EXTERN ULONG CDECL    physical_drvs(VOID);
@@ -189,12 +177,6 @@ EXTERN ULONG CDECL    logical_drvs(VOID);
 EXTERN UWORD CDECL    pdrive(UWORD);
 #endif
 EXTERN UWORD CDECL    exec(BYTE *, UWORD, BYTE *, BOOLEAN);
-
-#if !defined(DOSPLUS)
-EXTERN UWORD FAR * CDECL sysdat(UWORD);	
-#define SYSDATW(x)	sysdat(x)
-#define SYSDATB(x)	((UBYTE FAR *) sysdat(x))
-#endif
 
 EXTERN	BOOLEAN	CDECL	physical_drive(WORD);
 EXTERN	BOOLEAN	CDECL	logical_drive(WORD);
