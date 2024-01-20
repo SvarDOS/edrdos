@@ -660,13 +660,10 @@ MLOCAL VOID init( BYTE *cmd )
 	}					/* a command.		     */
 #endif
 
-   if ( !COMMAND_C ) {
-      if ( *autoexec_name != 0 ) {
-         cmd_ver(); /* display the signon	     */
-
-         printf( MSG_OEMCPYRT );
-         crlf();
-      }
+   if ( !COMMAND_C && !execed ) {
+      cmd_ver(); /* display the signon	     */
+      printf( MSG_OEMCPYRT );
+      crlf();
    }
 }
 
