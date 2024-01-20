@@ -1638,8 +1638,6 @@ GLOBAL VOID CDECL cmd_set( BYTE *s )
       return;
    } /* a syntax error.		*/
 
-   s++;
-
 #if 0
 	/* msdos doesn't do this */
 
@@ -1658,7 +1656,9 @@ GLOBAL VOID CDECL cmd_set( BYTE *s )
       crlfflg = YES;
       return;
    }
-   if ( ( *s-- = c ) != 0 ) { /* Add the definition to the end*/
+   *s++ = c;
+
+   if ( *s != 0 ) { /* Add the definition to the end*/
       /* of the environment if the new*/
       if ( env_ins( key ) ) {   /* definition is not NULL	*/
          printf( MSG_ENVFULL ); /* check for an error.		*/
