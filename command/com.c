@@ -162,7 +162,7 @@ EXTERN BOOLEAN if_context; /* BATCH.C */
 
 EXTERN VOID CDECL show_help( WORD );           /* CSTART.ASM */
 EXTERN VOID CDECL put_resident_high( WORD );   /* CSTART.ASM */
-EXTERN BYTE FAR *CDECL get_config_env( VOID ); /* CTSART.ASM */
+EXTERN BYTE FAR *CDECL get_config_env( VOID ); /* CSTART.ASM */
 EXTERN UWORD CDECL get_original_envsize( VOID );
 EXTERN VOID CDECL copy_crit_msgs( VOID ); /* CSUP.ASM */
 EXTERN VOID CDECL copy_rld_msgs( VOID );  /* CSUP.ASM */
@@ -607,8 +607,9 @@ MLOCAL VOID init( BYTE *cmd )
       install_perm(); /* Install Backdoor entry    */
    }
 
-   /* process the environment created by config.sys */
-   process_config_env();
+   /* process the environment created by config.sys if not sub-shell */   
+   if ( !execed )
+      process_config_env();
 
    FOREVER
    {
@@ -660,7 +661,6 @@ MLOCAL VOID init( BYTE *cmd )
 #endif
 
    if ( !COMMAND_C ) {
-
       if ( *autoexec_name != 0 ) {
          cmd_ver(); /* display the signon	     */
 
