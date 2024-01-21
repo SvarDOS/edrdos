@@ -278,7 +278,7 @@ VOID FAR CDECL _main( BYTE *cmd )
       return;        /* stop now before echo	*/
    }
 
-   if ( echoing && first_ch != ':' ) {
+   if ( echoing && *cmdline && first_ch != ':' ) {
       /* Echo command line if ECHO */
       puts( cmdline ); /* ON and source not keyboard*/
       crlf();          /* and not a label	     */
