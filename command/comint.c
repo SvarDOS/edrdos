@@ -258,7 +258,7 @@ GLOBAL VOID CDECL cmd_call( REG BYTE *line )
    strlwr( path );
 
    if ( ( ret = findfile( path, &loadtype ) ) >= 0 ) {
-      if ( loadtype == BAT_FILETYPE ) { /* treat .BAT differently */
+      if ( loadtype == BAT_FILETYPE && batchflg ) { /* treat .BAT differently */
          batch_start( argv0, path, s ); /* nested batch files */
          return;
       }
