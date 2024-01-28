@@ -1595,7 +1595,6 @@ GLOBAL VOID CDECL cmd_set( BYTE *s )
    REG BYTE *key;
    BYTE *t;
    WORD i;
-   UWORD flags; /* Command Flags: /e = 1 */
 
    if ( !*s ) { /* if no cmd, display env */
       for ( i = 0; !env_entry( key = (BYTE *)heap(), i ); i++ ) {
@@ -1605,11 +1604,6 @@ GLOBAL VOID CDECL cmd_set( BYTE *s )
       return;
    }
    /* else need to set env var */
-
-   /* check for flags */
-   if ( f_check( s, "e", &flags, NO ) != SUCCESS ) {
-      return;
-   }
 
    /* msdos removes leading blanks, commas, semicolons and equal signs,
 	but keeps spaces in the variable name (SPR 770044) JBM */

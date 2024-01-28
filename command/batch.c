@@ -301,11 +301,11 @@ GLOBAL BOOLEAN getcmd( BYTE *line ) /* read command line */
          return NO;                /* echo the command and move the*/
       }                            /* string down 1 character.	*/
 
-      if ( !cancel_prompt && *line ) {
+      if ( !cancel_prompt ) {
          if ( crlfflg && echoflg ) {
             crlf();
          }
-         prompt();
+         if ( *line ) prompt();
       }
       return echoflg;
    }
