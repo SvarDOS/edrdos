@@ -32,7 +32,7 @@ rasm_objs += bin/nlsfunc.obj
 
 bin/drbio.sys : bin/bios.exe
 	$(EXE2BIN) -q $< $@
-	$(COMPBIOS) $@
+	$(COMPBIOS) $@ $@
 	
 bin/bios.exe : $(wasm_objs) $(rasm_objs) bios.lnk
 	$(WLINK) @bios.lnk

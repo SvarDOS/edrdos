@@ -26,9 +26,9 @@ SOFTWARE.
 
 
 /*
-DRBIOS.SYS is compressed by RLE encoding regions of zero of its data area.
+DRBIO.SYS is compressed by RLE encoding regions of zero of its data area.
 The start offset of the region to be compressed is stored as a word at
-offset 3 of DRBIOS.SYS. Bytes in front of the area to be compressed are
+offset 3 of DRBIO.SYS. Bytes in front of the area to be compressed are
 copied unaltered to the output file.
 
 COMPBIOS encodes regions of zero as a 16-bit count with the highest bit set
@@ -37,6 +37,8 @@ are to be copied literally are preceeded by the 16-bit byte count, with
 the highest bit cleared. So 32 bytes to be copied are encoded as 0x0020
 followed by the actual bytes. The end of the compressed region is encoded by
 0x0000.
+
+The DRBIO.SYS decompression is implemented in init0 in DRBIO\INIT.ASM
 */
 
 
@@ -115,18 +117,19 @@ int main( int argc, char *argv[] )
 #define ZERO_THRESHOLD 5
 
 /* encodes a single block of either non-zero data or zeroes. Up to 
-   ZERO_THRESHOLD consecutive zeroes are allowed in non-zero data blocks */
+   ZERO_THRESHOLD consecutive zeroes are allowed in non-zero data blocks.
+   Block size is restricted to 0x7fff bytes. */
 void zerocomp_block( char **in, char *eof, char **out )
 {
    char *data = *in;
    size_t len;
-   uint16_t zero_count = 0;
+   uint16_t count = 0, zero_count = 0;
    char *last_non_zero = NULL;
    char *outp = *out;
 
    if ( data >= eof ) return;
 
-   while ( data < eof ) {
+   while ( data < eof && count <= 0x7fff ) {
       if ( *data ) {
          if ( zero_count >= ZERO_THRESHOLD ) {
             break;
@@ -144,6 +147,7 @@ void zerocomp_block( char **in, char *eof, char **out )
          }
       }
       data++;
+      count++;
    }
 
    len = data - *in;
@@ -182,13 +186,16 @@ void zerocomp( char *data, size_t data_len, char *out, size_t *out_len )
    end++;
    if ( eof - end < 3 ) end = eof;
 
+   /* compress blocks of either zero or non-zero data */
    while ( data < end ) {
       zerocomp_block( &data, end, &outp );
    }
    zerocomp_block( &end, eof, &outp );
 
+   /* terminate with 0x0000 to indicate no further data */
    *outp++ = 0;
    *outp++ = 0;
+
    *out_len = outp - out;
 }
 
