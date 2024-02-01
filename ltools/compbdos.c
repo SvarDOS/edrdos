@@ -1,5 +1,5 @@
 /*
-COMPBIOS - a re-implementation of COMPBIOS.EXE of EDR-DOS LTOOLS
+COMPBDOS - a re-implementation of COMPBDOS.EXE of EDR-DOS LTOOLS
 
 MIT License
 
@@ -26,19 +26,29 @@ SOFTWARE.
 
 
 /*
-DRBIO.SYS is compressed by RLE encoding regions of zero of its data area.
-The start offset of the region to be compressed is stored as a word at
-offset 3 of DRBIO.SYS. Bytes in front of the area to be compressed are
-copied unaltered to the output file.
+The uncompressed DRDOS.SYS starts with a padding area consisting of zeroes.
+The first word of the file specifies the size of this area. The padding
+area is followed by a header (defined in DRDOS\HEADER.A86), containing
+information if the DOS is compressed and the size of the code area etc..
 
-COMPBIOS encodes regions of zero as a 16-bit count with the highest bit set
+First job of COMPBDOS is to strip the padding area. It then copies the code
+area uncompressed, after determine its size from the header.
+
+After copying the uncompressed code area, the data area is zero-compressed.
+
+The original COMPBDOS appends copyright info to the DRDOS.SYS. This
+re-implementation does not do this.
+
+This is how the zero-compression works:
+
+COMPBDOS encodes regions of zero as a 16-bit count with the highest bit set
 to one. So, if 16 zeroes are encoded this becomes 0x8010. Data regions that
 are to be copied literally are preceeded by the 16-bit byte count, with
 the highest bit cleared. So 32 bytes to be copied are encoded as 0x0020
 followed by the actual bytes. The end of the compressed region is encoded by
 0x0000.
 
-The DRBIO.SYS decompression is implemented in init0 in DRBIO\INIT.ASM
+The DRDOS.SYS decompression is implemented in dos_reloc in DRBIO\BIOSINIT.ASM.
 */
 
 
@@ -49,51 +59,55 @@ The DRBIO.SYS decompression is implemented in init0 in DRBIO\INIT.ASM
 
 #include "zerocomp.h"
 
-#define ZEROCOMP_ADDR_WORD 3  /* location in input file holding the start
-                           offset (WORD) of zero-compressed data */
+#define CODE_SIZE_OFFSET 0x1e  /* location in input file holding the start
+                                of the BDOS data area to be compressed,
+                                without padding! */
+#define COMP_FLAG_OFFSET 0x1c
+
 
 
 int main( int argc, char *argv[] )
 {
    char *in_data, *out_data, *in_ptr, *out_ptr;
    size_t in_size, out_size;
+   uint16_t padding;
    uint16_t comp_start;
 
    if ( argc != 3 ) {
-      puts( "Usage: COMPBIOS.EXE in-file out-file" );
+      puts( "Usage: COMPBDOS.EXE in-file out-file" );
       return 1;
    }
 
-   in_data = read_file( argv[1], &in_size );
+   in_data = in_ptr = read_file( argv[1], &in_size );
    if ( !in_data ) {
       puts( "error: can not read input file" );
       return 1;
    }
 
-   /* get start offset of data to be compressed */
-   comp_start = *(uint16_t*)(in_data + ZEROCOMP_ADDR_WORD);
-   in_data[ZEROCOMP_ADDR_WORD] = in_data[ZEROCOMP_ADDR_WORD+1] = 0;
+   /* number of padding bytes to be skipped */
+   padding = *(uint16_t*)in_data;
+   in_ptr += padding;
+   in_size -= padding;
 
-   if ( !comp_start ) {
-      puts( "BIOS already compressed" );
-      free( in_data );
-      return 0;
-   }
+   /* get offset of data area to be compressed */
+   comp_start = *(uint16_t*)(in_ptr + CODE_SIZE_OFFSET);
    /*printf( "start compressing at %04x\n", comp_start );*/
-   
 
-   out_data = malloc( in_size );
+   /* mark file as compressed */
+   in_ptr[COMP_FLAG_OFFSET] = 1; 
+
+   out_data = out_ptr = malloc( in_size );
    if ( !out_data ) {
       puts( "allocation error" );
       return 1;
    }
 
    /* copy uncompressed part of file */
-   memcpy( out_data, in_data, comp_start );
+   memcpy( out_ptr, in_ptr, comp_start );
 
    /* zero-compress file... */
-   in_ptr = in_data + comp_start;
-   out_ptr = out_data + comp_start;
+   in_ptr += comp_start;
+   out_ptr += comp_start;
    zerocomp( in_ptr, in_size - comp_start, out_ptr, &out_size );
    /*printf( "in-size: %zu, out-size: %zu\n ", in_size - comp_start, out_size );*/
    
@@ -109,3 +123,4 @@ int main( int argc, char *argv[] )
    free( in_data );
    return 0;
 }
+

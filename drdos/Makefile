@@ -29,10 +29,8 @@ objs += bin/network.obj bin/int2f.obj bin/history.obj bin/cmdline.obj
 objs += bin/dos7.obj bin/lfn.obj bin/dosgrps.obj
 
 bin/drdos.sys : bin/drdos.exe
-	$(EXE2BIN) -q bin\drdos.exe bin\drdos.tmp
-	$(ROUND) bin\drdos.tmp bin\drdos.sys 128
-	rm -f bin/drdos.tmp
-	$(LTOOLS)\compbdos .\bin\drdos.sys
+	$(EXE2BIN) -q $< bin\drdos.bin
+	$(LTOOLS)\compbdos bin\drdos.bin $@
 
 bin/drdos.exe: version.inc $(objs) drdos.lnk
 	$(WLINK) @drdos.lnk
