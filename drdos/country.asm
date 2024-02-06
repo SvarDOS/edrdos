@@ -1,4 +1,3 @@
-NOIFLIST
 TITLE 'National Data'
 ;    File              : $COUNTRY.A86$
 ;
@@ -77,10 +76,10 @@ VALID_SIG	equ	0EDC1h
 COMPATIBLE	equ	1
 TURKCP		equ	857		; Turkish Code Page (853 or 857)
 ;
-	eject	! include i:country.def
+include country.def
 ;
 DGROUP	group	_DATA
-_DATA	dseg	word 'DATA'
+_DATA	segment	word 'DATA'
 ;
 ; File structure:   List of country information pointers
 ;			country code     dw	; Header words
@@ -3658,5 +3657,6 @@ DBCS_936:
 		dw	4	; Table Size
 	db	 081h, 0fch, 000h, 000h
 
+_DATA	ends
 
 	END

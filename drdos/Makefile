@@ -28,12 +28,17 @@ objs += bin/support.obj bin/dosmem.obj bin/error.obj bin/process.obj
 objs += bin/network.obj bin/int2f.obj bin/history.obj bin/cmdline.obj
 objs += bin/dos7.obj bin/lfn.obj bin/dosgrps.obj
 
+all: bin/drdos.sys bin/country.sys .SYMBOLIC
+
 bin/drdos.sys : bin/drdos.exe
 	$(EXE2BIN) -q $< bin\drdos.bin
 	$(LTOOLS)\compbdos bin\drdos.bin $@
 
 bin/drdos.exe: version.inc $(objs) drdos.lnk
 	$(WLINK) @drdos.lnk
+
+bin/country.sys: country.asm country.def
+	$(WASM) -bin -Fo=$^@ $[@
 
 version.inc: ../version.inc
 	copy ..\version.inc .
