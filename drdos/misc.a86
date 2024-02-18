@@ -1319,6 +1319,7 @@ func6522:
 func6521:
 ;--------
 ; Upper case string of CX bytes at ES:DX
+	jcxz	f6521_30		; nothing to do?
 	mov	si,dx
 	mov	di,dx			; point SI & DI at string
 f6521_10:
@@ -1335,6 +1336,7 @@ f6521_20:
 	call	toupper			; upper case the character
 	stosb				; 
 	loop	f6521_10		; go and do another one
+f6521_30:
 	ret
 
 func6520:
