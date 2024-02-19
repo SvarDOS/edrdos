@@ -941,6 +941,7 @@ f_ctry20:
 	 jz	f_ctry30		; No Code Page Set leave as 437
 	mov	ax, MS_X_SETCP		; set codepage subfunction
 	int	DOS_INT			; to set Current CodePage
+	jc	f_ctry40
 f_ctry30:
 	jmp	nls_unhook		; remove our lang support
 ;	ret

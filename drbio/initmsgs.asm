@@ -69,7 +69,7 @@ _bad_history	db	"Invalid HISTORY parameters, usage:", CR, LF, "HISTORY = ON|OFF 
 	public	_bad_country
 	public	bad_country
 bad_country	label	byte
-_bad_country	db	"Invalid country code $", NUL
+_bad_country	db	"Invalid country code and / or code page$", NUL
 	public	_bad_exec
 	public	bad_exec
 bad_exec	label	byte
