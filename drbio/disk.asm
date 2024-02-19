@@ -2572,13 +2572,13 @@ hardi1:
 	call	output_msg
 	jmp	hardi3
 ver20:
-	cmp	ah,20
+	cmp	ah,20h
 	 jnz	ver21
 	lea	si,ver_20
 	call	output_msg
 	jmp	hardi3
 ver21:
-	cmp	ah,21
+	cmp	ah,21h
 	 jnz	ver30
 	lea	si,ver_21
 	call	output_msg
