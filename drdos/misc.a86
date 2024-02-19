@@ -1438,7 +1438,9 @@ f66_10:					; Get the Current Code Page Info
 	mov	bx,cur_cp		; Current CodePage
 	call	return_BX
 	mov	dx,SYS_CP		; System CodePage
-	jmp	return_DX
+	call	return_DX
+	xor	ax,ax
+	jmp	return_AX_CLC
 
 f66_20:					; Set the Current CodePage
 	mov	dx,cur_country		; The Codepage has changed, so update

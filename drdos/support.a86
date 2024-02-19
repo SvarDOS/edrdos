@@ -209,10 +209,10 @@ return_BX:
 ; On Exit:
 ;	All regs preserved
 ;
-	push ds ! push bx
+	push ds ! push si
 	lds	si,ss:int21regs_ptr
 	mov	reg_BX[si],bx		; return BX to caller
-	pop bx ! pop ds
+	pop si ! pop ds
 	ret
 
 	Public	return_CX
