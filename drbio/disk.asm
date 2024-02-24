@@ -697,7 +697,7 @@ medchk5:
 	 jb	medchk6			; may have changed if not good BPB
 	cmp	al,es:UDSC_BPB+BPB_FATID[di]
 	 jne	medchk8			; has media byte changed ?
-	mov	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+11+2
+	mov	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET+2
 	lodsb				; get extended boot
 	sub	al,29h			; do we have an extended boot ?
 	 je	medchk7			; no, test against our dummy value
@@ -805,7 +805,7 @@ login_media40:
 ;	mov	cx,0
 	mov	es:word ptr (UDSC_BPB+BPB_HIDDEN)[di],cx
 	mov	es:word ptr (UDSC_BPB+BPB_HIDDEN+2)[di],cx
-	cmp	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+11
+	cmp	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET
 	 jne	login_media50		; is the BPB from the boot sector ?
 ;	mov	ax,ds			; if so then check for media id
 ;	cmp	ax,cs:DataSegment	; seg check redundant as UDSC_DEVBPB
@@ -2083,10 +2083,10 @@ rw_media:
 	 jb	rw_media10
 	cmp	word ptr local_buffer+11+BPB_DIRMAX,0	; FAT32 drive?
 	 jne	rw_media05		; no
-	mov	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+11+14
+	mov	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET+14
 	jmps	rw_media07
 rw_media05:
-	mov	si,offset CGROUP:local_buffer+OLD_UDSC_BPB_LENGTH+11+2
+	mov	si,offset CGROUP:local_buffer+OLD_UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET+2
 rw_media07:
 	lodsb				; get extended boot
 	sub	al,29h			; do we have an extended boot ?

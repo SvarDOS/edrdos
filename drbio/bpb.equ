@@ -55,6 +55,8 @@ BPB		ends
 
 BPB_LENGTH	equ	size BPB
 
+BPB_SECTOR_OFFSET equ 0bh
+
 OLDBPB		struc
 OLDBPB_SECSIZ	dw	?	; # of bytes per sector 
 OLDBPB_ALLOCSIZ	db	?	; # of sectors per allocation unit

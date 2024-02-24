@@ -33,21 +33,19 @@
 
 
 OLD_UDSC_BPB_LENGTH	equ	25
-UDSC_BPB_LENGTH		equ	41
+UDSC_BPB_LENGTH		equ	53
 
 UDSC		struc
 UDSC_NEXT	dd	?		; link to next UDSC_
 UDSC_RUNIT	db	?		; ROS drive number (0/1/80/81)
 UDSC_DRIVE	db	?		; logical drive
 UDSC_BPB	db	UDSC_BPB_LENGTH dup (?)	; current BPB
-		db	12 dup(?)
 UDSC_FATFLAG	db	?
 UDSC_OPNCNT	dw	?		; # of files open on drive
 UDSC_TYPE	db	?		; floppy drive type (0/1/2/7)
 UDSC_FLAGS	dw	?		; various flags for drive
 UDSC_NCYL	dw	?		; # of cylinders per drive
 UDSC_DEVBPB	db	UDSC_BPB_LENGTH dup (?)	; device BPB
-		db	12 dup(?)
 UDSC_LAST_TRACK	db	?		; unused (last track accessed)
 UDSC_TIMER	dw	2 dup (?)	; tick count for MEDCHK
 UDSC_LABEL	db	12 dup (?)	; ASCIIZ volume label
