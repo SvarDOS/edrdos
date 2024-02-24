@@ -1207,7 +1207,7 @@ trkrw10:
 	mov	P_RETRY[bp],RETRY_MAX	; perform up to three retries
 trkrw20:				; loop back here for retries
 	mov	dl,es:UDSC_RUNIT[di]	; get ROS unit #
-	test	es:UDSC_INT13BITS[di],1	; LBA supported on this drive?
+	test	es:UDSC_FLAGS[di],UDF_LBA ; drive accessed via LBA?
 	 jz	trkrw25			; no, then use CHS routine
 
 trkrw25_lba:
@@ -1321,7 +1321,7 @@ trkrw80:
 	sub	P_COUNT[bp],ax		; subtract from total transfer length
 	 jz	trkrw90			; exit if none left
 trkrw85_lba:
-	test	es:UDSC_INT13BITS[di],1	; LBA supported on this drive?
+	test	es:UDSC_FLAGS[di],UDF_LBA ; drive accessed via LBA?
 	 jz	trkrw85			; no, then use CHS routine
 	xor	ah,ah			; update current LBA
 	add	word ptr P_LBABLOCK[bp],ax
@@ -2343,19 +2343,7 @@ equip_loop:
 
 	call	new_unit		; ES:DI -> UDSC
 	mov	es:UDSC_RUNIT[di],dl	; set physical drive (ROS code)
-	push	dx
-	mov	ah,ROS_LBACHK
-	mov	bx,55aah
-	int_____DISK_INT
-	pop	dx
-	 jc	equip_nolba
-	cmp	bx,0aa55h
-	 jnz	equip_nolba
-	xor	ah,ah
-	mov	es:UDSC_INT13EXT[di],ax	; version of int 13 extensions
-	mov	es:UDSC_INT13BITS[di],cx ; int 13 API support bitmap
 
-equip_nolba:
 	call	floppy_type		; determine type, build default BPB
 
 	cmp	nfloppy,1		; do we only have single drive?
@@ -2477,8 +2465,6 @@ equip_360:
 	rep	movsb			; make default BPB current BPB in UDSC
 	popx	<cx, si, di, es>
 
-;	test	es:UDSC_INT13BITS[di],7	; extended functions available?
-;	 jz	equip_type_nolba	; no, must be a standard FDD
 	push	cx
 	push	si
 		; This check is reported to be needed for an
@@ -2877,12 +2863,12 @@ log_p0:
 	cmp	ax,word ptr partend_max
 	 jbe	log_p0b			; within CHS bounds, do not use LBA
 log_p0a:
-	mov	ax,word ptr int13ex_ver	; version of int 13 extensions
-	mov	es:UDSC_INT13EXT[di],ax
 	mov	ax,word ptr int13ex_bits; int 13 extensions support bitmap
-	mov	es:UDSC_INT13BITS[di],ax
+	test	ax,1			; extended disk access functions?
+	jz	log_p0b			; no => use CHS access
+	or	es:UDSC_FLAGS[di],UDF_LBA ; else enable LBA access for drive
 log_p0b:
-	mov	es:UDSC_FLAGS[di],UDF_HARD
+	or	es:UDSC_FLAGS[di],UDF_HARD
 	mov	es:UDSC_RUNIT[di],dl	; set physical drive (ROS code)
 	mov	es:UDSC_TYPE[di],5	; set type = hard disk
 
