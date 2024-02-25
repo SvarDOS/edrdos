@@ -692,12 +692,20 @@ medchk5:
 	mov	cx,1			; read track 0, sector 1 (boot sector)
 	call	login_read		; to check the builtin BPB
 	 jc	medchk6			; may have changed if read error
-	mov	al,local_buffer+11+BPB_FATID
+	mov	al,local_buffer+BPB_SECTOR_OFFSET+BPB_FATID
 	cmp	al,0F0h			; check if we find a BPB
 	 jb	medchk6			; may have changed if not good BPB
 	cmp	al,es:UDSC_BPB+BPB_FATID[di]
 	 jne	medchk8			; has media byte changed ?
-	mov	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET+2
+					; point si to FAT16 ext. boot sig
+	mov	si,offset CGROUP:local_buffer+BPB_SECTOR_OFFSET+OLD_UDSC_BPB_LENGTH+2
+					; is it FAT16 at all?
+	mov	ax,local_buffer+BPB_SECTOR_OFFSET+BPB_DIRMAX
+	test	ax,ax
+	jnz	medchkf16
+					; FAT32: adjust si to DOS 7.1 EBPB
+	mov	si,offset CGROUP:local_buffer+BPB_SECTOR_OFFSET+UDSC_BPB_LENGTH+2
+medchkf16:
 	lodsb				; get extended boot
 	sub	al,29h			; do we have an extended boot ?
 	 je	medchk7			; no, test against our dummy value
@@ -763,7 +771,7 @@ login_media:		; determine BPB for new floppy disk
 	mov	cx,1			; read track 0, sector 1 (boot)
 	call	login_read		; to determine media type
 	 jc	login_media_err		; abort if physical error
-	cmp	local_buffer+11+BPB_FATID,0F0h
+	cmp	local_buffer+BPB_SECTOR_OFFSET+BPB_FATID,0F0h
 	 jb	login_media10		; fail unless FATID sensible
 	lodsw				; get JMP instruction from boot sector
 	xchg	ax,bx			; save in BX
@@ -2079,11 +2087,11 @@ rw_media:
 	mov	P_HEAD[bp],al		; save physical sector/head for later
 	call	rw_loop			; read the boot sector
 	 jc	rw_media20
-	cmp	local_buffer+11+BPB_FATID,0F0h
+	cmp	local_buffer+BPB_SECTOR_OFFSET+BPB_FATID,0F0h
 	 jb	rw_media10
-	cmp	word ptr local_buffer+11+BPB_DIRMAX,0	; FAT32 drive?
+	cmp	word ptr local_buffer+BPB_SECTOR_OFFSET+BPB_DIRMAX,0	; FAT32 drive?
 	 jne	rw_media05		; no
-	mov	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET+14
+	mov	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET+2
 	jmps	rw_media07
 rw_media05:
 	mov	si,offset CGROUP:local_buffer+OLD_UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET+2
@@ -2903,7 +2911,7 @@ log_p0b:
 ;	adc	dx,0			;   (usually 2.x partition table)
 
 	lea	bx,UDSC_BPB[di]		; BX -> BPB to build
-	add	si,11			; skip JMP + OEM name in boot sector
+	add	si,BPB_SECTOR_OFFSET	; skip JMP + OEM name in boot sector
 
 	mov	ax,word ptr partstart
 	mov	dx,word ptr partstart+2
