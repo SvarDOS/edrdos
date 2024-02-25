@@ -699,18 +699,15 @@ medchk5:
 	 jne	medchk8			; has media byte changed ?
 					; point si to FAT16 ext. boot sig
 	mov	si,offset CGROUP:local_buffer+BPB_SECTOR_OFFSET+OLD_UDSC_BPB_LENGTH+2
-					; is it FAT16 at all?
-	mov	ax,local_buffer+BPB_SECTOR_OFFSET+BPB_DIRMAX
-	test	ax,ax
-	jnz	medchkf16
-					; FAT32: adjust si to DOS 7.1 EBPB
+
+	cmp	word ptr local_buffer+BPB_SECTOR_OFFSET+BPB_DIRMAX,0
+	jnz	medchkf16		; is it not FAT32?
+					; FAT32 => adjust si to DOS 7.1 EBPB
 	mov	si,offset CGROUP:local_buffer+BPB_SECTOR_OFFSET+UDSC_BPB_LENGTH+2
 medchkf16:
 	lodsb				; get extended boot
 	sub	al,29h			; do we have an extended boot ?
 	 je	medchk7			; no, test against our dummy value
-	push	cs
-	pop	ds			; DS:SI -> our dummy value
 	mov	si,offset CGROUP:dummyMediaID
 medchk7:
 	push	di
@@ -806,24 +803,29 @@ login_media30:				; can't find that FAT ID
 login_media40:
 	push	di
 	lea	di,UDSC_BPB[di]		; ES:DI -> unit descriptor (UDSC)
-	mov	cx,UDSC_BPB_LENGTH	; size of a BPB (less reserved stuff)
+	mov	cx,OLD_UDSC_BPB_LENGTH	; size of a BPB (less reserved stuff)
+	cmp	word ptr BPB_DIRMAX[si],0 ; test for FAT32
+	 jne	login_media41
+	mov	cx,UDSC_BPB_LENGTH	; size of FAT32 BPB
+login_media41:
 	rep	movsb			; copy into unit descriptor
 	pop	di
 	mov	es:UDSC_BPB+BPB_SECSIZ[di],SECSIZE
 ;	mov	cx,0
 	mov	es:word ptr (UDSC_BPB+BPB_HIDDEN)[di],cx
 	mov	es:word ptr (UDSC_BPB+BPB_HIDDEN+2)[di],cx
+	cmp	si,offset CGROUP:local_buffer+OLD_UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET
+	 je	login_media70
 	cmp	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET
-	 jne	login_media50		; is the BPB from the boot sector ?
-;	mov	ax,ds			; if so then check for media id
-;	cmp	ax,cs:DataSegment	; seg check redundant as UDSC_DEVBPB
-;	 jne	login_media50		;  is followed by 7 bytes of zero
+	 je	login_media70
+	jmp	login_media50
+login_media70:
 	lodsw				; skip 2 bytes
 	lodsb				; now get possible boot signature
 	cmp	al,29h			; is it an extended boot sector ?
 	 je	login_media60		; yes, use it
 login_media50:
-	push	cs
+	push	cs			; no bootsector BPB, load dummy values
 	pop	ds			; DS:SI -> our dummy value
 	mov	si,offset CGROUP:dummyMediaID
 login_media60:
