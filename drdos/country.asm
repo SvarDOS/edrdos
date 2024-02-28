@@ -1595,7 +1595,7 @@ PolandData437:
 	dw	48		; Country Code
 	dw	437		; Code Page
 	dw	EURO_DATE	; Date Format (Binary)
-	db	'zl',0,0,0	; Currency Symbol
+	db	'PLN',0,0	; Currency Symbol
 	db	'.',0		; Thousands Separator
 	db	',',0		; Decimal Separator
 	db	'-',0		; Date Separator
