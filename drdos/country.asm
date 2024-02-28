@@ -1646,7 +1646,7 @@ PolandData991:
 	dw	48		; Country Code
 	dw	991		; Code Page
 	dw	EURO_DATE	; Date Format (Binary)
-	db	'z',146,0,0,0	; Currency Symbol
+	db	9Bh,0,0,0,0	; Currency Symbol
 	db	'.',0		; Thousands Separator
 	db	',',0		; Decimal Separator
 	db	'-',0		; Date Separator
