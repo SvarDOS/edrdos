@@ -614,34 +614,68 @@ Norway850:
 	dw	offset NorwCollating850	; Collating table
         dw	offset DBCS_tbl		; double byte char set range table
 
+Poland437:
+	dw	48			; Country code
+	dw	437			; Code page number
+	dw	0
+	dw	offset PolandData437	; Data area
+	dw	offset Ucasetbl		; Uppercase table
+	dw	0
+	dw	offset Ucasetbl		; Uppercase table
+	dw	offset FileCharstbl	; File character table
+	dw	offset CollatingTbl	; Collating table
+	dw	offset DBCS_tbl		; double byte char set range table
+
+Poland667:
+	dw	48			; Country code
+	dw	667			; Code page number
+	dw	0
+	dw	offset PolandData667	; Data area
+	dw	offset PolandUcaseMaz	; Uppercase table
+	dw	0
+	dw	offset PolandUcaseMaz	; Uppercase table
+	dw	offset FileCharstbl	; File character table
+	dw	offset PolCollatingMaz	; Collating table
+	dw	offset DBCS_tbl		; double byte char set range table
 
 
-Poland:
+Poland790:
+	dw	48			; Country code
+	dw	790			; Code page number
+	dw	0
+	dw	offset PolandData790	; Data area
+	dw	offset PolandUcaseMaz	; Uppercase table
+	dw	0
+	dw	offset PolandUcaseMaz	; Uppercase table
+	dw	offset FileCharstbl	; File character table
+	dw	offset PolCollatingMaz	; Collating table
+	dw	offset DBCS_tbl		; double byte char set range table
+
+
+Poland991:
+	dw	48			; Country code
+	dw	991			; Code page number
+	dw	0
+	dw	offset PolandData991	; Data area
+	dw	offset PolandUcaseMaz	; Uppercase table
+	dw	0
+	dw	offset PolandUcaseMaz	; Uppercase table
+	dw	offset FileCharstbl	; File character table
+	dw	offset PolCollatingMaz	; Collating table
+	dw	offset DBCS_tbl		; double byte char set range table
+
+
+Poland852:
 	dw	48			; Country code
 	dw	852			; Code page number
         dw	0
 	dw	offset PolandData	; Data area
 	dw	offset PolandUcase	; Uppercase table
         dw	0
-	dw	offset PolandData	; Uppercase table
+	dw	offset PolandUcase	; Uppercase table
 	dw	offset FileCharstbl	; File character table
 	dw	offset PolCollating	; Collating table
 	dw	offset DBCS_tbl		; double byte char set range table
-
-
-
-Poland850:
-	dw	48			; Country code
-	dw	850			; Code page number
-        dw	0
-	dw	offset PolandData850	; Data area
-	dw	offset PolandUcase850	; Uppercase table
-        dw	0
-	dw	offset PolandUcase850	; Uppercase table
-	dw	offset FileCharstbl	; File character table
-	dw	offset PolCollating850	; Collating table
-	dw	offset DBCS_tbl		; double byte char set range table
-
 
 
 Germany:
@@ -1556,16 +1590,17 @@ NorwayData850:
 
 
 ;		Country Data for Poland (Code - 48)
-PolandData:
+
+PolandData437:
 	dw	48		; Country Code
-	dw	852		; Code Page
-	dw	JAP_DATE	; Date Format (Binary)
-	db	'Z',136,0,0,0	; Currency Symbol
+	dw	437		; Code Page
+	dw	EURO_DATE	; Date Format (Binary)
+	db	'zl',0,0,0	; Currency Symbol
 	db	'.',0		; Thousands Separator
 	db	',',0		; Decimal Separator
 	db	'-',0		; Date Separator
 	db	':',0		; Time Separator
-	db	0		; Symbol before Value without Space ($n.nn)
+	db	3		; Symbol after Value with Space (n.nn $)
 	db	2		; Significant Currency Digits
 	db	CLOCK_24	; Time Format
 	dw	US_xlat		; Case Translation Routine
@@ -1573,21 +1608,73 @@ PolandData:
 	db	',',0		; Data List Separator
 
 
-PolandData850:
+PolandData667:
 	dw	48		; Country Code
-	dw	850		; Code Page
-	dw	JAP_DATE	; Date Format (Binary)
-	db	'Z',136,0,0,0	; Currency Symbol
+	dw	667		; Code Page
+	dw	EURO_DATE	; Date Format (Binary)
+	db	'z',146,0,0,0	; Currency Symbol
 	db	'.',0		; Thousands Separator
 	db	',',0		; Decimal Separator
 	db	'-',0		; Date Separator
 	db	':',0		; Time Separator
-	db	0		; Symbol before Value without Space ($n.nn)
+	db	3		; Symbol after Value with Space (n.nn $)
 	db	2		; Significant Currency Digits
 	db	CLOCK_24	; Time Format
-	dw	xlat_850	; Case Translation Routine
+	dw	US_xlat		; Case Translation Routine
 	dw	0000h		; Case Translation Segment (Runtime Fixup)
 	db	',',0		; Data List Separator
+
+
+PolandData790:
+	dw	48		; Country Code
+	dw	790		; Code Page
+	dw	EURO_DATE	; Date Format (Binary)
+	db	'z',146,0,0,0	; Currency Symbol
+	db	'.',0		; Thousands Separator
+	db	',',0		; Decimal Separator
+	db	'-',0		; Date Separator
+	db	':',0		; Time Separator
+	db	3		; Symbol after Value with Space (n.nn $)
+	db	2		; Significant Currency Digits
+	db	CLOCK_24	; Time Format
+	dw	US_xlat		; Case Translation Routine
+	dw	0000h		; Case Translation Segment (Runtime Fixup)
+	db	',',0		; Data List Separator
+
+
+PolandData991:
+	dw	48		; Country Code
+	dw	991		; Code Page
+	dw	EURO_DATE	; Date Format (Binary)
+	db	'z',146,0,0,0	; Currency Symbol
+	db	'.',0		; Thousands Separator
+	db	',',0		; Decimal Separator
+	db	'-',0		; Date Separator
+	db	':',0		; Time Separator
+	db	3		; Symbol after Value with Space (n.nn $)
+	db	2		; Significant Currency Digits
+	db	CLOCK_24	; Time Format
+	dw	US_xlat		; Case Translation Routine
+	dw	0000h		; Case Translation Segment (Runtime Fixup)
+	db	',',0		; Data List Separator
+
+
+PolandData:
+	dw	48		; Country Code
+	dw	852		; Code Page
+	dw	EURO_DATE	; Date Format (Binary)
+	db	'z',136,0,0,0	; Currency Symbol
+	db	'.',0		; Thousands Separator
+	db	',',0		; Decimal Separator
+	db	'-',0		; Date Separator
+	db	':',0		; Time Separator
+	db	3		; Symbol after Value with Space (n.nn $)
+	db	2		; Significant Currency Digits
+	db	CLOCK_24	; Time Format
+	dw	US_xlat		; Case Translation Routine
+	dw	0000h		; Case Translation Segment (Runtime Fixup)
+	db	',',0		; Data List Separator
+
 
 
 ;		Country Data for Germany (Code - 49)
@@ -2312,40 +2399,6 @@ CzecCollating850:
 	db	0F0h, 0F1h, 0F2h, 0F3h, 0F4h, 0F5h, 09Fh, 001h
 	db	04Fh, 00Eh, 080h, 0FCh, 014h, 074h, 005h, 02Eh
 
-PolCollating850:
-		dw 256 ; Table Size
-	db	000h, 001h, 002h, 003h, 004h, 005h, 006h, 007h
-	db	008h, 009h, 00Ah, 00Bh, 00Ch, 00Dh, 00Eh, 00Fh
-	db	010h, 011h, 012h, 013h, 014h, 015h, 016h, 017h
-	db	018h, 019h, 01Ah, 01Bh, 01Ch, 01Dh, 01Eh, 01Fh
-	db	020h, 021h, 022h, 023h, 024h, 025h, 026h, 027h
-	db	028h, 029h, 02Ah, 02Bh, 02Ch, 02Dh, 02Eh, 02Fh
-	db	030h, 031h, 032h, 033h, 034h, 035h, 036h, 037h
-	db	038h, 039h, 03Ah, 03Bh, 03Ch, 03Dh, 03Eh, 03Fh
-	db	040h, 041h, 043h, 044h, 045h, 047h, 049h, 04Ah
-	db	04Bh, 04Ch, 04Eh, 04Fh, 050h, 051h, 052h, 053h
-	db	055h, 056h, 057h, 058h, 059h, 05Ah, 05Ch, 05Dh
-	db	05Eh, 05Fh, 061h, 028h, 02Fh, 029h, 05Eh, 05Fh
-	db	060h, 041h, 043h, 044h, 045h, 047h, 049h, 04Ah
-	db	04Bh, 04Ch, 04Eh, 04Fh, 050h, 051h, 052h, 053h
-	db	055h, 056h, 057h, 058h, 059h, 05Ah, 05Ch, 05Dh
-	db	05Eh, 05Fh, 061h, 028h, 02Fh, 029h, 07Eh, 07Fh
-	db	044h, 05Bh, 048h, 042h, 042h, 042h, 042h, 044h
-	db	048h, 048h, 048h, 04Dh, 04Dh, 04Dh, 042h, 042h
-	db	048h, 063h, 063h, 054h, 064h, 054h, 05Bh, 05Bh
-	db	060h, 064h, 05Bh, 054h, 024h, 054h, 09Eh, 024h
-	db	042h, 04Dh, 054h, 05Bh, 052h, 052h, 041h, 054h
-	db	03Fh, 0A9h, 0AAh, 0ABh, 0ACh, 021h, 022h, 022h
-	db	0B0h, 0B1h, 0B2h, 0B3h, 0B4h, 042h, 042h, 042h
-	db	0B8h, 0B9h, 0BAh, 0BBh, 0BCh, 024h, 024h, 0BFh
-	db	0C0h, 0C1h, 0C2h, 0C3h, 0C4h, 0C5h, 042h, 042h
-	db	0C8h, 0C9h, 0CAh, 0CBh, 0CCh, 0CDh, 0CEh, 024h
-	db	046h, 046h, 048h, 048h, 048h, 04Ch, 04Dh, 04Dh
-	db	04Dh, 0D9h, 0DAh, 0DBh, 0DCh, 0DDh, 04Dh, 0DFh
-	db	054h, 043h, 054h, 054h, 054h, 054h, 0E6h, 062h
-	db	062h, 05Bh, 05Bh, 05Bh, 060h, 060h, 0EEh, 0EFh
-	db	0F0h, 0F1h, 0F2h, 0F3h, 0F4h, 0F5h, 09Fh, 001h
-	db	04Fh, 00Eh, 080h, 0FCh, 014h, 074h, 005h, 02Eh
 
 NorwCollating850:
 		dw	256	; Table Size
@@ -2995,6 +3048,41 @@ PolCollating:
 	db	094h, 0B5h, 0B6h, 0B7h, 0B8h, 095h, 09Fh, 001h
 	db	04Fh, 00Eh, 080h, 0FCh, 014h, 074h, 005h, 02Eh
 
+PolCollatingMaz:
+		dw 256
+	db   0,   1,   2,   3,   4,   5,   6,   7
+	db   8,   9,  10,  11,  12,  13,  14,  15
+	db  16,  17,  18,  19,  20,  21,  22,  23
+	db  24,  25,  26,  27,  28,  29,  30,  31
+	db  32,  33,  34,  35,  36,  37,  38,  39
+	db  40,  41,  42,  43,  44,  45,  46,  47
+	db  48,  49,  50,  51,  52,  53,  54,  55
+	db  56,  57,  58,  59,  60,  61,  62,  63
+	db  64,  65,  66,  67,  68,  69,  70,  71
+	db  72,  73,  74,  75,  76,  77,  78,  79
+	db  80,  81,  82,  83,  84,  85,  86,  87
+	db  88,  89,  90,  91,  92,  93,  94,  95
+	db  96,  65,  66,  67,  68,  69,  70,  71
+	db  72,  73,  74,  75,  76,  77,  78,  79
+	db  80,  81,  82,  83,  84,  85,  86,  87
+	db  88,  89,  90, 123, 124, 125, 126, 127
+	db  67,  85,  69,  65,  65,  65,  65,  67
+	db  69,  69,  69,  73,  73,  67,  65,  65
+	db  69,  69,  76,  79,  79,  66,  85,  85
+	db  83,  79,  85,  36,  76,  36,  36,  36
+	db  90,  90,  79,  79,  78,  78,  90,  90
+	db  63, 169, 170, 171, 172,  33,  34,  34
+	db 176, 177, 178, 179, 180, 181, 182, 183
+	db 184, 185, 186, 187, 188, 189, 190, 191
+	db 192, 193, 194, 195, 196, 197, 198, 199
+	db 200, 201, 202, 203, 204, 205, 206, 207
+	db 208, 209, 210, 211, 212, 213, 214, 215
+	db 216, 217, 218, 219, 220, 221, 222, 223
+	db 224,  83, 226, 227, 228, 229, 230, 231
+	db 232, 233, 234, 235, 236, 237, 238, 239
+	db 240, 241, 242, 243, 244, 245, 246, 247
+	db 248, 249, 250, 251, 252, 253, 254, 255
+
 CzecUcase:
 		dw 128 ; Table Size
 	db	080h, 09Ah, 090h, 0B6h, 08Eh, 0DEh, 08Fh, 080h
@@ -3052,24 +3140,24 @@ PolandUcase:
 	db	0F0h, 0F1h, 0F2h, 0F3h, 0F4h, 0F5h, 0F6h, 0F7h
 	db	0F8h, 0F9h, 0FAh, 0EBh, 0FCh, 0FCh, 0FEh, 0FFh
 
-PolandUcase850:
-		dw 128 ; Table Size
-	db	080h, 09Ah, 090h, 0B6h, 08Eh, 0B7h, 08Fh, 080h
-	db	0D2h, 0D3h, 0D4h, 0D8h, 0D7h, 0DEh, 08Eh, 08Fh
-	db	090h, 092h, 092h, 0E2h, 099h, 0E3h, 0EAh, 0EBh
-	db	098h, 099h, 09Ah, 09Dh, 09Ch, 09Dh, 09Eh, 09Fh
-	db	0B5h, 0D6h, 0E0h, 0E9h, 0A5h, 0A5h, 0A6h, 0A7h
-	db	0A8h, 0A9h, 0AAh, 0ABh, 0ACh, 0ADh, 0AEh, 0AFh
-	db	0B0h, 0B1h, 0B2h, 0B3h, 0B4h, 0B5h, 0B6h, 0B7h
-	db	0B8h, 0B9h, 0BAh, 0BBh, 0BCh, 0BDh, 0BEh, 0BFh
-	db	0C0h, 0C1h, 0C2h, 0C3h, 0C4h, 0C5h, 0C7h, 0C7h
-	db	0C8h, 0C9h, 0CAh, 0CBh, 0CCh, 0CDh, 0CEh, 0CFh
-	db	0D1h, 0D1h, 0D2h, 0D3h, 0D4h, 0D5h, 0D6h, 0D7h
-	db	0D8h, 0D9h, 0DAh, 0DBh, 0DCh, 0DDh, 0DEh, 0DFh
-	db	0E0h, 0E1h, 0E2h, 0E3h, 0E5h, 0E5h, 0E6h, 0E8h
-	db	0E8h, 0E9h, 0EAh, 0EBh, 0EDh, 0EDh, 0EEh, 0EFh
-	db	0F0h, 0F1h, 0F2h, 0F3h, 0F4h, 0F5h, 0F6h, 0F7h
-	db	0F8h, 0F9h, 0FAh, 0FBh, 0FCh, 0FDh, 0FEh, 0FFh
+PolandUcaseMaz:
+		dw 128
+	db 128, 154,  69,  65, 142,  65, 143, 128
+	db  69,  69,  69,  73,  73, 149, 142, 143
+	db 144, 144, 156,  79, 153, 149,  85,  85
+	db 152, 153, 154, 155, 156, 157, 152, 159
+	db 160, 161,  79, 163, 165, 165, 160, 161
+	db 168, 169, 170, 171, 172, 173, 174, 175
+	db 176, 177, 178, 179, 180, 181, 182, 183
+	db 184, 185, 186, 187, 188, 189, 190, 191
+	db 192, 193, 194, 195, 196, 197, 198, 199
+	db 200, 201, 202, 203, 204, 205, 206, 207
+	db 208, 209, 210, 211, 212, 213, 214, 215
+	db 216, 217, 218, 219, 220, 221, 222, 223
+	db 224, 225, 226, 227, 228, 229, 230, 231
+	db 232, 233, 234, 235, 236, 237, 238, 239
+	db 240, 241, 242, 243, 244, 245, 246, 247
+	db 248, 249, 250, 251, 252, 253, 254, 255
 
 BrazilUcase:
 		dw 128 ; Table Size
