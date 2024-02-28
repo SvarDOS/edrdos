@@ -657,7 +657,6 @@ Germany:
         dw	offset DBCS_tbl		; double byte char set range table
 
 
-
 Germany850:
 	dw	49			; Country code
 	dw	850			; Code page number
@@ -669,6 +668,19 @@ Germany850:
 	dw	offset FileCharstbl	; File character table
 	dw	offset Collating850	; Collating table
         dw	offset DBCS_tbl		; double byte char set range table
+
+
+Germany858:
+	dw	49			; Country code
+	dw	858			; Code page number
+	dw	0
+	dw	offset GermanyData858	; Data area
+	dw	offset GermCase858	; Uppercase table
+	dw	0
+	dw	offset GermCase858	; Uppercase table
+	dw	offset FileCharstbl	; File character table
+	dw	offset Collating858	; Collating table
+	dw	offset DBCS_tbl		; double byte char set range table
 
 
 Brazil:
@@ -1583,12 +1595,12 @@ GermanyData:
 	dw	49		; Country Code
 	dw	437		; Code Page
 	dw	EURO_DATE	; Date Format (Binary)
-	db	'DM',0,0,0	; Currency Symbol
+	db	'EUR',0,0	; Currency Symbol
 	db	'.',0		; Thousands Separator
 	db	',',0		; Decimal Separator
 	db	'.',0		; Date Separator
 	db	':',0		; Time Separator
-	db	0		; Symbol before Value without Space ($n.nn)
+	db	3		; Symbol after Value with Space (n.nn $)
 	db	2		; Significant Currency Digits
 	db	CLOCK_24	; Time Format
 	dw	German_xlat	; Case Translation Routine
@@ -1606,8 +1618,27 @@ GermanyData850:
 	db	'.',0		; Thousands Separator
 	db	',',0		; Decimal Separator
 	db	'.',0		; Date Separator
-	db	'.',0		; Time Separator
+	db	':',0		; Time Separator
 	db	0		; Symbol before Value without Space ($n.nn)
+	db	2		; Significant Currency Digits
+	db	CLOCK_24	; Time Format
+	dw	xlat_850	; Case Translation Routine
+	dw	0000h		; Case Translation Segment (Runtime Fixup)
+	db	';',0		; Data List Separator
+
+
+
+;		Country Data for Germany (Code - 49)
+GermanyData858:
+	dw	49		; Country Code
+	dw	858		; Code Page
+	dw	EURO_DATE	; Date Format (Binary)
+	db	0d5h,0,0,0,0	; Currency Symbol
+	db	'.',0		; Thousands Separator
+	db	',',0		; Decimal Separator
+	db	'.',0		; Date Separator
+	db	':',0		; Time Separator
+	db	3		; Symbol after Value with Space (n.nn $)
 	db	2		; Significant Currency Digits
 	db	CLOCK_24	; Time Format
 	dw	xlat_850	; Case Translation Routine
@@ -2063,6 +2094,42 @@ Collating850:
 	db	 0c0h, 0c1h, 0c2h, 0c3h, 0c4h, 0c5h, 041h, 041h
 	db	 0c8h, 0c9h, 0cah, 0cbh, 0cch, 0cdh, 0ceh, 024h
 	db	 044h, 044h, 045h, 045h, 045h, 049h, 049h, 049h
+	db	 049h, 0d9h, 0dah, 0dbh, 0dch, 0ddh, 049h, 0dfh
+	db	 04fh, 053h, 04fh, 04fh, 04fh, 04fh, 0e6h, 0e8h
+	db	 0e8h, 055h, 055h, 055h, 059h, 059h, 0eeh, 0efh
+	db	 0f0h, 0f1h, 0f2h, 0f3h, 0f4h, 0f5h, 0f6h, 0f7h
+	db	 0f8h, 0f9h, 0fah, 0fbh, 0fch, 0fdh, 0feh, 0ffh
+
+
+Collating858:
+		dw	256	; Table Size
+	db	 000h, 001h, 002h, 003h, 004h, 005h, 006h, 007h
+	db	 008h, 009h, 00ah, 00bh, 00ch, 00dh, 00eh, 00fh
+	db	 010h, 011h, 012h, 013h, 014h, 015h, 016h, 017h
+	db	 018h, 019h, 01ah, 01bh, 01ch, 01dh, 01eh, 01fh
+	db	 020h, 021h, 022h, 023h, 024h, 025h, 026h, 027h
+	db	 028h, 029h, 02ah, 02bh, 02ch, 02dh, 02eh, 02fh
+	db	 030h, 031h, 032h, 033h, 034h, 035h, 036h, 037h
+	db	 038h, 039h, 03ah, 03bh, 03ch, 03dh, 03eh, 03fh
+	db	 040h, 041h, 042h, 043h, 044h, 045h, 046h, 047h
+	db	 048h, 049h, 04ah, 04bh, 04ch, 04dh, 04eh, 04fh
+	db	 050h, 051h, 052h, 053h, 054h, 055h, 056h, 057h
+	db	 058h, 059h, 05ah, 05bh, 05ch, 05dh, 05eh, 05fh
+	db	 060h, 041h, 042h, 043h, 044h, 045h, 046h, 047h
+	db	 048h, 049h, 04ah, 04bh, 04ch, 04dh, 04eh, 04fh
+	db	 050h, 051h, 052h, 053h, 054h, 055h, 056h, 057h
+	db	 058h, 059h, 05ah, 07bh, 07ch, 07dh, 07eh, 07fh
+	db	 043h, 055h, 045h, 041h, 041h, 041h, 041h, 043h
+	db	 045h, 045h, 045h, 049h, 049h, 049h, 041h, 041h
+	db	 045h, 041h, 041h, 04fh, 04fh, 04fh, 055h, 055h
+	db	 059h, 04fh, 055h, 04fh, 024h, 04fh, 09eh, 024h
+	db	 041h, 049h, 04fh, 055h, 04eh, 04eh, 0a6h, 0a7h
+	db	 03fh, 0a9h, 0aah, 0abh, 0ach, 021h, 022h, 022h
+	db	 0b0h, 0b1h, 0b2h, 0b3h, 0b4h, 041h, 041h, 041h
+	db	 0b8h, 0b9h, 0bah, 0bbh, 0bch, 024h, 024h, 0bfh
+	db	 0c0h, 0c1h, 0c2h, 0c3h, 0c4h, 0c5h, 041h, 041h
+	db	 0c8h, 0c9h, 0cah, 0cbh, 0cch, 0cdh, 0ceh, 024h
+	db	 044h, 044h, 045h, 045h, 045h, 024h, 049h, 049h
 	db	 049h, 0d9h, 0dah, 0dbh, 0dch, 0ddh, 049h, 0dfh
 	db	 04fh, 053h, 04fh, 04fh, 04fh, 04fh, 0e6h, 0e8h
 	db	 0e8h, 055h, 055h, 055h, 059h, 059h, 0eeh, 0efh
@@ -3623,6 +3690,26 @@ GermCase850:
 	db	0f0h, 0f1h, 0f2h, 0f3h, 0f4h, 0f5h, 0f6h, 0f7h
 	db	0f8h, 0f9h, 0fah, 0fbh, 0fch, 0fdh, 0feh, 0ffh
 endif
+
+GermCase858:
+		dw	128	; Table Size
+	db	043h, 09ah, 045h, 041h, 08eh, 041h, 041h, 043h
+	db	045h, 045h, 045h, 049h, 049h, 049h, 08eh, 041h
+	db	045h, 092h, 092h, 04fh, 099h, 04fh, 055h, 055h
+	db	059h, 099h, 09ah, 04fh, 09ch, 04fh, 09eh, 09fh
+	db	041h, 049h, 04fh, 055h, 0a5h, 0a5h, 0a6h, 0a7h
+	db	0a8h, 0a9h, 0aah, 0abh, 0ach, 0adh, 0aeh, 0afh
+	db	0b0h, 0b1h, 0b2h, 0b3h, 0b4h, 041h, 041h, 041h
+	db	0b8h, 0b9h, 0bah, 0bbh, 0bch, 0bdh, 0beh, 0bfh
+	db	0c0h, 0c1h, 0c2h, 0c3h, 0c4h, 0c5h, 041h, 041h
+	db	0c8h, 0c9h, 0cah, 0cbh, 0cch, 0cdh, 0ceh, 0cfh
+	db	0d1h, 0d1h, 045h, 045h, 045h, 0d5h, 049h, 049h
+	db	049h, 0d9h, 0dah, 0dbh, 0dch, 0ddh, 049h, 0dfh
+	db	04fh, 0e1h, 04fh, 04fh, 04fh, 04fh, 0e6h, 0e8h
+	db	0e8h, 055h, 055h, 055h, 059h, 059h, 0eeh, 0efh
+	db	0f0h, 0f1h, 0f2h, 0f3h, 0f4h, 0f5h, 0f6h, 0f7h
+	db	0f8h, 0f9h, 0fah, 0fbh, 0fch, 0fdh, 0feh, 0ffh
+
 
 Ucasetbl932:
 		dw	128	; Table size
