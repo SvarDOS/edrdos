@@ -2881,6 +2881,8 @@ log_p0b:
 	or	es:UDSC_FLAGS[di],UDF_HARD
 	mov	es:UDSC_RUNIT[di],dl	; set physical drive (ROS code)
 	mov	es:UDSC_TYPE[di],5	; set type = hard disk
+	mov	es:UDSC_FM_PART[di],1
+	mov	es:UDSC_FM_OFFSET[di],0
 
 	mov	al,dh			; copy head byte
 	and	al,11000000b		; cylinder # bits 10..11 are in 6..7

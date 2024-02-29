@@ -54,6 +54,8 @@ UDSC_FSTYPE	db	9 dup (?)	; ASCIIZ "FAT12"/"FAT16" type
 UDSC		ends
 
 UDSC_LENGTH	equ	size UDSC
+UDSC_FM_PART	equ	UDSC_TIMER	; fixed media part type (always 1)
+UDSC_FM_OFFSET	equ	UDSC_TIMER+2	; fixed media part offset (always 0)
 
 UDF_HARD	equ	0001h		; drive is a hard disk
 UDF_CHGLINE	equ	0002h		; drive support disk change line
