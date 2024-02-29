@@ -3076,6 +3076,8 @@ hd_bpb:
 ; of the partition, if it contains a valid FAT formatted file system.
 ;
 
+	mov	BPB_FSINFO[bx],0ffffh	; no FS info sector for default BPB
+	mov	BPB_BOOTBAK[bx],0ffffh	; no backup boot sector
 	mov	BPB_SECSIZ[bx],SECSIZE	; set standard sector size
 	mov	BPB_FATADD[bx],1	; one reserved (boot) sector
 	mov	BPB_NFATS[bx],2		; two FAT copies
@@ -3171,8 +3173,6 @@ hd_bpb30:				; build BPB for FAT32
 	mov	BPB_DIRMAX[bx],0	; FAT32, so no fixed root dir
 	mov	BPB_FATADD[bx],20h	; assume 32 reserved sectors
 	mov	word ptr BPB_FSROOT[bx],2; assume root dir is in first cluster
-	mov	BPB_FSINFO[bx],0ffffh	; no FS info sector for default BPB
-	mov	BPB_BOOTBAK[bx],0ffffh	; no backup boot sector
 	mov	BPB_ALLOCSIZ[bx],1	; use 0.5 K clusters <64 Mb
 	cmp	dx,2			; less than 2*65536 sectors (64 Mb)?
 	 jb	hd_bpb40		; yes, leave cluster size the same
