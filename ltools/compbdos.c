@@ -57,6 +57,17 @@ The DRDOS.SYS decompression is implemented in dos_reloc in DRBIO\BIOSINIT.ASM.
 #include <stdint.h>
 #include <string.h>
 
+#ifdef __FAR
+ #include <libi86/malloc.h>
+ #define farkeyword __far
+ #define farmemcpy _fmemcpy
+ #define farfree _ffree
+#else
+ #define farkeyword
+ #define farmemcpy memcpy
+ #define farfree free
+#endif
+
 #include "zerocomp.h"
 
 #define CODE_SIZE_OFFSET 0x1e  /* location in input file holding the start
@@ -68,7 +79,8 @@ The DRDOS.SYS decompression is implemented in dos_reloc in DRBIO\BIOSINIT.ASM.
 
 int main( int argc, char *argv[] )
 {
-   char *in_data, *out_data, *in_ptr, *out_ptr;
+   farkeyword char *in_data, *in_ptr;
+   char *out_data, *out_ptr;
    size_t in_size, out_size;
    uint16_t padding;
    uint16_t comp_start;
@@ -85,12 +97,12 @@ int main( int argc, char *argv[] )
    }
 
    /* number of padding bytes to be skipped */
-   padding = *(uint16_t*)in_data;
+   padding = *(farkeyword uint16_t*)in_data;
    in_ptr += padding;
    in_size -= padding;
 
    /* get offset of data area to be compressed */
-   comp_start = *(uint16_t*)(in_ptr + CODE_SIZE_OFFSET);
+   comp_start = *(farkeyword uint16_t*)(in_ptr + CODE_SIZE_OFFSET);
    /*printf( "start compressing at %04x\n", comp_start );*/
 
    /* mark file as compressed */
@@ -103,7 +115,7 @@ int main( int argc, char *argv[] )
    }
 
    /* copy uncompressed part of file */
-   memcpy( out_ptr, in_ptr, comp_start );
+   farmemcpy( out_ptr, in_ptr, comp_start );
 
    /* zero-compress file... */
    in_ptr += comp_start;
@@ -115,12 +127,12 @@ int main( int argc, char *argv[] )
    if ( !write_file( argv[2], out_data, comp_start + out_size ) ) {
       puts( "error: could not write output file" );
       free( out_data );
-      free( in_data );
+      farfree( in_data );
       return 1;
    }
 
    free( out_data );
-   free( in_data );
+   farfree( in_data );
    return 0;
 }
 
