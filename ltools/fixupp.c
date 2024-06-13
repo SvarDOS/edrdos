@@ -32,13 +32,17 @@ typedef unsigned char  u8;
 typedef unsigned short u16;
 
 #define MAX_SEGMENTS 255            /* maximum number of segments */
+#define MAX_LNAMES   1024
 #define REC_BUF_SZ   1028
 
 /* OMF record type definitions */
+#define LNAMES_REC   0x96
 #define SEGDEF16_REC 0x98
 #define GRPDEF16_REC 0x9a
 #define FIXUP16_REC  0x9c
 #define MODEND16_REC 0x8a
+#define LEDATA16_REC 0xA0
+#define LIDATA16_REC 0xA2
 
 /* OMF target and frame types */
 #define TARGET_SEGDEF_IDX 0
@@ -46,9 +50,17 @@ typedef unsigned short u16;
 #define FRAME_TARGET_IDX  5
 
 
-u8 segment_count;
+unsigned verbose = 0;
+unsigned reloc = 0;
+unsigned segment_count;
 u8 group_count;
 u8 segment_group[MAX_SEGMENTS+1];   /* group number of segment n (0=none) */
+unsigned lnames_count;
+u8 emptylname[] = "";
+u8* lnames[MAX_LNAMES + 1];
+unsigned segments[MAX_SEGMENTS + 1];
+unsigned current_segment = 0;
+unsigned current_base = 0;
 
 typedef struct {
    unsigned mode:1;
@@ -123,12 +135,81 @@ static u8 calculate_checksum( const u8 *data, size_t len )
 }
 
 
-/* The only purpose for us to process the SEGDEF records is to count the
-   number of defined segments */
-static int process_segdef( const u8 *data, size_t len )
+static int process_lnames( u8 *data, size_t len  )
 {
+   const u8 *data_end = data + len - 1;
+   u8 *p = data + 3;       /* skip record type and length fields */
+   u8 length;
+   u8* lname;
+
+   while ( p < data_end ) {
+      length = *p++;
+      if ( lnames_count >= MAX_LNAMES ) {
+         fputs( "Error: Too many lnames!\n", stderr );
+         return 0;
+      }
+      ++ lnames_count;
+      if ( !length ) {
+         lnames[lnames_count] = emptylname;
+         continue;
+      }
+      lname = malloc(length + 1);
+      if ( !lname ) {
+         fputs( "Error: Out of memory for lnames!\n", stderr );
+         return 0;
+      }
+      memcpy( lname, p, length );
+      lname[length] = 0;
+      lnames[lnames_count] = lname;
+      p += length;
+   }
+   if ( p != data_end ) {
+      fputs( "Error: Overflow in lnames!\n", stderr );
+      return 0;
+   }
+
+   return 1;
+}
+
+
+static int process_segdef( u8 *data, size_t len )
+{
+   unsigned a, c, b, pbit;
+   u16 length, name_idx;
+   u8 *p = data + 3;       /* skip record type and length fields */
+
    (void)data; (void)len; /* unused */
    segment_count++;
+
+   if ( segment_count > MAX_SEGMENTS ) {
+      fputs( "Error: Too many segments!\n", stderr );
+      return 0;
+   }
+
+   a = (*p >> 5) & 7;
+   c = (*p >> 2) & 7;
+   b = (*p >> 1) & 1;
+   pbit = (*p >> 0) & 1;
+
+   ++ p;
+
+   if ( a == 0 ) {
+      p += 3;
+   }
+
+   length = get_16( &p );
+   name_idx = get_index( &p );
+   segments[segment_count] = name_idx;
+
+   if ( !verbose ) {
+      return 1;
+   }
+
+   printf("seg=%04Xh a=%Xh c=%Xh b=%Xh p=%Xh length=%u name_idx=%u ",
+      (unsigned)segment_count, a, c, b, pbit,
+      (unsigned)length, (unsigned)name_idx);
+   printf("name=\"%s\"\n", lnames[name_idx]);
+
    return 1;
 }
 
@@ -150,12 +231,43 @@ static int process_grpdef( u8 *data, size_t len  )
       if ( *p++ != 0xff ) {
          /* 0xff indicates a segment index follows. We only support segment
             indexes, not external indexes. */
-         puts( "GRPDEF error!" );
+         fputs( "Error: GRPDEF error!\n", stderr );
          return 0;
       }
       seg_idx = get_index( &p );
       segment_group[seg_idx] = group_count;
    }
+   return 1;
+}
+
+
+static int process_ledata_lidata( u8 *data, size_t len  )
+{
+   /*const u8 *data_end = data + len - 1;*/
+   u8 *p = data + 3;       /* skip record type and length fields */
+   u16 seg_idx, data_offset;
+
+   seg_idx = get_index( &p ); /* segment index */
+
+   data_offset = get_16( &p );
+
+   current_segment = seg_idx;
+   current_base = data_offset;
+   if ( seg_idx == 0 ||
+      segments[seg_idx] == 0 ||
+      lnames[segments[seg_idx]] == NULL ||
+      *lnames[segments[seg_idx]] == 0)
+   {
+      fputs( "Error: Invalid segment for LEDATA/LIDATA!\n", stderr );
+      return 0;
+   }
+
+   if ( !verbose ) {
+      return 1;
+   }
+
+   printf("seg=%04Xh offset=%04Xh\n", (unsigned)seg_idx, (unsigned)data_offset);
+
    return 1;
 }
 
@@ -168,7 +280,7 @@ static int decode_fixup( u8 **data, const u8 *data_end, fixup_t *fixup )
 
    /* THREAD definitions are not supported */
    if ( ( *p & 0x80 ) == 0 ) {
-      puts( "THREAD subrecord not supported" );
+      fputs( "Error: THREAD subrecord not supported\n", stderr );
       return 0;
    }
 
@@ -186,7 +298,7 @@ static int decode_fixup( u8 **data, const u8 *data_end, fixup_t *fixup )
 
    /* FRAME and TARGET THREAD references not supported */
    if ( fixup->f_thread || fixup->t_thread ) {
-      puts( "THREAD target / frame not supported" );
+      fputs( "Error: THREAD target / frame not supported\n", stderr );
       return 0;
    }
    fixup->frame_datum = ( fixup->frame < 4 ) ? get_index( &p ) : 0;
@@ -225,10 +337,42 @@ static void encode_fixup( fixup_t *fixup, u8 **data )
 
 static void dump_fixup( fixup_t *fixup )
 {
-#if 0
-      printf( "M%d L%d O=%04x F%d T%d : F=%04x T=%04x D=%04x",
-      fixup->mode, fixup->location, fixup->offset, fixup->frame, fixup->target,
-      fixup->frame_datum, fixup->target_datum, fixup->displacement);
+#if 1
+   unsigned length = 0;
+
+   if ( !verbose && !reloc ) {
+      return;
+   }
+
+   if ( verbose ) {
+      printf( "M%d L%d O=%04x F%d T%d : F=%04x T=%04x D=%04x\n",
+         fixup->mode, fixup->location, fixup->offset, fixup->frame, fixup->target,
+         fixup->frame_datum, fixup->target_datum, fixup->displacement);
+   }
+
+   switch( fixup->location ) {
+   case 0:
+   case 4:
+      length = 1;
+      break;
+   case 1:
+   case 2:
+   case 5:
+      length = 2;
+      break;
+   case 3:
+   case 9:
+   case 13:
+      length = 4;
+      break;
+   case 11:
+      length = 6;
+      break;
+   default:
+      break;
+   }
+   printf( "segment=\"%s\" offset=%04Xh length=%u\n",
+      lnames[segments[current_segment]], current_base + fixup->offset, length );
 #else
    (void)fixup;
 #endif
@@ -294,14 +438,23 @@ int process_records( FILE *inf, FILE *outf )
          return 0;
       }
       if ( calculate_checksum( record_data, record_sz ) != 0 ) {
-         puts("checksum error!");
+         fputs("Error: Checksum error!\n", stderr);
          return 0;
       }
 
       record_type = record_data[0];
-      /*printf("rec %02x len: %zu\n", (int)record_type, record_sz - 3); */
+      if ( verbose ) {
+         printf("rec %02x len: %zu\n", (int)record_type, record_sz - 3);
+      }
 
       switch ( record_type ) {
+         case LNAMES_REC:
+            result = process_lnames( record_data, record_sz );
+            break;
+         case LEDATA16_REC:
+         case LIDATA16_REC:
+            result = process_ledata_lidata( record_data, record_sz );
+            break;
          case FIXUP16_REC:
             result = process_fixup( record_data, &record_sz );
             break;
@@ -331,10 +484,22 @@ int main( int argc, char *argv[] )
    FILE *inf, *outf;
    int result = EXIT_SUCCESS;
 
-   if ( argc != 3 ) {
-      puts( "Usage: fixupp input.obj output.obj");
+   if ( argc != 3 && argc != 4 ) {
+      fputs( "Usage: fixupp input.obj output.obj [VERBOSE|RELOC]\n", stderr );
       result = EXIT_FAILURE;
       goto ret0;
+   }
+
+   if ( argc == 4 ) {
+      if ( ! strcmp( argv[3], "verbose" ) || ! strcmp( argv[3], "VERBOSE" ) ) {
+         verbose = 1;
+      } else if ( ! strcmp( argv[3], "reloc" ) || ! strcmp( argv[3], "RELOC" ) ) {
+         reloc = 1;
+      } else {
+         fputs( "Usage: fixupp input.obj output.obj [VERBOSE|RELOC]\n", stderr );
+         result = EXIT_FAILURE;
+         goto ret0;
+      }
    }
 
    /* open input and output files */
@@ -351,7 +516,7 @@ int main( int argc, char *argv[] )
    }
 
    if ( !process_records( inf, outf ) ) {
-      puts( "error!" );
+      fputs( "Error: Failed in process_records!\n", stderr );
       result = EXIT_FAILURE;
    }
 
