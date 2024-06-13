@@ -18,7 +18,7 @@ EXE2BIN = exe2bin
 LTOOLS = ..\ltools
 RASM = $(LTOOLS)\rasm86.exe
 RASM_SH = $(LTOOLS)\rasm_sh.exe
-RASM_FLAGS = $$szpz /DDRDOS35=0 /DADDDRV=0
+RASM_FLAGS = $$sz /DDRDOS35=0 /DADDDRV=0
 
 FIXUPP = $(LTOOLS)\fixupp.exe
 COMPBIOS = $(LTOOLS)\compbios.exe

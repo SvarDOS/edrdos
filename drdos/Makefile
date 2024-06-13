@@ -47,11 +47,11 @@ bin/dosgrps.obj: dosgrps.asm
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/buffers.obj: buffers.a86 fdos.equ bdos.equ doshndl.def
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz  /DDELWATCH /DDOS5
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz  /DDELWATCH /DDOS5
 	$(FIXUPP) $^*.o86 $^@
 
 bin/dirs.obj: dirs.a86 bdos.equ mserror.equ fdos.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz  /DDELWATCH
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz  /DDELWATCH
 	$(FIXUPP) $^*.o86 $^@
 
 bin/fdos.obj: fdos.a86 version.inc psp.def modfunc.def fdos.equ rh.equ msdos.equ mserror.equ doshndl.def driver.equ f52data.def  bdos.equ funcs.fdo utils.fdo
@@ -59,31 +59,31 @@ bin/fdos.obj: fdos.a86 version.inc psp.def modfunc.def fdos.equ rh.equ msdos.equ
 	$(FIXUPP) $^*.o86 $^@
 
 bin/fcbs.obj: fcbs.a86 mserror.equ fdos.equ driver.equ doshndl.def
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz
 	$(FIXUPP) $^*.o86 $^@
 
 bin/bdevio.obj: bdevio.a86 fdos.equ msdos.equ mserror.equ doshndl.def bdos.equ rh.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz /DDELWATCH /DDOS5 /DJOIN
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz /DDELWATCH /DDOS5 /DJOIN
 	$(FIXUPP) $^*.o86 $^@
 
 bin/cdevio.obj: cdevio.a86 psp.def modfunc.def fdos.equ mserror.equ doshndl.def driver.equ rh.equ cmdline.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz /DDOS5
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz /DDOS5
 	$(FIXUPP) $^*.o86 $^@
 
 bin/fioctl.obj: fioctl.a86 fdos.equ rh.equ msdos.equ mserror.equ doshndl.def driver.equ f52data.def
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz /DPASSWORD /DJOIN /DDOS5
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz /DPASSWORD /DJOIN /DDOS5
 	$(FIXUPP) $^*.o86 $^@
 	
 bin/redir.obj: redir.a86 psp.def fdos.equ msdos.equ mserror.equ doshndl.def f52data.def redir.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz /DKANJI /DDOS5 /DJOIN
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz /DKANJI /DDOS5 /DJOIN
 	$(FIXUPP) $^*.o86 $^@
 	
 bin/header.obj: header.a86 pcmode.equ vectors.def cmdline.equ doshndl.def driver.equ exe.def f52data.def fdos.equ mserror.equ psp.def reqhdr.equ country.def
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz /DDOS5
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz /DDOS5
 	$(FIXUPP) $^*.o86 $^@
 
 bin/pcmif.obj: pcmif.a86 pcmode.equ fdos.def vectors.def msdos.equ mserror.equ psp.def fdos.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz /DDOS5
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz /DDOS5
 	$(FIXUPP) $^*.o86 $^@
 
 bin/cio.obj: cio.a86 pcmode.equ driver.equ reqhdr.equ msdos.equ fdos.equ psp.def mserror.equ char.def redir.equ doshndl.def
@@ -91,15 +91,15 @@ bin/cio.obj: cio.a86 pcmode.equ driver.equ reqhdr.equ msdos.equ fdos.equ psp.def
 	$(FIXUPP) $^*.o86 $^@
 
 bin/disk.obj: disk.a86 pcmode.equ fdos.def doshndl.def fdos.equ psp.def msdos.equ mserror.equ redir.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz /DDELWATCH
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz /DDELWATCH
 	$(FIXUPP) $^*.o86 $^@
 
 bin/ioctl.obj: ioctl.a86 pcmode.equ fdos.def msdos.equ mserror.equ cmdline.equ driver.equ reqhdr.equ psp.def
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz /DPASSWORD /DDOS5
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz /DPASSWORD /DDOS5
 	$(FIXUPP) $^*.o86 $^@
 
 bin/misc.obj: misc.a86 version.inc pcmode.equ msdos.equ mserror.equ psp.def driver.equ char.def country.def doshndl.def redir.equ fdos.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz /DDOS5
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz /DDOS5
 	$(FIXUPP) $^*.o86 $^@
 
 bin/support.obj: support.a86 pcmode.equ fdos.def mserror.equ doshndl.def
@@ -115,7 +115,7 @@ bin/error.obj: error.a86 pcmode.equ fdos.def msdos.equ mserror.equ psp.def char.
 	$(FIXUPP) $^*.o86 $^@
 
 bin/process.obj: process.a86 pcmode.equ fdos.def psp.def mserror.equ vectors.def msdos.equ exe.def char.def redir.equ doshndl.def
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$szpz /DDOS5
+	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) $$sz /DDOS5
 	$(FIXUPP) $^*.o86 $^@
 
 bin/network.obj: network.a86 pcmode.equ mserror.equ redir.equ doshndl.def
