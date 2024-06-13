@@ -613,7 +613,7 @@ add_unit:	; add a new unit to the list
 	push	ds
 	mov	es:word ptr UDSC_NEXT[di],0FFFFh
 					; make sure it's terminated
-	and	es:UDSC_FLAGS[di],UDF_HARD+UDF_CHGLINE
+	and	es:UDSC_FLAGS[di],UDF_LBA+UDF_HARD+UDF_CHGLINE
 	lea	si,udsc_root		; DS:SI -> [first UDSC_]
 add_unit10:
 	cmp	ds:word ptr UDSC_NEXT[si],0FFFFh
@@ -624,7 +624,7 @@ add_unit10:
 	 jne	add_unit10
 	mov	ax,ds:UDSC_FLAGS[si]	; inherit some flags
 	push	ax
-	and	ax,UDF_HARD+UDF_CHGLINE
+	and	ax,UDF_LBA+UDF_HARD+UDF_CHGLINE
 	mov	es:UDSC_FLAGS[di],ax	; hard disk/changeline inherited
 	pop	ax
 	test	ax,UDF_HARD
@@ -1583,7 +1583,7 @@ ioctl_get:
 	mov	ds:1[bx],al		; return drive type (0/1/2/5/7)
 
 	mov	ax,es:UDSC_FLAGS[di]	; get device attributes
-	and	ax,UDF_HARD+UDF_CHGLINE	; isolate hard disk + change line bits
+	and	ax,UDF_LBA+UDF_HARD+UDF_CHGLINE	; isolate hard disk + change line bits
 	mov	ds:2[bx],ax		; return device attributes
 
 	mov	ax,es:UDSC_NCYL[di]	; get # of cylinders
