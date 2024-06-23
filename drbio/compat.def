@@ -6,5 +6,5 @@
 
 jmpnear macro address
 	db 0e9h
-	dw ($-address)-2
+	dw (address-$)-2
 endm
