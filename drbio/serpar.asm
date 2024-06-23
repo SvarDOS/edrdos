@@ -45,8 +45,6 @@
 page
 CGROUP	group	CODE, RCODE, ICODE
 
-CG	equ	offset CGROUP
-
 	Assume	CS:CGROUP, DS:CGROUP, ES:CGROUP, SS:CGROUP
 
 CODE	segment 'CODE'
@@ -63,32 +61,30 @@ RCODE	segment 'RCODE'
 
 SerParCommonTable:
 	db	19			; Last supported function
-	dw	CG:dd_init		; 0-initialize driver
-	dw	CG:dd_error		; 1-media change check (disks only)
-	dw	CG:dd_error		; 2-build BPB (disks only)
-	dw	CG:dd_error		; 3-IOCTL string input
-	dw	CG:dd_input		; 4-input
-	dw	CG:dd_poll		; 5-nondestructive input (char only)
-	dw	CG:dd_instat		; 6-input status (char only)
-	dw	CG:dd_inflush		; 7-input flush
-	dw	CG:dd_output		; 8-output
-	dw	CG:dd_output		; 9-output with verify
-	dw	CG:dd_outstat		; 10-output status (char only)
-	dw	CG:dd_outflush		; 11-output flush (char only)
-	dw	CG:dd_error		; 12-IOCTL string output
-	dw	CG:dd_open		; 13-device open
-	dw	CG:dd_close		; 14-device close
-	dw	CG:dd_error		; 15-removable media check (disks only)
-	dw	CG:dd_error		; 16-n/a
-	dw	CG:dd_error		; 17-n/a
-	dw	CG:dd_error		; 18-n/a
-	dw	CG:dd_genioctl		; 19-generic IOCTL
-
+	dw	dd_init			; 0-initialize driver
+	dw	dd_error		; 1-media change check (disks only)
+	dw	dd_error		; 2-build BPB (disks only)
+	dw	dd_error		; 3-IOCTL string input
+	dw	dd_input		; 4-input
+	dw	dd_poll			; 5-nondestructive input (char only)
+	dw	dd_instat		; 6-input status (char only)
+	dw	dd_inflush		; 7-input flush
+	dw	dd_output		; 8-output
+	dw	dd_output		; 9-output with verify
+	dw	dd_outstat		; 10-output status (char only)
+	dw	dd_outflush		; 11-output flush (char only)
+	dw	dd_error		; 12-IOCTL string output
+	dw	dd_open			; 13-device open
+	dw	dd_close		; 14-device close
+	dw	dd_error		; 15-removable media check (disks only)
+	dw	dd_error		; 16-n/a
+	dw	dd_error		; 17-n/a
+	dw	dd_error		; 18-n/a
+	dw	dd_genioctl		; 19-generic IOC
 
 	Assume	DS:CGROUP, ES:Nothing, SS:Nothing
 
 page
-driver	proc	near
 
 dd_error:	; used for all unsupported driver functions
 ;--------
@@ -297,7 +293,6 @@ dd_genioctl:	; 19-generic IOCTL
     sub ax,ax           
 	ret
 
-driver	endp
 
 RCODE	ends				; end of device driver code
 
@@ -318,7 +313,7 @@ init1:
 	mov	al,0A3h			; 2400 Bd, no parity, 8 data, 1 stop
 	int	ASYNC_INT		; call the ROM BIOS
 init2:
-	les	bx,REQUEST[bp]		; ES:BX -> request header
+	les	bx,P_DSTRUC.REQUEST[bp]	; ES:BX -> request header
 
 	mov	ax,endbios
 	mov	es:RH0_RESIDENT[bx],ax	; set end of device driver

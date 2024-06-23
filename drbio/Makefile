@@ -11,7 +11,7 @@
 .ERASE
 
 WASM = jwasm
-WASM_FLAGS = -q -Zm -Zg -DSVARDOS
+WASM_FLAGS = -q -DSVARDOS
 WLINK = wlink
 EXE2BIN = exe2bin
 
@@ -30,10 +30,12 @@ wasm_objs += bin/stacks.obj
 rasm_objs  = bin/biosinit.obj bin/config.obj bin/bdosldr.obj bin/genercfg.obj
 rasm_objs += bin/nlsfunc.obj
 
-bin/drbio.sys : bin/bios.exe
+bin/drbio.sys : bin/drbio.tmp
+	$(COMPBIOS) $< $@
+
+bin/drbio.tmp : bin/bios.exe
 	$(EXE2BIN) -q $< $@
-	$(COMPBIOS) $@ $@
-	
+		
 bin/bios.exe : $(wasm_objs) $(rasm_objs) bios.lnk
 	$(WLINK) @bios.lnk
 
@@ -59,7 +61,7 @@ bin/bdosldr.obj: bdosldr.a86 reqhdr.equ driver.equ config.equ initmsgs.def
 
 bin/genercfg.obj: genercfg.a86 config.equ msdos.equ char.def reqhdr.equ driver.equ fdos.equ f52data.def doshndl.def country.def
 
-bin/nlsfunc.obj: nlsfunc.a86 config.equ msdos.equ mserror.equ
+bin/nlsfunc.obj: nlsfunc.asm config.equ msdos.equ mserror.equ
 
 .asm.obj:
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@

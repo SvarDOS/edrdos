@@ -32,25 +32,25 @@
 ;    ENDLOG
 
 BPB		struc
-BPB_SECSIZ	dw	?	; # of bytes per sector 
-BPB_ALLOCSIZ	db	?	; # of sectors per allocation unit
-BPB_FATADD	dw	?	; # of reserved sectors (1)
-BPB_NFATS	db	?	; # of fats
-BPB_DIRMAX	dw	?	; # of directory entries
-BPB_TOTSEC	dw	?	; # of sectors total in image
-BPB_FATID	db	?	;  holds a copy of the fat id byte
-BPB_FATSEC	dw	?	; # of sectors in a fat
-BPB_SPT		dw	?	; # of sectors per track
-BPB_HEADS	dw	?	; # of heads
-BPB_HIDDEN	dd	?	; disk offset (32 bit)
-BPB_SIZE	dd	?	; disk size (32 bit)
-BPB_BFATSEC	dd	?	; # of sectors per FAT
-BPB_FATFLAG	dw	?	; flags for FAT mirroring
-BPB_FSVER	dw	?	; version of file system
-BPB_FSROOT	dd	?	; starting cluster of root directory
-BPB_FSINFO	dw	?	; sector number of file system info block
-BPB_BOOTBAK	dw	?	; sector number of backup boot block
-BPB_RESRVD2	dw	6 dup (?)
+SECSIZ	dw	?	; # of bytes per sector 
+ALLOCSIZ	db	?	; # of sectors per allocation unit
+FATADD	dw	?	; # of reserved sectors (1)
+NFATS	db	?	; # of fats
+DIRMAX	dw	?	; # of directory entries
+TOTSEC	dw	?	; # of sectors total in image
+FATID	db	?	;  holds a copy of the fat id byte
+FATSEC	dw	?	; # of sectors in a fat
+SPT		dw	?	; # of sectors per track
+HEADS	dw	?	; # of heads
+HIDDEN	dd	?	; disk offset (32 bit)
+SIZ		dd	?	; disk size (32 bit)
+BFATSEC	dd	?	; # of sectors per FAT
+FATFLAG	dw	?	; flags for FAT mirroring
+FSVER	dw	?	; version of file system
+FSROOT	dd	?	; starting cluster of root directory
+FSINFO	dw	?	; sector number of file system info block
+BOOTBAK	dw	?	; sector number of backup boot block
+RESRVD2	dw	6 dup (?)
 BPB		ends
 
 BPB_LENGTH	equ	size BPB

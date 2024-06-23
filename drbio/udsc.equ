@@ -36,26 +36,26 @@ OLD_UDSC_BPB_LENGTH	equ	25
 UDSC_BPB_LENGTH		equ	53
 
 UDSC		struc
-UDSC_NEXT	dd	?		; link to next UDSC_
-UDSC_RUNIT	db	?		; ROS drive number (0/1/80/81)
-UDSC_DRIVE	db	?		; logical drive
-UDSC_BPB	db	UDSC_BPB_LENGTH dup (?)	; current BPB
-UDSC_FATFLAG	db	?
-UDSC_OPNCNT	dw	?		; # of files open on drive
-UDSC_TYPE	db	?		; floppy drive type (0/1/2/7)
-UDSC_FLAGS	dw	?		; various flags for drive
-UDSC_NCYL	dw	?		; # of cylinders per drive
-UDSC_DEVBPB	db	UDSC_BPB_LENGTH dup (?)	; device BPB
-UDSC_LAST_TRACK	db	?		; unused (last track accessed)
-UDSC_TIMER	dw	2 dup (?)	; tick count for MEDCHK
-UDSC_LABEL	db	12 dup (?)	; ASCIIZ volume label
-UDSC_SERIAL	dd	?		; serial number
-UDSC_FSTYPE	db	9 dup (?)	; ASCIIZ "FAT12"/"FAT16" type
+NEXT	dd	?		; link to next UDSC_
+RUNIT	db	?		; ROS drive number (0/1/80/81)
+DRIVE	db	?		; logical drive
+BPB	db	UDSC_BPB_LENGTH dup (?)	; current BPB
+FATFLAG	db	?
+OPNCNT	dw	?		; # of files open on drive
+TYP	db	?		; floppy drive type (0/1/2/7)
+FLAGS	dw	?		; various flags for drive
+NCYL	dw	?		; # of cylinders per drive
+DEVBPB	db	UDSC_BPB_LENGTH dup (?)	; device BPB
+LAST_TRACK	db	?		; unused (last track accessed)
+TIMER	dw	2 dup (?)	; tick count for MEDCHK
+LABL	db	12 dup (?)	; ASCIIZ volume label
+SERIAL	dd	?		; serial number
+FSTYPE	db	9 dup (?)	; ASCIIZ "FAT12"/"FAT16" type
 UDSC		ends
 
 UDSC_LENGTH	equ	size UDSC
-UDSC_FM_PART	equ	UDSC_TIMER	; fixed media part type (always 1)
-UDSC_FM_OFFSET	equ	UDSC_TIMER+2	; fixed media part offset (always 0)
+UDSC_FM_PART	equ	UDSC.TIMER	; fixed media part type (always 1)
+UDSC_FM_OFFSET	equ	UDSC.TIMER+2	; fixed media part offset (always 0)
 
 UDF_HARD	equ	0001h		; drive is a hard disk
 UDF_CHGLINE	equ	0002h		; drive support disk change line

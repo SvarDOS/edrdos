@@ -46,8 +46,6 @@
 page
 CGROUP	group	CODE, RCODE, ICODE
 
-CG	equ	offset CGROUP
-
 	Assume	CS:CGROUP, DS:CGROUP, ES:CGROUP, SS:CGROUP
 
 CODE	segment 'CODE'
@@ -56,7 +54,7 @@ INSERT_ACTIVE	equ	2		; set if cmdline insert active
 
 	extrn	endbios:word		; for device driver INIT function
 	extrn	FastConsole:far		; console output vector
-    extrn   ControlBreak:far    ; ^C program abort
+    	extrn   ControlBreak:far	; ^C program abort
 	extrn	local_flag:byte
 	extrn	local_char:byte
 
@@ -69,28 +67,27 @@ RCODE	segment 'RCODE'
 	Public	ConsoleTable
 
 ConsoleTable:
-	db	14			; Last supported command
-	dw	CG:dd_init		; 0-initialize driver
-	dw	CG:dd_error		; 1-media change check (disks only)
-	dw	CG:dd_error		; 2-build BPB (disks only)
-	dw	CG:dd_inioctl		; 3-IOCTL string input
-	dw	CG:dd_input		; 4-input
-	dw	CG:dd_poll		; 5-nondestructive input (char only)
-	dw	CG:dd_instat		; 6-input status (char only)
-	dw	CG:dd_inflush		; 7-input flush
-	dw	CG:dd_output		; 8-output
-	dw	CG:dd_output		; 9-output with verify
-	dw	CG:dd_outstat		; 10-output status (char only)
-	dw	CG:dd_outflush		; 11-output flush (char only)
-	dw	CG:dd_outioctl		; 12-IOCTL string output
-	dw	CG:dd_open		; 13-device open
-	dw	CG:dd_close		; 14-device close
+	db	14		; Last supported command
+	dw	dd_init		; 0-initialize driver
+	dw	dd_error	; 1-media change check (disks only)
+	dw	dd_error	; 2-build BPB (disks only)
+	dw	dd_inioctl	; 3-IOCTL string input
+	dw	dd_input	; 4-input
+	dw	dd_poll		; 5-nondestructive input (char only)
+	dw	dd_instat	; 6-input status (char only)
+	dw	dd_inflush	; 7-input flush
+	dw	dd_output	; 8-output
+	dw	dd_output	; 9-output with verify
+	dw	dd_outstat	; 10-output status (char only)
+	dw	dd_outflush	; 11-output flush (char only)
+	dw	dd_outioctl	; 12-IOCTL string output
+	dw	dd_open		; 13-device open
+	dw	dd_close	; 14-device close
 
 
 	Assume	DS:CGROUP, ES:Nothing, SS:Nothing
 
 page
-driver	proc	near
 
 dd_outioctl:
 ;-----------
@@ -241,7 +238,7 @@ output1:
 	lods	es:byte ptr [si]	; get next character to output
 	pushf				; stack as per Int 29
 	db	09Ah			; CALLF to our fastconsole entry
-	dw	CG:FastConsole
+	dw	offset FastConsole
 	dw	70h
 	loop	output1			; repeat for all characters
 	pop	es
@@ -249,8 +246,6 @@ output9:
 	sub	ax,ax
 	ret
 
-
-driver	endp
 
 RCODE	ends				; end of device driver code
 
@@ -264,13 +259,13 @@ dd_init:	; 0-initialize driver
 	push	es
 	sub	ax,ax
 	mov	es,ax
-	mov	ax,CG:FastConsole	; console output vector
+	mov	ax,offset FastConsole	; console output vector
 	mov	di,FASTCON_INT*4	; setup fast single character
 	stosw				; console output vector
 	mov	ax,ds			; (identified by DA_SPECIAL)
 	stosw
 	mov	di,CTRLBRK_INT*4	; setup Ctrl-Break ROS vector
-	mov	ax,CG:ControlBreak	;   for ^C program abort
+	mov	ax,offset ControlBreak	;   for ^C program abort
 	stosw				;   when a character has already
 	mov	ax,ds			;   been typed into the ROS buffer
 	stosw
@@ -293,14 +288,14 @@ endif
 	mov	ax,14*256 + 10		; output a line feed
 	int	VIDEO_INT
 
-	les	bx,REQUEST[bp]		; ES:BX -> request header
+	les	bx,P_DSTRUC.REQUEST[bp]	; ES:BX -> request header
 
 	mov	ax,endbios		; get last resident byte in BIOS
 	mov	es:RH0_RESIDENT[bx],ax	; set end of device driver
 	mov	es:RH0_RESIDENT+2[bx],ds
 
 	sub	ax,ax			; initialization succeeded
-    ret             
+	ret             
 
 ICODE	ends
 

@@ -62,22 +62,20 @@ orgabs	MACRO	address, name
 	org address
 	is = offset $
 	if was GT is
-	if2
-		%OUT ERROR - absolute data overwritten !! moving it: name
-	endif
+	%OUT ERROR - absolute data overwritten !! moving it: name
 	org	was
 endif
 ENDM
 
 jmpfar	MACRO	address, fixup
 	db	0EAh		; jmpf opcode
-	dw	CG:address	; offset of destination
+	dw	offset CGROUP:address	; offset of destination
 fixup	dw	0EDCh		; segment of destination
 ENDM
 
 callfar	MACRO	address, fixup
 	db	09Ah		; callf opcode
-	dw	CG:address	; offset of destination
+	dw	offset CGROUP:address	; offset of destination
 fixup	dw	0EDCh		; segment of destination
 ENDM
 
@@ -129,10 +127,7 @@ i6Cseg		dw	?
 
 IVECT	ends
 
-
-CGROUP	group	CODE, RCODE, ICODE
-
-CG	equ	offset CGROUP
+CGROUP	group	CODE, RCODE, ICODE, INITDATA
 
 CODE	segment 'CODE'
 
@@ -214,51 +209,51 @@ cleanup	endp
 
 ;	Device driver headers for serial/parallel devices
 
-con_drvr	dw	CG:aux_drvr, 0	; link to next device driver
+con_drvr	dw	offset aux_drvr, 0	; link to next device driver
 		dw	DA_CHARDEV+DA_SPECIAL+DA_ISCOT+DA_ISCIN+DA_IOCTL
-		dw	CG:strat, CG:IntCon
+		dw	offset strat, offset IntCon
 		db	'CON     '
 		db	'COLOUR'
 col_mode	db	0,7,0
 
-aux_drvr	dw	CG:prn_drvr, 0		; link to next device driver
+aux_drvr	dw	offset prn_drvr, 0		; link to next device driver
 		dw	DA_CHARDEV
-		dw	CG:strat, CG:IntCOM1
+		dw	offset strat, offset IntCOM1
 		db	'AUX     '
 
-prn_drvr	dw	CG:clock_drvr, 0	; link to next device driver
+prn_drvr	dw	offset clock_drvr, 0	; link to next device driver
 		dw	DA_CHARDEV
-		dw	CG:strat, CG:IntLPT1
+		dw	offset strat, offset IntLPT1
 		db	'PRN     '
 
 clock_drvr	dw	disk_drvr, 0		; link to next device driver
 		dw	DA_CHARDEV+DA_ISCLK
-		dw	CG:strat, CG:IntClock
+		dw	offset strat, offset IntClock
 		db	'CLOCK$  '
 
-com1_drvr	dw	CG:lpt1_drvr, 0		; link to next device driver
+com1_drvr	dw	offset lpt1_drvr, 0		; link to next device driver
 		dw	DA_CHARDEV
-		dw	CG:strat, CG:IntCOM1
+		dw	offset strat, offset IntCOM1
 		db	'COM1    '
 
-com2_drvr	dw	CG:com3_drvr, 0		; link to next device driver
+com2_drvr	dw	offset com3_drvr, 0		; link to next device driver
 		dw	DA_CHARDEV
-		dw	CG:strat, CG:IntCOM2
+		dw	offset strat, offset IntCOM2
 		db	'COM2    '
 
-com3_drvr	dw	CG:com4_drvr, 0		; link to next device driver
+com3_drvr	dw	offset com4_drvr, 0		; link to next device driver
 		dw	DA_CHARDEV
-		dw	CG:strat, CG:IntCOM3
+		dw	offset strat, offset IntCOM3
 		db	'COM3    '
 
 IFDEF EMBEDDED
 	extrn	rdisk_drvr:near
-com4_drvr	dw	CG:rdisk_drvr, 0	; link to next device driver
+com4_drvr	dw	offset rdisk_drvr, 0	; link to next device driver
 ELSE		
 com4_drvr	dw	-1, -1			; link to next device driver
 ENDIF	
 		dw	DA_CHARDEV
-		dw	CG:strat, CG:IntCOM4
+		dw	offset strat, offset IntCOM4
 		db	'COM4    '
 
 
@@ -286,20 +281,20 @@ req_seg	dw	0			;** fixed location **
 serparFlag	db	4 dup (FALSE)	; we haven't got any yet
 serparChar	db	4 dup (?)	; will store one character
 
-lpt1_drvr	dw	CG:lpt2_drvr, 0		; link to next device driver
+lpt1_drvr	dw	offset lpt2_drvr, 0		; link to next device driver
 		dw	DA_CHARDEV
-		dw	CG:strat, CG:IntLPT1
+		dw	offset strat, offset IntLPT1
 		db	'LPT1    '
 
 
-lpt2_drvr	dw	CG:lpt3_drvr, 0		; link to next device driver
+lpt2_drvr	dw	offset lpt3_drvr, 0		; link to next device driver
 		dw	DA_CHARDEV
-		dw	CG:strat, CG:IntLPT2
+		dw	offset strat, offset IntLPT2
 		db	'LPT2    '
 
-lpt3_drvr	dw	CG:com2_drvr, 0		; link to next device driver
+lpt3_drvr	dw	offset com2_drvr, 0		; link to next device driver
 		dw	DA_CHARDEV
-		dw	CG:strat, CG:IntLPT3
+		dw	offset strat, offset IntLPT3
 		db	'LPT3    '
 
 	orgabs	100h, vecSave		; save vectors at fixed location
@@ -373,9 +368,9 @@ devno	db	0,0			;** fixed location **
 
 	Public	NumDiskUnits, DeblockSeg
 
-disk_drvr	dw	CG:com1_drvr, 0	; link to next driver
+disk_drvr	dw	offset com1_drvr, 0	; link to next driver
 		dw	DA_NONIBM+DA_GETSET+DA_REMOVE+DA_BIGDRV
-		dw	CG:strat, CG:IntDisk
+		dw	offset strat, offset IntDisk
 NumDiskUnits	db	5, 7 dup (?)
 		dw	0EDCh		; checked by DRIVER.SYS
 		dw	0		; was allocate UDSC
@@ -412,17 +407,17 @@ IntCOM4:				; COM4
 
 IntCon:
 	call	DeviceDriver
-	dw	offset CGROUP:ConsoleTable
+	dw	offset ConsoleTable
 
 IntClock:
 	call	DeviceDriver
-	dw	offset CGROUP:ClockTable
+	dw	offset ClockTable
 
 	Public	IntDiskTable
 IntDisk:
 	call	DeviceDriver
 IntDiskTable:
-	dw	offset CGROUP:DiskTable
+	dw	offset DiskTable
 
 DeviceDriver	proc	near
 	call	A20Enable		; make sure A20 is on
@@ -569,8 +564,8 @@ Fastcon30:
 FastConsole endp
 
 	Public	ControlBreak
+ControlBreak:
 
-ControlBreak	proc	far
 ;-----------
 	mov	cs:word ptr local_char,'C'-40h + (256*TRUE)
 ;;	mov	local_char,'C'-40h	; force ^C into local buffer
@@ -579,7 +574,6 @@ Int1Trap:
 Int3Trap:
 Int4Trap:
 	iret
-ControlBreak	endp
 
 	even
 	public	daycount
@@ -675,18 +669,17 @@ ICODE	segment 'ICODE'			; reusable initialization code
 
 	Assume	CS:CGROUP, DS:CGROUP, ES:CGROUP, SS:Nothing
 
-bpbs		dw	CG:bpb360	; 0: 320/360 Kb 5.25" floppy
-		dw	CG:bpb1200	; 1: 1.2 Mb 5.25" floppy
-		dw	CG:bpb720	; 2: 720 Kb 3.5" floppy
-		dw	CG:bpb360	; 3: (8" single density)
-		dw	CG:bpb360	; 4: (8" double density)
-		dw	CG:bpb360	; 5: hard disk
-		dw	CG:bpb360	; 6: tape drive
-		dw	CG:bpb1440	; 7: 1.44 Mb 3.5" floppy
-		dw	CG:bpb1440	; 8: Other
-		dw	CG:bpb2880	; 9: 2.88 Mb 3.5" floppy
+bpbs		dw	offset bpb360	; 0: 320/360 Kb 5.25" floppy
+		dw	offset bpb1200	; 1: 1.2 Mb 5.25" floppy
+		dw	offset bpb720	; 2: 720 Kb 3.5" floppy
+		dw	offset bpb360	; 3: (8" single density)
+		dw	offset bpb360	; 4: (8" double density)
+		dw	offset bpb360	; 5: hard disk
+		dw	offset bpb360	; 6: tape drive
+		dw	offset bpb1440	; 7: 1.44 Mb 3.5" floppy
+		dw	offset bpb1440	; 8: Other
+		dw	offset bpb2880	; 9: 2.88 Mb 3.5" floppy
 
-	Public	init0
 init0	proc	near
 ;
 ; We now uncompress to > (7C00h (ie. boot stack) - 700h (ie. base of code)
@@ -723,7 +716,7 @@ init0	proc	near
 	mov	i1Eseg,es		; setup new location
 	mov	cx,11
 	rep	movsb
-	mov	es:byte ptr 0-7[di],36	; enable read/writing of 36 sectors/track
+	mov	es:byte ptr [di-7],36	; enable read/writing of 36 sectors/track
 
 	pop	di
 	pop	cx
@@ -736,7 +729,7 @@ if COMPRESSED
 	mov	si, compflg		; Get Compresed BIOS Flag
 	or	si, si			; Set to Zero if the BIOS has
 	jnz	not_compressed		; been compressed
-	mov	si, CG:INITDATA
+	mov	si, offset CGROUP:INITDATA
 	push	di			; bios_seg
 	push	ax			; bdos_seg
 	push	bx			; initial drives
@@ -849,26 +842,26 @@ SaveVectors:
 	int 3
 	jc debugger_detected
 
-	mov	i0off,CG:Int0Trap
+	mov	i0off,offset Int0Trap
 	mov	i0seg,cs		; now grab int0 vector
-	mov	i1off,CG:Int1Trap
+	mov	i1off,offset Int1Trap
 	mov	i1seg,cs		; now grab int1 vector
-	mov	i3off,CG:Int1Trap
+	mov	i3off,offset Int1Trap
 	mov	i3seg,cs		; now grab int3 vector
 
 debugger_detected:
-	mov	i4off,CG:Int1Trap
+	mov	i4off,offset Int1Trap
 	mov	i4seg,cs		; now grab int4 vector
-	mov	i19off,CG:Int19Trap
+	mov	i19off,offset Int19Trap
 	mov	i19seg,cs		; now grab int19 vector
 
 	popx	<es, ds>
 
 	Assume	DS:CGROUP, ES:CGROUP
 
-	mov	si,offset CGROUP:drdosprojects_msg
+	mov	si,offset drdosprojects_msg
 	call	output_msg
-	mov	si,offset CGROUP:starting_dos_msg
+	mov	si,offset starting_dos_msg
 	call	output_msg
 ;	call	get_boot_options	; look for user keypress
 ;	mov	boot_options,ax		;  return any options
@@ -896,12 +889,12 @@ bios_exit:
 	mov	ax,cs			; check if we are on a rommed system
 	cmp	ax,rcode_seg
 	 jne	keep_rcode		; if so no relocation required
-	mov	ax,CG:RCODE
+	mov	ax,offset CGROUP:RCODE
 	mov	rcode_offset,ax		; fixup variable need
-	mov	bx,CG:IDATA
+	mov	bx,offset CGROUP:IDATA
 	sub	bx,ax
 	mov	icode_len,bx		; during init we need RCODE and ICODE
-	mov	bx,CG:RESUMECODE
+	mov	bx,offset CGROUP:RESUMECODE
 	sub	bx,ax
 	mov	rcode_header,bx
 	mov	rcode_len,bx		; afterwards we just need RCODE
@@ -920,23 +913,23 @@ keep_rcode:
 	xor	ax,ax
 	mov	ds,ax			; DS = vectors
 Assume DS:IVECT
-	mov	i6Coff,CG:Resume
+	mov	i6Coff,offset Resume
 	mov	i6Cseg,cs		; point Int 6C at resume code
 Assume DS:CGROUP
 	pop	ds
 	mov	ax,cs			; check if we are on a rommed system
 	cmp	ax,rcode_seg
 	 jne	resume_exit		; if so nothing extra to keep
-	mov	ax,CG:RESBIOS
-	sub	ax,CG:RCODE
+	mov	ax,offset CGROUP:RESBIOS
+	sub	ax,offset CGROUP:RCODE
 	mov	rcode_header,ax		; keep Resume code as well...
 	mov	rcode_len,ax		; afterwards we just need RCODE
 resume_exit:
-	mov	ax,CG:ENDCODE		; discard RCODE (we will relocate it)
+	mov	ax,offset CGROUP:ENDCODE	; discard RCODE (we will relocate it)
 	mov	endbios,ax
-	mov	rcode_fixups,CG:bios_fixup_tbl
+	mov	rcode_fixups,offset bios_fixup_tbl
 
-	mov	bx,CG:con_drvr		; get first device driver in chain
+	mov	bx,offset con_drvr		; get first device driver in chain
 	mov	word ptr device_root+0,bx
 	mov	word ptr device_root+2,ds
 
@@ -955,7 +948,7 @@ init0	endp
 output_msg:
 ;----------------
 ; On Entry:
-;	si = offset CGROUP:message_msg
+;	si = offset message_msg
 ; On Exit:
 ;	None
 	pushx	<ax,bx>
@@ -1003,75 +996,11 @@ output_hex30:
 	shl	dx,cl
 	pop	cx
 	loop	output_hex10
-	mov	si,CG:output_hex40
+	mov	si,offset output_hex40
 	call	output_msg
 	popx	<si,cx,bx,ax>
 	ret
 output_hex40	db	20h,NUL		; end of string
-
-;get_boot_options:
-;;----------------
-;; On Entry:
-;;	None
-;; On Exit:
-;;	AX = boot options
-;	mov	si,offset CGROUP:drdosprojects_msg
-;	call	output_msg
-;	mov	si,offset CGROUP:starting_dos_msg
-;	call	output_msg
-;	call	option_key		; poll keyboard for a while
-;	 jnz	get_boot_options20	; if key available return that
-;	mov	ah,2			; else ask ROS for shift state
-;	int	16h
-;	and	ax,3			; a SHIFT key is the same as F5KEY
-;	 jz	get_boot_options20
-;	mov	ax,F5KEY		; ie. bypass everything
-;get_boot_options20:
-;	ret
-;
-;option_key:
-;;----------
-;; On Entry:
-;;	None
-;; On Exit:
-;;	AX = keypress if interesting (F5/F8)
-;;	ZF clear if we have an interesting key
-;;
-;; Poll keyboard looking for a key press. We do so for a maximum of 36 ticks
-;; (approx 2 seconds).
-;;
-;	xor	ax,ax
-;	int	1Ah			; get ticks in DX
-;	mov	cx,dx			; save in CX for later
-;option_key10:
-;	push	cx		
-;	mov	ah,1
-;	int	16h			; check keyboard for key
-;	pop	cx
-;	 jnz	option_key30		; stop if key available
-;	cmp	boot_switches,SWITCH_F	; SWITCHES /F present?
-;	 je	option_key20		; yes, skip delay
-;	push	cx
-;	xor	ax,ax
-;	int	1Ah			; get ticks in DX
-;	pop	cx
-;	sub	dx,cx			; work out elapsed time
-;	cmp	dx,36			; more than 2 secs ?
-;	 jb	option_key10
-;option_key20:
-;	xor	ax,ax			; timeout, set ZF, no key pressed
-;	ret
-;
-;option_key30:
-;	cmp	ax,F5KEY		; if it is a key we want then
-;	 je	option_key40		;  read it, else just leave
-;	cmp	ax,F8KEY		;  in the type-ahead buffer
-;	 jne	option_key20
-;option_key40:
-;	xor	ax,ax
-;	int	16h			; read the key
-;	test	ax,ax			; clear ZF to indicate we have a key
-;	ret
 
 ICODE	ends
 
@@ -1080,17 +1009,16 @@ INITDATA	segment 'INITDATA'
 ; This is a zero terminated list of locations to be fixed up with the
 ; segment of the relocated BIOS RCODE
 
-
-bios_fixup_tbl	dw	CG:MemFixup
-		dw	CG:OutputBSFixup
-		dw	CG:DriverFunctionFixup
-		dw	CG:Int0Fixup
-		dw	CG:Int13DeblockFixup
-		dw	CG:Int13UnsureFixup
-		dw	CG:Int2FFixup
-		dw	CG:ResumeFixup
+bios_fixup_tbl	dw	offset MemFixup
+		dw	offset OutputBSFixup
+		dw	offset DriverFunctionFixup
+		dw	offset Int0Fixup
+		dw	offset Int13DeblockFixup
+		dw	offset Int13UnsureFixup
+		dw	offset Int2FFixup
+		dw	offset ResumeFixup
 IFDEF EMBEDDED
-		dw	CG:RdiskFixup
+		dw	offset RdiskFixup
 endif
 		dw	0
 
@@ -1128,8 +1056,8 @@ DataSegment	dw	0070h		; segment address of low data/code
 ;
 
 FunctionTable	struc
-FunctionTableMax	db	?
-FunctionTableEntry	dw	?
+Max	db	?
+Entry	dw	?
 FunctionTable	ends
 
 	Public	DriverFunction
@@ -1142,25 +1070,25 @@ DriverFunction	proc	far
 	pushx	<ds,es>
 	pushx	<ax,bx,cx,dx,si,di>	; save all registers
 	mov	ds,cs:DataSegment
-	mov	si,(size P_STRUC)-2[bp]	; get return address = command table
+	mov	si,[bp+(size P_STRUC)-2]	; get return address = command table
 	lodsw				; AX = following word
 	xchg	ax,dx			; DX = device number (0-6)
-	mov	si,offset CGROUP:SerParCommonTable
+	mov	si,offset SerParCommonTable
 	cmp	dx,6			; if not a device number it's a table
 	 jbe	DriverFunction10
 	mov	si,dx			; DS:SI -> table
 DriverFunction10:
 	les	bx,req_ptr		; ES:BX -> request header
-	mov	REQUEST_OFF[bp],bx
-	mov	REQUEST_SEG[bp],es
+	mov	P_STRUC.REQUEST_OFF[bp],bx
+	mov	P_STRUC.REQUEST_SEG[bp],es
 	mov	al,es:RH_CMD[bx]	; check if legal command
-	cmp	al,cs:FunctionTableMax[si]
+	cmp	al,cs:FunctionTable.Max[si]
 	 ja	cmderr			; skip if out of range
 	cbw				; convert to word
 	add	ax,ax			;  make it a word offset
 	add	si,ax			; add index to function table
-	call	cs:FunctionTableEntry[si]
-	les	bx,REQUEST[bp]
+	call	cs:FunctionTable.Entry[si]
+	les	bx,P_DSTRUC.REQUEST[bp]
 cmddone:
 	or	ax,RHS_DONE		; indicate request is "done"
 	mov	es:RH_STATUS[bx],ax	; update the status for BDOS
@@ -1217,7 +1145,7 @@ Int0Handler proc far
 	cld
 	push	cs
 	pop	ds
-	mov	si,CG:div_by_zero_msg	; DS:SI points at ASCIZ message
+	mov	si,offset div_by_zero_msg	; DS:SI points at ASCIZ message
 	mov	bx,STDERR		; to STDERR - where else ?
 	mov	cx,1			; write one at a time
 int0_loop:

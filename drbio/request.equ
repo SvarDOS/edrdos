@@ -35,25 +35,25 @@
 P_DSTRUC struc
 		dw	?
 REQUEST		dd	?
-P_DMA		dd	?
+DMA		dd	?
 P_DSTRUC ends
 
 P_STRUC struc
 		dw	?	; saved BP
 REQUEST_OFF	dw	?	; request header offset
 REQUEST_SEG	dw	?	; request header segment
-P_DMAOFF	dw	?	; transfer offset
-P_DMASEG	dw	?	; transfer segment
-P_RETRY		db	?	; retry count for disk errors
-P_DIRECT	db	?	; 0 if DMA deblocking required
-P_ROSCMD	db	?	; 2 = read, 3 = write, 4 = verify
-P_SETTLE	db	?	; for fast settle on reads
-P_SECTOR	db	?	; sector # (0..BPB_SPT-1)
-P_HEAD		db	?	; head # (0..BPB_HEADS-1)
-P_CYL		dw	?	; cylinder # (0..1023)
-P_COUNT		dw	?	; requested sector count
-P_MCNT		dw	?	; physical sector count
-P_LBABLOCK	dd	?	; Logical Block Address of start sector
+DMAOFF          dw	?	; transfer offset
+DMASEG          dw	?	; transfer segment
+RETRY		db	?	; retry count for disk errors
+DIRECT          db	?	; 0 if DMA deblocking required
+ROSCMD          db	?	; 2 = read, 3 = write, 4 = verify
+SETTLE          db	?	; for fast settle on reads
+SECTOR          db	?	; sector # (0..BPB_SPT-1)
+HEAD		db	?	; head # (0..BPB_HEADS-1)
+CYL		dw	?	; cylinder # (0..1023)
+COUNT		dw	?	; requested sector count
+MCNT		dw	?	; physical sector count
+LBABLOCK	dd	?	; Logical Block Address of start sector
 P_STRUC	ends
 
 

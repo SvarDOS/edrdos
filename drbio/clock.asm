@@ -42,8 +42,6 @@
 page
 CGROUP	group	CODE, RCODE, RESUMECODE, ICODE
 
-CG	equ	offset CGROUP
-
 TIME	struc
 DAYS		dw	?
 MINUTES		db	?
@@ -76,19 +74,18 @@ monlen		db	31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 
 ClockTable:
 	db	9			; Last supported function
-	dw	CG:dd_init		; 0-initialize driver
-	dw	CG:dd_error		; 1-media change check (disks only)
-	dw	CG:dd_error		; 2-build BPB (disks only)
-	dw	CG:dd_error		; 3-IOCTL string input
-	dw	CG:dd_input		; 4-input
-	dw	CG:dd_error		; 5-nondestructive input (char only)
-	dw	CG:dd_error		; 6-input status (char only)
-	dw	CG:dd_error		; 7-input flush
-	dw	CG:dd_output		; 8-output
-	dw	CG:dd_output		; 9-output with verify
+	dw	dd_init			; 0-initialize driver
+	dw	dd_error		; 1-media change check (disks only)
+	dw	dd_error		; 2-build BPB (disks only)
+	dw	dd_error		; 3-IOCTL string input
+	dw	dd_input		; 4-input
+	dw	dd_error		; 5-nondestructive input (char only)
+	dw	dd_error		; 6-input status (char only)
+	dw	dd_error		; 7-input flush
+	dw	dd_output		; 8-output
+	dw	dd_output		; 9-output with verify
 
 page
-driver	proc	near
 
 dd_error:	; used for all unsupported driver functions
 ;--------
@@ -139,7 +136,7 @@ dd_output:	; 8-output
 
 ;	First we'll convert the date & set the RTC if present:
 
-	mov	ax,es:DAYS[si]		; # of days since 1/1/1980
+	mov	ax,es:TIME.DAYS[si]	; # of days since 1/1/1980
 	mov	daycount,ax
 
 	mov	dx,1980			; get initial year
@@ -192,12 +189,12 @@ output6:				; DX = binary year
 
 ;	Now we'll convert the time & set the RTC if present
 
-;	mov	ah,es:HOURS[si]
-;	mov	al,es:MINUTES[si]		; get binary hours & minutes
-	mov	ax,es:word ptr MINUTES[si]
+;	mov	ah,es:TIME.HOURS[si]
+;	mov	al,es:TIME.MINUTES[si]	; get binary hours & minutes
+	mov	ax,es:word ptr TIME.MINUTES[si]
 	call	bin2bcd			; convert to BCD values
 	xchg	ax,cx			; CH, CL = hh:mm in BCD
-	mov	ah,es:SECONDS[si]
+	mov	ah,es:TIME.SECONDS[si]
 	mov	al,0			; get binary seconds & no daylight saving
 	call	bin2bcd			; convert to BCD values
 	xchg	ax,dx			; DH, DL = ss.000 in BCD
@@ -206,9 +203,9 @@ output6:				; DX = binary year
 	int	RTC_INT			;    on AT, XT-286, PS/2, etc.
 
 	mov	al,100
-	mul	es:SECONDS[si]		; AX = seconds in hundredths
+	mul	es:TIME.SECONDS[si]	; AX = seconds in hundredths
 	xchg	ax,dx			; save in DX
-	mov	al,es:HUNDREDTHS[si]
+	mov	al,es:TIME.HUNDREDTHS[si]
 	cbw				; AX = hundredths
 	add	ax,dx			; AX = secs and hundredths in 1/100ths
 	cwd				; make the a dword
@@ -216,9 +213,9 @@ output6:				; DX = binary year
 	div	bx			; AX = secs and hundredths in 5/100ths
 	xchg	ax,bx			; save in BX
 	mov	al,60			; convert hours into minutes
-	mul	es:HOURS[si]		; AX = hours in mins
+	mul	es:TIME.HOURS[si]	; AX = hours in mins
 	xchg	ax,dx
-	mov	al,es:MINUTES[si]
+	mov	al,es:TIME.MINUTES[si]
 	cbw				; AX = minutes value
 	add	ax,dx			; AX = hours and mins in mins
 	mov	dx,60*20
@@ -270,8 +267,6 @@ bin2bcd1:
 	mov	al,ch			; restore the high byte into low byte
 	pop	cx
 	ret
-
-driver	endp
 
 RCODE	ends				; end of device driver code
 
@@ -452,7 +447,7 @@ dd_init:	; 0-initialize driver
 ;-------
 	call	set_clock		; set elapsed ticks
 
-	les	bx,REQUEST[bp]		; ES:BX -> request header
+	les	bx,P_DSTRUC.REQUEST[bp]	; ES:BX -> request header
 
 	mov	ax,endbios
 	mov	es:RH0_RESIDENT[bx],ax	; set end of device driver

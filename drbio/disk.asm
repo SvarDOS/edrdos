@@ -237,14 +237,14 @@ RCODE	segment	'RCODE'
 	extrn	DataSegment:word
 
 even
-Int13	proc	near
+Int13:
 	clc
 Int13_Keep_CF:
 	push	bp
 	int	DISK_INT
 	pop	bp
 	ret
-Int13	endp
+
 
 ros_errors	db	03h, 80h, 08h, 10h, 40h, 04h, 06h, 00h
 dos_errors	db	00h, 02h, 04h, 04h, 06h, 08h, 0Fh, 0Ch
@@ -364,14 +364,14 @@ i13_deblock60:				; we succeeded in doing AL sectors
 	and	cx,0FFC0h		; CX = mandled cylinder bits
 	add	bl,al			; work out new sector
 i13_deblock70:
-	mov	ax,es:UDSC_BPB+BPB_SPT[di]
+	mov	ax,es:[di+UDSC.BPB+BPB.SPT]
 	cmp	bx,ax			; still on the same track ?
 	 jbe	i13_deblock80		; easy if no overflow onto next track
 	sub	bx,ax			; subtract a tracks worth
 	inc	dh			;  and move onto next head
 	mov	al,dh			; isolate head from cylinder
 	and	ax,003Fh		;  bits 10/11
-	cmp	ax,es:UDSC_BPB+BPB_HEADS[di]
+	cmp	ax,es:[di+UDSC.BPB+BPB.HEADS]
 	 jb	i13_deblock70		; onto next track yet ?
 	and	dh,0C0h			; back to head zero
 	add	ch,1			; onto next track (bits 0-7)
@@ -400,9 +400,9 @@ i13_point_unit	proc	near
 ;
 	les	di,udsc_root		; ES:DI -> 1st es:UDSC_
 i13_point_unit10:
-	cmp	dl,es:UDSC_RUNIT[di]	; find the physical unit
+	cmp	dl,es:UDSC.RUNIT[di]	; find the physical unit
 	 je	i13_point_unit20
-	les	di,es:UDSC_NEXT[di]
+	les	di,es:UDSC.NEXT[di]
 	cmp	di,0FFFFh		; else try the next es:UDSC_
 	 jne	i13_point_unit10
 	mov	ah,09h			; return DMA error to caller as we
@@ -420,11 +420,11 @@ i13_unsure	proc	near
 	pushx	<ds, si>
 	lds	si,udsc_root
 i13_unsure10:
-	cmp	dl,ds:UDSC_RUNIT[si]	; does it match ROS drive?
+	cmp	dl,ds:UDSC.RUNIT[si]	; does it match ROS drive?
 	 jne	i13_unsure20		; skip if not
-	or	ds:UDSC_FLAGS[si],UDF_UNSURE
+	or	ds:UDSC.FLAGS[si],UDF_UNSURE
 i13_unsure20:				; next drive
-	lds	si,ds:UDSC_NEXT[si]
+	lds	si,ds:UDSC.NEXT[si]
 	cmp	si,0FFFFh
 	 jne	i13_unsure10
 	popx	<si, ds>		; restore registers
@@ -441,9 +441,9 @@ Int2FHandler	proc	far
 ; On Entry we have offset/seg of next in chain on the stack
 ; (ie. we can pass on by a RETF)
 ;
-	cmp	ah,8				; DRIVER.SYS support
+	cmp	ah,8			; DRIVER.SYS support
 	 je	i2F_driver
-	cmp	ah,13h				; int13 intercept
+	cmp	ah,13h			; int13 intercept
 	 jne	i2F_iret
 ;
 ; Int 13 interception support
@@ -550,33 +550,32 @@ Int2FHandler	endp
 
 DiskTable label word
 	db	24			; Last supported function
-	dw	CG:dd_init		; 0-initialize driver
-	dw	CG:dd_medchk		; 1-media change check
-	dw	CG:dd_build_bpb		; 2-build BIOS Parameter Block
-	dw	CG:dd_error		; 3-IOCTL string input
-	dw	CG:dd_input		; 4-input
-	dw	CG:dd_error		; 5-nondestructive input (char only)
-	dw	CG:dd_error		; 6-input status (char only)
-	dw	CG:dd_error		; 7-input flush
-	dw	CG:dd_output		; 8-output
-	dw	CG:dd_output_vfy	; 9-output with verify
-	dw	CG:dd_error		; 10-output status (char only)
-	dw	CG:dd_error		; 11-output flush (char only)
-	dw	CG:dd_error		; 12-IOCTL string output
-	dw	CG:dd_open		; 13-device open
-	dw	CG:dd_close		; 14-device close
-	dw	CG:dd_remchk		; 15-removable media check
-	dw	CG:dd_error		; 16-n/a
-	dw	CG:dd_error		; 17-n/a
-	dw	CG:dd_error		; 18-n/a
-	dw	CG:dd_genioctl		; 19-generic IOCTL
-	dw	CG:dd_error		; 20-n/a
-	dw	CG:dd_error		; 21-n/a
-	dw	CG:dd_error		; 22-n/a
-	dw	CG:dd_getdev		; 23-get logical drive
-	dw	CG:dd_setdev		; 24-set logical drive
+	dw	dd_init			; 0-initialize driver
+	dw	dd_medchk		; 1-media change check
+	dw	dd_build_bpb		; 2-build BIOS Parameter Block
+	dw	dd_error		; 3-IOCTL string input
+	dw	dd_input		; 4-input
+	dw	dd_error		; 5-nondestructive input (char only)
+	dw	dd_error		; 6-input status (char only)
+	dw	dd_error		; 7-input flush
+	dw	dd_output		; 8-output
+	dw	dd_output_vfy		; 9-output with verify
+	dw	dd_error		; 10-output status (char only)
+	dw	dd_error		; 11-output flush (char only)
+	dw	dd_error		; 12-IOCTL string output
+	dw	dd_open			; 13-device open
+	dw	dd_close		; 14-device close
+	dw	dd_remchk		; 15-removable media check
+	dw	dd_error		; 16-n/a
+	dw	dd_error		; 17-n/a
+	dw	dd_error		; 18-n/a
+	dw	dd_genioctl		; 19-generic IOCTL
+	dw	dd_error		; 20-n/a
+	dw	dd_error		; 21-n/a
+	dw	dd_error		; 22-n/a
+	dw	dd_getdev		; 23-get logical drive
+	dw	dd_setdev		; 24-set logical drive
 
-driver	proc	near
 
 point_unit:	; get unit descriptor for work drive
 ;----------
@@ -590,9 +589,9 @@ point_unit:	; get unit descriptor for work drive
 	mov	al,es:RH_UNIT[bx]	; get the unit number (0=A:, 1=B:, etc)
 	les	di,udsc_root		; ES:DI -> 1st es:UDSC_
 point_unit10:
-	cmp	al,es:UDSC_DRIVE[di]	; stop if the logical drive matches
+	cmp	al,es:UDSC.DRIVE[di]	; stop if the logical drive matches
 	 je	point_unit20	
-	les	di,es:UDSC_NEXT[di]
+	les	di,es:UDSC.NEXT[di]
 	cmp	di,0FFFFh		; else try the next es:UDSC_
 	 jne	point_unit10
 	pop	ax			; don't return to the caller
@@ -607,38 +606,38 @@ add_unit:	; add a new unit to the list
 ; On Exit:
 ;	ES:DI preserved
 ;
-	mov	al,es:UDSC_DRIVE[di]	; get the logical unit
+	mov	al,es:UDSC.DRIVE[di]	; get the logical unit
 	cmp	al,MAXPART		; is it too many ?
 	 jae	add_unit40
 	push	ds
-	mov	es:word ptr UDSC_NEXT[di],0FFFFh
+	mov	es:word ptr UDSC.NEXT[di],0FFFFh
 					; make sure it's terminated
-	and	es:UDSC_FLAGS[di],UDF_LBA+UDF_HARD+UDF_CHGLINE
+	and	es:UDSC.FLAGS[di],UDF_LBA+UDF_HARD+UDF_CHGLINE
 	lea	si,udsc_root		; DS:SI -> [first UDSC_]
 add_unit10:
-	cmp	ds:word ptr UDSC_NEXT[si],0FFFFh
+	cmp	ds:word ptr UDSC.NEXT[si],0FFFFh
 	 je	add_unit30
-	lds	si,ds:UDSC_NEXT[si]	; DS:SI -> UDSC_ we already have
-	mov	al,es:UDSC_RUNIT[di]
-	cmp	al,ds:UDSC_RUNIT[si]	; do the logical units match ?
+	lds	si,ds:UDSC.NEXT[si]	; DS:SI -> UDSC_ we already have
+	mov	al,es:UDSC.RUNIT[di]
+	cmp	al,ds:UDSC.RUNIT[si]	; do the logical units match ?
 	 jne	add_unit10
-	mov	ax,ds:UDSC_FLAGS[si]	; inherit some flags
+	mov	ax,ds:UDSC.FLAGS[si]	; inherit some flags
 	push	ax
 	and	ax,UDF_LBA+UDF_HARD+UDF_CHGLINE
-	mov	es:UDSC_FLAGS[di],ax	; hard disk/changeline inherited
+	mov	es:UDSC.FLAGS[di],ax	; hard disk/changeline inherited
 	pop	ax
 	test	ax,UDF_HARD
 	 jnz	add_unit10		; skip owner stuff on hard drive
 	test	ax,UDF_VFLOPPY		; is this a multiple drive anyway ?
 	 jnz	add_unit20
 	or	ax,UDF_OWNER+UDF_VFLOPPY
-	mov	ds:UDSC_FLAGS[si],ax	; no, 1st person becomes owner
+	mov	ds:UDSC.FLAGS[si],ax	; no, 1st person becomes owner
 add_unit20:
-	or	es:UDSC_FLAGS[di],UDF_VFLOPPY
+	or	es:UDSC.FLAGS[di],UDF_VFLOPPY
 	jmps	add_unit10		; go and try the next
 add_unit30:
-	mov	ds:word ptr UDSC_NEXT[si],di
-	mov	ds:word ptr UDSC_NEXT+2[si],es
+	mov	ds:word ptr UDSC.NEXT[si],di
+	mov	ds:word ptr UDSC.NEXT+2[si],es
 	pop	ds
 add_unit40:
 	ret
@@ -657,15 +656,15 @@ dd_medchk:	; 1-media change check
 ;		  FF = media has been changed
 
 	call	point_unit		; get unit descriptor
-	test	es:UDSC_FLAGS[di],UDF_HARD
+	test	es:UDSC.FLAGS[di],UDF_HARD
 	 jnz	medchk2			; "hasn't changed" if hard disk
 	call	ask_for_disk		; make sure we've got correct floppy
-	mov	ax,es:UDSC_FLAGS[di]	; get flags
+	mov	ax,es:UDSC.FLAGS[di]	; get flags
 	test	ax,UDF_UNSURE		; has format/diskcopy occurred?
 	 jnz	medchk6			; may have changed to different format
 	test	ax,UDF_CHGLINE
 	 jz	medchk3			; skip ROS call if no change line
-	mov	dl,es:UDSC_RUNIT[di]
+	mov	dl,es:UDSC.RUNIT[di]
 	mov	al,dl			; don't trust changeline if we are
 	xchg	al,activeRosUnit	;  changing floppies
 	cmp	al,dl			; return may have changed
@@ -681,10 +680,10 @@ medchk2:
 medchk3:				; no changeline support, use timer
 	call	read_system_ticks	; get system tick count in CX/DX
 	mov	ax,dx
-	xchg	ax,es:UDSC_TIMER[di]	; get previous time and update
+	xchg	ax,es:UDSC.TIMER[di]	; get previous time and update
 	sub	dx,ax
 	mov	ax,cx
-	xchg	ax,es:UDSC_TIMER+2[di]
+	xchg	ax,es:UDSC.TIMER+2[di]
 	sbb	cx,ax			; CX/DX = # ticks since last access
 	 jne	medchk5			; media could have changed if > 64k
 	cmp	dx,18*3			; more than three seconds expired?
@@ -693,33 +692,33 @@ medchk5:
 	mov	cx,1			; read track 0, sector 1 (boot sector)
 	call	login_read		; to check the builtin BPB
 	 jc	medchk6			; may have changed if read error
-	mov	al,local_buffer+BPB_SECTOR_OFFSET+BPB_FATID
+	mov	al,local_buffer+BPB_SECTOR_OFFSET+BPB.FATID
 	cmp	al,0F0h			; check if we find a BPB
 	 jb	medchk6			; may have changed if not good BPB
-	cmp	al,es:UDSC_BPB+BPB_FATID[di]
+	cmp	al,es:UDSC.BPB+BPB.FATID[di]
 	 jne	medchk8			; has media byte changed ?
 					; point si to FAT16 ext. boot sig
-	mov	si,offset CGROUP:local_buffer+BPB_SECTOR_OFFSET+OLD_UDSC_BPB_LENGTH+2
+	mov	si,offset local_buffer+BPB_SECTOR_OFFSET+OLD_UDSC_BPB_LENGTH+2
 
-	cmp	word ptr local_buffer+BPB_SECTOR_OFFSET+BPB_DIRMAX,0
+	cmp	word ptr local_buffer+BPB_SECTOR_OFFSET+BPB.DIRMAX,0
 	jnz	medchkf16		; is it not FAT32?
 					; FAT32 => adjust si to DOS 7.1 EBPB
-	mov	si,offset CGROUP:local_buffer+BPB_SECTOR_OFFSET+UDSC_BPB_LENGTH+2
+	mov	si,offset local_buffer+BPB_SECTOR_OFFSET+UDSC_BPB_LENGTH+2
 medchkf16:
 	lodsb				; get extended boot
 	sub	al,29h			; do we have an extended boot ?
 	 je	medchk7			; no, test against our dummy value
-	mov	si,offset CGROUP:dummyMediaID
+	mov	si,offset dummyMediaID
 medchk7:
 	push	di
-	lea	di,UDSC_SERIAL[di]
+	lea	di,UDSC.SERIAL[di]
 	mov	cx,2
 	repe	cmpsw			; is serial number unchanged ?
 	pop	di
 	 je	medchk6			; then return may have changed
 medchk8:
-	lea	ax,UDSC_LABEL[di]	; ES:AX -> ASCII label
-	lds	bx,REQUEST[bp]
+	lea	ax,UDSC.LABL[di]	; ES:AX -> ASCII label
+	lds	bx,P_DSTRUC.REQUEST[bp]
 	mov	ds:word ptr RH1_VOLID[bx],ax
 	mov	ds:word ptr RH1_VOLID+2[bx],es
 	mov	al,0FFH			; return disk changed
@@ -729,8 +728,8 @@ medchk6:
 	mov	al,00h			; disk may have changed
 
 medchk_ret:
-	and	es:UDSC_FLAGS[di],not UDF_UNSURE
-	les	bx,REQUEST[bp]
+	and	es:UDSC.FLAGS[di],not UDF_UNSURE
+	les	bx,P_DSTRUC.REQUEST[bp]
 	mov	es:RH1_RETURN[bx],al	; set return value
 	sub	ax,ax
 	ret
@@ -740,17 +739,17 @@ medchk_ret:
 dd_build_bpb:	; 2-build BIOS Parameter Block
 ;------------
 	call	point_unit		; get unit descriptor
-	test	es:UDSC_FLAGS[di],UDF_HARD
+	test	es:UDSC.FLAGS[di],UDF_HARD
 	 jnz	bldbpb1			; BPB doesn't change for hard disks
 	call	login_media		; try to determine media type (BPB)
 	 jc	bldbpb_err
 bldbpb1:
-	mov	es:UDSC_OPNCNT[di],0	; no files open at this time
-	and	es:UDSC_FLAGS[di],not UDF_UNSURE
+	mov	es:UDSC.OPNCNT[di],0	; no files open at this time
+	and	es:UDSC.FLAGS[di],not UDF_UNSURE
 					; media is sure
-	lea	si,UDSC_BPB[di]
+	lea	si,UDSC.BPB[di]
 	mov	ax,es
-	les	bx,REQUEST[bp]
+	les	bx,P_DSTRUC.REQUEST[bp]
 	mov	es:RH2_BPBOFF[bx],si	; return the current BPB
 	mov	es:RH2_BPBSEG[bx],ax
 
@@ -769,7 +768,7 @@ login_media:		; determine BPB for new floppy disk
 	mov	cx,1			; read track 0, sector 1 (boot)
 	call	login_read		; to determine media type
 	 jc	login_media_err		; abort if physical error
-	cmp	local_buffer+BPB_SECTOR_OFFSET+BPB_FATID,0F0h
+	cmp	local_buffer+BPB_SECTOR_OFFSET+BPB.FATID,0F0h
 	 jb	login_media10		; fail unless FATID sensible
 	lodsw				; get JMP instruction from boot sector
 	xchg	ax,bx			; save in BX
@@ -793,31 +792,31 @@ login_media10:
 	mov	si,CG:bpb160		; look through builtin BPB table
 	mov	cx,NBPBS		; # of builtin BPBs
 login_media20:
-	cmp	al,BPB_FATID[si]	; does it match one we know?
+	cmp	al,BPB.FATID[si]	; does it match one we know?
 	 je	login_media40		; yes, use builtin BPB
 	add	si,BPB_LENGTH		; else move to next BPB
 	loop	login_media20		; repeat for all BPBs
 login_media30:				; can't find that FAT ID
-	lea	si,UDSC_DEVBPB[di]	; use the default type
+	lea	si,UDSC.DEVBPB[di]	; use the default type
 	push	es
 	pop	ds			; use BPB at DS:SI ->
 login_media40:
 	push	di
-	lea	di,UDSC_BPB[di]		; ES:DI -> unit descriptor (UDSC)
+	lea	di,UDSC.BPB[di]		; ES:DI -> unit descriptor (UDSC)
 	mov	cx,OLD_UDSC_BPB_LENGTH	; size of a BPB (less reserved stuff)
-	cmp	word ptr BPB_DIRMAX[si],0 ; test for FAT32
+	cmp	word ptr BPB.DIRMAX[si],0 ; test for FAT32
 	 jne	login_media41
 	mov	cx,UDSC_BPB_LENGTH	; size of FAT32 BPB
 login_media41:
 	rep	movsb			; copy into unit descriptor
 	pop	di
-	mov	es:UDSC_BPB+BPB_SECSIZ[di],SECSIZE
+	mov	es:[di+UDSC.BPB+BPB.SECSIZ],SECSIZE
 ;	mov	cx,0
-	mov	es:word ptr (UDSC_BPB+BPB_HIDDEN)[di],cx
-	mov	es:word ptr (UDSC_BPB+BPB_HIDDEN+2)[di],cx
-	cmp	si,offset CGROUP:local_buffer+OLD_UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET
+	mov	es:word ptr (UDSC.BPB+BPB.HIDDEN)[di],cx
+	mov	es:word ptr (UDSC.BPB+BPB.HIDDEN+2)[di],cx
+	cmp	si,offset local_buffer+OLD_UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET
 	 je	login_media70
-	cmp	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET
+	cmp	si,offset local_buffer+UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET
 	 je	login_media70
 	jmp	login_media50
 login_media70:
@@ -828,7 +827,7 @@ login_media70:
 login_media50:
 	push	cs			; no bootsector BPB, load dummy values
 	pop	ds			; DS:SI -> our dummy value
-	mov	si,offset CGROUP:dummyMediaID
+	mov	si,offset dummyMediaID
 login_media60:
 	call	UpdateMediaID		; update UDSC_ with media info
 	clc
@@ -850,18 +849,18 @@ UpdateMediaID:
 ;
 	push	di
 	xor	ax,ax			; AX = a handy zero	
-	lea	di,UDSC_SERIAL[di]
+	lea	di,UDSC.SERIAL[di]
 	movsw
 	movsw				; copy serial number
 	pop	di
 	push	di
-	lea	di,UDSC_LABEL[di]
+	lea	di,UDSC.LABL[di]
 	mov	cx,11
 	rep	movsb			; copy the volume label
 	stosb				; zero terminate it
 	pop	di
 	push	di
-	lea	di,UDSC_FSTYPE[di]
+	lea	di,UDSC.FSTYPE[di]
 	movsw
 	movsw
 	movsw
@@ -963,7 +962,7 @@ login_read_lba:
 ;	exit:	CY = 1, AH = status if error
 ;		else local_buffer filled in
 
-	mov	dl,es:UDSC_RUNIT[di]	; DL = ROS drive
+	mov	dl,es:UDSC.RUNIT[di]	; DL = ROS drive
 	mov	dh,0			; DH = head number
 
 login_read_dx_lba:				; read on drive DL, head DH
@@ -972,7 +971,7 @@ login_read_dx_lba:				; read on drive DL, head DH
 ;	DS:SI -> disk address packet
 ;	DL unit number
 
-	mov	P_RETRY[bp],RETRY_MAX	; initialize retry count
+	mov	P_STRUC.RETRY[bp],RETRY_MAX	; initialize retry count
 logrd1_lba:
 	test	int13ex_bits,1		; LBA support present?
 	 jz	logrd1a_lba		; no, then use old CHS method
@@ -998,7 +997,7 @@ logrd1b_lba:
 	xor	ax,ax
 	int_____DISK_INT		; reset the drive
 	pop	ax
-	dec	P_RETRY[bp]
+	dec	P_STRUC.RETRY[bp]
 	 jnz	logrd1_lba		; loop back if more retries
 logrd2_lba:
 	stc
@@ -1011,12 +1010,12 @@ login_read:
 ;	exit:	CY = 1, AH = status if error
 ;		else local_buffer filled in
 
-	mov	dl,es:UDSC_RUNIT[di]	; DL = ROS drive
+	mov	dl,es:UDSC.RUNIT[di]	; DL = ROS drive
 	mov	dh,0			; DH = head number
 
 login_read_dx:				; read on drive DL, head DH
 ;-------------				; (entry for hard disk login)
-	mov	P_RETRY[bp],RETRY_MAX	; initialize retry count
+	mov	P_STRUC.RETRY[bp],RETRY_MAX	; initialize retry count
 logrd1:
 	push	es
 	mov	ax,ROS_READ*256 + 1	; read one sector from ROS
@@ -1031,7 +1030,7 @@ logrd1:
 	xor	ax,ax
 	int_____DISK_INT		; reset the drive
 	pop	ax
-	dec	P_RETRY[bp]
+	dec	P_STRUC.RETRY[bp]
 	 jnz	logrd1			; loop back if more retries
 logrd2:
 	stc
@@ -1042,17 +1041,17 @@ logrd3:
 	page
 dd_output:	; 8-output
 ;---------
-	mov	P_ROSCMD[bp],ROS_WRITE	; write to floppy/hard disk
+	mov	P_STRUC.ROSCMD[bp],ROS_WRITE	; write to floppy/hard disk
 	jmps	io_common
 
 dd_output_vfy:	; 9-output with verify
 ;-------------
-	mov	P_ROSCMD[bp],ROS_VERIFY	; write & verify floppy/hard disk
+	mov	P_STRUC.ROSCMD[bp],ROS_VERIFY	; write & verify floppy/hard disk
 	jmps	io_common
 
 dd_input:	; 4-input
 ;--------
-	mov	P_ROSCMD[bp],ROS_READ	; read from floppy/hard disk
+	mov	P_STRUC.ROSCMD[bp],ROS_READ	; read from floppy/hard disk
 ;	jmps	io_common
 
 io_common:				; common code for the above three
@@ -1063,17 +1062,17 @@ io_common:				; common code for the above three
 io_loop:
 	call	track_rw		; read as much as possible on track
 	 jc	xlat_error		; return if physical disk error
-	cmp	P_COUNT[bp],0		; test if any more stuff to read
+	cmp	P_STRUC.COUNT[bp],0		; test if any more stuff to read
 	 jne	io_loop			; yes, loop back for more
 
-	mov	al,es:UDSC_RUNIT[di]	; remember the drive that is active
+	mov	al,es:UDSC.RUNIT[di]	; remember the drive that is active
 	mov	activeRosUnit,al
-	test	es:UDSC_FLAGS[di],UDF_HARD+UDF_CHGLINE
+	test	es:UDSC.FLAGS[di],UDF_HARD+UDF_CHGLINE
 	 jnz	io_exit			; skip timer read for hard/changeline
 
 	call	read_system_ticks	; get system tick count in CX/DX
-	mov	es:UDSC_TIMER[di],dx
-	mov	es:UDSC_TIMER+2[di],cx	; save time of successful access
+	mov	es:UDSC.TIMER[di],dx
+	mov	es:UDSC.TIMER+2[di],cx	; save time of successful access
 io_exit:
 	xor	ax,ax			; all done, no error encountered
 io_ret:
@@ -1112,13 +1111,13 @@ setup_rw:	; prepare for INPUT, OUTPUT or OUTPUT_VFY
 ;	ES:DI preserved
 
 	push	ds
-	lds	bx,REQUEST[bp]
+	lds	bx,P_DSTRUC.REQUEST[bp]
 	mov	ax,ds:RH4_BUFOFF[bx]	; get offset of transfer buffer
-	mov	P_DMAOFF[bp],ax		; set transfer offset
+	mov	P_STRUC.DMAOFF[bp],ax	; set transfer offset
 	mov	ax,ds:RH4_BUFSEG[bx]	; get segment of transfer buffer
-	mov	P_DMASEG[bp],ax		; set transfer segment
+	mov	P_STRUC.DMASEG[bp],ax	; set transfer segment
 	mov	ax,ds:RH4_COUNT[bx]	; get sector count from request header
-	mov	P_COUNT[bp],ax		; save it locally for later
+	mov	P_STRUC.COUNT[bp],ax	; save it locally for later
 	mov	ax,ds:RH4_SECTOR[bx]	; get low 16 bit of sector #
 	sub	dx,dx			; assume value is 16 bit only
 	cmp	ds:RH_LEN[bx],22	; check if small request
@@ -1137,18 +1136,18 @@ setrw1:
 setrw2:
 	pop	ds
 
-	mov	cx,P_COUNT[bp]		; get requested count
+	mov	cx,P_STRUC.COUNT[bp]		; get requested count
 	 jcxz	setrw3			; invalid count
 	dec	cx			; CX = count - 1
-	cmp	es:word ptr (UDSC_BPB+BPB_TOTSEC)[di],0
+	cmp	es:word ptr (UDSC.BPB+BPB.TOTSEC)[di],0
 	 jne	setrw4			; skip if < 65536 sectors on disk
 	add	ax,cx
 	adc	dx,0			; AX/DX = # of last sector for I/O
 	 jc	setrw3			; error if > 32 bits
-	cmp	dx,es:word ptr (UDSC_BPB+BPB_SIZE+2)[di]
+	cmp	dx,es:word ptr (UDSC.BPB+BPB.SIZ+2)[di]
 	 ja	setrw3			; skip if too large
 	 jb	setrw5			; O.K. if small enough
-	cmp	ax,es:word ptr (UDSC_BPB+BPB_SIZE)[di]
+	cmp	ax,es:word ptr (UDSC.BPB+BPB.SIZ)[di]
 	 jb	setrw5			; fail if too large
 setrw3:
 	mov	ax,RHS_ERROR+8		; return "sector not found"
@@ -1158,29 +1157,29 @@ setrw3:
 setrw4:					; less than 65536 records
 	add	ax,cx			; compute end of transfer
 	 jc	setrw3			; skip if overflow
-	cmp	ax,es:UDSC_BPB+BPB_TOTSEC[di]
+	cmp	ax,es:[di+UDSC.BPB+BPB.TOTSEC]
 	 jae	setrw3			; skip if too large
 setrw5:
 	sub	ax,cx
 	sbb	dx,0			; add partition address for hard disk
-	add	ax,es:word ptr (UDSC_BPB+BPB_HIDDEN)[di]
-	adc	dx,es:word ptr (UDSC_BPB+BPB_HIDDEN+2)[di]
-	mov	word ptr P_LBABLOCK[bp],ax	; Logical Block Address of start sector
-	mov	word ptr P_LBABLOCK[bp+2],dx
+	add	ax,es:word ptr [di+UDSC.BPB+BPB.HIDDEN]
+	adc	dx,es:word ptr [di+UDSC.BPB+BPB.HIDDEN+2]
+	mov	word ptr P_STRUC.LBABLOCK[bp],ax	; Logical Block Address of start sector
+	mov	word ptr P_STRUC.LBABLOCK[bp+2],dx
 	push	ax			; AX/DX = 32 bit starting record address
 	push	dx			; save starting record
-	mov	ax,es:UDSC_BPB+BPB_SPT[di]
-	mul	es:UDSC_BPB+BPB_HEADS[di]; get sectors per track * heads
+	mov	ax,es:[di+UDSC.BPB+BPB.SPT]
+	mul	es:[di+UDSC.BPB+BPB.HEADS]; get sectors per track * heads
 	mov	cx,ax			; CX = sectors per cylinder
 	pop	dx			; recover 32 bit start block
 	pop	ax
 	div	cx			; AX = cylinder #, DX = head/sec offset
-	mov	P_CYL[bp],ax		; save physical cylinder number
+	mov	P_STRUC.CYL[bp],ax	; save physical cylinder number
 	xor	ax,ax			; make remainder 32 bit so
 	xchg	ax,dx			; DX:AX = (head # * SPT) + sector #
-	div	es:UDSC_BPB+BPB_SPT[di]	; divide by sectors per track
-	mov	P_SECTOR[bp],dl		; DX = sector #, AX = head #
-	mov	P_HEAD[bp],al		; save physical sector/head for later
+	div	es:[di+UDSC.BPB+BPB.SPT]; divide by sectors per track
+	mov	P_STRUC.SECTOR[bp],dl	; DX = sector #, AX = head #
+	mov	P_STRUC.HEAD[bp],al	; save physical sector/head for later
 
 	clc				; tell them we like the parameters
 	ret				; we've figured out starting address
@@ -1202,30 +1201,30 @@ track_rw:
 if FASTSETTLE
 	call	new_settle		; set new head settle delay
 endif
-	cmp	P_DIRECT[bp],0		; DMA boundary problem?
+	cmp	P_STRUC.DIRECT[bp],0	; DMA boundary problem?
 	 jne	trkrw10			; no, direct transfer performed
-	cmp	P_ROSCMD[bp],ROS_READ
+	cmp	P_STRUC.ROSCMD[bp],ROS_READ
 	 je	trkrw10			; skip if not writing to disk
 	pushx	<ds, es, di>
 	mov	cx,SECSIZE/2		; CX = # of word per sector
 	push	ds
 	pop	es			; ES:DI -> destination
 	mov	di,CG:local_buffer
-	lds	si,P_DMA[bp]		; DS:SI -> source
+	lds	si,P_DSTRUC.DMA[bp]	; DS:SI -> source
 	rep	movsw			; copy from deblocking buffer
 	popx	<di, es, ds>
 trkrw10:
-	mov	P_RETRY[bp],RETRY_MAX	; perform up to three retries
+	mov	P_STRUC.RETRY[bp],RETRY_MAX	; perform up to three retries
 trkrw20:				; loop back here for retries
-	mov	dl,es:UDSC_RUNIT[di]	; get ROS unit #
-	test	es:UDSC_FLAGS[di],UDF_LBA ; drive accessed via LBA?
+	mov	dl,es:UDSC.RUNIT[di]	; get ROS unit #
+	test	es:UDSC.FLAGS[di],UDF_LBA ; drive accessed via LBA?
 	 jz	trkrw25			; no, then use CHS routine
 
 trkrw25_lba:
 	lea	si,diskaddrpack		; disk address packet structure
-	mov	ax,word ptr P_LBABLOCK[bp]	; get block number
+	mov	ax,word ptr P_STRUC.LBABLOCK[bp]	; get block number
 	mov	word ptr [si+8],ax
-	mov	ax,word ptr P_LBABLOCK[bp+2]
+	mov	ax,word ptr P_STRUC.LBABLOCK[bp+2]
 	mov	word ptr [si+10],ax
 	mov	word ptr [si+6],ds	; address of transfer buffer
 	mov	word ptr [si+4],CG:local_buffer
@@ -1233,26 +1232,26 @@ trkrw25_lba:
 ;	mov	ax,ds
 ;	mov	es,ax
 ;	mov	bx,CG:local_buffer	; point at our local buffer
-	cmp	P_DIRECT[bp],0		; DMA boundary problem?
+	cmp	P_STRUC.DIRECT[bp],0	; DMA boundary problem?
 	 je	trkrw30_lba		; no, direct transfer performed
-	mov	ax,word ptr P_DMA[bp+2]	; transfer address
+	mov	ax,word ptr P_DSTRUC.DMA[bp+2]	; transfer address
 	mov	word ptr [si+6],ax
-	mov	ax,word ptr P_DMA[bp]
+	mov	ax,word ptr P_DSTRUC.DMA[bp]
 	mov	word ptr [si+4],ax
-;	les	bx,P_DMA[bp]		; ES:BX -> transfer address
+;	les	bx,P_DSTRUC.DMA[bp]	; ES:BX -> transfer address
 trkrw30_lba:
-;	mov	ax,P_MCNT[bp]		; AL = physical sector count
-	mov	ax,P_MCNT[bp]		; physical sector count
+;	mov	ax,P_STRUC.MCNT[bp]	; AL = physical sector count
+	mov	ax,P_STRUC.MCNT[bp]	; physical sector count
 	mov	word ptr [si+2],ax
 	xor	al,al
-	mov	ah,P_ROSCMD[bp]		; AH = ROS read command
+	mov	ah,P_STRUC.ROSCMD[bp]	; AH = ROS read command
 	add	ah,40h			; extended (LBA) version of command
 	cmp	ah,ROS_LBAVERIFY	; write with verify?
 	 jne	trkrw40_lba		; skip if ROS_READ or ROS_WRITE
 	mov	ah,ROS_LBAWRITE		; else first perform normal write
 	int_____DISK_INT		; call ROS to write to disk
 	 jc	trkrw50_lba		; skip if any errors occurred
-	mov	ax,P_MCNT[bp]		; else get sector count
+	mov	ax,P_STRUC.MCNT[bp]	; else get sector count
 	mov	word ptr [si+2],ax
 	xor	al,al
 	mov	ah,ROS_LBAVERIFY	; verify disk sectors
@@ -1264,35 +1263,35 @@ trkrw50_lba:				; CY = 1, AH = error code
 
 
 trkrw25:
-	mov	cx,P_CYL[bp]		; get cylinder #
+	mov	cx,P_STRUC.CYL[bp]		; get cylinder #
 	xchg	cl,ch			; CH = bits 0..7, CL = bits 8..11
 	ror	cl,1
 	ror	cl,1			; cylinder bits 8..9 in bits 6..7
 	mov	dh,cl			; cylinder bits 10.11 in bits 0..1
 	and	cl,11000000b		; isolate cylinder bits 8..9
-	add	cl,P_SECTOR[bp]		; bits 0..5 are sector number
+	add	cl,P_STRUC.SECTOR[bp]	; bits 0..5 are sector number
 	inc	cx			; make it one-relative for ROS
 	ror	dh,1
 	ror	dh,1			; cylinder bits 10..11 in bits 6..7
 	and	dh,11000000b		; isolate cylinder bits 10..11
-	add	dh,P_HEAD[bp]		; add physical head number
+	add	dh,P_STRUC.HEAD[bp]	; add physical head number
 
 	push	es
 	mov	ax,ds
 	mov	es,ax
 	mov	bx,CG:local_buffer	; point at our local buffer
-	cmp	P_DIRECT[bp],0		; DMA boundary problem?
+	cmp	P_STRUC.DIRECT[bp],0	; DMA boundary problem?
 	 je	trkrw30			; no, direct transfer performed
-	les	bx,P_DMA[bp]		; ES:BX -> transfer address
+	les	bx,P_DSTRUC.DMA[bp]	; ES:BX -> transfer address
 trkrw30:
-	mov	ax,P_MCNT[bp]		; AL = physical sector count
-	mov	ah,P_ROSCMD[bp]		; AH = ROS read command
+	mov	ax,P_STRUC.MCNT[bp]	; AL = physical sector count
+	mov	ah,P_STRUC.ROSCMD[bp]	; AH = ROS read command
 	cmp	ah,ROS_VERIFY		; write with verify?
 	 jne	trkrw40			; skip if ROS_READ or ROS_WRITE
 	mov	ah,ROS_WRITE		; else first perform normal write
 	int_____DISK_INT		; call ROS to write to disk
 	 jc	trkrw50			; skip if any errors occurred
-	mov	ax,P_MCNT[bp]		; else get sector count
+	mov	ax,P_STRUC.MCNT[bp]	; else get sector count
 	mov	ah,ROS_VERIFY		; verify disk sectors
 trkrw40:				; AH = function, AL = count
 	int_____DISK_INT		; read/write/verify via ROM BIOS
@@ -1305,7 +1304,7 @@ trkrw55:
 	 je	trkrw60			; first sector known to be good
 	cmp	ah,03h			; write protect error
 	 je	trkrw_error		; don't recover, report to user
-	dec	P_RETRY[bp]		; count # of errors so far
+	dec	P_STRUC.RETRY[bp]	; count # of errors so far
 	 jnz	trkrw20			; retries done, declare it permanent
 trkrw_error:				; disk error occurred
 if FASTSETTLE
@@ -1315,48 +1314,48 @@ endif
 	ret
 
 trkrw60:				; ECC error, only 1st sector OK
-	mov	P_MCNT[bp],1		; say we have done one sector
+	mov	P_STRUC.MCNT[bp],1		; say we have done one sector
 trkrw70:				; read/write/verify succeeded
-	cmp	P_DIRECT[bp],0		; DMA boundary problem?
+	cmp	P_STRUC.DIRECT[bp],0	; DMA boundary problem?
 	 jne	trkrw80			; no, direct transfer performed
-	cmp	P_ROSCMD[bp],ROS_READ
+	cmp	P_STRUC.ROSCMD[bp],ROS_READ
 	 jne	trkrw80			; skip if not reading from disk
 	pushx	<di, ds, es>
 	mov	cx,SECSIZE/2		; CX = # of word per sector
 	mov	si,CG:local_buffer
-	les	di,P_DMA[bp]		; DS:SI -> source, ES:DI -> destination
+	les	di,P_DSTRUC.DMA[bp]	; DS:SI -> source, ES:DI -> destination
 	rep	movsw			; copy from deblocking buffer
 	popx	<es, ds, di>
 trkrw80:
-	mov	ax,P_MCNT[bp]		; get physical transfer length
-	sub	P_COUNT[bp],ax		; subtract from total transfer length
+	mov	ax,P_STRUC.MCNT[bp]	; get physical transfer length
+	sub	P_STRUC.COUNT[bp],ax	; subtract from total transfer length
 	 jz	trkrw90			; exit if none left
 trkrw85_lba:
-	test	es:UDSC_FLAGS[di],UDF_LBA ; drive accessed via LBA?
+	test	es:UDSC.FLAGS[di],UDF_LBA ; drive accessed via LBA?
 	 jz	trkrw85			; no, then use CHS routine
 	xor	ah,ah			; update current LBA
-	add	word ptr P_LBABLOCK[bp],ax
-	adc	word ptr p_LBABLOCK+2[bp],0
+	add	word ptr P_STRUC.LBABLOCK[bp],ax
+	adc	word ptr P_STRUC.LBABLOCK+2[bp],0
 	mov	ah,SECSIZE/16
 	mul	ah			; AX = paras to inc DMA address
-	add	P_DMASEG[bp],ax		; update DMA segment
+	add	P_STRUC.DMASEG[bp],ax	; update DMA segment
 	jmps	trkrw90
 trkrw85:
-	add	P_SECTOR[bp],al		; update current sector
+	add	P_STRUC.SECTOR[bp],al	; update current sector
 	mov	ah,SECSIZE/16
 	mul	ah			; AX = paras to inc DMA address
-	add	P_DMASEG[bp],ax		; update DMA segment
+	add	P_STRUC.DMASEG[bp],ax	; update DMA segment
 	xor	ax,ax
-	mov	al,P_SECTOR[bp]		; get current sector
-	cmp	ax,es:UDSC_BPB+BPB_SPT[di]
+	mov	al,P_STRUC.SECTOR[bp]	; get current sector
+	cmp	ax,es:[di+UDSC.BPB+BPB.SPT]
 	 jb	trkrw90			; skip if on same track
-	mov	P_SECTOR[bp],0		; else start at beginning of new track
-	inc	P_HEAD[bp]		; move to the next head
-	mov	al,P_HEAD[bp]		; get current head
-	cmp	ax,es:UDSC_BPB+BPB_HEADS[di]
+	mov	P_STRUC.SECTOR[bp],0	; else start at beginning of new track
+	inc	P_STRUC.HEAD[bp]	; move to the next head
+	mov	al,P_STRUC.HEAD[bp]	; get current head
+	cmp	ax,es:[di+UDSC.BPB+BPB.HEADS]
 	 jb	trkrw90			; did we go over end of cylinder?
-	mov	P_HEAD[bp],0		; start with first head...
-	inc	P_CYL[bp]		;  ... on the next cylinder
+	mov	P_STRUC.HEAD[bp],0	; start with first head...
+	inc	P_STRUC.CYL[bp]		;  ... on the next cylinder
 trkrw90:
 if FASTSETTLE
 	call	old_settle		; restore head settle delay
@@ -1391,42 +1390,42 @@ track_setup:		; prepare for I/O on disk track
 ;		P_MCNT = # of sectors possible in one ROS call
 
 
-	mov	ax,P_DMASEG[bp]		; get transfer address
+	mov	ax,P_STRUC.DMASEG[bp]	; get transfer address
 	cmp	ax,DeblockSeg		; is this in high memory ?
 	 jae	trksu20			;  then force through deblock buffer
-	mov	ax,P_COUNT[bp]		; assume we can transfer all
+	mov	ax,P_STRUC.COUNT[bp]	; assume we can transfer all
 	cmp	ax,0ffh			; more than 255 blocks to transfer?
 	 jbe	trksu0			; no, then proceed
 	mov	ax,0ffh			; yes, restrict counter to one byte to prevent overflow
 trksu0:
-	mov	P_MCNT[bp],ax		;  that's requested this time
-	mov	P_DIRECT[bp],1		;  directly to destination
-	test	es:UDSC_RUNIT[di],80h	; is it a hard disk transfer ?
+	mov	P_STRUC.MCNT[bp],ax	;  that's requested this time
+	mov	P_STRUC.DIRECT[bp],1	;  directly to destination
+	test	es:UDSC.RUNIT[di],80h	; is it a hard disk transfer ?
 	 jnz	trksu30			;  yes, transfer the lot
 ; floppy transfer, break up into tracks
-	mov	dx,es:UDSC_BPB+BPB_SPT[di]
+	mov	dx,es:[di+UDSC.BPB+BPB.SPT]
 					; DX = sectors per track
-	sub	dl,P_SECTOR[bp]		; subtract starting sector
+	sub	dl,P_STRUC.SECTOR[bp]	; subtract starting sector
 	cmp	dx,ax			; more than we want?
 	 jae	trksu10			; no, use this count
-	mov	P_MCNT[bp],dx		; set count for this pass
+	mov	P_STRUC.MCNT[bp],dx	; set count for this pass
 trksu10:
-	mov	ax,P_DMASEG[bp]		; get transfer address
+	mov	ax,P_STRUC.DMASEG[bp]	; get transfer address
 	mov	cl,4
 	shl	ax,cl			; get A4..A15 from segment
-	add	ax,P_DMAOFF[bp]		; combine with A0..A15 from offset
+	add	ax,P_STRUC.DMAOFF[bp]		; combine with A0..A15 from offset
 	not	ax			; AX = # of bytes left in 64K bank
 	sub	dx,dx
 	mov	cx,SECSIZE
 	div	cx			; convert this to physical sectors
-	cmp	ax,P_MCNT[bp]		; capable of more than requested?
+	cmp	ax,P_STRUC.MCNT[bp]	; capable of more than requested?
 	 jae	trksu30			; skip if we can do it all
-	mov	P_MCNT[bp],ax		; else update possible transfer length
+	mov	P_STRUC.MCNT[bp],ax	; else update possible transfer length
 	test	ax,ax			; can we transfer anything at all?
 	 jnz	trksu30			; yes, perform the transfer
 trksu20:
-	mov	P_MCNT[bp],1		; single sector transfer via buffer
-	mov	P_DIRECT[bp],0		; if DIRECT = 0, deblocked transfer
+	mov	P_STRUC.MCNT[bp],1	; single sector transfer via buffer
+	mov	P_STRUC.DIRECT[bp],0	; if DIRECT = 0, deblocked transfer
 trksu30:
 	ret
 
@@ -1436,9 +1435,9 @@ trksu30:
 if FASTSETTLE
 new_settle:
 ;----------
-	test	es:UDSC_FLAGS[di],UDF_HARD	; fix head settle on floppies
+	test	es:UDSC.FLAGS[di],UDF_HARD	; fix head settle on floppies
 	 jnz	new_settle9
-	cmp	P_ROSCMD[bp],ROS_READ
+	cmp	P_STRUC.ROSCMD[bp],ROS_READ
 	 jne	new_settle9
 	push	ax
 	pushx	<bx, ds>
@@ -1449,19 +1448,19 @@ new_settle:
 	xchg	al,9[bx]
 	Assume	DS:CGROUP
 	popx	<ds, bx>
-	mov	P_SETTLE[bp],al
+	mov	P_STRUC.SETTLE[bp],al
 	pop	ax
 new_settle9:
 	ret
 
 old_settle:
 ;----------
-	test	es:UDSC_FLAGS[di],UDF_HARD	; fix head settle on floppies
+	test	es:UDSC.FLAGS[di],UDF_HARD	; fix head settle on floppies
 	 jnz	old_settle9
-	cmp	P_ROSCMD[bp],ROS_READ
+	cmp	P_STRUC.ROSCMD[bp],ROS_READ
 	 jne	old_settle9
 	pushx	<ax, bx, ds>
-	mov	al,P_SETTLE[bp]
+	mov	al,P_STRUC.SETTLE[bp]
 	sub	bx,bx
 	mov	ds,bx
 	Assume	DS:IVECT
@@ -1477,7 +1476,7 @@ endif
 dd_open:	; 13-device open
 ;-------
 	call	point_unit		; get unit descriptor
-	inc	es:UDSC_OPNCNT[di]	; increment open count
+	inc	es:UDSC.OPNCNT[di]	; increment open count
 	sub	ax,ax
 	ret
 
@@ -1485,7 +1484,7 @@ dd_open:	; 13-device open
 dd_close:	; 14-device close
 ;--------
 	call	point_unit		; get unit descriptor
-	dec	es:UDSC_OPNCNT[di]	; decrement open count
+	dec	es:UDSC.OPNCNT[di]	; decrement open count
 	sub	ax,ax
 	ret
 
@@ -1494,7 +1493,7 @@ dd_remchk:	; 15-removable media check
 ;---------
 	call	point_unit		; get unit descriptor
 	sub	ax,ax			; assume floppy disk
-	test	es:UDSC_FLAGS[di],UDF_HARD
+	test	es:UDSC.FLAGS[di],UDF_HARD
 	 jz	remchk1			; skip if it really is a floppy
 	mov	ax,RHS_BUSY		; else return "busy" for hard disk
 remchk1:
@@ -1515,10 +1514,10 @@ ioctl5:
 	mov	cs:byte ptr ioctl_cat,ch
 					; save category code for later use
 
-	or	es:UDSC_FLAGS[di],UDF_UNSURE
+	or	es:UDSC.FLAGS[di],UDF_UNSURE
 					; media unsure after IOCTL
 
-	mov	si,offset CGROUP:genioctlTable
+	mov	si,offset genioctlTable
 ioctl10:
 	lods	cs:byte ptr [si]	; get category
 	mov	ch,al			; keep in CH
@@ -1535,29 +1534,29 @@ ioctl30:
 
 genioctlTable	label	byte
 	db	RQ19_SET		; set device parameters
-	dw	offset CGROUP:ioctl_set
+	dw	offset ioctl_set
 	db	RQ19_GET		; get device parameters
-	dw	offset CGROUP:ioctl_get
+	dw	offset ioctl_get
 	db	RQ19_WRITE		; write track
-	dw	offset CGROUP:ioctl_write
+	dw	offset ioctl_write
 	db	RQ19_READ		; read track
-	dw	offset CGROUP:ioctl_read
+	dw	offset ioctl_read
 	db	RQ19_FORMAT		; format & verify track
-	dw	offset CGROUP:ioctl_format
+	dw	offset ioctl_format
 	db	RQ19_VERIFY		; verify track
-	dw	offset CGROUP:ioctl_verify
+	dw	offset ioctl_verify
 	db	RQ19_GETMEDIA		; get media id
-	dw	offset CGROUP:ioctl_getmedia
+	dw	offset ioctl_getmedia
 	db	RQ19_SETMEDIA		; set media id
-	dw	offset CGROUP:ioctl_setmedia
+	dw	offset ioctl_setmedia
 	db	RQ19_LOCKLOG
-	dw	offset CGROUP:ioctl_locklogical
+	dw	offset ioctl_locklogical
 	db	RQ19_LOCKPHYS
-	dw	offset CGROUP:ioctl_lockphysical
+	dw	offset ioctl_lockphysical
 	db	RQ19_UNLOCKLOG
-	dw	offset CGROUP:ioctl_unlocklogical
+	dw	offset ioctl_unlocklogical
 	db	RQ19_UNLOCKPHYS
-	dw	offset CGROUP:ioctl_unlockphysical
+	dw	offset ioctl_unlockphysical
 	db	0			; terminate the list
 
 ioctl_cat	db	0		; category code for dd_geniotcl
@@ -1570,7 +1569,7 @@ point_ioctl_packet:
 ;	DS:BX -> ioctl request packet
 ;	All other regs preserved
 ;
-	lds	bx,REQUEST[bp]
+	lds	bx,P_DSTRUC.REQUEST[bp]
 	lds	bx,ds:RH19_GENPB[bx]	; ES:BX -> request packet
 	ret
 
@@ -1579,14 +1578,14 @@ ioctl_get:
 ;---------
 	push	ds
 	call	point_ioctl_packet	; DS:BX -> ioctl packet
-	mov	al,es:UDSC_TYPE[di]	; get drive type
+	mov	al,es:UDSC.TYP[di]	; get drive type
 	mov	ds:1[bx],al		; return drive type (0/1/2/5/7)
 
-	mov	ax,es:UDSC_FLAGS[di]	; get device attributes
+	mov	ax,es:UDSC.FLAGS[di]	; get device attributes
 	and	ax,UDF_LBA+UDF_HARD+UDF_CHGLINE	; isolate hard disk + change line bits
 	mov	ds:2[bx],ax		; return device attributes
 
-	mov	ax,es:UDSC_NCYL[di]	; get # of cylinders
+	mov	ax,es:UDSC.NCYL[di]	; get # of cylinders
 	mov	ds:4[bx],ax		; return # of cylinders
 
 	sub	ax,ax			; for now always say "default"
@@ -1594,14 +1593,14 @@ ioctl_get:
 
 	test	ds:byte ptr [bx],1	; return default BPB?
 	pop	ds
-	lea	si,UDSC_DEVBPB[di]	; assume we want device BPB
+	lea	si,UDSC.DEVBPB[di]	; assume we want device BPB
 	 jz	get1			; skip if yes
-	test	es:UDSC_FLAGS[di],UDF_HARD
+	test	es:UDSC.FLAGS[di],UDF_HARD
 	 jnz	get1			; BPB doesn't change for hard disks
 	call	ask_for_disk		; make sure we've got correct floppy
 	call	login_media		; determine floppy disk type
 	 jc	get_err			; abort if can't login disk
-	lea	si,es:UDSC_BPB[di]	; get current BPB
+	lea	si,es:UDSC.BPB[di]	; get current BPB
 get1:
 	push	ds
 	push	es
@@ -1640,20 +1639,20 @@ ioctl_set:	; set device parameters
 	 jnz	set2			; yes, skip BPB stuff
 
 	mov	al,ds:1[bx]		; get new drive type (0/1/2/5/7)
-	mov	es:UDSC_TYPE[di],al	; set drive type
+	mov	es:UDSC.TYP[di],al	; set drive type
 
-	and	es:UDSC_FLAGS[di],not (UDF_HARD+UDF_CHGLINE)
+	and	es:UDSC.FLAGS[di],not (UDF_HARD+UDF_CHGLINE)
 	mov	ax,ds:2[bx]		; get new device attributes
 	and	ax,UDF_HARD+UDF_CHGLINE	; isolate hard disk + change line bits
-	or	es:UDSC_FLAGS[di],ax	; combine the settings
+	or	es:UDSC.FLAGS[di],ax	; combine the settings
 
 	mov	ax,ds:4[bx]		; get new # of cylinders
-	mov	es:UDSC_NCYL[di],ax	; set # of cylinders
+	mov	es:UDSC.NCYL[di],ax	; set # of cylinders
 
-	lea	ax,UDSC_BPB[di]		; AX -> media BPB in es:UDSC_
+	lea	ax,UDSC.BPB[di]		; AX -> media BPB in es:UDSC_
 	test	ds:byte ptr [bx],1	; fix BPB for "build BPB" call?
 	 jnz	set1			; skip if new media BPB only
-	lea	ax,UDSC_DEVBPB[di]	; AX -> device BPB in es:UDSC_
+	lea	ax,UDSC.DEVBPB[di]	; AX -> device BPB in es:UDSC_
 set1:
 	lea	si,7[bx]		; DS:SI -> new BPB from user
 	xchg	ax,di			; ES:DI -> BPB in es:UDSC_
@@ -1703,13 +1702,13 @@ set6:
 ioctl_read:
 ;----------
 
-	mov	P_ROSCMD[bp],ROS_READ	; read physical track
+	mov	P_STRUC.ROSCMD[bp],ROS_READ	; read physical track
 	jmps	ioctl_rw_common		; use common code
 
 ioctl_write:
 ;-----------
 
-	mov	P_ROSCMD[bp],ROS_WRITE	; write physical track
+	mov	P_STRUC.ROSCMD[bp],ROS_WRITE	; write physical track
 ;	jmps	ioctl_rw_common		; use common code
 
 ioctl_rw_common:
@@ -1718,41 +1717,41 @@ ioctl_rw_common:
 	push	ds
 	call	point_ioctl_packet	; DS:BX -> ioctl packet
 	mov	al,ds:5[bx]		; get logical sector (0..SPT-1)
-	mov	P_SECTOR[bp],al
+	mov	P_STRUC.SECTOR[bp],al
 	mov	ax,ds:7[bx]		; get sector count
-	mov	P_COUNT[bp],ax
+	mov	P_STRUC.COUNT[bp],ax
 	mov	ax,ds:9[bx]		; get transfer address
-	mov	P_DMAOFF[bp],ax
+	mov	P_STRUC.DMAOFF[bp],ax
 	mov	ax,ds:11[bx]
-	mov	P_DMASEG[bp],ax
+	mov	P_STRUC.DMASEG[bp],ax
 	mov	ax,ds:1[bx]		; get head number
-	mov	P_HEAD[bp],al
+	mov	P_STRUC.HEAD[bp],al
 	mov	ax,ds:3[bx]		; get cylinder number
-	mov	P_CYL[bp],ax
+	mov	P_STRUC.CYL[bp],ax
 
 	mul	cs:max_head		; multiply with number of heads
 	xor	ch,ch
-	mov	cl,P_HEAD[bp]
+	mov	cl,P_STRUC.HEAD[bp]
 	add	ax,cx			; add head number
 	adc	dx,0
 	push	ax
 	mov	ax,dx			; multiply with sectors per track
 	mul	cs:max_sect
-	mov	word ptr P_LBABLOCK[bp+2],ax
+	mov	word ptr P_STRUC.LBABLOCK[bp+2],ax
 	pop	ax
 	mul	cs:max_sect
 	xor	ch,ch
-	mov	cl,P_SECTOR[bp]
+	mov	cl,P_STRUC.SECTOR[bp]
 	dec	cl
-	mov	word ptr P_LBABLOCK[bp],cx	; add products and sector number
-	add	word ptr P_LBABLOCK[bp],ax
-	adc	word ptr P_LBABLOCK[bp+2],dx
+	mov	word ptr P_STRUC.LBABLOCK[bp],cx	; add products and sector number
+	add	word ptr P_STRUC.LBABLOCK[bp],ax
+	adc	word ptr P_STRUC.LBABLOCK[bp+2],dx
 
 	pop	ds
 rw_loop:
 	call	track_rw		; read as much as possible on track
 	 jc	rw_err			; return if physical disk error
-	cmp	P_COUNT[bp],0		; test if any more stuff to read
+	cmp	P_STRUC.COUNT[bp],0	; test if any more stuff to read
 	 jne	rw_loop			; yes, loop back for more
 	sub	ax,ax			; all done, no error encountered
 	ret				; return O.K. code
@@ -1765,7 +1764,7 @@ ioctl_verify:
 ioctl_format:
 ;------------
 	call	ask_for_disk		; make sure we've got correct floppy
-	mov	P_RETRY[bp],RETRY_MAX	; perform up to three retries
+	mov	P_STRUC.RETRY[bp],RETRY_MAX	; perform up to three retries
 format_retry:
 	call	set_format		; attempt data rate setup
 	push	ds
@@ -1778,20 +1777,20 @@ format_retry:
 	ret
 
 format10:
-	mov	ax,es:UDSC_BPB+BPB_SPT[di]
+	mov	ax,es:[di+UDSC.BPB+BPB.SPT]
 	test	ds:byte ptr [bx],2	; is it undocumented "do 2 tracks" bit?
 	 jz	format20
 	add	ax,ax			; yes, double the count
 format20:
-	mov	P_COUNT[bp],ax		; save it locally for later
+	mov	P_STRUC.COUNT[bp],ax	; save it locally for later
 	mov	dh,ds:1[bx]		; get head #
 	mov	cx,ds:3[bx]		; get cylinder #
 	ror	ch,1
 	ror	ch,1
 	xchg	cl,ch
 	or	cl,1			; start with sector 1
-	mov	dl,es:UDSC_RUNIT[di]	; get ROS drive #
-	lds	bx,REQUEST[bp]		; DS:BX -> Request Header
+	mov	dl,es:UDSC.RUNIT[di]	; get ROS drive #
+	lds	bx,P_DSTRUC.REQUEST[bp]		; DS:BX -> Request Header
 	mov	bx,ds:RH19_CATEGORY[bx]	; get major & minor function
 	pop	ds
 
@@ -1809,10 +1808,10 @@ format20:
 format30:
 	cmp	bh,RQ19_FORMAT		; skip if verify only
 	 jne	format40
-	test	es:UDSC_FLAGS[di],UDF_HARD
+	test	es:UDSC.FLAGS[di],UDF_HARD
 	 jnz	format40		; hard disks are always verify
 
-	mov	ax,P_COUNT[bp]
+	mov	ax,P_STRUC.COUNT[bp]
 	mov	ah,ROS_FORMAT
 	push	es
 	push	bx
@@ -1824,7 +1823,7 @@ format30:
 	pop	es
 	 jc	format50
 format40:				; no error on format, try verify
-	mov	ax,P_COUNT[bp]
+	mov	ax,P_STRUC.COUNT[bp]
 	mov	ah,ROS_VERIFY
 	push	es
 	push	bx
@@ -1851,7 +1850,7 @@ format50:
 	pop	es
 	 jnc	format60		; if no error's just exit
 	call	xlat_error		; translate to DOS error
-	dec	P_RETRY[bp]		; any more retries ?
+	dec	P_STRUC.RETRY[bp]	; any more retries ?
 	 jz	format60		; no, just exit with error
 ;	mov	ah,ROS_RESET
 	xor	ax,ax
@@ -1911,14 +1910,14 @@ set_format10:
 	ror	ah,1
 	ror	ah,1			; move bits 8,9 into 6,7
 	xchg	al,ah
-	mov	cx,es:UDSC_BPB+BPB_SPT[di]
+	mov	cx,es:[di+UDSC.BPB+BPB.SPT]
 					; get desired sectors/track
 	or	cx,ax			; CL, CH = max. cylinder/max. sector #
 	cmp	cx,2708h		; check for 40 track, 8 sectors/track
 	 jne	set_format20		; we convert 160, 320 to 180, 360
 	inc	cx			; make it 9 sectors per track
 set_format20:
-	mov	dl,es:UDSC_RUNIT[di]	; get ROS unit number
+	mov	dl,es:UDSC.RUNIT[di]	; get ROS unit number
 	pushx	<es, di>
 	mov	ah,ROS_SETMEDIA		; set type for format
 	int_____DISK_INT		; check if combination is legal
@@ -1944,7 +1943,7 @@ set_format40:
 ; Lets look for a match in our tables
 
 	call	get_ncyl		; AX = number of cylinders
-	mov	cx,es:UDSC_BPB+BPB_SPT[di]
+	mov	cx,es:[di+UDSC.BPB+BPB.SPT]
 					; CL = sectors per track
 	mov	ch,al			; CH = tracks per disk
 	cmp	cx,2808h		; 40 tracks, 8 sectors?
@@ -1957,7 +1956,7 @@ set_format60:
 	lods	cs:byte ptr [si]	; get drive type
 	cmp	al,0FFh			; end of device/media list?
 	 je	set_format70		; yes, can't handle this combination
-	cmp	al,es:UDSC_TYPE[di]	; does the drive type match?
+	cmp	al,es:UDSC.TYP[di]	; does the drive type match?
 	 jne	set_format60		; try next one if wrong drive
 	cmp	cx,cs:[si]		; do tracks/sectors match?
 	 jne	set_format60		; no, try next one
@@ -1968,14 +1967,14 @@ set_format60:
 	mov	ax,CG:local_parms
 	mov	new_int1e_off,ax	; use local parameters for formatting
 	mov	new_int1e_seg,ds	; set new interrupt vector address
-	mov	dl,es:UDSC_RUNIT[di]
+	mov	dl,es:UDSC.RUNIT[di]
 	mov	al,cs:2[si]		; get media/drive combination
 	mov	ah,ROS_SETTYPE		; set the drive type
 	int_____DISK_INT
 	 jnc	set_format30		; return if no errors
-	cmp	es:UDSC_TYPE[di],0	; is this a 360 K drive?
+	cmp	es:UDSC.TYP[di],0	; is this a 360 K drive?
 	 je	set_format30		; go ahead, might be old ROS
-	cmp	es:UDSC_TYPE[di],2	; is this a 720 K drive?
+	cmp	es:UDSC.TYP[di],2	; is this a 720 K drive?
 	 je	set_format30		; go ahead, might be old ROS
 set_format70:
 	mov	al,1			; return not supported
@@ -1985,16 +1984,16 @@ set_format80:
 
 get_ncyl:
 ;--------
-	mov	ax,es:UDSC_BPB+BPB_TOTSEC[di]
+	mov	ax,es:[di+UDSC.BPB+BPB.TOTSEC]
 	xor	dx,dx			; get sectors on disk
 	test	ax,ax			; zero means we use 32 bit value
 	 jnz	get_ncyl10
-	mov	ax,es:word ptr (UDSC_BPB+BPB_SIZE)[di]
-	mov	dx,es:word ptr (UDSC_BPB+BPB_SIZE+2)[di]
+	mov	ax,es:word ptr (UDSC.BPB+BPB.SIZ)[di]
+	mov	dx,es:word ptr (UDSC.BPB+BPB.SIZ+2)[di]
 get_ncyl10:
-	div	es:UDSC_BPB+BPB_SPT[di]	; AX = # of cylinders * heads
+	div	es:[di+UDSC.BPB+BPB.SPT]	; AX = # of cylinders * heads
 	call	get_ncyl20		; round up
-	div	es:UDSC_BPB+BPB_HEADS[di]; AX = # of cylinders
+	div	es:[di+UDSC.BPB+BPB.HEADS]; AX = # of cylinders
 get_ncyl20:
 	test	dx,dx			; do we have overflow ?
 	 jz	get_ncyl30
@@ -2006,7 +2005,7 @@ get_ncyl30:
 
 ioctl_getmedia:
 ;--------------
-	mov	P_ROSCMD[bp],ROS_READ	; read from floppy/hard disk
+	mov	P_STRUC.ROSCMD[bp],ROS_READ	; read from floppy/hard disk
 	call	rw_media		; read the boot sector
 	 jc	getmedia10
 	push	es
@@ -2028,7 +2027,7 @@ getmedia10:
 
 ioctl_setmedia:
 ;--------------
-	mov	P_ROSCMD[bp],ROS_READ	; read from floppy/hard disk
+	mov	P_STRUC.ROSCMD[bp],ROS_READ	; read from floppy/hard disk
 	call	rw_media		; read the boot sector
 	 jc	setmedia10
 	push	ds
@@ -2047,7 +2046,7 @@ ioctl_setmedia:
 	pop	es
 	pop	si
 	pop	ds
-	mov	P_ROSCMD[bp],ROS_WRITE	; write to floppy/hard disk
+	mov	P_STRUC.ROSCMD[bp],ROS_WRITE	; write to floppy/hard disk
 	jmp	rw_media		; write the boot sector
 setmedia10:
 	ret
@@ -2071,33 +2070,33 @@ rw_media:
 ; setup parameters to read/write boot sector to/from local buffer
 ;
 	call	ask_for_disk		; make sure we've got correct floppy
-	mov	P_DMAOFF[bp],CG:local_buffer
-	mov	P_DMASEG[bp],ds		; set transfer address
-	mov	P_COUNT[bp],1		; read 1 sector
-	mov	ax,es:UDSC_BPB+BPB_SPT[di]
-	mul	es:UDSC_BPB+BPB_HEADS[di]; get sectors per track * heads
+	mov	P_STRUC.DMAOFF[bp],CG:local_buffer
+	mov	P_STRUC.DMASEG[bp],ds		; set transfer address
+	mov	P_STRUC.COUNT[bp],1		; read 1 sector
+	mov	ax,es:[di+UDSC.BPB+BPB.SPT]
+	mul	es:[di+UDSC.BPB+BPB.HEADS]; get sectors per track * heads
 	xchg	ax,cx			; CX = sectors per cylinder
-	mov	ax,es:word ptr (UDSC_BPB+BPB_HIDDEN)[di]
-	mov	dx,es:word ptr (UDSC_BPB+BPB_HIDDEN+2)[di]
-	mov	word ptr P_LBABLOCK[bp],ax	; Logical Block Address of start sector
-	mov	word ptr P_LBABLOCK+2[bp],dx
+	mov	ax,es:word ptr [di+UDSC.BPB+BPB.HIDDEN]
+	mov	dx,es:word ptr [di+UDSC.BPB+BPB.HIDDEN+2]
+	mov	word ptr P_STRUC.LBABLOCK[bp],ax	; Logical Block Address of start sector
+	mov	word ptr P_STRUC.LBABLOCK+2[bp],dx
 	div	cx			; AX = cylinder #, DX = head/sec offset
-	mov	P_CYL[bp],ax		; save physical cylinder number
+	mov	P_STRUC.CYL[bp],ax		; save physical cylinder number
 	xor	ax,ax			; make remainder 32 bit so
 	xchg	ax,dx			; DX:AX = (head # * SPT) + sector #
-	div	es:UDSC_BPB+BPB_SPT[di]	; divide by sectors per track
-	mov	P_SECTOR[bp],dl		; DX = sector #, AX = head #
-	mov	P_HEAD[bp],al		; save physical sector/head for later
+	div	es:[di+UDSC.BPB+BPB.SPT]	; divide by sectors per track
+	mov	P_STRUC.SECTOR[bp],dl		; DX = sector #, AX = head #
+	mov	P_STRUC.HEAD[bp],al		; save physical sector/head for later
 	call	rw_loop			; read the boot sector
 	 jc	rw_media20
-	cmp	local_buffer+BPB_SECTOR_OFFSET+BPB_FATID,0F0h
+	cmp	[local_buffer+BPB_SECTOR_OFFSET+BPB.FATID],0F0h
 	 jb	rw_media10
-	cmp	word ptr local_buffer+BPB_SECTOR_OFFSET+BPB_DIRMAX,0	; FAT32 drive?
+	cmp	[local_buffer+BPB_SECTOR_OFFSET+BPB.DIRMAX],0	; FAT32 drive?
 	 jne	rw_media05		; no
-	mov	si,offset CGROUP:local_buffer+UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET+2
+	mov	si,offset local_buffer+UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET+2
 	jmps	rw_media07
 rw_media05:
-	mov	si,offset CGROUP:local_buffer+OLD_UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET+2
+	mov	si,offset local_buffer+OLD_UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET+2
 rw_media07:
 	lodsb				; get extended boot
 	sub	al,29h			; do we have an extended boot ?
@@ -2123,7 +2122,7 @@ dd_setdev:	; 24-set logical drive
 	call	point_unit		; get unit descriptor
 	call	set_owner		; set new owner
 dd_setdev10:
-	les	bx,REQUEST[bp]
+	les	bx,P_DSTRUC.REQUEST[bp]
 	mov	es:RH_UNIT[bx],dl	; return current logical drive
 	xor	ax,ax
 	ret
@@ -2136,7 +2135,7 @@ get_owner:
 ;	DL = owning drive (zero = no owner)
 ;
 	xor	dx,dx			; assume one unit per physical drive
-	mov	ax,es:UDSC_FLAGS[di]
+	mov	ax,es:UDSC.FLAGS[di]
 	test	ax,UDF_HARD
 	 jnz	get_owner40
 	test	ax,UDF_VFLOPPY
@@ -2147,20 +2146,20 @@ get_owner:
     mov dl,dual_byte        
 	pop	ds
 		Assume	DS:CGROUP
-	mov	al,es:UDSC_RUNIT[di]	; lets look for this ROS drive
+	mov	al,es:UDSC.RUNIT[di]	; lets look for this ROS drive
 	test	al,al			; is it physical unit zero ?
 	 jz	get_owner30		; yes, return dual_byte
 	push	ds			; no, search our internal info
 	lds	si,udsc_root
 		Assume	DS:Nothing
 get_owner10:
-	cmp	al,ds:UDSC_RUNIT[si]	; do we use the same drive ?
+	cmp	al,ds:UDSC.RUNIT[si]	; do we use the same drive ?
 	 jne	get_owner20
-	test	ds:UDSC_FLAGS[si],UDF_OWNER
+	test	ds:UDSC.FLAGS[si],UDF_OWNER
 	 jz	get_owner20		; do we own it ?
-	mov	dl,ds:UDSC_DRIVE[si]	; get the logical drive owner
+	mov	dl,ds:UDSC.DRIVE[si]	; get the logical drive owner
 get_owner20:
-	lds	si,ds:UDSC_NEXT[si]
+	lds	si,ds:UDSC.NEXT[si]
 	cmp	si,0FFFFh		; try the next drive
 	 jne	get_owner10
 	pop	ds
@@ -2179,13 +2178,13 @@ set_owner:
 ;	DL = owning drive (zero = no owner)
 ;
 	xor	dx,dx			; assume one unit per physical drive
-	mov	ax,es:UDSC_FLAGS[di]
+	mov	ax,es:UDSC.FLAGS[di]
 	test	ax,UDF_HARD
 	 jnz	set_owner40
 	test	ax,UDF_VFLOPPY
 	 jz	set_owner40
-	mov	al,es:UDSC_DRIVE[di]
-	mov	ah,es:UDSC_RUNIT[di]	; get ROS unit
+	mov	al,es:UDSC.DRIVE[di]
+	mov	ah,es:UDSC.RUNIT[di]	; get ROS unit
 	test	ah,ah			; is it unit zero ?
 	 jnz	set_owner10
 	push	ds
@@ -2199,14 +2198,14 @@ set_owner10:
 	lds	si,udsc_root
 		Assume	DS:Nothing
 set_owner20:
-	cmp	ah,ds:UDSC_RUNIT[si]	; does this unit use the same drive ?
+	cmp	ah,ds:UDSC.RUNIT[si]	; does this unit use the same drive ?
 	 jne	set_owner30
-	or	ds:UDSC_FLAGS[si],UDF_UNSURE+UDF_OWNER
-	cmp	al,ds:UDSC_DRIVE[di]
+	or	ds:UDSC.FLAGS[si],UDF_UNSURE+UDF_OWNER
+	cmp	al,ds:UDSC.DRIVE[di]
 	 je	set_owner30
-	and	ds:UDSC_FLAGS[si],not UDF_OWNER
+	and	ds:UDSC.FLAGS[si],not UDF_OWNER
 set_owner30:
-	lds	si,ds:UDSC_NEXT[si]
+	lds	si,ds:UDSC.NEXT[si]
 	cmp	si,0FFFFh		; end of the line ?
 	 jne	set_owner20
 	pop	ds
@@ -2222,7 +2221,7 @@ ask_for_disk:		; make sure the right disk is in the floppy drive
 	call	get_owner		; DL = owning drive
 	dec	dx			; make DL zero based
 	 js	askfdsk30		; stop if not a logical drive
-	mov	dh,es:UDSC_DRIVE[di]	; DH = new drive, DL = old drive
+	mov	dh,es:UDSC.DRIVE[di]	; DH = new drive, DL = old drive
 	cmp	dl,dh			; do we own the drive ?
 	 je	askfdsk30		; yes, stop now
 	push	dx			; save for broadcast
@@ -2250,7 +2249,7 @@ endif
 	mov	si,CG:disk_msgA		; get message to print
 askfdsk10:
 	call	WriteASCIIZ		; output the string
-	mov	al,es:UDSC_DRIVE[di]	; get drive letter for new drive
+	mov	al,es:UDSC.DRIVE[di]	; get drive letter for new drive
 	add	al,'A'
 	dec	si			; point to NUL
 	call	WriteNext		; output char, stop at NUL
@@ -2293,9 +2292,6 @@ FullScreen10:
 	retf
 
 
-driver	endp
-
-
 max_head	dw	0		; maximum number of heads
 max_sect	dw	0		; maximum sectors per track
 
@@ -2313,7 +2309,7 @@ dd_init:	; 0-initialize driver
 	call	hard_init		; setup hard disk units
 	call	floppy_init		; setup floppy units
 
-	les	bx,REQUEST[bp]
+	les	bx,P_DSTRUC.REQUEST[bp]
 	mov	al,nunits		; get # of units installed
 	mov	es:RH0_NUNITS[bx],al	; return value to the BDOS
 	mov	NumDiskUnits,al		; also set it in device header
@@ -2353,7 +2349,7 @@ equip_loop:
 	push	cx
 
 	call	new_unit		; ES:DI -> UDSC
-	mov	es:UDSC_RUNIT[di],dl	; set physical drive (ROS code)
+	mov	es:UDSC.RUNIT[di],dl	; set physical drive (ROS code)
 
 	call	floppy_type		; determine type, build default BPB
 
@@ -2411,16 +2407,16 @@ floppy_type:
 ;-----------
 ;	entry:	DI -> unit descriptor
 
-	mov	UDSC_TYPE[di],0		; assume 360K 5.25" floppy
-	mov	UDSC_NCYL[di],40	; 40 tracks only
+	mov	UDSC.TYP[di],0		; assume 360K 5.25" floppy
+	mov	UDSC.NCYL[di],40	; 40 tracks only
 	mov	ah,ROS_GETTYPE		; "Read DASD type"
 	int_____DISK_INT		; find out if disk change line available
 	 jc	equip_no_chgline	; skip if function not supported
 	cmp	ah,2			; floppy with disk change line?
 	 jne	equip_no_chgline	; no, must be old 360K
-	or	es:UDSC_FLAGS[di],UDF_CHGLINE
-	mov	es:UDSC_TYPE[di],1	; assume 1.2Mb floppy
-	mov	es:UDSC_NCYL[di],80	; 80 tracks
+	or	es:UDSC.FLAGS[di],UDF_CHGLINE
+	mov	es:UDSC.TYP[di],1	; assume 1.2Mb floppy
+	mov	es:UDSC.NCYL[di],80	; 80 tracks
 equip_no_chgline:
 	pushx	<es, di, dx>		; save our registers
 	mov	ah,ROS_PARAM		; read drive parameters
@@ -2448,7 +2444,7 @@ equip_no_chgline:
 equip_type:
 	cmp	bl,0			; 360K 5.25"?
 	je	equip_type_ok		; yes
-	mov	es:UDSC_NCYL[di],80	; else assume 80 tracks
+	mov	es:UDSC.NCYL[di],80	; else assume 80 tracks
 	cmp	bl,3			; is it 1.44 Mb 3.5" type?
 	 jb	equip_type_ok		; skip if 360K, 1.2Mb, 720K (0, 1, 2)
 	mov	bl,7			; use reserved "Other" type
@@ -2456,10 +2452,10 @@ equip_type:
 	inc	bx			; else make it 2.88 Mb type 9
 	inc	bx
 equip_type_ok:
-	mov	es:UDSC_TYPE[di],bl	; set the default drive type for format
+	mov	es:UDSC.TYP[di],bl	; set the default drive type for format
 equip_no_type:
 
-	mov	al,es:UDSC_TYPE[di]	; AL = 0, 1, 2 or 7 (360/1.2/720/1.44)
+	mov	al,es:UDSC.TYP[di]	; AL = 0, 1, 2 or 7 (360/1.2/720/1.44)
 	cbw				; make it a word
 	xchg	ax,si			; SI = drive type
 	shl	si,1			; SI = drive type * 2
@@ -2470,7 +2466,7 @@ equip_no_type:
 equip_360:	
 	mov	cx,UDSC_BPB_LENGTH	; CX = size of BPB
 	pushx	<es, di, si, cx>
-	lea	di,es:UDSC_BPB[di]
+	lea	di,es:UDSC.BPB[di]
 	mov	ax,ds
 	mov	es,ax			; ES = DS
 	rep	movsb			; make default BPB current BPB in UDSC
@@ -2490,29 +2486,29 @@ equip_360:
 	 jc	equip_type_nolba	; error, assume standard FDD
 	test	word ptr 2[si],4	; removable drive?
 	 jnz	equip_type_nolba	; no
-	or	es:UDSC_FLAGS[di],UDF_HARD ; classify it as hard disk
+	or	es:UDSC.FLAGS[di],UDF_HARD ; classify it as hard disk
 	mov	ax,4[si]		; number of cylinders
-	mov	es:UDSC_NCYL[di],ax
+	mov	es:UDSC.NCYL[di],ax
 	mov	ax,8[si]		; number of heads
 	mov	nhead,al
 	mov	ax,0ch[si]		; number of sectors per track
 	mov	nsect,al
 	mov	ax,10h[si]		; total number of sectors
-	mov	es:word ptr (UDSC_BPB+BPB_SIZE)[di],ax
+	mov	es:word ptr [di+UDSC.BPB+BPB.SIZ],ax
 	mov	ax,12h[si]
-	mov	es:word ptr (UDSC_BPB+BPB_SIZE+2)[di],ax
-	lea	bx,es:UDSC_BPB[di]
+	mov	es:word ptr [di+UDSC.BPB+BPB.SIZ+2],ax
+	lea	bx,es:UDSC.BPB[di]
 	pushx	<es,di,si,dx>
 	call	hd_bpb			; build BPB from scratch
 	popx	<dx,si,di,es>
 	pop	si
-	lea	si,es:UDSC_BPB[di]
+	lea	si,es:UDSC.BPB[di]
 	push	si
 equip_type_nolba:
 	pop	si
 	pop	cx
 	pushx	<es, di>
-	lea	di,es:UDSC_DEVBPB[di]
+	lea	di,es:UDSC.DEVBPB[di]
 	rep	movsb			; copy BPB to device BPB in UDSC
 	popx	<di, es>
 	ret
@@ -2570,7 +2566,7 @@ hardi1:
 	 jnz	hardi4
 	cmp	int13ex_ver,0
 	 jnz	hardi3
-	mov	si,offset CGROUP:lba_supp_msg
+	mov	si,offset lba_supp_msg
 	call	output_msg
 	cmp	ah,01
 	 jnz	ver20
@@ -2889,11 +2885,11 @@ log_p0a:
 	mov	ax,word ptr int13ex_bits; int 13 extensions support bitmap
 	test	ax,1			; extended disk access functions?
 	jz	log_p0b			; no => use CHS access
-	or	es:UDSC_FLAGS[di],UDF_LBA ; else enable LBA access for drive
+	or	es:UDSC.FLAGS[di],UDF_LBA ; else enable LBA access for drive
 log_p0b:
-	or	es:UDSC_FLAGS[di],UDF_HARD
-	mov	es:UDSC_RUNIT[di],dl	; set physical drive (ROS code)
-	mov	es:UDSC_TYPE[di],5	; set type = hard disk
+	or	es:UDSC.FLAGS[di],UDF_HARD
+	mov	es:UDSC.RUNIT[di],dl	; set physical drive (ROS code)
+	mov	es:UDSC.TYP[di],5	; set type = hard disk
 	mov	es:UDSC_FM_PART[di],1
 	mov	es:UDSC_FM_OFFSET[di],0
 
@@ -2909,7 +2905,7 @@ log_p0b:
 	mov	al,ch			; cylinder # bits 0..7
 	sub	bx,ax			; bx = # cylinders
 	inc	bx			; make it inclusive
-	mov	es:UDSC_NCYL[di],bx	; and save it
+	mov	es:UDSC.NCYL[di],bx	; and save it
 ;	push	ax			; save # CYLINDERS
 ;	mov	al,nsect
 ;	and	dh,00111111b		; DH = head offset
@@ -2927,41 +2923,41 @@ log_p0b:
 ;	add	ax,cx			; add in non-partition sectors
 ;	adc	dx,0			;   (usually 2.x partition table)
 
-	lea	bx,UDSC_BPB[di]		; BX -> BPB to build
+	lea	bx,UDSC.BPB[di]		; BX -> BPB to build
 	add	si,BPB_SECTOR_OFFSET	; skip JMP + OEM name in boot sector
 
 	mov	ax,word ptr partstart
 	mov	dx,word ptr partstart+2
-	mov	word ptr BPB_HIDDEN[bx],ax	; set the partition address
-	mov	word ptr BPB_HIDDEN+2[bx],dx	;   (32 bit sector offset)
+	mov	word ptr BPB.HIDDEN[bx],ax	; set the partition address
+	mov	word ptr BPB.HIDDEN+2[bx],dx	;   (32 bit sector offset)
 	mov	ax,part_size
 	mov	dx,part_size+2
-	mov	word ptr BPB_SIZE[bx],ax	; set partition size in sectors
-	mov	word ptr BPB_SIZE+2[bx],dx
+	mov	word ptr BPB.SIZ[bx],ax	; set partition size in sectors
+	mov	word ptr BPB.SIZ+2[bx],dx
 
-	mov	BPB_TOTSEC[bx],ax	; set partition size for < 32 Mb
+	mov	BPB.TOTSEC[bx],ax	; set partition size for < 32 Mb
 					; we'll zero this later if > 32 Mb
 	pushx	<es,di,ax,dx,si>
 	call	hd_bpb			; build BPB from scratch
 	popx	<si,dx,ax,di,es>
 	
-	cmp	byte ptr -11[si],0E9h	; look for a jmp
+	cmp	byte ptr [si-11],0E9h	; look for a jmp
 	jz	log_p1a
-	cmp	word ptr -11[si],0EB90h	; look for a nop!jmps
+	cmp	word ptr [si-11],0EB90h	; look for a nop!jmps
 	jz	log_p1a
-	cmp	byte ptr -11[si],0EBh	; look for a jmps
+	cmp	byte ptr [si-11],0EBh	; look for a jmps
 	jnz	log_p1			; at the start of the boot sector. 
-	cmp	byte ptr -9[si],90h	; EJH 7-1-91
+	cmp	byte ptr [si-9],90h	; EJH 7-1-91
 	jnz	log_p1
 log_p1a:
 
-	test	BPB_SECSIZ[si],SECSIZE-1; not a multiple of 512 byte?
+	test	BPB.SECSIZ[si],SECSIZE-1; not a multiple of 512 byte?
 	 jnz	log_p1
-	cmp	BPB_FATID[si],0F8h	; is this a good hard disk?
+	cmp	BPB.FATID[si],0F8h	; is this a good hard disk?
 	 jne	log_p1
-	cmp	BPB_NFATS[si],2		; too many FATs?
+	cmp	BPB.NFATS[si],2		; too many FATs?
 	 ja	log_p1
-	cmp	BPB_NFATS[si],1		; no FATs at all?
+	cmp	BPB.NFATS[si],1		; no FATs at all?
 	 jae	log_p2			; continue if BPB is valid
 					; elsa build new BPB
 log_p1:					; any of the above:  BPB invalid
@@ -2969,95 +2965,95 @@ log_p1:					; any of the above:  BPB invalid
 	jmp	log_p9
 
 log_p2:					; valid BPB for partition, AX/DX = size
-	cmp word ptr BPB_TOTSEC[si], 0	; BPB says small size ?
+	cmp word ptr BPB.TOTSEC[si], 0	; BPB says small size ?
 	jne log_p2a			; no -->
 	test dx, dx			; partition table says larger ?
 	jnz log_replace			; yes, replace it with BPB size -->
-	cmp word ptr BPB_TOTSEC[si], ax	; BPB says smaller than partition table ?
+	cmp word ptr BPB.TOTSEC[si], ax	; BPB says smaller than partition table ?
 	jb log_replace			; yes, replace it with BPB size -->
 	jmp log_p2z
 log_p2a:
-	cmp word ptr BPB_SIZE+2[si], dx	; BPB says smaller than partition table ?
+	cmp word ptr BPB.SIZ+2[si], dx	; BPB says smaller than partition table ?
 	jne log_p2b
-	cmp word ptr BPB_SIZE[si], ax
+	cmp word ptr BPB.SIZ[si], ax
 log_p2b:
 	jae log_p2z			; no -->
 
 log_replace:
-	mov cx, word ptr BPB_TOTSEC[si]	; = 0 or small size
-	mov dx, word ptr BPB_SIZE+2[si]
-	mov ax, word ptr BPB_SIZE[si]
+	mov cx, word ptr BPB.TOTSEC[si]	; = 0 or small size
+	mov dx, word ptr BPB.SIZ+2[si]
+	mov ax, word ptr BPB.SIZ[si]
 	jcxz log_p2x			; if to use large size -->
 	xor dx, dx
 	mov ax, cx			; use small size as large size too
 log_p2x:
-	mov word ptr BPB_TOTSEC[bx], cx	; set small size
-	mov word ptr BPB_SIZE[bx], ax
-	mov word ptr BPB_SIZE+2[bx], dx	; set large size
+	mov word ptr BPB.TOTSEC[bx], cx	; set small size
+	mov word ptr BPB.SIZ[bx], ax
+	mov word ptr BPB.SIZ+2[bx], dx	; set large size
 
 log_p2z:
 	push	ax
-	mov	al,BPB_ALLOCSIZ[si]	; copy a few parameters from the 
-	mov	BPB_ALLOCSIZ[bx],al	; Boot Sector BPB to our new BPB
-	mov	ax,BPB_DIRMAX[si]	; EJH 7-1-91
-	mov	BPB_DIRMAX[bx],ax
-	mov	ax,BPB_FATSEC[si]
-	mov	BPB_FATSEC[bx],ax
-	mov	ax,BPB_SECSIZ[si]
-	mov	BPB_SECSIZ[bx],ax
-	mov	ax,BPB_FATADD[si]
-	mov	BPB_FATADD[bx],ax
-	mov	al,BPB_NFATS[si]
-	mov	BPB_NFATS[bx],al
-	cmp	BPB_FATSEC[si],0	; is this a FAT32 BPB?
+	mov	al,BPB.ALLOCSIZ[si]	; copy a few parameters from the 
+	mov	BPB.ALLOCSIZ[bx],al	; Boot Sector BPB to our new BPB
+	mov	ax,BPB.DIRMAX[si]	; EJH 7-1-91
+	mov	BPB.DIRMAX[bx],ax
+	mov	ax,BPB.FATSEC[si]
+	mov	BPB.FATSEC[bx],ax
+	mov	ax,BPB.SECSIZ[si]
+	mov	BPB.SECSIZ[bx],ax
+	mov	ax,BPB.FATADD[si]
+	mov	BPB.FATADD[bx],ax
+	mov	al,BPB.NFATS[si]
+	mov	BPB.NFATS[bx],al
+	cmp	BPB.FATSEC[si],0	; is this a FAT32 BPB?
 	 je	log_p21			; yes, then copy some more parameters
-	mov	ax,BPB_FATSEC[si]	; expand sectors per FAT value to 32-bit
-	mov	word ptr BPB_BFATSEC[bx],ax
-	mov	word ptr BPB_BFATSEC+2[bx],0
+	mov	ax,BPB.FATSEC[si]	; expand sectors per FAT value to 32-bit
+	mov	word ptr BPB.BFATSEC[bx],ax
+	mov	word ptr BPB.BFATSEC+2[bx],0
 	 jmps	log_p22
 log_p21:
-	mov	ax,word ptr BPB_BFATSEC[si]
-	mov	word ptr BPB_BFATSEC[bx],ax
-	mov	ax,word ptr BPB_BFATSEC+2[si]
-	mov	word ptr BPB_BFATSEC+2[bx],ax
-	mov	ax,BPB_FATFLAG[si]
-	mov	BPB_FATFLAG[bx],ax
-	mov	ax,BPB_FSVER[si]
-	mov	BPB_FSVER[bx],ax
-	mov	ax,word ptr BPB_FSROOT[si]
-	mov	word ptr BPB_FSROOT[bx],ax
-	mov	ax,word ptr BPB_FSROOT+2[si]
-	mov	word ptr BPB_FSROOT+2[bx],ax
-	mov	ax,BPB_FSINFO[si]
-	mov	BPB_FSINFO[bx],ax
-	mov	ax,BPB_BOOTBAK[si]
-	mov	BPB_BOOTBAK[bx],ax
+	mov	ax,word ptr BPB.BFATSEC[si]
+	mov	word ptr BPB.BFATSEC[bx],ax
+	mov	ax,word ptr BPB.BFATSEC+2[si]
+	mov	word ptr BPB.BFATSEC+2[bx],ax
+	mov	ax,BPB.FATFLAG[si]
+	mov	BPB.FATFLAG[bx],ax
+	mov	ax,BPB.FSVER[si]
+	mov	BPB.FSVER[bx],ax
+	mov	ax,word ptr BPB.FSROOT[si]
+	mov	word ptr BPB.FSROOT[bx],ax
+	mov	ax,word ptr BPB.FSROOT+2[si]
+	mov	word ptr BPB.FSROOT+2[bx],ax
+	mov	ax,BPB.FSINFO[si]
+	mov	BPB.FSINFO[bx],ax
+	mov	ax,BPB.BOOTBAK[si]
+	mov	BPB.BOOTBAK[bx],ax
 log_p22:
 	pop	ax
 
-	cmp	BPB_TOTSEC[bx],0	; is it an 32 bit sector partition ?
+	cmp	BPB.TOTSEC[bx],0	; is it an 32 bit sector partition ?
 	 jne	log_p3			; no, carry on
 	test	dx,dx			; would it fit in 16 bit sector sizes ?
 	 jnz	log_p3			; yes, then make BPB_TOTSEC
-	mov	BPB_TOTSEC[bx],ax	;  a valid 16 bit value too
+	mov	BPB.TOTSEC[bx],ax	;  a valid 16 bit value too
 log_p3:					; valid BPB for partition, AX/DX = size
-	cmp	BPB_SECSIZ[bx],SECSIZE
+	cmp	BPB.SECSIZ[bx],SECSIZE
 	 jbe	log_p9			; skip if no large sectors
-	shr	BPB_SECSIZ[bx],1	; halve the sector size
-	shl	BPB_ALLOCSIZ[bx],1	; double the cluster size
-	shl	BPB_FATSEC[bx],1	; double the FAT size
-	shl	BPB_FATADD[bx],1	; double the FAT address
-	shl	BPB_TOTSEC[bx],1	; double # of sectors
+	shr	BPB.SECSIZ[bx],1	; halve the sector size
+	shl	BPB.ALLOCSIZ[bx],1	; double the cluster size
+	shl	BPB.FATSEC[bx],1	; double the FAT size
+	shl	BPB.FATADD[bx],1	; double the FAT address
+	shl	BPB.TOTSEC[bx],1	; double # of sectors
 	 jnc	log_p3			; skip if still < 65536 sectors
-	mov	BPB_TOTSEC[bx],0	; else indicate large partition
+	mov	BPB.TOTSEC[bx],0	; else indicate large partition
 	jmps	log_p3			; try again
 					; we've adjusted the sector size
 log_p9:
 	pushx	<ds, di>
 	push	es
 	pop	ds
-	lea	si,UDSC_BPB[di]		; DS:SI -> new BPB
-	lea	di,UDSC_DEVBPB[di]	; ES:DI -> fixed BPB
+	lea	si,UDSC.BPB[di]		; DS:SI -> new BPB
+	lea	di,UDSC.DEVBPB[di]	; ES:DI -> fixed BPB
 	mov	cx,UDSC_BPB_LENGTH
 	rep	movsb			; make this the fixed BPB
 	popx	<di, ds>
@@ -3091,23 +3087,23 @@ hd_bpb:
 ; of the partition, if it contains a valid FAT formatted file system.
 ;
 
-	mov	BPB_FSINFO[bx],0ffffh	; no FS info sector for default BPB
-	mov	BPB_BOOTBAK[bx],0ffffh	; no backup boot sector
-	mov	BPB_SECSIZ[bx],SECSIZE	; set standard sector size
-	mov	BPB_FATADD[bx],1	; one reserved (boot) sector
-	mov	BPB_NFATS[bx],2		; two FAT copies
-	mov	BPB_DIRMAX[bx],512	; assume 512 entry root directory
+	mov	BPB.FSINFO[bx],0ffffh	; no FS info sector for default BPB
+	mov	BPB.BOOTBAK[bx],0ffffh	; no backup boot sector
+	mov	BPB.SECSIZ[bx],SECSIZE	; set standard sector size
+	mov	BPB.FATADD[bx],1	; one reserved (boot) sector
+	mov	BPB.NFATS[bx],2		; two FAT copies
+	mov	BPB.DIRMAX[bx],512	; assume 512 entry root directory
 					; BPB_TOTSEC set up already
-	mov	BPB_FATID[bx],0F8h	; standard hard disk ID
+	mov	BPB.FATID[bx],0F8h	; standard hard disk ID
 	mov	al,nsect
 	mov	ah,0
-	mov	BPB_SPT[bx],ax		; set sectors/track
+	mov	BPB.SPT[bx],ax		; set sectors/track
 	mov	al,nhead
-	mov	BPB_HEADS[bx],ax	; set # of heads
+	mov	BPB.HEADS[bx],ax	; set # of heads
 					; determine FAT size:
-	mov	BPB_ALLOCSIZ[bx],2*2	; assume 2 K clusters
-	mov	ax,word ptr BPB_SIZE[bx]; AX/DX = 32 bit sector count
-	mov	dx,word ptr BPB_SIZE+2[bx]
+	mov	BPB.ALLOCSIZ[bx],2*2	; assume 2 K clusters
+	mov	ax,word ptr BPB.SIZ[bx]; AX/DX = 32 bit sector count
+	mov	dx,word ptr BPB.SIZ+2[bx]
 	test	dx,dx			; have we got huge partition (type 6)?
 	 jnz	hd_bpb10		; yes, it's 16-bit
 	cmp	ax,7FCEh		; more than 16 Mb?
@@ -3120,7 +3116,7 @@ hd_bpb:
 		;  FAT sectors for the assumed FAT16 in this case.
 
 	mov	cx,4*2			; else we've got old 12-bit FAT
-	mov	BPB_ALLOCSIZ[bx],cl	; we use 4 K clusters
+	mov	BPB.ALLOCSIZ[bx],cl	; we use 4 K clusters
 	add	ax,cx			; adjust DX:AX for rounding
 	dec	ax			;  when we work out num clusters
 	div	cx			; AX = # of clusters
@@ -3132,36 +3128,36 @@ hd_bpb:
 	xor	dx,dx
 	mov	cx,512
 	div	cx			; AX = # fat sectors
-	mov	BPB_FATSEC[bx],ax	; remember FAT size
+	mov	BPB.FATSEC[bx],ax	; remember FAT size
 	ret
 
 hd_bpb10:
-	mov	BPB_TOTSEC[bx],0	; zero this if BPB_SIZE is required
+	mov	BPB.TOTSEC[bx],0	; zero this if BPB_SIZE is required
 	cmp	parttype,FAT32_ID	; create FAT32 BPB if parttype
 	 jz	hd_bpb30		; indicates a FAT32 partition
 	cmp	parttype,FAT32X_ID	;
 	 jz	hd_bpb30		;
 	cmp	dx,2			; less than 2*65536 sectors (64 Mb)?
 	 jb	hd_bpb20		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],4*2	; use 4 K clusters if 64-128 Mb
+	mov	BPB.ALLOCSIZ[bx],4*2	; use 4 K clusters if 64-128 Mb
 	cmp	dx,4			; less than 4*65536 sectors (128 Mb)?
 	 jb	hd_bpb20		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],8*2	; use 8 K clusters if 128-512 Mb
+	mov	BPB.ALLOCSIZ[bx],8*2	; use 8 K clusters if 128-512 Mb
 	cmp	dx,16			; less than 16*65536 sectors (512 Mb)?
 	 jb	hd_bpb20		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],16*2	; use 16 K clusters if 512-1024 Mb
+	mov	BPB.ALLOCSIZ[bx],16*2	; use 16 K clusters if 512-1024 Mb
 	cmp	dx,32			; less than 32*65536 sectors (1 Gb)?
 	 jb	hd_bpb20		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],32*2	; use 32 K clusters if 1-2 Gb
+	mov	BPB.ALLOCSIZ[bx],32*2	; use 32 K clusters if 1-2 Gb
 	cmp	dx,64			; less than 64*65536 sectors (2 Gb)?
 	 jb	hd_bpb20		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],64*2	; use 64 K clusters if 2-4 Gb
+	mov	BPB.ALLOCSIZ[bx],64*2	; use 64 K clusters if 2-4 Gb
 	cmp	dx,128			; less than 128*65536 sectors (4 Gb)?
 	 jae	hd_bpb30		; no, use FAT-32
 ; 256 sectors per cluster disabled for compatibility reasons.
 ; They are still supported if such a partition is encountered, but
 ; not established by a default BPB (Boeckmann)
-;	mov	BPB_ALLOCSIZ[bx],0	; use 128 K clusters if 4-8 Gb
+;	mov	BPB.ALLOCSIZ[bx],0	; use 128 K clusters if 4-8 Gb
 ;	cmp	dx,256			; more than 256*65536 sectors (8 Gb)?
 ;	 jae	hd_bpb30		; then use FAT32 instead
 
@@ -3169,7 +3165,7 @@ hd_bpb20:				; cluster size determined
 	sub	ax,1+(512*32/SECSIZE)	; subtract reserved+root directory
 	sbb	dx,0			; (note: 32 bytes per entry)
 	xor	cx,cx
-	mov	ch,BPB_ALLOCSIZ[bx]	; CX = (256 * # of clusters on drive)
+	mov	ch,BPB.ALLOCSIZ[bx]	; CX = (256 * # of clusters on drive)
 	dec	cx
 	add	ax,cx			; add in for rounding error
 	adc	dx,0
@@ -3180,40 +3176,40 @@ hd_bpb20:				; cluster size determined
 hd_bpb25:
 	div	cx			; AX = # of fat sectors
 hd_bpb26:
-	mov	BPB_FATSEC[bx],ax	; remember FAT size
-	mov	es:UDSC_FSTYPE+4[di],'6'; change "FAT12" to "FAT16"
+	mov	BPB.FATSEC[bx],ax	; remember FAT size
+	mov	es:UDSC.FSTYPE+4[di],'6'; change "FAT12" to "FAT16"
 	ret
 	
 hd_bpb30:				; build BPB for FAT32
-	mov	BPB_DIRMAX[bx],0	; FAT32, so no fixed root dir
-	mov	BPB_FATADD[bx],20h	; assume 32 reserved sectors
-	mov	word ptr BPB_FSROOT[bx],2; assume root dir is in first cluster
-	mov	BPB_ALLOCSIZ[bx],1	; use 0.5 K clusters <64 Mb
+	mov	BPB.DIRMAX[bx],0	; FAT32, so no fixed root dir
+	mov	BPB.FATADD[bx],20h	; assume 32 reserved sectors
+	mov	word ptr BPB.FSROOT[bx],2; assume root dir is in first cluster
+	mov	BPB.ALLOCSIZ[bx],1	; use 0.5 K clusters <64 Mb
 	cmp	dx,2			; less than 2*65536 sectors (64 Mb)?
 	 jb	hd_bpb40		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],1*2	; use 1 K clusters if 64-256 Mb
+	mov	BPB.ALLOCSIZ[bx],1*2	; use 1 K clusters if 64-256 Mb
 	cmp	dx,8			; less than 8*65536 sectors (256 Mb)?
 	 jb	hd_bpb40		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],2*2	; use 2 K clusters if 256-1024 Mb
+	mov	BPB.ALLOCSIZ[bx],2*2	; use 2 K clusters if 256-1024 Mb
 	cmp	dx,32			; less than 32*65536 sectors (1 Gb)?
 	 jb	hd_bpb40		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],4*2	; use 4 K clusters if 1-4 Gb
+	mov	BPB.ALLOCSIZ[bx],4*2	; use 4 K clusters if 1-4 Gb
 	cmp	dx,128			; less than 128*65536 sectors (4 Gb)?
 	 jb	hd_bpb40		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],8*2	; use 8 K clusters if 4-16 Gb
+	mov	BPB.ALLOCSIZ[bx],8*2	; use 8 K clusters if 4-16 Gb
 	cmp	dx,512			; less than 512*65536 sectors (16 Gb)?
 	 jb	hd_bpb40		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],16*2	; use 16 K clusters if 16-64 Gb
+	mov	BPB.ALLOCSIZ[bx],16*2	; use 16 K clusters if 16-64 Gb
 	cmp	dx,2048			; less than 2048*65536 sectors (64 Gb)?
 	 jb	hd_bpb40		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],32*2	; use 32 K clusters if 64-256 Gb
+	mov	BPB.ALLOCSIZ[bx],32*2	; use 32 K clusters if 64-256 Gb
 	cmp	dx,8192			; less than 8192*65536 sectors (256 Gb)?
 	 jb	hd_bpb40		; yes, leave cluster size the same
-	mov	BPB_ALLOCSIZ[bx],64*2	; use 64 K clusters if 256-1024 Gb
+	mov	BPB.ALLOCSIZ[bx],64*2	; use 64 K clusters if 256-1024 Gb
 ; 256 sectors per cluster disabled for compatibility reasons (Boeckmann)
 ;	cmp	dx,32768		; less than 32768*65536 sectors (1024 Gb)?
 ;	 jb	hd_bpb40		; yes, leave cluster size the same
-;	mov	BPB_ALLOCSIZ[bx],0	; use 128 K clusters if >1024 Gb
+;	mov	BPB.ALLOCSIZ[bx],0	; use 128 K clusters if >1024 Gb
 	
 	; Now follows the calculation of the sector count per FAT.
 	; It is calculated after the formula
@@ -3222,10 +3218,10 @@ hd_bpb30:				; build BPB for FAT32
 	; This is somewhat inefficient, because the FATs are unnecessarily
 	; treated as data area.
 hd_bpb40:				; DX:AX = total sectors
-	sub	ax,BPB_FATADD[bx]	; subtract reserved
+	sub	ax,BPB.FATADD[bx]	; subtract reserved
 	sbb	dx,0
 	xor	cx,cx
-	mov	ch,BPB_ALLOCSIZ[bx]
+	mov	ch,BPB.ALLOCSIZ[bx]
 	shr	cx,1			; CX = sectors per cluster * 128
 	  ; If CX is now zero this means that we are dealing with
 	  ; 256 sectors per cluster. We set CX to:
@@ -3251,10 +3247,10 @@ hd_bpb41:
 	pop	dx
 	add	sp,8
 	pop	bp
-	mov	word ptr BPB_BFATSEC[bx],ax	; remember FAT size
-	mov	word ptr BPB_BFATSEC+2[bx],dx
-	and	word ptr BPB_FATSEC[bx], 0	; clear small FAT size field
-	mov	es:UDSC_FSTYPE+3[di],'3'; change "FAT12" to "FAT32"
+	mov	word ptr BPB.BFATSEC[bx],ax	; remember FAT size
+	mov	word ptr BPB.BFATSEC+2[bx],dx
+	and	word ptr BPB.FATSEC[bx], 0	; clear small FAT size field
+	mov	es:UDSC.FSTYPE+3[di],'3'; change "FAT12" to "FAT32"
 	ret
 
 new_unit:
@@ -3274,9 +3270,9 @@ new_unit:
 	pop	di
 	xor	bx,bx
 	mov	bl,nunits		; BX = unit we are working on
-	mov	es:UDSC_DRIVE[di],bl	; make that our logical unit
+	mov	es:UDSC.DRIVE[di],bl	; make that our logical unit
 	shl	bx,1			; make it a BPB index
-	lea	ax,es:UDSC_DEVBPB[di]	; get storage area for device BPB
+	lea	ax,es:UDSC.DEVBPB[di]	; get storage area for device BPB
 	mov	bpbtbl[bx],ax		; update entry in BPB table
 	shr	bx,1			; get the latest drive
 	inc	bx			; onto next unit
@@ -3285,10 +3281,10 @@ new_unit:
 	add	bl,nhard		; yes, skip past hard disks
 new_unit10:
 	mov	nunits,bl		; store ready for next time
-	mov	es:UDSC_RUNIT[di],0FFh	; set physical drive (ROS code)
+	mov	es:UDSC.RUNIT[di],0FFh	; set physical drive (ROS code)
 	push	cs
 	pop	ds			; DS:SI -> our dummy value
-	mov	si,offset CGROUP:dummyMediaID
+	mov	si,offset dummyMediaID
 	call	UpdateMediaID		; update UDSC_ with media info
 	pop	si
 	pop	dx
