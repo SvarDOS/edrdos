@@ -1,4 +1,4 @@
-;    File              : $NLSFUNC.A86$
+;    File              : $NLSFUNC.ASM$
 ;
 ;    Description       :
 ;

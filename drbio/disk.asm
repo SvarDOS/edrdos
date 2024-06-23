@@ -133,8 +133,6 @@ SEC_ID2         equ     0D0h            ; Old DR secure partition types
 page
 CGROUP	group	CODE, RCODE, ICODE, RESBIOS, IDATA
 
-CG	equ	offset CGROUP
-
 	Assume	CS:CGROUP, DS:CGROUP, ES:Nothing, SS:Nothing
 
 IVECT	segment	at 0000h
@@ -313,7 +311,7 @@ i13_deblock20:
 i13_deblock30:
 	push	ds			; if deblocking then we'd better
 	pop	es			;  point at local buffer we
-	mov	bx,CG:local_buffer	;  will be using for actual I/O
+	mov	bx,offset local_buffer	;  will be using for actual I/O
 	cmp	i13_op,ROS_WRITE
 	 jne	i13_deblock40		; skip data copy if not writing to disk
 	push	ds
@@ -335,7 +333,7 @@ i13_deblock40:
 	 jne	i13_deblock60		;  have to copy data out of
 	push	cx			;  the deblocking buffer
 	les	di,i13_dma_ptr		; ES:DI -> dest for data
-	mov	si,CG:local_buffer	; point at local buffer which
+	mov	si,offset local_buffer	; point at local buffer which
 	mov	cx,SECSIZE/2		;  contains actual data
 	rep	movsw			; copy from deblocking buffer
 	pop	cx
@@ -538,7 +536,7 @@ i2F_driver_req:
 	extrn	DriverFunction:near
 	extrn	IntDiskTable:word		; = DiskTable
 
-driverTable	dw	CG:IntDiskTable		; push address of table on
+driverTable	dw	offset IntDiskTable		; push address of table on
 						; stack as DriverFunction
 						; examines it
 
@@ -789,7 +787,7 @@ login_media10:
 	cmp	word ptr 1[si],-1	; bytes 1, 2 must be 0FFh, 0FFh
 	 jne	login_media30		; default media if bad FAT
 	lodsb				; else get FAT ID byte
-	mov	si,CG:bpb160		; look through builtin BPB table
+	mov	si,offset bpb160		; look through builtin BPB table
 	mov	cx,NBPBS		; # of builtin BPBs
 login_media20:
 	cmp	al,BPB.FATID[si]	; does it match one we know?
@@ -976,7 +974,7 @@ logrd1_lba:
 	test	int13ex_bits,1		; LBA support present?
 	 jz	logrd1a_lba		; no, then use old CHS method
 	mov	word ptr [si+2],1	; read one sector
-	mov	word ptr [si+4],CG:local_buffer	; address of transfer buffer
+	mov	word ptr [si+4],offset local_buffer	; address of transfer buffer
 	mov	word ptr [si+6],DS
 	mov	ah,ROS_LBAREAD
 	int_____DISK_INT
@@ -987,7 +985,7 @@ logrd1a_lba:
 	mov	ax,ROS_READ*256 + 1	; read one sector from ROS
 	push	ds
 	pop	es			; ES = DS = local segment
-	mov	bx,CG:local_buffer
+	mov	bx,offset local_buffer
 	int_____DISK_INT		; call the ROM BIOS
 	pop	es
 logrd1b_lba:
@@ -1002,7 +1000,7 @@ logrd1b_lba:
 logrd2_lba:
 	stc
 logrd3_lba:
-	mov	si,CG:local_buffer
+	mov	si,offset local_buffer
 	ret
 
 login_read:
@@ -1021,7 +1019,7 @@ logrd1:
 	mov	ax,ROS_READ*256 + 1	; read one sector from ROS
 	push	ds
 	pop	es			; ES = DS = local segment
-	mov	bx,CG:local_buffer
+	mov	bx,offset local_buffer
 	int_____DISK_INT		; call the ROM BIOS
 	pop	es
 	 jnc	logrd3			; skip if no disk error
@@ -1035,7 +1033,7 @@ logrd1:
 logrd2:
 	stc
 logrd3:
-	mov	si,CG:local_buffer
+	mov	si,offset local_buffer
 	ret
 
 	page
@@ -1087,11 +1085,11 @@ xlat_error:	;  translate ROS error to DOS error
 	mov	al,ah			; AL = ROS error code
 	push	cs
 	pop	es
-	mov	di,CG:ros_errors	; ES:DI -> ROS error code table
+	mov	di,offset ros_errors	; ES:DI -> ROS error code table
 	mov	cx,NUMROSERR
 	repne	scasb			; scan for match
 	mov	ax,RHS_ERROR		; get basic error indication
-	or	al,cs:(CG:dos_errors-CG:ros_errors-1)[di]
+	or	al,cs:(offset dos_errors-offset ros_errors-1)[di]
 					; combine with type of error
 	popx	<di, es>
 	stc
@@ -1209,7 +1207,7 @@ endif
 	mov	cx,SECSIZE/2		; CX = # of word per sector
 	push	ds
 	pop	es			; ES:DI -> destination
-	mov	di,CG:local_buffer
+	mov	di,offset local_buffer
 	lds	si,P_DSTRUC.DMA[bp]	; DS:SI -> source
 	rep	movsw			; copy from deblocking buffer
 	popx	<di, es, ds>
@@ -1227,11 +1225,11 @@ trkrw25_lba:
 	mov	ax,word ptr P_STRUC.LBABLOCK[bp+2]
 	mov	word ptr [si+10],ax
 	mov	word ptr [si+6],ds	; address of transfer buffer
-	mov	word ptr [si+4],CG:local_buffer
+	mov	word ptr [si+4],offset local_buffer
 ;	push	es
 ;	mov	ax,ds
 ;	mov	es,ax
-;	mov	bx,CG:local_buffer	; point at our local buffer
+;	mov	bx,offset local_buffer	; point at our local buffer
 	cmp	P_STRUC.DIRECT[bp],0	; DMA boundary problem?
 	 je	trkrw30_lba		; no, direct transfer performed
 	mov	ax,word ptr P_DSTRUC.DMA[bp+2]	; transfer address
@@ -1279,7 +1277,7 @@ trkrw25:
 	push	es
 	mov	ax,ds
 	mov	es,ax
-	mov	bx,CG:local_buffer	; point at our local buffer
+	mov	bx,offset local_buffer	; point at our local buffer
 	cmp	P_STRUC.DIRECT[bp],0	; DMA boundary problem?
 	 je	trkrw30			; no, direct transfer performed
 	les	bx,P_DSTRUC.DMA[bp]	; ES:BX -> transfer address
@@ -1322,7 +1320,7 @@ trkrw70:				; read/write/verify succeeded
 	 jne	trkrw80			; skip if not reading from disk
 	pushx	<di, ds, es>
 	mov	cx,SECSIZE/2		; CX = # of word per sector
-	mov	si,CG:local_buffer
+	mov	si,offset local_buffer
 	les	di,P_DSTRUC.DMA[bp]	; DS:SI -> source, ES:DI -> destination
 	rep	movsw			; copy from deblocking buffer
 	popx	<es, ds, di>
@@ -1671,7 +1669,7 @@ set2:					; now set track layout
 ;	lea	si,BPB_LENGTH+7[bx]	; DS:SI -> new user layout
 	lea	si,OLDBPB_LENGTH+7[bx]	; DS:SI -> new user layout
 	mov	es,cs:DataSegment
-	mov	di,CG:layout_table	; ES:DI -> BIOS layout table
+	mov	di,offset layout_table	; ES:DI -> BIOS layout table
 	lodsw				; get sector count
 	test	ax,ax			; make sure this is good value
      jz set6            
@@ -1817,7 +1815,7 @@ format30:
 	push	bx
 	push	ds
 	pop	es
-	mov	bx,CG:layout_table	; ES:BX -> parameter table
+	mov	bx,offset layout_table	; ES:BX -> parameter table
 	int_____DISK_INT
 	pop	bx
 	pop	es
@@ -1896,7 +1894,7 @@ set_format:
 	mov	cx,ds:3[bx]		; get the cylinder number
 	pop	ds
 
-	mov	si,CG:layout_table	; SI -> track layout table
+	mov	si,offset layout_table	; SI -> track layout table
 	mov	ax,MAX_SPT		; AX = # of sectors per track
 set_format10:
 	mov	0[si],cl		; set cylinder number
@@ -1950,7 +1948,7 @@ set_format40:
      jne    set_format50        
 	inc	cx			; force it to 9 sectors/track
 set_format50:
-	mov	si,CG:ok_fmt_table-4
+	mov	si,offset ok_fmt_table-4
 set_format60:
 	add	si,4			; next table entry
 	lods	cs:byte ptr [si]	; get drive type
@@ -1964,7 +1962,7 @@ set_format60:
 	mov	parms_spt,cl		; set sectors/track
 	mov	al,cs:3[si]		; get required gap length from table
 	mov	parms_gpl,al		; set gap length for format
-	mov	ax,CG:local_parms
+	mov	ax,offset local_parms
 	mov	new_int1e_off,ax	; use local parameters for formatting
 	mov	new_int1e_seg,ds	; set new interrupt vector address
 	mov	dl,es:UDSC.RUNIT[di]
@@ -2070,7 +2068,7 @@ rw_media:
 ; setup parameters to read/write boot sector to/from local buffer
 ;
 	call	ask_for_disk		; make sure we've got correct floppy
-	mov	P_STRUC.DMAOFF[bp],CG:local_buffer
+	mov	P_STRUC.DMAOFF[bp],offset local_buffer
 	mov	P_STRUC.DMASEG[bp],ds		; set transfer address
 	mov	P_STRUC.COUNT[bp],1		; read 1 sector
 	mov	ax,es:[di+UDSC.BPB+BPB.SPT]
@@ -2243,10 +2241,10 @@ ifdef JAPAN
 	mov	ax,5001h		; get adaptor mode
 	int	VIDEO_INT		; ..
 	cmp	bx,81			; japanese mode ?
-	mov	si,CG:disk_msgA_jpn	; get message to print for Japanese
+	mov	si,offset disk_msgA_jpn	; get message to print for Japanese
 	 je	askfdsk10		; yes
 endif
-	mov	si,CG:disk_msgA		; get message to print
+	mov	si,offset disk_msgA		; get message to print
 askfdsk10:
 	call	WriteASCIIZ		; output the string
 	mov	al,es:UDSC.DRIVE[di]	; get drive letter for new drive
@@ -2257,10 +2255,10 @@ ifdef JAPAN
 	mov	ax,5001h		; get adaptor mode
 	int	VIDEO_INT		; ..
 	cmp	bx,81			; japanese mode ?
-	mov	si,CG:disk_msgB_jpn	; get message to print for Japanese
+	mov	si,offset disk_msgB_jpn	; get message to print for Japanese
 	 je	askfdsk20		; yes
 endif
-	mov	si,CG:disk_msgB		; get message to print
+	mov	si,offset disk_msgB		; get message to print
 askfdsk20:
 	call	WriteASCIIZ		; output the string
 	mov	ah,0			; wait for any key to be pressed
@@ -2318,7 +2316,7 @@ dd_init:	; 0-initialize driver
 	mov	es:RH0_RESIDENT[bx],ax	; set end of device driver
 	mov	es:RH0_RESIDENT+2[bx],ds
 
-	mov	ax,CG:bpbtbl
+	mov	ax,offset bpbtbl
 	mov	es:RH0_BPBOFF[bx],ax	; set BPB table array
 	mov	es:RH0_BPBSEG[bx],ds
 
@@ -2372,7 +2370,7 @@ equip_single:				; we only have one physical drive
 	sub	si,si
 	mov	ds,si
 	lds	si,78h[si]
-	mov	di,CG:local_parms	; copy parameters to template
+	mov	di,offset local_parms	; copy parameters to template
 	mov	cx,11
 	rep	movsb
 
@@ -2381,10 +2379,10 @@ equip_single:				; we only have one physical drive
 	sub	ax,ax
 	mov	ds,ax			; DS -> interrupt vectors
 	Assume	DS:IVECT
-	mov	ax,CG:Int2FTrap		; hook Int 2F
+	mov	ax,offset Int2FTrap		; hook Int 2F
 	mov	i2Foff,ax
 	mov	i2Fseg,es
-	mov	ax,CG:Int13Trap		; hook Int 13
+	mov	ax,offset Int13Trap		; hook Int 13
 	xchg	ax,i13off
 	mov	es:i13off_save,ax
 	mov	ax,es
@@ -2460,9 +2458,9 @@ equip_no_type:
 	xchg	ax,si			; SI = drive type
 	shl	si,1			; SI = drive type * 2
 	mov	si,bpbs[si]		; get default BPB for drive
-	cmp	si,CG:bpb360		; is this is a 360 K drive?
+	cmp	si,offset bpb360		; is this is a 360 K drive?
 	 jne	equip_360		; skip if any other type
-	mov	bpbtbl[bx],CG:bpb720	; use larger default BPB
+	mov	bpbtbl[bx],offset bpb720	; use larger default BPB
 equip_360:	
 	mov	cx,UDSC_BPB_LENGTH	; CX = size of BPB
 	pushx	<es, di, si, cx>
@@ -2679,7 +2677,7 @@ log_h1a:
 	test	log_flag,LOG_PRIM	; scanning for primary?
 	 jz	log_h5			; no, ignore all primary partitions
 
-	mov	si,CG:local_pt		; point to partition table
+	mov	si,offset local_pt		; point to partition table
 log_h2:
 ;** SECURE PARTITIONS **
 	mov	al,init_runit
@@ -2725,7 +2723,7 @@ log_h3:
 	 jc	log_h9			; give up if error
 log_h4:
 	add	si,16			; next partition table entry
-	cmp	si,CG:local_id		; all partitions checked?
+	cmp	si,offset local_id		; all partitions checked?
 	 jb	log_h2			; loop back if more
 
 log_h5:					; primary partitions done
@@ -2733,7 +2731,7 @@ log_h5:					; primary partitions done
 	 jz	log_h9			; skip if no extended scan
 
 	or	log_flag,LOG_PRIM	; scan for both types now
-	mov	si,CG:local_pt		; SI -> partition table
+	mov	si,offset local_pt		; SI -> partition table
 ; RG-01
 log_h6:
 ;** SECURE PARTITIONS **
@@ -2796,7 +2794,7 @@ log_h6d:
 log_h7:					; entry not an extended partition
 ;	mov	cx,2[si]
 	add	si,16			; next partition table entry
-	cmp	si,CG:local_buffer+IDOFF; all partitions checked?
+	cmp	si,offset local_buffer+IDOFF; all partitions checked?
 	 jb	log_h6			; loop back if more
 
 log_h9:					; drive login done
