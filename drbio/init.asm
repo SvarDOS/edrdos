@@ -1004,7 +1004,7 @@ output_hex40	db	20h,NUL		; end of string
 
 ICODE	ends
 
-INITDATA	segment 'INITDATA'
+INITDATA	segment public 'INITDATA'
 
 ; This is a zero terminated list of locations to be fixed up with the
 ; segment of the relocated BIOS RCODE

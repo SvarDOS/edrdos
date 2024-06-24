@@ -103,7 +103,6 @@ nls_unhook:
 	pop	ds
 	ret
 
-
 old_int2f	label dword
 old_int2f_off	dw	0
 old_int2f_seg	dw	0
@@ -198,7 +197,7 @@ f66_p10:
 	 jnz	f66_p40			; otherwise skip the device
 
 	lea	si,DH_NAME[bx]		; Found a matching device so
-	mov	di,offset initcode:prepname	; open the device and select the 
+	mov	di,offset prepname	; open the device and select the 
 	mov	cx,8			; requested codepage
 
 f66_p20:
@@ -213,7 +212,7 @@ f66_p30:
 	stosb	
 	push	cs
 	pop	ds
-	mov	dx,offset initcode:prepname	; Write Access
+	mov	dx,offset prepname	; Write Access
 	mov	cl,1			; Open for write
 	mov	ax,1226h
 	int	2fh			; call magic hook
@@ -221,7 +220,7 @@ f66_p30:
 	mov	bx,ax			; Save Device Handle in BX
 
 	mov	si,f66_cp		; Get Requested CodePage in SI
-	mov	dx,offset initcode:cp_packet	; Offset of CodePage Struct
+	mov	dx,offset cp_packet	; Offset of CodePage Struct
 	mov	cx,006Ah		; Get Unknown CodePage
 	push	bp
 	mov	bp,0ch			; Generic IOCTL
@@ -234,7 +233,7 @@ f66_p30:
 	 je	f66_p35			; If this the currently selected
 f66_p32:				; skip the select CodePage
 	mov	cp_cpid,si
-	mov	dx,offset initcode:cp_packet	; Offset of CodePage Struct
+	mov	dx,offset cp_packet	; Offset of CodePage Struct
 	mov	cx,004Ah		; Select Unkown CodePage
 	push	bp
 	mov	bp,0ch			; Generic IOCTL
@@ -289,7 +288,7 @@ f65_locate_and_read:
 	pop	ax
 	 jc	f65_lr_exit		; so do it if we can.
 
-	mov	dx,offset initcode:nls_temp_area
+	mov	dx,offset nls_temp_area
 	mov	cx,258			; read 258 bytes into local buffer
 	push	ax
 	call	f65x_load_info		; Load required info
@@ -299,7 +298,7 @@ f65_locate_and_read:
 	mov	ax,1227h
 	int	2fh			; magic hook to close handle
 	 jc	f65_lr_exit
-	mov	si,offset initcode:nls_temp_area	; Tell subroutines where info is
+	mov	si,offset nls_temp_area	; Tell subroutines where info is
 f65_lr_exit:
 	ret
 ;
@@ -338,7 +337,7 @@ f65x_30:
 	 jc	f65x_err
 	mov	bx,c_handle		; check them
 	mov 	cx,2
-	mov 	dx,offset initcode:f65xx_sig
+	mov 	dx,offset f65xx_sig
 	mov	ax,1229h
 	int	2fh			; read the signature bytes
 	 jc	f65x_err
@@ -347,7 +346,7 @@ f65x_30:
 f65x_32:
 	mov	bx,c_handle		; Read from country.sys header until
 	mov	cx,f65xx_ptable_len	; Country/codepage found or NULL
-	mov	dx,offset initcode:f65xx_code
+	mov	dx,offset f65xx_code
 	mov	ax,1229h
 	int	2fh
 	 jc	f65x_err	

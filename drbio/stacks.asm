@@ -406,7 +406,7 @@ iTable	dw	offset STACKS:Int02, offset STACKS:i02Off
 
 INITCODE	ends
 
-INITDATA	segment	'INITDATA'
+INITDATA	segment	public word 'INITDATA'
 
 	extrn	stacksIn:byte
 
