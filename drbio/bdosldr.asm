@@ -249,7 +249,8 @@ fail_count_chars:
 	call	device_request		; call the console driver
 
 	sti
-	jmp	$			; wait for reboot
+wait_forever:
+	jmp	wait_forever			; wait for reboot
 
 
 device_request:		; general device driver interface
