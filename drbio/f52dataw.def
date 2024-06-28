@@ -1,0 +1,88 @@
+;    File              : $F52DATA.DEF$
+;
+;    Description       :
+;
+;    Original Author   : DIGITAL RESEARCH
+;
+;    Last Edited By    : $CALDERA$
+;
+;-----------------------------------------------------------------------;
+;    Copyright Work of Caldera, Inc. All Rights Reserved.
+;      
+;    THIS WORK IS A COPYRIGHT WORK AND CONTAINS CONFIDENTIAL,
+;    PROPRIETARY AND TRADE SECRET INFORMATION OF CALDERA, INC.
+;    ACCESS TO THIS WORK IS RESTRICTED TO (I) CALDERA, INC. EMPLOYEES
+;    WHO HAVE A NEED TO KNOW TO PERFORM TASKS WITHIN THE SCOPE OF
+;    THEIR ASSIGNMENTS AND (II) ENTITIES OTHER THAN CALDERA, INC. WHO
+;    HAVE ACCEPTED THE CALDERA OPENDOS SOURCE LICENSE OR OTHER CALDERA LICENSE
+;    AGREEMENTS. EXCEPT UNDER THE EXPRESS TERMS OF THE CALDERA LICENSE
+;    AGREEMENT NO PART OF THIS WORK MAY BE USED, PRACTICED, PERFORMED,
+;    COPIED, DISTRIBUTED, REVISED, MODIFIED, TRANSLATED, ABRIDGED,
+;    CONDENSED, EXPANDED, COLLECTED, COMPILED, LINKED, RECAST,
+;    TRANSFORMED OR ADAPTED WITHOUT THE PRIOR WRITTEN CONSENT OF
+;    CALDERA, INC. ANY USE OR EXPLOITATION OF THIS WORK WITHOUT
+;    AUTHORIZATION COULD SUBJECT THE PERPETRATOR TO CRIMINAL AND
+;    CIVIL LIABILITY.
+;-----------------------------------------------------------------------;
+;
+;    *** Current Edit History ***
+;    *** End of Current Edit History ***
+;
+;    $Log$
+;
+;    ENDLOG
+;	The following equates define the Data Area whose address is
+;	returned by function 52.
+;
+
+F52_BCBBUF	equ	dword ptr -0008h		; current buffer
+F52_BCBOFF	equ	word ptr -0008h		; current buffer
+F52_BCBSEG	equ	word ptr -0006h		; current buffer
+F52_DMDROOT	equ	word ptr -0002h		; Memory Descriptor Root (Seg)
+F52_DDSCPTR	equ	dword ptr 0000h		; DDSC Table Address
+F52_FILEPTR	equ	dword ptr 0004h		; File Handle Table Address
+F52_CLKDEV	equ	dword ptr 0008h		; Clock Device Header
+F52_CONDEV	equ	dword ptr 000Ch		; Console Device Header
+F52_SECSIZE	equ	word ptr  0010h		; Maximum Sector Size
+F52_BUFINFOPTR	equ	dword ptr 0012h		; Buffer Info pointer
+F52_PATHPTR	equ	dword ptr 0016h		; Path Control Table Address
+F52_PATHOFF	equ	word ptr  0016h
+F52_PATHSEG	equ	word ptr  0018h
+F52_FCBPTR	equ	dword ptr 001Ah		; FCB Table Address
+;		equ	word ptr  001Eh		; #Entries in FCB Table
+F52_PHYDRV	equ	byte ptr  0020h		; Last Physical Drive
+F52_LASTDRV	equ	byte ptr  0021h		; Last Logical Drive
+F52_DEVROOT	equ	dword ptr 0022h		; Root Device Header
+F52_JOINDRV	equ	byte ptr  0034h		; Number of JOIN'd drives
+F52_SETVER	equ	dword ptr 0037h		; SETVER table pointer
+F52_NUM_BUF	equ	word ptr  003Fh		; number of disk buffers
+F52_READ_AHEAD	equ	word ptr  0041h		; size of read-ahead buffer
+F52_BOOTDRV	equ	byte ptr  0043h		; boot drive (1-26)
+F52_CPU_TYPE	equ	byte ptr  0044h		; 01 if >= 386SX
+F52_EXT_MEM	equ	word ptr  0045h		; Int 15h, AH=87h
+F52_BUF_INFO	equ	dword ptr 0047h		; points at Buffer Info
+F52_HMAFLAG	equ	byte ptr  0053h		; 1 if buffers in HMA
+F52_DEBLOCK	equ	word ptr  0056h		; deblock if buffers in HMA
+F52_DMD_UPPER	equ	word ptr  0066h		; upper memory chain
+F52_SHARE_STUB	equ	dword ptr 006Ah		; Share Stub Entries*15
+
+;DRDOS Specific
+
+DRDOS_CRITSTUBS	equ	word ptr  0000h		; Offset of end of instance data
+DRDOS_HIST1CTL	equ	word ptr  0004h		; History 1 Control
+DRDOS_HIST2CTL	equ	word ptr  0006h		; History 2 Control
+DRDOS_HISTFLG	equ	byte ptr  0008h		; History Buffer Flag 
+DRDOS_DUAL_LANG	equ	byte ptr  0009h		; Utils Dual Language Support
+DRDOS_CUR_LANG	equ	byte ptr  000Ah		; Current Language
+DRDOS_EXT_MEM	equ	word ptr  000Bh		; Total Extended Memory
+DRDOS_HIMEM_ROOT equ	word ptr  0010h		; High memory chain
+DRDOS_ENVSEG	equ	word ptr  0012h		; Seg of environment
+DRDOS_DMD_BASE	equ	word ptr  0016h		; base memory freed at
+DRDOS_DMD_UPPER	equ	word ptr  0018h		; upper memory chain
+DRDOS_MACHINE_ID equ	word ptr  001Ah		; local machine ID
+DRDOS_COUNTRY_FILE equ	word ptr  001Eh		; offset of filename
+DRDOS_HASHOFF	equ	word ptr  0020h		; fastopen hash root
+DRDOS_HASHSEG	equ	word ptr  0022h		;  pointer
+DRDOS_HASHMAX	equ	word ptr  0024h		; max # dir entries
+DRDOS_DEBLOCK	equ	word ptr  0026h		; himem deblock buffer
+DRDOS_INT2F	equ	word ptr  002Ch		; internal Int 2F hook
