@@ -57,6 +57,7 @@
 ;    hide preload drives from func_device
 ;    ENDLOG
 
+	include debug.def
 	include	msdos.equ		; DOS Function Equates
 	include	pspw.def		; PSP Definition
 	include f52dataw.def		; Internal DOS data area
@@ -291,8 +292,8 @@ relocated_init:
 	call	dd_fixup		; fixup relocatable device drivers
 	les	di,device_root		; initialize all the resident
 	call	resident_device_init	;   device drivers
-	push cs
-	pop es
+	push 	cs
+	pop 	es
 
 	mov	dx,1			; phase one of RPL initialisation
 	call	rploader		;  inform RPLoader if present
@@ -340,7 +341,6 @@ dos_reloc:
 dos_upx:
 	pop	ds
 dos_noupx:
-
 	mov	cl,4
 
 	mov	ax,ds:DOS_CODE		; get size of DOS code
@@ -835,6 +835,7 @@ relocate_system:
 	xchg	cx,systemHMA		; free up any space reserved for the OS
 	call	FreeHMA
 	call	ReserveCommandHMA	; reserve space for COMMAND.COM
+
 relocate_system10:
 	call	reloc_bios		; move down relocatable drivers
 	call	reloc_dos		; move DOS above drivers if RAM based
@@ -857,8 +858,9 @@ reloc_dos:				; move DOS down to just above drivers
 	push	ds
 	push	es
 	test	init_flags,INIT_ROMCODE	; Run the DOS code in ROM
-	 jz $+5
+	 jz reloc_dos05
 	jmp reloc_dos90	; at CURRENT_DOS - No Code Reloc
+reloc_dos05:
 	mov	es,current_dos
 	mov	dx,es:DOS_OFFSET
 	mov	cx,es:DOS_CODE		; get DOS code size in bytes
@@ -2228,6 +2230,7 @@ dummyVDISK	db	0, 0, 0		; jump instruction
 
 search_state	db	43 dup (0)	; Search First/Next State
 
+even
 		dw	384 dup (0)	; big stack for ASPI4DOS.SYS driver
 stack		label word
 
