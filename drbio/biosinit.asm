@@ -57,7 +57,6 @@
 ;    hide preload drives from func_device
 ;    ENDLOG
 
-	include debug.def
 	include	msdos.equ		; DOS Function Equates
 	include	pspw.def		; PSP Definition
 	include f52dataw.def		; Internal DOS data area
