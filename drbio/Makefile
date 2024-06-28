@@ -53,7 +53,7 @@ bin/serpar.obj: serpar.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driv
 
 bin/biosgrps.obj: biosgrps.asm biosgrps.equ
 
-bin/biosinit.obj: biosinit.a86 msdos.equ psp.def f52data.def doshndl.def config.equ fdos.equ modfunc.def patch.cod initmsgs.def
+bin/biosinit.obj: biosinit.asm msdos.equ pspw.def f52dataw.def doshndl.def configw.equ fdos.equ modfunc.def initmsgs.def
 
 bin/config.obj: config.a86 config.equ msdos.equ char.def reqhdr.equ driver.equ fdos.equ f52data.def doshndl.def country.def initmsgs.def biosmsgs.def
 
