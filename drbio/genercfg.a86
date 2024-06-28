@@ -250,7 +250,9 @@ cfg_query05:
 cfg_query06:
 	test	CFG_FLAGS[di],CF_NOF	; are Function Keys allowed ?
 ;	clc				; if not process the command
-	 jz $+5 ! jmp cfg_query90
+	 jz 	cfg_query06a
+	 jmp 	cfg_query90
+cfg_query06a:
 	cmp	ax,F5KEY		; F5 bypasses CONFIG processing
 	stc				;  so bypass this line
 ;	 je	cfg_query90
