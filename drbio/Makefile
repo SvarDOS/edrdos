@@ -55,7 +55,7 @@ bin/biosgrps.obj: biosgrps.asm biosgrps.equ
 
 bin/biosinit.obj: biosinit.asm msdos.equ pspw.def f52dataw.def doshndl.def configw.equ fdos.equ modfunc.def initmsgs.def
 
-bin/config.obj: config.a86 config.equ msdos.equ char.def reqhdr.equ driver.equ fdos.equ f52data.def doshndl.def country.def initmsgs.def biosmsgs.def
+bin/config.obj: config.aasm configw.equ msdos.equ char.def request.equ driverw.equ fdos.equ f52dataw.def doshndl.def country.def initmsgs.def biosmsgs.def
 
 bin/bdosldr.obj: bdosldr.asm reqhdr.equ driverw.equ config.equ initmsgs.def
 
