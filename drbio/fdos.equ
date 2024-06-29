@@ -183,7 +183,7 @@ S_CLOSE_FILES	equ	DWORD*11	; close all files for given PSP/UID
 ; struct dirfcb
 
 DNAME		equ	byte ptr 0	;file name & type
-DATTS       equ byte ptr 11 
+DATTS           equ     byte ptr 11 
   DA_RO		equ	01h		; 0x01 - read/only
   DA_HIDDEN	equ	02h		; 0x02 - hidden
   DA_SYSTEM	equ	04h		; 0x04 - system
