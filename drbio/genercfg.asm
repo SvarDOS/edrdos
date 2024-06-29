@@ -1,4 +1,4 @@
-;    File              : $GENERCFG.A86$
+;    File              : $GENERCFG.ASM$
 ;
 ;    Description       :
 ;
@@ -71,15 +71,17 @@
 ;    ENDLOG
 
 
-	include config.equ
-	include	i:msdos.equ
-	include i:char.def
-	include	i:reqhdr.equ
-	include	i:driver.equ
-	include	i:fdos.equ
-	include	i:f52data.def		; Function 52 DOS Data Area
-	include	i:doshndl.def		; DOS Handle Structure Definition
-	include i:country.def
+	include configw.equ
+	include	msdos.equ
+	include char.def
+	include	request.equ
+	include	driverw.equ
+	include	fdos.equ
+	include	f52dataw.def		; Function 52 DOS Data Area
+	include	doshndl.def		; DOS Handle Structure Definition
+	include country.def
+
+ADDDRV = 0
 
 TRUE	   	equ	0FFFFh		; value of TRUE
 FALSE	   	equ	0		; value of FALSE
@@ -92,9 +94,21 @@ SWITCH_N	equ	02h
 
 SWITCH_MAX	equ	10		; maximum number of SWITCH commands
 
-CGROUP		group	INITCODE, INITDATA, INITENV
+CFG_NAME	equ	word ptr 0000h		; Command Name
+CFG_FUNC	equ	word ptr 0002h		; Command Subroutine
+CFG_FLAGS	equ	word ptr 0004h		; Command flags
+CFG_SIZE	equ	6			; Size of each Entry
 
-INITCODE	CSEG	PARA 'INITCODE'
+CF_LAST		equ	0003h		; execute in last config pass
+CF_NOF		equ	0008h		; set if F5/F8 should be ignored
+CF_LC		equ	0010h		; set if case should be preserved
+CF_QUERY	equ	0020h		; set at run time eg. "DEVICE?"
+CF_ALL		equ	0040h		; execute in all config passes
+
+CGROUP		group	INITCODE, INITDATA, INITENV
+ASSUME CS:CGROUP,DS:CGROUP
+
+INITCODE	segment public para 'INITCODE'
 
 	extrn	whitespace:near
 	extrn	build_cmd_tail:near
@@ -127,7 +141,8 @@ else
 	add	ax,cx			; segment of env variables
 	les	bx,drdos_ptr
 	mov	es:DRDOS_ENVSEG[bx],ax	; tell COMMAND.COM where we are
-	push ds ! pop es
+	push 	ds
+	pop 	es
 endif
 
 	mov	ah,MS_DRV_GET		; check whether we are loading from
@@ -178,7 +193,7 @@ if ADDDRV
 	mov	dx,offset err_no_command_file
 	xor	al,al
 	call	config_error
-	jmps	cfg_exit
+	jmp	short cfg_exit
 else
 	mov	si,offset cfg_file+1
 	mov	di,offset cfg_file
@@ -206,13 +221,13 @@ cfg_continue:
 	call	cfg_query		; prompt to see if we want it
 	 jc	cfg_nextline
 	call	CFG_FUNC[di]		; Execute the request command
-	jmps	cfg_nextline		; and loop till the end of the file
+	jmp	short cfg_nextline	; and loop till the end of the file
 
 cfg_error:
 	mov	dx,offset bad_command	; Display a Bad command error msg
 	mov	al,CR			; and the CR terminated string
 	call	config_error		; then continue processing
-	jmps	cfg_nextline		; Carry Returned On Error
+	jmp	short cfg_nextline	; Carry Returned On Error
 
 cfg_exit:
 	mov	sp,save_sp		; get back the real stack
@@ -276,7 +291,7 @@ cfg_query20:
 	xchg	ax,dx			; DL= character
 	mov	ah,MS_C_WRITE
 	int	DOS_INT			; output the character
-	jmps	cfg_query20		; "DEVICE"
+	jmp	short cfg_query20	; "DEVICE"
 cfg_query30:
 	mov	dl,'='
 	mov	ah,MS_C_WRITE
@@ -289,7 +304,7 @@ cfg_query40:
 	xchg	ax,dx			; DL= character
 	mov	ah,MS_C_WRITE
 	int	DOS_INT			; output the character
-	jmps	cfg_query40		; "DEVICE=FILENAME.SYS"
+	jmp	short cfg_query40	; "DEVICE=FILENAME.SYS"
 cfg_query50:
 	mov	ah,MS_C_WRITESTR	; Output msg of form " (Y/N) ? "
 	mov	dx,offset confirm_msg1
@@ -323,19 +338,19 @@ cfg_query70:
 	cmp	al,13			; accept <CR> for 'yes'
 	 jne	cfg_query71
 	mov	al,yes_char
-	jmps	cfg_query80
+	jmp	short cfg_query80
 cfg_query71:
 	cmp	al,32			; accept <SPACE> for 'no'
 	 jne	cfg_query72
 	mov	al,no_char
 	stc
-	jmps	cfg_query80
+	jmp	short cfg_query80
 cfg_query72:
 	cmp	al,27			; accept <ESC> for 'run'
 	 jne	cfg_query73
 	mov	al,run_char
 	mov	boot_options,0
-	jmps	cfg_query80
+	jmp	short cfg_query80
 cfg_query73:
 	call	toupper			; make response upper case
 	cmp	al,yes_char
@@ -343,14 +358,14 @@ cfg_query73:
 	cmp	al,no_char
 	 jne	cfg_query75
 	stc
-	jmps	cfg_query80
+	jmp	short cfg_query80
 cfg_query75:
 	cmp	al,run_char
 	 je	cfg_query76
 	mov	ah,MS_C_WRITE
 	mov	dl,7
 	int	DOS_INT			; beep
-	jmps	cfg_query60
+	jmp	short cfg_query60
 cfg_query76:
 	mov	boot_options,0
 cfg_query80:
@@ -376,7 +391,7 @@ cfg_query90:
 
 call_preload_entry:		; call the preload device driver back door
 	push	ds		; all DBLSPACE calls destroy DS register
-	callf	preload_entry
+	call	dword ptr preload_entry
 	pop	ds
 	ret
 
@@ -408,7 +423,10 @@ preload_complete10:
 	lodsb				; get a character
 	cmp	al,'\'			; have we found the '\' yet ?
 	 jne	preload_complete10	; no, go swallow another character
-	movsw ! movsw ! movsw ! movsw	; copy the 8 bytes
+	movsw
+	movsw
+	movsw
+	movsw				; copy the 8 bytes
 	mov	ax,es
 	inc	ax			; segment address of free memory
 	mov	es,ax
@@ -469,7 +487,7 @@ PreloadCleanup:
 	mov	ah,55h			; version number
 	mov	al,dev_count		; number of new units installed
     mov bx,02h          
-	callf	preload_entry
+	call	dword ptr preload_entry
 broadcast_exit:
 	pop	es
 	pop	ds
@@ -489,13 +507,17 @@ preload_device10:
 	lodsb				; get a character
 	cmp	al,'\'			; have we found the '\' yet ?
 	 jne	preload_device10	; no, go swallow another character
-	movsw ! movsw ! movsw ! movsw	; copy the 8 bytes
+	movsw
+	movsw
+	movsw
+	movsw				; copy the 8 bytes
 	mov	ax,es
 	inc	ax			; segment address of free memory
 	mov	dev_load_seg,ax		; destination segment for EXEC call
 	mov	dev_reloc_seg,ax	; relocation factor for .EXE drivers
 	push	ax
-	push ds ! pop es
+	push 	ds
+	pop 	es
 	mov	bx,offset dev_epb	; ES:BX control structure
 	mov	ax,(MS_X_EXEC * 256)+3
 	int	DOS_INT
@@ -504,33 +526,33 @@ preload_device10:
 load_bad:
 	jmp	preload_exit
 load_ok:
-	cmp	es:WORD PTR .12h,2e2ch	; preload device signature
+	cmp	es:WORD PTR 12h,2e2ch	; preload device signature
 	 jne	load_bad
 	mov	preload_seg,es		; back door entry to preload driver
-	cmp	es:word ptr .82h,6	; is it the old DBLSPACE driver ?
+	cmp	es:word ptr 82h,6	; is it the old DBLSPACE driver ?
 	 jne	load_new_dblspace
 	mov	preload_ver,6		; yes, give it the old version
 load_new_dblspace:
 	mov	rel_unit,0		; reset driver relative unit no.
 	mov	bx,offset request_hdr	; DS:BX static INIT request header
 	mov	ax,mem_max		; highest segment available to the
-	mov	ds:RH0_RESIDENT,0	;   driver
-	mov	ds:RH0_RESIDENT+2,ax
+	mov	ds:RH0_RESIDENT[bx],0	;   driver
+	mov	ds:RH0_RESIDENT+2[bx],ax
 	mov	ax,cs
 	mov	es,ax
 	push	ds
 	call	init_static_request	; initialise remaining fields
     mov ax,cs:preload_ver   
-	callf	preload_entry
+	call	dword ptr preload_entry
 	pop	ds
 	 jc	preload_exit		; INIT function fails if CARRY set
 	or	ax,ax			;   or AX != 0
 	 jnz	preload_exit
-;;	mov	ax,ds:RH0_RESIDENT	; end of resident portion (offset)
+;;	mov	ax,ds:RH0_RESIDENT[bx]	; end of resident portion (offset)
 ;;	add	ax,15			; convert offset to paragraph size
 ;;	mov	cl,4
 ;;	shr	ax,cl
-;;	add	ax,ds:RH0_RESIDENT+2	; end of resident portion (segment)
+;;	add	ax,ds:RH0_RESIDENT+2[bx]	; end of resident portion (segment)
 ;JS we should check that the source and destination do not overlap here!
 
 	mov	bx,04h			; find the size of the transient code
@@ -547,7 +569,7 @@ load_new_dblspace:
 	mov	es,preload_seg
 	xor	di,di			; ES:DI -> preload driver
 	mov	bx,offset request_hdr
-	mov	al,ds:RH0_NUNITS
+	mov	al,ds:RH0_NUNITS[bx]
 	test	al,al
 	 jz	preload_char_dev
 	add	preload_drv,al		; remember how many preloaded drives
@@ -579,7 +601,8 @@ preload_char_dev:
 	call	call_preload_entry	;   interrupts etc.)
 
 preload_exit:
-	push cs ! pop es
+	push 	cs
+	pop 	es
 	ret
 
 
@@ -763,7 +786,9 @@ BuildHeader:
 	inc	ax
 	stosw				; OWNER_FIELD
 	xor	ax,ax
-	stosb ! stosw ! stosw		; zero rest up to name
+	stosb
+	stosw
+	stosw				; zero rest up to name
 	ret
 
 
@@ -783,13 +808,13 @@ FindName10:
 	call	dbcs_lead		; is it a double byte pair ?
 	 jne	FindName20
 	lodsb				; include the second byte
-	jmps	FindName10
+	jmp	short FindName10
 FindName20:
 	cmp	al,'\'			; is it a seperator ?
 	 je	FindName
 	cmp	al,'/'
 	 je	FindName
-	jmps	FindName10
+	jmp	short FindName10
 FindName30:
 	xchg	cx,si			; SI -> start of leaf name
 	sub	cx,si
@@ -817,7 +842,7 @@ SetName10:
 	cmp	di,(offset DMD_NAME)+DMD_NAME_LEN
 	 jae	SetName30		; don't overflow if name too long
 	movsb				; and the second
-	jmps	SetName10
+	jmp	short SetName10
 
 SetName20:
 	stosb
@@ -838,7 +863,7 @@ SetName50:
 
 if DOS5
 
-ROS_MEMORY	equ	.413h		; main memory on KB
+ROS_MEMORY	equ	413h		; main memory on KB
 
 protmanName	db	'PROTMAN$'
 
@@ -858,7 +883,7 @@ ProtmanFixup:
 	push	di
 	mov	cs:protmanAdjust,0	; assume it's not protman
 	mov	si,offset protmanName
-	lea	di,DH_NAME[di]		; ES:DI -> device driver name
+	lea	di,DEVHDR.NAM[di]	; ES:DI -> device driver name
 	mov	cx,8/2
 	repe	cmpsw			; does the name match ?
 	 jne	ProtmanFixup10
@@ -961,14 +986,17 @@ f_ctry50:
 func_shell:		; SHELL=filename
 	mov	di,offset shell		; Copy the New Command Name
 	call	copy_file		; into the BIOSINIT buffer
-	mov al,0 ! stosb		; Terminate the Environment Correctly
+	mov al,0
+	stosb				; Terminate the Environment Correctly
 	jc	shell_error
 
 	mov	di,offset shell_cline+1	; Now copy the default command
-	mov al,' ' ! stosb		; into place
+	mov al,' '
+	stosb				; into place
 	mov	cx,0			; 		
 f_sh10:
-	lodsb ! stosb			; Copy the next Character
+	lodsb
+	stosb				; Copy the next Character
 	inc	cx			; Increment the count
 	cmp	al,CR			; Was this the end of string Char
 	jnz	f_sh10			; No so Repeat
@@ -1147,7 +1175,7 @@ func_switches:		; SWITCHES=...
 	cmp	ax,'F/'
 	 jne	func_switches05
 	or	boot_switches,SWITCH_F
-	jmps	func_switches
+	jmp	short func_switches
 func_switches05:
 	cmp	ax,'N/'
 	 jne	func_switches
@@ -1192,7 +1220,7 @@ func_deblock:		; DEBLOCK=xxxx
 	 jc	func_deblock10
 	test	dx,dx
 	 jnz	func_deblock10
-	mov	DeblockSetByUser,TRUE	; the user has supplied a setting
+	mov	DeblockSetByUser,TRUE and 0FFh	; the user has supplied a setting
 	push	ds
 	mov	ds,bios_seg
 	mov	DeblockSeg,ax		; save deblocking segment
@@ -1255,7 +1283,7 @@ func_drivparm:	; DRIVPARM = /d:nn [/c] [/f:ff] [h:hh] [/n] [/s:ss] [/t:tt]
 	call	get_switch		; get next switch
 	cmp	al,'c'			; is it /c (change line available)
 	 jne	drivparm1
-	mov	drivp_chg,TRUE		; disk change line available
+	mov	drivp_chg,TRUE and 0FFh	; disk change line available
 	call	get_switch		; get next switch
 drivparm1:
 	cmp	al,'f'			; form factor specification?
@@ -1263,7 +1291,7 @@ drivparm1:
 	call	get_number		; get numeric parameter
 	mov	drivp_ff,al		; set form factor
 	call	set_form_factor		; set defaults for form factor
-	jmps	drivparm_loop		; get more parameters
+	jmp	short drivparm_loop	; get more parameters
 
 drivparm_error:
 	xor	si,si
@@ -1279,13 +1307,13 @@ drivparm2:
 	cmp	ax,99
 	 ja	drivparm_error
 	mov	drivp_heads,ax		; set # of heads
-	jmps	drivparm_loop
+	jmp	short drivparm_loop
 
 drivparm3:
 	cmp	al,'n'
 	 jne	drivparm4
-	mov	drivp_prm,TRUE		; non-removable media
-	jmps	drivparm_loop
+	mov	drivp_prm,TRUE and 0FFh	; non-removable media
+	jmp	short drivparm_loop
 
 drivparm4:
 	cmp	al,'s'
@@ -1294,7 +1322,7 @@ drivparm4:
 	cmp	ax,63			; range check sector per track
 	 ja	drivparm_error
 	mov	drivp_spt,ax		; set # of sectors/track
-	jmps	drivparm_loop
+	jmp	short drivparm_loop
 
 drivparm5:
 	cmp	al,'t'
@@ -1303,14 +1331,14 @@ drivparm5:
 	cmp	ax,999
 	 ja	drivparm_error
 	mov	drivp_trk,ax		; set # of sectors/track
-	jmps	drivparm_loop
+	jmp	short drivparm_loop
 
 drivparm_done:				; now set drive parameters
 	mov	bl,drivp_drv
 	cmp	bl,'Z'-'A'
 	 ja	drivparm_error
 
-	mov	ioctl_func,0000$0100b	; normal track layout assumed,
+	mov	ioctl_func,00000100b	; normal track layout assumed,
 					; set device BPB for drive
 	mov	al,drivp_ff		; get form factor
 	mov	ioctl_type,al
@@ -1333,7 +1361,8 @@ drivp_d2:
 
 	mov	ax,drivp_spt		; get sectors/track
 	mov	di,offset ioctl_layout
-	push	ds ! pop es		; ES:DI -> layout table
+	push	ds
+	pop 	es			; ES:DI -> layout table
 	stosw				; set # of sectors
 	xchg	ax,cx			; CX = # of sectors
 	mov	ax,1			; start with sector 1
@@ -1398,13 +1427,16 @@ set_form_factor:
 	 ja	set_form9
 	mov	bh,0
 	shl	bx,1
-	push	si ! push es
+	push	si
+	push 	es
 	mov	si,ff_table[bx]		; SI -> default media BPB
-	push	ds ! pop es
+	push	ds
+	pop 	es
 	mov	di,offset ioctl_bpb	; ES:DI -> local BPB
 	mov	cx,21			; copy initialized portion
 	rep	movsb
-	pop	es ! pop si
+	pop	es
+	pop 	si
 	ret
 
 set_form9:
@@ -1422,36 +1454,42 @@ func_history:	; HISTORY = ON|OFF[,NNNN[,ON|OFF[,ON|OFF[,ON|OFF]]]]
 
 	call	check_onoff		; Check for ON|OFF Switch 
 	 jc	f_hist_err
-	test al,al ! jz f_hist_exit	; if OFF forget the rest
+	test 	al,al
+	jz 	f_hist_exit		; if OFF forget the rest
 	or	history_flg,RLF_ENHANCED+RLF_INS
 
 	call	separator		; look for ','
 	 jc	f_hist_exit		; Buffer Size not Specified
 	call	atoi			; Get the Buffer Size
 	 jc	f_hist_err		; Invalid on no existant size
-	cmp ax,128 ! jb f_hist_err	; Buffer Size to Small
-	cmp ax,4096 ! ja f_hist_err	; Buffer Size to Large
+	cmp 	ax,128
+	jb 	f_hist_err		; Buffer Size to Small
+	cmp 	ax,4096
+	ja 	f_hist_err		; Buffer Size to Large
 	mov	history_size,ax		; Save History Buffer Size
 
 	call	separator		; look for ','
 	 jc	f_hist_exit		; Insert mode not Specified
 	call	check_onoff		; Check for ON|OFF Switch 
 	 jc	f_hist_err
-	test	al,al ! jnz func_hist10
+	test	al,al
+	jnz 	func_hist10
 	and	history_flg,not RLF_INS	; Insert state OFF
 func_hist10:
 	call	separator		; look for ','
 	 jc	f_hist_exit		; Search mode not Specified
 	call	check_onoff		; Check for ON|OFF Switch 
 	 jc	f_hist_err
-	test	al,al ! jz func_hist20
+	test	al,al
+	jz 	func_hist20
 	or	history_flg,RLF_SEARCH	; Search state ON
 func_hist20:
 	call	separator		; look for ','
 	 jc	f_hist_exit		; Match mode not Specified
 	call	check_onoff		; Check for ON|OFF Switch 
 	 jc	f_hist_err
-	test	al,al ! jz func_hist30
+	test	al,al
+	jz 	func_hist30
 	or	history_flg,RLF_MATCH	; Match state ON
 func_hist30:
 
@@ -1520,7 +1558,8 @@ func_hiinstall:
 ;
 func_install:
 ;------------
-	push ds ! push es
+	push 	ds
+	push 	es
 ;
 ;	Shrink the previously allocated memory block to MEM_CURRENT
 ;	in preparation of the INSTALL EXEC function.
@@ -1559,7 +1598,8 @@ func_i10:
 
 	mov	ah, MS_M_FREE		; now free up the bit we prepared
 	int	21h			;  earlier so exec has something
-	push ds ! pop es		;  to work in
+	push 	ds
+	pop 	es			;  to work in
 
 	mov	di,offset dev_name	; Copy the filename into a local
 	call	copy_file		; buffer
@@ -1618,7 +1658,8 @@ func_i20:
 	mov	ah, MS_M_ALLOC		;  give me bx paras please
 	int	21h			;  ax:0 -> my memory
 
-	pop es ! pop ds
+	pop 	es
+	pop 	ds
 	mov	mem_current_base,ax	; save memory base
 	mov	mem_current,ax		; for future allocations
 	ret
@@ -1638,13 +1679,13 @@ func_dosdata:		; DOSDATA=UMB - relocate DOS data segment to upper memory
 	call	compare
 	 jc	func_dosdata10
 	mov	hidosdata,0
-	jmps	func_dosdata
+	jmp	short func_dosdata
 func_dosdata10:
 	mov	di,offset umb_opt
 	call	compare
 	 jc	func_dosdata20
 	or	hidosdata,DOSDATA_IN_UMB
-	jmps	func_dosdata
+	jmp	short func_dosdata
 func_dosdata20:
 	ret
 
@@ -1654,21 +1695,21 @@ func_ddscs:		; DDSCS=HIGH,UMB - relocate DDSCs to high or upper memory
 	call	compare
 	 jc	func_ddscs10
 	mov	hiddscs,0
-	jmps	func_ddscs
+	jmp	short func_ddscs
 func_ddscs10:
 	call	separator
 	mov	di,offset high_opt
 	call	compare
 	 jc	func_ddscs20
 	or	hiddscs,DDSCS_IN_HMA
-	jmps	func_ddscs
+	jmp	short func_ddscs
 func_ddscs20:
 	call	separator
 	mov	di,offset umb_opt
 	call	compare
 	 jc	func_ddscs30
 	or	hiddscs,DDSCS_IN_UMB
-	jmps	func_ddscs
+	jmp	short func_ddscs
 func_ddscs30:
 	ret
 
@@ -1678,14 +1719,14 @@ func_xbda:		; XBDA=LOW,UMB
 	call	compare
 	 jc	func_xbda10
 	or	hixbda,MOVE_XBDA_LOW
-	jmps	func_xbda
+	jmp	short func_xbda
 func_xbda10:
 	call	separator
 	mov	di,offset umb_opt
 	call	compare
 	 jc	func_xbda20
 	or	hixbda,MOVE_XBDA_HIGH
-	jmps	func_xbda
+	jmp	short func_xbda
 func_xbda20:
 	ret
 
@@ -1698,7 +1739,7 @@ func_dos:		; DOS=HIGH - relocate BIOS/BDOS/Buffer etc to FFFF
 	push	si
 	call	func_dos_high		; execute HIGH
 	pop	si
-	jmps	func_dos
+	jmp	short func_dos
 func_dos10:
 	mov	di,offset low_opt	; es:di -> "LOW"
 	call	compare
@@ -1706,7 +1747,7 @@ func_dos10:
 	push	si
 	call	func_dos_low		; execute LOW
 	pop	si
-	jmps	func_dos
+	jmp	short func_dos
 func_dos20:
 	mov	di,offset umb_opt	; es:di -> "UMB"
 	call	compare
@@ -1714,7 +1755,7 @@ func_dos20:
 	push	si
 	call	func_dos_umb		; execute UMB
 	pop	si
-	jmps	func_dos
+	jmp	short func_dos
 func_dos30:
 	mov	di,offset noumb_opt	; es:di -> "NOUMB"
 	call	compare
@@ -1722,7 +1763,7 @@ func_dos30:
 	push	si
 	call	func_dos_noumb		; execute NOUMB
 	pop	si
-	jmps	func_dos
+	jmp	short func_dos
 func_dos40:
 	ret
 
@@ -1732,7 +1773,7 @@ func_dos_high:
 ;
 	mov	dos_target_seg,0FFFFh
 	mov	bios_target_seg,0FFFFh
-	mov	hidos,TRUE		; update hidos flag to be ON
+	mov	hidos,TRUE and 0FFh	; update hidos flag to be ON
 	or	buffersIn,BUFFERS_IN_HMA; buffers at seg FFFF too
 ;	or	filesIn,FILES_IN_HMA	; and also files
 	ret
@@ -1754,7 +1795,7 @@ func_dos_umb:
 ;------------
 ; allocate Upper Memory Blocks and link them to the DMD chain
 ;
-	mov	hidos,TRUE		; update hidos flag to be ON
+	mov	hidos,TRUE and 0FFh	; update hidos flag to be ON
 	or	buffersIn,BUFFERS_IN_UMB; enable UMB usage for buffers
 	or	filesIn,FILES_IN_UMB	; and files
 	or	stacksIn,STACKS_IN_UMB	; and stacks
@@ -1765,7 +1806,7 @@ func_dos_umb10:
 	call	alloc_xms_umb		; allocate XMS upper memory
 	 jc	func_dos_umb20
 	call	add_dmd_upper		; add to upper memory DMD's
-	jmps	func_dos_umb10		;  go around again
+	jmp	short func_dos_umb10	;  go around again
 func_dos_umb20:
 	call	remove_last_dmd		; get rid of useless last DMD
 func_dos_umb30:
@@ -1802,15 +1843,15 @@ alloc_xms_umb:
 	 jne	alloc_xms10
 	mov	ax,4310h		; get address of XMS driver
 	int	2fh
-	mov	word ptr xms_driver,bx
-	mov	word ptr xms_driver+2,es
+	mov	word ptr cs:xms_driver,bx
+	mov	word ptr cs:xms_driver+2,es
 	mov	ah,10h			; allocate upper memory block
 	mov	dx,0FFFFh		; DX set to find largest block
-	callf	xms_driver
+	call	dword ptr cs:xms_driver
 	cmp	dx,3			; we need at least 3 para's
 	 jb	alloc_xms10		;  before we contruct a DMD
 	mov	ah,10h			; now allocate largest block
-	callf	xms_driver
+	call	dword ptr cs:xms_driver
 	cmp	ax,1			; did we succeed ?
 	 je	alloc_xms20
 alloc_xms10:
@@ -1819,7 +1860,7 @@ alloc_xms20:
 	pop	es
 	ret
 
-xms_driver	rd	0
+xms_driver	label dword
 	dw	0,0
 
 initialise_dmd_upper:
@@ -1846,7 +1887,7 @@ else
 endif
 	stc				; assume error return required
 	 jne	initialise_dmd_upper30	; bail out if chain already established
-	mov	es,es:F52_DMDROOT	; ES -> 1st DMD
+	mov	es,es:F52_DMDROOT[bx]	; ES -> 1st DMD
 initialise_dmd_upper10:
 	cmp	es:DMD_ID,IDZ		; end of DMD chain ?
 	 je	initialise_dmd_upper20
@@ -1857,7 +1898,7 @@ initialise_dmd_upper10:
 	inc	ax
 	add	ax,es:DMD_LEN		; AX:0 -> next DMD
 	mov	es,ax
-	jmps	initialise_dmd_upper10
+	jmp	short initialise_dmd_upper10
 
 initialise_dmd_upper20:
 	mov	ax,es
@@ -1958,7 +1999,7 @@ add_dmd_upper10:
 	inc	ax			; AX:0 -> next DMD
 	cmp	es:DMD_ID,IDM		; do we have any more DMD's ?
 	 je	add_dmd_upper10		;  we should have......
-	jmps	add_dmd_upper40		; stop, DMD's are screwed up
+	jmp	short add_dmd_upper40	; stop, DMD's are screwed up
 
 add_dmd_upper20:
 ; We have found the block we wish to insert a new free block into
@@ -2016,7 +2057,7 @@ func_set10:
 	cmp	di,offset envend	; have we room ?
 	 jae	func_set30		; bail out if not
 	stosb				; save the character
-	jmps	func_set10
+	jmp	short func_set10
 func_set20:
 	xor	ax,ax			; terminate with NULL
 	stosb
@@ -2110,7 +2151,7 @@ func_switch07:
 	 jae	func_switch11
 	inc	di
 	add	bx,5
-	jmps	func_switch06
+	jmp	short func_switch06
 func_switch10:
 	cmp	configpass,1
 	 ja	func_switch12
@@ -2122,7 +2163,7 @@ func_switch11:
 	mov	word ptr cfg_switchbuf[bx],cx
 	mov	word ptr cfg_switchbuf+2[bx],dx
 	mov	cfg_switchbuf+4[bx],al
-	jmps	func_switch15
+	jmp	short func_switch15
 func_switch12:
 	mov	al,cfg_switchbuf+4[bx]
 func_switch15:
@@ -2213,7 +2254,7 @@ func_goto6:
 	 je	func_goto10		; we have a match !
 	cmp	al,ds:byte ptr [bx]	; does it match
 	 jne	func_goto5		; no, try next line
-	jmps	func_goto6		; yes, look at next character
+	jmp	short func_goto6	; yes, look at next character
 func_goto10:
 	ret
 
@@ -2237,7 +2278,7 @@ func_cpos:
 	call	atoi			; AX = row
 	 jnc	func_cpos10		; check for error
 	xor	ax,ax			; default to top left
-	jmps	func_cpos40
+	jmp	short func_cpos40
 func_cpos10:
 	push	ax			; save row
 	call	separator		; look for ','
@@ -2348,14 +2389,18 @@ func_timeout10:
 	call	separator		; look for ','
 	 jc	func_timeout20
 	lodsb				; get default query char
-	cmp al,LF ! je func_timeout20
-	cmp al,CR ! je func_timeout20
+	cmp 	al,LF
+	je 	func_timeout20
+	cmp 	al,CR
+	je 	func_timeout20
 	mov	default_query_char,al
 	call	separator		; look for ','
 	 jc	func_timeout20
 	lodsb				; get default switch char
-	cmp al,CR ! je func_timeout20
-	cmp al,LF ! je func_timeout20
+	cmp 	al,CR
+	je 	func_timeout20
+	cmp 	al,LF
+	je 	func_timeout20
 	mov	default_switch_char,al
 func_timeout20:
 	ret
@@ -2392,7 +2437,7 @@ func_onerror10:
 	pop	bx			; recover relationship
 	 jc	func_onerror20
 	cmp	error_level,ax		; is it the error level we want ?
-	jmp	func_onerror_tbl[bx]	; jump to handler
+	jmp	cs:func_onerror_tbl[bx]	; jump to handler
 func_onerror20:
 	ret
 
@@ -2516,12 +2561,12 @@ func_query40:
 	cmp	al,13			; accept <CR> for 'yes'
 	 jne	func_query41
 	mov	al,yes_char
-	jmps	func_query45
+	jmp	short func_query45
 func_query41:
 	cmp	al,32			; accept <SPACE> for 'no'
 	 jne	func_query42
 	mov	al,no_char
-	jmps	func_query45
+	jmp	short func_query45
 func_query42:
 	call	toupper
 	cmp	al,yes_char
@@ -2531,7 +2576,7 @@ func_query42:
 	mov	ah,MS_C_WRITE
 	mov	dl,7
 	int	DOS_INT
-	jmps	func_query30
+	jmp	short func_query30
 func_query45:
 	push	ax			; save response
 	mov	ah,MS_C_WRITE
@@ -2643,7 +2688,7 @@ cfg_e10:
 	mov	ah,MS_C_WRITE		; print a character at a time
 	int	DOS_INT
 	xchg	ax,dx			; terminator back in AH
-	jmps	cfg_e10
+	jmp	short cfg_e10
 cfg_e20:
 ;;	jmp	crlf			; Terminate with a CRLF
 
@@ -2675,7 +2720,7 @@ scan_10:
 	pop	ax			; Remove String Address
 	 jnc	scan_20			; String Matched
 	xchg	ax,si			; Restore the original String Address
-	jmps	scan_10			; and test the next entry
+	jmp	short scan_10		; and test the next entry
 
 scan_20:
 	and	CFG_FLAGS[bx],not CF_QUERY
@@ -2690,7 +2735,7 @@ scan_30:
 	cmp	al,'?'			; are we querying things ?
 	 jne	scan_40
 	or	CFG_FLAGS[bx],CF_QUERY	; remember the query, now go and
-	jmps	scan_30			;  remove any other whitespace
+	jmp	short scan_30		;  remove any other whitespace
 scan_40:
 	cmp	al,'='			; '=' character.
 	 je	scan_30
@@ -2732,7 +2777,7 @@ compare10:
 	 jne	compare30
 	cmpsb				; is 2nd byte of pair equal ?
 	 jne	compare30
-	jmps	compare10
+	jmp	short compare10
 compare20:
 	call	toupper			; just uppercase this byte
 	xchg	ax,bx			; BL = string2 character
@@ -2930,7 +2975,7 @@ toupper:
 	jb	exit_toupper		;  no - done (char unchanged)
 
 ; ch >= 80h  -- call international routine
-	callf	dword ptr ctry_info+CI_CASEOFF
+	call	dword ptr ctry_info+CI_CASEOFF
 	jmp	exit_toupper
 
 a_z:
@@ -2957,7 +3002,8 @@ check_onoff:
 	mov	al,01			; Assume ON found
 	jnc	chk_onoff10
 
-	pop si ! push si		; Save String Location in Case of Error
+	pop 	si
+	push 	si			; Save String Location in Case of Error
 	mov	di,offset cmd_off	; es:di -> "OFF"
 	call	compare			; do we have an "OFF"?
 	mov	al,00
@@ -3007,7 +3053,7 @@ atohex10:
 	cmp	al,'F'
 	 ja	atohex20
 	sub	al,'A'-10
-	jmps	atohex30
+	jmp	short atohex30
 atohex20:
 	sub	al, '0'
 	 jc	atohex40			; stop if invalid character
@@ -3062,8 +3108,10 @@ atoi:
 ; Lost
 ;	no other register
 
-	push bx ! push cx
-	push dx ! push di
+	push 	bx
+	push 	cx
+	push 	dx
+	push 	di
 	call	whitespace			; Deblank Line
 	mov	di, si				; save string start offset
 	mov	cx, 10				; for multiply
@@ -3091,8 +3139,10 @@ atoi_done:
 	stc					;  no - set error flag
 
 exit_atoi:
-	pop di ! pop dx
-	pop cx ! pop bx
+	pop 	di
+	pop 	dx
+	pop 	cx
+	pop 	bx
 	ret
 
 atol:
@@ -3174,9 +3224,12 @@ readline:
 					; address
 read_l10:
 	call	getchar			; al = next char from file
-	cmp al,CR ! jz read_l10		; end of line ?
-	cmp al,LF ! jz read_l10		; end of line ?
-	cmp al,EOF ! jne read_l20	; end of file ?
+	cmp 	al,CR
+	jz 	read_l10		; end of line ?
+	cmp 	al,LF
+	jz 	read_l10		; end of line ?
+	cmp 	al,EOF
+	jne 	read_l20		; end of file ?
 	stc				; indicate a problem
 	ret
 
@@ -3184,9 +3237,12 @@ read_l20:
 	stosb				; put next char into the buffer
 	call	getchar			; al = next char from file
 
-	cmp al,EOF ! jz read_l30	; end of file ?
-	cmp al,CR ! jz read_l30		; end of line ?
-	cmp al,LF ! jz read_l30		; end of line ?
+	cmp 	al,EOF
+	jz 	read_l30		; end of file ?
+	cmp 	al,CR
+	jz 	read_l30		; end of line ?
+	cmp 	al,LF
+	jz 	read_l30		; end of line ?
 	loop	read_l20		; loop while space remains
 
 ; If we fall through to this point the line is too long. Make it a comment.
@@ -3194,14 +3250,17 @@ read_l20:
 	mov 	al, ';'
 	stosb				; place ';' at buffer start
 	mov	cx, 1			; get another one character
-	jmps	read_l20		; loop until all of this line consumed
+	jmp	short read_l20		; loop until all of this line consumed
 
 ; At this point buffer contains a line of text from CCONFIG.SYS.
 ; Terminate it properly
 read_l30:
-	mov al,CR ! stosb		; terminate line with CR
-	mov al,LF ! stosb		; and a LF
-	xor al,al ! stosb		; Reset the Carry Flag
+	mov al,CR
+	stosb				; terminate line with CR
+	mov al,LF
+	stosb				; and a LF
+	xor al,al
+	stosb				; Reset the Carry Flag
 	ret
 
 getchar:
@@ -3217,7 +3276,8 @@ getchar:
 
 getchar10:
 ; we need to read some characters from disk into our buffer
-	push cx ! push dx		; Assume something will go wrong
+	push 	cx
+	push 	dx			; Assume something will go wrong
 	mov	cfg_tail,0		;  say nothing is in the buffer
 
 	mov	ax,(MS_X_OPEN*256)+80h	; Open the configuration file
@@ -3265,10 +3325,11 @@ getchar40:
 getchar50:
 	push	ds
 	mov	ds,init_dseg
-	mov	al,CONFIG_BUF		; return 1st char from buffer
+	mov	al,ds:CONFIG_BUF	; return 1st char from buffer
 	pop	ds
 	mov	cfg_head,1		; remember we have returned char
-	pop dx ! pop cx
+	pop 	dx
+	pop 	cx
 	ret
 
 
@@ -3290,7 +3351,8 @@ parse_region:
 	 jc	parse_region40
 	mov	himem_region,ax		; remember region to try
 	call	whitespace		; scan off all white space
-	lodsb ! dec si			; now see is we have an optional size
+	lodsb
+	dec 	si			; now see is we have an optional size
 	cmp	al,','			; have we a ',' character ?
 	mov	ax,0			; assume minimum size not supplied
 	 jne	parse_region30
@@ -3308,14 +3370,16 @@ parse_region10:
 	call	compare			;  the UMB's (ignore it if so)
 	 jnc	parse_region20
 	call	whitespace		; scan off all white space
-	lodsb ! dec si			; strip off other regions
+	lodsb
+	dec 	si			; strip off other regions
 	cmp	al,';'			; another region follows ';'
 	 jne	parse_region20
 	inc	si
 	call	atoi			; eat the region number
 	 jc	parse_region20
 	call	whitespace		; scan off all white space
-	lodsb ! dec si
+	lodsb
+	dec 	si
 	cmp	al,','			; is a size specified ?
 	 jne	parse_region10		; no, check for another region
 	inc	si
@@ -3431,7 +3495,7 @@ size_file40:
 	 jae	size_file20		; yes, force low
 	div	cx			; AX = para's required
 	inc	ax			; one for rounding error
-	jmps	size_file30
+	jmp	short size_file30
 
 himem_setup:
 ; On Entry:
@@ -3487,7 +3551,7 @@ himem_setup10:
 	int	21h			; "allocate" this block
 	mov	ax,es
 	 jnc	himem_setup30		; this can only fail if DMD chain
-	jmps	himem_setup40		;  is corrupt...
+	jmp	short himem_setup40	;  is corrupt...
 
 himem_setup20:
 ; allocate the largest block available for DEVICEHIGH
@@ -3604,8 +3668,10 @@ copy_f20:
 	stosb			; Zero Terminate FileName
 	ret
 
+INITCODE ends
 
-INITDATA	DSEG 'INITDATA'
+
+INITDATA	segment public word 'INITDATA'
 
 if ADDDRV
 	extrn	err_no_command_file:byte
@@ -3712,9 +3778,9 @@ endif
 
 	Public	cfg_file, cfg_file_end
 
-preload_entry	rd	0		; preload back door entry
+preload_entry	label dword		; preload back door entry
 		dw	14h		; offset is pre-initialised to 14h
-preload_seg	rw	1
+preload_seg	dw	0
 
 preload_ver	dw	10		; version to give DBLSPACE
 
@@ -3734,8 +3800,8 @@ stacker_file	db	'C:\STACKER.BIN',0
 dblspace_file	db	'C:\DBLSPACE.BIN',0
 
 cfg_file	db	'DCONFIG.SYS',0	; Configuration File
-		rb	64		; space for bigger CHAIN'd file
-cfg_file_end	rb	0
+		db	64 dup (0)	; space for bigger CHAIN'd file
+cfg_file_end	label byte
 
 	Public	cfg_seeklo,cfg_seekhi
 cfg_seeklo	dw	0		; offset we have reached in CONFIG file
@@ -3746,38 +3812,38 @@ cfg_head	dw	0		; offset we are at in CONFIG_BUF
 cfg_tail	dw	0		; # bytes currently in CONFIG_BUF
 
 cfg_switchnum	dw	0		; number of SWITCH decisions stored
-cfg_switchbuf	rb	5*SWITCH_MAX	; buffer for config lines/key presses
+cfg_switchbuf	db	5*SWITCH_MAX dup (0)	; buffer for config lines/key presses
 
-cfg_buffer	rb	CFG_BUF_LEN	; individual lines live here
+cfg_buffer	db	CFG_BUF_LEN dup (0)	; individual lines live here
 
 ;
 ;	EXEC parameter blocks for INSTALL function
 ;
-exec_envseg	rw	1		; Environment Segment
-exec_lineoff	rw	1		; Command Line Offset
-exec_lineseg	rw	1		; Command Line Segment
-exec_fcb1off	rw	1		; Offset of FCB 1 (5Ch)
-exec_fcb1seg	rw	1		; Segment of FCB 1 (5Ch)
-exec_fcb2off	rw	1		; Offset of FCB 2 (6Ch)
-exec_fcb2seg	rw	1		; Segment of FCB 2 (6Ch)
-		rd	2		; Initial SS:SP & CS:IP
+exec_envseg	dw	0		; Environment Segment
+exec_lineoff	dw	0		; Command Line Offset
+exec_lineseg	dw	0		; Command Line Segment
+exec_fcb1off	dw	0		; Offset of FCB 1 (5Ch)
+exec_fcb1seg	dw	0		; Segment of FCB 1 (5Ch)
+exec_fcb2off	dw	0		; Offset of FCB 2 (6Ch)
+exec_fcb2seg	dw	0		; Segment of FCB 2 (6Ch)
+		dd	2 dup (0)	; Initial SS:SP & CS:IP
 
-system_sp	rw	1
-system_ss	rw	1
+system_sp	dw	0
+system_ss	dw	0
 
-ioctl_pb	rb	0
-ioctl_func	rb	1		; special functions
-ioctl_type	rb	1		; device type (form factor)
-ioctl_attrib	rw	1		; device attributes
-ioctl_tracks	rw	1		; # of tracks
-ioctl_mtype	rb	1		; media type, usually zero
-ioctl_bpb	rb	31		; default BPB for this type of disk
-ioctl_layout	rw	1+64		; support 64 sectors/track max.
+ioctl_pb	label byte
+ioctl_func	db	0		; special functions
+ioctl_type	db	0		; device type (form factor)
+ioctl_attrib	dw	0		; device attributes
+ioctl_tracks	dw	0		; # of tracks
+ioctl_mtype	db	0		; media type, usually zero
+ioctl_bpb	db	31 dup (0)	; default BPB for this type of disk
+ioctl_layout	dw	1+64 dup (0)	; support 64 sectors/track max.
 
-drivp_drv	rb	1		; drive 0-15
-drivp_chg	rb	1		; change line support
-drivp_prm	rb	1		; permanent media flag
-drivp_ff		rb	1		; form factor
+drivp_drv	db	0		; drive 0-15
+drivp_chg	db	0		; change line support
+drivp_prm	db	0		; permanent media flag
+drivp_ff	db	0		; form factor
 drivp_trk	dw	80
 drivp_spt	equ	word ptr ioctl_bpb+13
 drivp_heads	equ	word ptr ioctl_bpb+15	; # of heads
@@ -3845,18 +3911,7 @@ bpb243	dw	128
 msg_crlf	db	CR, LF
 msg_dollar	db	'$'
 
-CFG_NAME	equ	word ptr .0000h		; Command Name
-CFG_FUNC	equ	word ptr .0002h		; Command Subroutine
-CFG_FLAGS	equ	word ptr .0004h		; Command flags
-CFG_SIZE	equ	6			; Size of each Entry
-
-CF_LAST		equ	0003h		; execute in last config pass
-CF_NOF		equ	0008h		; set if F5/F8 should be ignored
-CF_LC		equ	0010h		; set if case should be preserved
-CF_QUERY	equ	0020h		; set at run time eg. "DEVICE?"
-CF_ALL		equ	0040h		; execute in all config passes
-
-cfg_table	rw	0
+cfg_table	label word
 if not ADDDRV
 	dw	cmd_country,	func_country,	1	; COUNTRY=nnn,nnn,country
 	dw	cmd_shell,	func_shell,	1	; SHELL=filename
@@ -4005,10 +4060,11 @@ keyb_timeout	dw	0		; default is no timeout
 error_level	dw	0		; default is no error
 save_sp		dw	0		; save SP here for GOSUB/RETURN's
 
+INITDATA ends
 
-INITENV		DSEG	PARA 'INITDATA'
+INITENV		segment public para 'INITDATA'
 
-envstart	rb	253		; initial env buffer
+envstart	db	253 dup (0)	; initial env buffer
 envend		dw	0		; make it double null terminated
 		db	1Ah		; EOF marker env buffer
 	Public	boot_options, boot_switches
@@ -4018,7 +4074,7 @@ boot_switches	db	0
 
 EXE_LENGTH	equ	001Ch
 
-exeBuffer	rw	0
+exeBuffer	label word
 exeSignature	dw	0	; 0000 Valid EXE contains 'MZ'
 exeFinal	dw	0	; 0002 Image Length MOD 512
 exeSize		dw	0	; 0004 Image Length DIV 512
@@ -4033,5 +4089,7 @@ exeIP		dw	0	; 0014 Initial IP
 exeCS		dw	0	; 0016 Code Segment displacement
 exeReloff	dw	0	; 0018 Byte Offset of First REL item
 exeOverlay	dw	0	; 001A Overlay Number (0 == Resident)
+
+INITENV ends
 
 	end

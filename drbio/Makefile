@@ -59,7 +59,7 @@ bin/config.obj: config.asm configw.equ msdos.equ char.def request.equ driverw.eq
 
 bin/bdosldr.obj: bdosldr.asm reqhdr.equ driverw.equ config.equ initmsgs.def
 
-bin/genercfg.obj: genercfg.a86 config.equ msdos.equ char.def reqhdr.equ driver.equ fdos.equ f52data.def doshndl.def country.def
+bin/genercfg.obj: genercfg.asm configw.equ msdos.equ char.def request.equ driverw.equ fdos.equ f52dataw.def doshndl.def country.def
 
 bin/nlsfunc.obj: nlsfunc.asm config.equ msdos.equ mserror.equ
 
