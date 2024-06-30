@@ -1,23 +1,21 @@
 # DRBIO.SYS Makefile for Open Watcom
-# currently only for DOS because of proprietary Digital Research tools
 # Tools needed to build:
 #   - JWASM assembler
 #   - Open Watcom 1.9+: WLINK, EXE2BIN
-#   - RASM_SH, RASM86, FIXUPP and COMPBIOS from the ..\LTOOLS directory
-#
-# 2023-11-26: initial version (Boeckmann)
+#   - COMPBIOS from the ..\LTOOLS directory
 
 .ERASE
+
+!include ../platform.mak
 
 WASM = jwasm
 WASM_FLAGS = -q -DSVARDOS
 WLINK = wlink
 EXE2BIN = exe2bin
 
-LTOOLS = ..\ltools
+LTOOLS = ..$(SEP)ltools
 
-FIXUPP = $(LTOOLS)\fixupp.exe
-COMPBIOS = $(LTOOLS)\compbios.exe
+COMPBIOS = $(LTOOLS)$(SEP)compbios
 
 wasm_objs  = bin/initmsgs.obj bin/biosmsgs.obj bin/init.obj bin/clock.obj
 wasm_objs += bin/console.obj bin/disk.obj bin/serpar.obj bin/biosgrps.obj
@@ -63,7 +61,7 @@ bin/nlsfunc.obj: nlsfunc.asm configw.equ msdos.equ mserror.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 version.inc: ../version.inc
-	copy ..\version.inc .
+	$(CP) ..$(SEP)version.inc .
 
 clean: .SYMBOLIC
 	rm -f bin/drbio.sys
