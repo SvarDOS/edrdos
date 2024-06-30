@@ -8,14 +8,7 @@
 
 !include ../platform.mak
 
-WASM = jwasm
-WASM_FLAGS = -q -DSVARDOS
-WLINK = wlink
-EXE2BIN = exe2bin
-
-LTOOLS = ..$(SEP)ltools
-
-COMPBIOS = $(LTOOLS)$(SEP)compbios
+WASM_FLAGS += -DSVARDOS
 
 wasm_objs  = bin/initmsgs.obj bin/biosmsgs.obj bin/init.obj bin/clock.obj
 wasm_objs += bin/console.obj bin/disk.obj bin/serpar.obj bin/biosgrps.obj
