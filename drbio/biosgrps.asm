@@ -34,6 +34,46 @@
 
 CGROUP	group	CODE,ENDCODE,RCODE_ALIGN,RCODE,RESUMECODE,RESBIOS,ICODE,IDATA,INITCODE,STACKS,INITDATA,INITPSP,INITENV,DATAEND
 
-	include biosgrps.equ
+CODE		segment public para 'CODE'
+CODE		ends
+
+ENDCODE		segment public byte 'ENDCODE'
+ENDCODE		ends
+
+RCODE_ALIGN	segment public para 'RCODE'
+RCODE_ALIGN	ends
+
+RCODE		segment public word 'RCODE'
+RCODE		ends
+
+RESUMECODE	segment public para 'RESUMECODE'
+RESUMECODE	ends
+
+RESBIOS		segment public para 'RESBIOS'
+RESBIOS		ends
+
+ICODE		segment public para 'ICODE'
+ICODE		ends
+
+IDATA		segment public para 'IDATA'
+IDATA		ends
+
+INITCODE	segment public para 'INITCODE'
+INITCODE	ends
+
+STACKS		segment	public para 'STACKS'
+STACKS		ends
+
+INITDATA	segment public para 'INITDATA'
+INITDATA	ends
+
+INITPSP		segment public para 'INITDATA'
+INITPSP		ends
+
+INITENV		segment public para 'INITDATA'
+INITENV		ends
+
+DATAEND		segment public para 'INITDATA'
+DATAEND		ends
 
 		end

@@ -53,7 +53,7 @@ DSIZE		equ	word ptr 28
 
 CGROUP		group	INITCODE, INITDATA
 
-INITCODE	segment public word 'INITCODE'
+INITCODE	segment public byte 'INITCODE'
 ASSUME CS:CGROUP,DS:CGROUP
 
 VER_MUSTBE	equ	1072h

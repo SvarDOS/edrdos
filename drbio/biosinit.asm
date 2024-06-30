@@ -85,7 +85,7 @@ COMMAND_SIZE	equ	01FA0h
 CGROUP	GROUP	CODE, INITCODE, INITDATA, INITPSP, INITENV, DATAEND
 ASSUME CS:CGROUP,DS:CGROUP
 
-CODE	segment public word 'CODE'
+CODE	segment public byte 'CODE'
 CODE ends
 
 ;
@@ -115,7 +115,7 @@ SWITCH_N	equ	02h
 	extrn	xbdalen:word
 	extrn	oldmemtop:word
 
-INITCODE	segment public para 'INITCODE'
+INITCODE	segment public byte 'INITCODE'
 	extrn	cleanup:near			; BIOS Clean Up routine
 	extrn	config_init:near		; CONFIG Code Init
 	extrn	config_finish:near		; Update DOS with Device Info
@@ -2031,7 +2031,7 @@ Verify386fail:
 
 INITCODE ends
 
-INITDATA	segment public 'INITDATA'
+INITDATA	segment public word 'INITDATA'
 
 
 include	initmsgs.def				; Include TFT Header File

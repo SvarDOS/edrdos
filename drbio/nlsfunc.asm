@@ -59,7 +59,7 @@ DA_GETSET	equ	0040h		; supports 3.2 level functionality
 	
 
 CGROUP	GROUP	INITCODE
-INITCODE	segment public para 'INITCODE'
+INITCODE	segment public byte 'INITCODE'
 
 ; We share our NLS buffer with other temporary users
 

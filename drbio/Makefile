@@ -26,19 +26,19 @@ bin/drbio.tmp : bin/bios.exe
 bin/bios.exe : $(wasm_objs) $(rasm_objs) bios.lnk
 	$(WLINK) @bios.lnk
 
-bin/biosmsgs.obj: biosmsgs.asm biosgrps.equ version.inc
+bin/biosmsgs.obj: biosmsgs.asm version.inc
 
-bin/init.obj: init.asm biosgrps.equ drmacros.equ ibmros.equ msdos.equ request.equ bpb.equ udsc.equ driverw.equ keys.equ biosmsgs.def
+bin/init.obj: init.asm drmacros.equ ibmros.equ msdos.equ request.equ bpb.equ udsc.equ driverw.equ keys.equ biosmsgs.def
 
-bin/clock.obj: clock.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driverw.equ
+bin/clock.obj: clock.asm drmacros.equ ibmros.equ request.equ driverw.equ
 
-bin/console.obj: console.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driverw.equ
+bin/console.obj: console.asm drmacros.equ ibmros.equ request.equ driverw.equ
 
-bin/disk.obj: disk.asm biosgrps.asm biosgrps.equ drmacros.equ ibmros.equ request.equ bpb.equ udsc.equ driverw.equ keys.equ biosmsgs.def
+bin/disk.obj: disk.asm biosgrps.asm drmacros.equ ibmros.equ request.equ bpb.equ udsc.equ driverw.equ keys.equ biosmsgs.def
 
-bin/serpar.obj: serpar.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driverw.equ
+bin/serpar.obj: serpar.asm drmacros.equ ibmros.equ request.equ driverw.equ
 
-bin/biosgrps.obj: biosgrps.asm biosgrps.equ
+bin/biosgrps.obj: biosgrps.asm
 
 bin/biosinit.obj: biosinit.asm msdos.equ pspw.def f52dataw.def doshndl.def configw.equ fdos.equ modfunc.def initmsgs.def
 

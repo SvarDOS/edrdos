@@ -108,7 +108,7 @@ CF_ALL		equ	0040h		; execute in all config passes
 CGROUP		group	INITCODE, INITDATA, INITENV
 ASSUME CS:CGROUP,DS:CGROUP
 
-INITCODE	segment public para 'INITCODE'
+INITCODE	segment public byte 'INITCODE'
 
 	extrn	whitespace:near
 	extrn	build_cmd_tail:near
@@ -4036,7 +4036,7 @@ save_sp		dw	0		; save SP here for GOSUB/RETURN's
 
 INITDATA ends
 
-INITENV		segment public para 'INITDATA'
+INITENV		segment public byte 'INITDATA'
 
 envstart	db	253 dup (0)	; initial env buffer
 envend		dw	0		; make it double null terminated

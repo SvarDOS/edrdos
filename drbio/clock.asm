@@ -33,7 +33,6 @@
 ;    switch over to REQUEST.EQU
 ;    ENDLOG
 
-	include biosgrps.equ
 	include	drmacros.equ		; standard DR macros
 	include	ibmros.equ		; ROM BIOS equates
 	include	request.equ		; request header equates
@@ -52,7 +51,7 @@ TIME	ends
 
 	Assume	CS:CGROUP, DS:CGROUP, ES:Nothing, SS:Nothing
 
-CODE	segment 'CODE'
+CODE	segment public byte 'CODE'
 
 	extrn	endbios:word		; for device driver INIT function
 	extrn	daycount:word
@@ -63,7 +62,7 @@ CONVERSION_FACTOR	equ	0E90Bh
 
 CODE	ends
 
-RCODE	segment 'RCODE'
+RCODE	segment public byte 'RCODE'
 
 	extrn	DataSegment:word
 
@@ -270,7 +269,7 @@ bin2bcd1:
 
 RCODE	ends				; end of device driver code
 
-RESUMECODE segment 'RESUMECODE'
+RESUMECODE segment public byte 'RESUMECODE'
 
 ; If the system ROM BIOS supports RESUME mode then it will call Int 6C
 ; when returning from sleep mode. We take this over and reset the clock
@@ -439,7 +438,7 @@ bcd2bin3:				; AL = ones, BL = tens
 RESUMECODE ends
 
 
-ICODE	segment 'ICODE'			; initialization code
+ICODE	segment public byte 'ICODE'			; initialization code
 
 	Assume	CS:CGROUP, DS:CGROUP
 

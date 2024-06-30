@@ -40,7 +40,6 @@
 ;    ENDLOG
 
 
-	include biosgrps.equ
 	include	drmacros.equ
 	include	ibmros.equ
 	include msdos.equ
@@ -49,6 +48,23 @@
 	include	udsc.equ
 	include	driverw.equ
 	include keys.equ		; common key definitions
+
+
+ENDCODE		segment public byte 'ENDCODE'
+ENDCODE		ends
+
+RESUMECODE	segment public byte 'RESUMECODE'
+RESUMECODE	ends
+
+RESBIOS		segment public byte 'RESBIOS'
+RESBIOS		ends
+
+IDATA		segment public word 'IDATA'
+IDATA		ends
+
+DATAEND		segment public para 'INITDATA'
+DATAEND		ends
+
 
 ; IBM AT Hardware equates
 
@@ -129,7 +145,7 @@ IVECT	ends
 
 CGROUP	group	CODE, RCODE, ICODE, INITDATA
 
-CODE	segment 'CODE'
+CODE	segment public word 'CODE'
 
 	Assume	CS:CGROUP, DS:Nothing, ES:Nothing, SS:Nothing
 
@@ -665,7 +681,7 @@ endbios		dw	offset CGROUP:RESBIOS	; pointer to last resident byte
 
 CODE	ends
 
-ICODE	segment 'ICODE'			; reusable initialization code
+ICODE	segment public byte 'ICODE'			; reusable initialization code
 
 	Assume	CS:CGROUP, DS:CGROUP, ES:CGROUP, SS:Nothing
 
@@ -1004,7 +1020,7 @@ output_hex40	db	20h,NUL		; end of string
 
 ICODE	ends
 
-INITDATA	segment public 'INITDATA'
+INITDATA	segment public byte 'INITDATA'
 
 ; This is a zero terminated list of locations to be fixed up with the
 ; segment of the relocated BIOS RCODE
@@ -1024,21 +1040,21 @@ endif
 
 INITDATA	ends
 
-CODE	segment	'CODE'
+CODE	segment
 IFDEF EMBEDDED
 	extrn	RdiskFixup:word
 endif
 CODE	ends
 
 
-RCODE_ALIGN	segment public para 'RCODE'
+RCODE_ALIGN	segment public byte 'RCODE'
 ifndef ROMSYS
 ;	db	1100h dup(0)		; reserve space for command.com
 	db	1A00h dup(0)		; reserve space for command.com
 endif
 RCODE_ALIGN	ends
 
-RCODE		segment public word 'RCODE'
+RCODE		segment public byte 'RCODE'
 
 rcode_header	dw	0
 

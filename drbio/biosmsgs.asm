@@ -4,12 +4,11 @@ TAB	equ	9
 LF	equ	10
 CR	equ	13
 
-include biosgrps.equ
 
 CGROUP	group	RCODE
 
 
-RCODE	segment	word public 'RCODE'
+RCODE	segment public byte 'RCODE'
 
 ;		Source .TFT file: 'TMP1.$$$'
 	public	_disk_msgA

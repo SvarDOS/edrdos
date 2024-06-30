@@ -71,7 +71,7 @@ FALSE	   	equ	0	      ; value of FALSE
 CGROUP		group	INITCODE, INITDATA
 ASSUME CS:CGROUP,DS:CGROUP
 
-INITCODE	segment public para 'INITCODE'
+INITCODE	segment public byte 'INITCODE'
 
 	extrn	AllocHMA:near
 	extrn	SetupHMA:near

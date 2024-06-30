@@ -40,7 +40,7 @@ STACKS_IN_UMB	equ	00000010b
 
 CGROUP	group	INITCODE, STACKS, INITDATA
 
-STACKS		segment	public para 'STACKS'
+STACKS		segment	public word 'STACKS'
 
 	Assume	CS:STACKS, DS:Nothing, ES:Nothing, SS:Nothing
 
@@ -274,7 +274,7 @@ RELOCATE_SIZE	equ	($ - StackCode)
 
 STACKS		ends
 
-INITCODE	segment public para 'INITCODE'
+INITCODE	segment public byte 'INITCODE'
 
 	Assume	CS:CGROUP, DS:CGROUP, ES:Nothing, SS:Nothing
 

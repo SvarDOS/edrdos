@@ -37,7 +37,6 @@
 ;
 ;    ENDLOG
 
-	include biosgrps.equ
     include drmacros.equ    ; standard DR macros
 	include	ibmros.equ		; ROM BIOS equates
 	include	request.equ		; request header equates
@@ -48,7 +47,7 @@ CGROUP	group	CODE, RCODE, ICODE
 
 	Assume	CS:CGROUP, DS:CGROUP, ES:CGROUP, SS:CGROUP
 
-CODE	segment 'CODE'
+CODE	segment public byte 'CODE'
 
 INSERT_ACTIVE	equ	2		; set if cmdline insert active
 
@@ -60,7 +59,7 @@ INSERT_ACTIVE	equ	2		; set if cmdline insert active
 
 CODE	ends
 
-RCODE	segment 'RCODE'
+RCODE	segment public byte 'RCODE'
 
 ;	Device driver function table
 
@@ -251,7 +250,7 @@ RCODE	ends				; end of device driver code
 
 page
 
-ICODE	segment	'ICODE'			; initialization code
+ICODE	segment	public byte 'ICODE'			; initialization code
 
 dd_init:	; 0-initialize driver
 ;-------

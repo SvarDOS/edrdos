@@ -94,7 +94,6 @@
 ;
 ;    ENDLOG
 
-	include biosgrps.equ
 	include	drmacros.equ		; standard DR macros
 	include	ibmros.equ		; ROM BIOS equates
 	include	request.equ		; request header equates
@@ -162,7 +161,7 @@ reset	proc	far
 reset	endp
 ROS	ends
 
-CODE	segment	'CODE'
+CODE	segment	public word 'CODE'
 
 	extrn	endbios:word		; for device driver INIT function
 	extrn	read_system_ticks:near	; get system tick count in CX/DX
@@ -230,7 +229,7 @@ page
 
 CODE	ends
 
-RCODE	segment	'RCODE'
+RCODE	segment	public word 'RCODE'
 
 	extrn	DataSegment:word
 
@@ -2297,7 +2296,7 @@ RCODE	ends				; end of device driver code
 
 page
 
-ICODE	segment	'ICODE'			; initialization code
+ICODE	segment	public byte 'ICODE'			; initialization code
 
 	Assume	CS:CGROUP, DS:CGROUP, ES:Nothing, SS:Nothing
 
@@ -3332,13 +3331,13 @@ div32i_2:
 
 ICODE	ends
 
-RESBIOS		segment	'RESBIOS'
+RESBIOS		segment	public byte 'RESBIOS'
 ; NOTE: we extend the resident BIOS size by the amount of
 ; memory required by the disk driver.
 		db	MAXPART*UDSC_LENGTH dup (?)
 RESBIOS		ends
 
-IDATA	segment
+IDATA	segment public byte 'IDATA'
 p_unit		db	?		; 80h, 81h for hard disks
 nsect		db	?		; # of sectors per track
 nhead		db	?		; # of heads on disk
