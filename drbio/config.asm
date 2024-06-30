@@ -1295,7 +1295,7 @@ whitespace:
 build_cmd_tail:
 	push 	ds
 	pop 	es
-	mov	cx,length cfg_buffer - 3 ; (leave room for 3 extra chars)
+	mov	cx,(lengthof cfg_buffer) - 3 ; (leave room for 3 extra chars)
 	mov	di,offset cfg_buffer
 build_cl1:
 	lodsb			; Copy the device name
@@ -1337,7 +1337,7 @@ save_vecs:
 	push 	si
 	push 	di
 	push 	cx
-	mov	cx,(length vec_save_buf)*2	; CX = words to save
+	mov	cx,(lengthof vec_save_buf)*2	; CX = words to save
 	xor	si,si
 	mov	ds,si				; DS:SI -> vectors to save
 	push 	cs
@@ -1358,7 +1358,7 @@ restore_vecs:
 	push 	si
 	push 	di
 	push 	cx
-	mov	cx,length vec_save_buf		; CX = vectors to restore
+	mov	cx,lengthof vec_save_buf	; CX = vectors to restore
 	push 	cs
 	pop 	ds
 	mov	si,offset vec_save_buf		; DS:SI -> save area
