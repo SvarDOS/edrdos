@@ -86,6 +86,11 @@ PCMCODE group PCM_HEADER,PCM_HISTORY,PCM_ICODE,PCM_CODEND
 	include	request.equ
 	include	country.def
 
+	extrn	int20_entry:near, int21_entry:near
+	extrn	int25_entry:near, int26_entry:near
+	extrn	int27_entry:near, int2F_entry:near
+	extrn	call5_entry:near
+
 PADDING		equ	14*1024		; offset code start by this much
 
 DOSINROM	equ	0800h
@@ -852,7 +857,6 @@ data_end	label word
 
 PCMODE_DSIZE ends
 
-
 PCMODE_CODE	segment public word 'DATA'
 
 
@@ -916,47 +920,42 @@ NUM_STUB_ENTRIES	equ	(offset $ - offset stub_entries)/4
 ; On the first Int 21 etc the A20Enable routine enables the A20 gate.
 ;
 
-	extrn	int20_entry:near, int21_entry:near
-	extrn	int25_entry:near, int26_entry:near
-	extrn	int27_entry:near, int2F_entry:near
-	extrn	call5_entry:near
-
 FirstCodeEntryPoint	label word
 
 Int20Entry:
 	db	0EAh			; JMPF
-	dw	pcmcode:int20_entry
+	dw	int20_entry
 	db	5 dup (0)		; filled in at run time
 	
 
 Int21Entry:
 	db	0EAh			; JMPF
-	dw	pcmcode:int21_entry
+	dw	int21_entry
 	db	5 dup (0)		; filled in at run time
 
 Int25Entry:
 	db	0EAh			; JMPF
-	dw	pcmcode:int25_entry
+	dw	int25_entry
 	db	5 dup (0)		; filled in at run time
 
 Int26Entry:
 	db	0EAh			; JMPF
-	dw	pcmcode:int26_entry
+	dw	int26_entry
 	db	5 dup (0)		; filled in at run time
 
 Int27Entry:
 	db	0EAh			; JMPF
-	dw	pcmcode:int27_entry
+	dw	int27_entry
 	db	5 dup (0)		; filled in at run time
 
 Int2FEntry:
 	db	0EAh			; JMPF
-	dw	pcmcode:int2f_entry
+	dw	int2f_entry
 	db	5 dup (0)		; filled in at run time
 
 Call5Entry:
 	db	0EAh			; JMPF
-	dw	pcmcode:call5_entry
+	dw	call5_entry
 	db	5 dup (0)		; filled in at run time
 
 LastCodeEntryPoint	label word
