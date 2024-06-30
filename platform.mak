@@ -14,8 +14,8 @@ WASM = jwasmr
 !else ifdef __NT__
 LTOOLS = ..$(SEP)ltools$(SEP)win32
 WASM = jwasm
-!else ifdef __LINUX__
-LTOOLS = ..$(SEP)ltools$(SEP)linux
+!else ifdef __UNIX__
+LTOOLS = ..$(SEP)ltools$(SEP)unix
 WASM = jwasm
 !error Unsupported host operating system.
 !endif
