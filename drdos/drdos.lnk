@@ -1,6 +1,7 @@
 system dos
 option quiet
 option map=bin\drdos.map
+option nocaseexact
 disable 1014
 disable 1023
 
