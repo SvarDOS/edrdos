@@ -23,4 +23,7 @@ doc/build.htm
 doc/build.txt
 doc/build.pdf
 doc/screvid.but
+ltools/unix/compbios
+ltools/unix/compbdos
+ltools/unix/fixupp
 tmp
