@@ -53,7 +53,7 @@ bin/biosinit.obj: biosinit.asm msdos.equ pspw.def f52dataw.def doshndl.def confi
 
 bin/config.obj: config.asm configw.equ msdos.equ char.def request.equ driverw.equ fdos.equ f52dataw.def doshndl.def country.def initmsgs.def biosmsgs.def
 
-bin/bdosldr.obj: bdosldr.asm reqhdr.equ driverw.equ configw.equ initmsgs.def
+bin/bdosldr.obj: bdosldr.asm request.equ driverw.equ configw.equ initmsgs.def
 
 bin/genercfg.obj: genercfg.asm configw.equ msdos.equ char.def request.equ driverw.equ fdos.equ f52dataw.def doshndl.def country.def
 

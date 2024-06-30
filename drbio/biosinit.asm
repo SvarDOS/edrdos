@@ -1,4 +1,4 @@
-;    File              : $BIOSINIT.A86$
+;    File              : $BIOSINIT.ASM$
 ;
 ;    Description       :
 ;
