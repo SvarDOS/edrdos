@@ -1,4 +1,4 @@
-;    File              : $Workfile$
+;    File              : $INIT.ASM$
 ;
 ;    Description       :
 ;

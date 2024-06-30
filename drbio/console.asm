@@ -1,4 +1,4 @@
-;    File              : $Workfile$
+;    File              : $CONSOLE.ASM$
 ;
 ;    Description       :
 ;

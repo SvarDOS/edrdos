@@ -1,4 +1,4 @@
-;    File              : $Workfile: SERPAR.ASM$
+;    File              : $SERPAR.ASM$
 ;
 ;    Description       :
 ;

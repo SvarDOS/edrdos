@@ -7,7 +7,6 @@
 #
 # 2023-11-26: initial version (Boeckmann)
 
-.EXTENSIONS: .a86
 .ERASE
 
 WASM = jwasm
@@ -16,9 +15,6 @@ WLINK = wlink
 EXE2BIN = exe2bin
 
 LTOOLS = ..\ltools
-RASM = $(LTOOLS)\rasm86.exe
-RASM_SH = $(LTOOLS)\rasm_sh.exe
-RASM_FLAGS = $$sz /DDRDOS35=0 /DADDDRV=0
 
 FIXUPP = $(LTOOLS)\fixupp.exe
 COMPBIOS = $(LTOOLS)\compbios.exe
@@ -65,10 +61,6 @@ bin/nlsfunc.obj: nlsfunc.asm configw.equ msdos.equ mserror.equ
 
 .asm.obj:
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
-
-.a86.obj:
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)
-	$(FIXUPP) $^*.o86 $^@
 
 version.inc: ../version.inc
 	copy ..\version.inc .

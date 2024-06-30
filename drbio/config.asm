@@ -1,4 +1,4 @@
-;    File              : $CONFIG.A86$
+;    File              : $CONFIG.ASM$
 ;
 ;    Description       :
 ;
