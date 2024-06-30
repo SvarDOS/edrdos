@@ -1563,7 +1563,7 @@ pcmode_init2:
 	mov	cl,4
 	shr	ax,cl
 	and	word ptr ds:fcb_ptr,15
-	nop
+	nop	; REMOVE AFTER JWASM CONVERSION
 	add	word ptr ds:fcb_ptr+2,ax
 ;	push	ax			; Save the memory size
 ;	push	bx			; First Free Paragraph
