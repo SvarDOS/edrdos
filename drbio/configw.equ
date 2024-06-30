@@ -33,13 +33,7 @@
 ;    ENDLOG
 
 
-DOS5		equ	0FFFFh
-
-if DOS5
 MOVE_DOWN	equ	1800h		; start relocated code 96K down
-else
-MOVE_DOWN	equ	2500h		; start relocated code 148K down
-endif
 
 NUM_BUFFS	equ	4
 SIZEOF_BUFFS	equ	1024+32		; allow for large sectors during init

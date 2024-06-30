@@ -40,7 +40,7 @@
 	include	drmacros.equ		; standard DR macros
 	include	ibmros.equ		; ROM BIOS equates
 	include	request.equ		; request header equates
-	include	driver.equ		; device driver equates
+	include	driverw.equ		; device driver equates
 
 page
 CGROUP	group	CODE, RCODE, ICODE

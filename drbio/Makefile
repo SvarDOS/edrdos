@@ -41,15 +41,15 @@ bin/bios.exe : $(wasm_objs) $(rasm_objs) bios.lnk
 
 bin/biosmsgs.obj: biosmsgs.asm biosgrps.equ version.inc
 
-bin/init.obj: init.asm biosgrps.equ drmacros.equ ibmros.equ msdos.equ request.equ bpb.equ udsc.equ driver.equ keys.equ biosmsgs.def
+bin/init.obj: init.asm biosgrps.equ drmacros.equ ibmros.equ msdos.equ request.equ bpb.equ udsc.equ driverw.equ keys.equ biosmsgs.def
 
-bin/clock.obj: clock.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driver.equ
+bin/clock.obj: clock.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driverw.equ
 
-bin/console.obj: console.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driver.equ
+bin/console.obj: console.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driverw.equ
 
-bin/disk.obj: disk.asm biosgrps.asm biosgrps.equ drmacros.equ ibmros.equ request.equ bpb.equ udsc.equ driver.equ keys.equ biosmsgs.def
+bin/disk.obj: disk.asm biosgrps.asm biosgrps.equ drmacros.equ ibmros.equ request.equ bpb.equ udsc.equ driverw.equ keys.equ biosmsgs.def
 
-bin/serpar.obj: serpar.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driver.equ
+bin/serpar.obj: serpar.asm biosgrps.equ drmacros.equ ibmros.equ request.equ driverw.equ
 
 bin/biosgrps.obj: biosgrps.asm biosgrps.equ
 
@@ -57,11 +57,11 @@ bin/biosinit.obj: biosinit.asm msdos.equ pspw.def f52dataw.def doshndl.def confi
 
 bin/config.obj: config.asm configw.equ msdos.equ char.def request.equ driverw.equ fdos.equ f52dataw.def doshndl.def country.def initmsgs.def biosmsgs.def
 
-bin/bdosldr.obj: bdosldr.asm reqhdr.equ driverw.equ config.equ initmsgs.def
+bin/bdosldr.obj: bdosldr.asm reqhdr.equ driverw.equ configw.equ initmsgs.def
 
 bin/genercfg.obj: genercfg.asm configw.equ msdos.equ char.def request.equ driverw.equ fdos.equ f52dataw.def doshndl.def country.def
 
-bin/nlsfunc.obj: nlsfunc.asm config.equ msdos.equ mserror.equ
+bin/nlsfunc.obj: nlsfunc.asm configw.equ msdos.equ mserror.equ
 
 .asm.obj:
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@

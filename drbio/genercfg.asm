@@ -753,13 +753,9 @@ f_dev30:
 endif
 
 	call	PreloadFixup		; fiddle things for preload
-if DOS5
 	call	ProtmanFixup		; fiddle int 12 memory for PROTMAN$
-endif
 	call	device_init		; initialise the device drivers
-if DOS5
 	call	ProtmanCleanup		; restore int 12 memory after PROTMAN$
-endif
 	mov	error_level,ax		; save error code
 	pop	es			;  by old EMM386.SYS
 	mov	ax,mem_current
@@ -861,8 +857,6 @@ SetName50:
 	pop	si
 	ret
 
-if DOS5
-
 ROS_MEMORY	equ	413h		; main memory on KB
 
 protmanName	db	'PROTMAN$'
@@ -921,8 +915,6 @@ ProtmanCleanup:
 	pop	ax
 	pop	ds
 	ret
-
-endif
 
 ;
 ;	The syntax currently supported is "COUNTRY=NNN,[YYY],[FILENAME]" 
@@ -1877,14 +1869,8 @@ initialise_dmd_upper:
 	push	es
 	push	bx
 	push	dx
-if DOS5
 	les	bx,func52_ptr		; ES:BX -> list of lists
 	cmp	es:F52_DMD_UPPER[bx],0FFFFh
-else
-	les	bx,drdos_ptr
-	cmp	es:DRDOS_DMD_UPPER[bx],0
-	les	bx,funv52_ptr		; ES:BX -> list of lists
-endif
 	stc				; assume error return required
 	 jne	initialise_dmd_upper30	; bail out if chain already established
 	mov	es,es:F52_DMDROOT[bx]	; ES -> 1st DMD
@@ -1915,13 +1901,8 @@ initialise_dmd_upper20:
 	mov	ax,0FFFFh
 	sub	ax,cx			; it's this big
 	mov	es:DMD_LEN,ax
-if DOS5
 	les	bx,func52_ptr
 	mov	es:F52_DMD_UPPER[bx],cx
-else
-	les	bx,drdos_ptr
-	mov	es:DRDOS_DMD_UPPER[bx],cx
-endif
 	clc
 initialise_dmd_upper30:
 	pop	dx
@@ -1958,17 +1939,10 @@ remove_last_dmd10:
 	mov	es,ax			; ES = next to last DMD
 	mov	es:DMD_ID,IDZ		; new end of chain
 	inc	es:DMD_LEN		; include last para
-if DOS5
 	les	bx,func52_ptr		; ES:BX -> list of lists
 	cmp	dx,es:F52_DMD_UPPER[bx]
 	 jne	remove_last_dmd20	; remove upper memory link if none left
 	mov	es:F52_DMD_UPPER[bx],0FFFFh
-else
-	les	bx,drdos_ptr
-	cmp	dx,es:DRDOS_DMD_UPPER[bx]
-	 jne	remove_last_dmd20	; remove upper memory link if none left
-	mov	es:DRDOS_DMD_UPPER[bx],0
-endif
 remove_last_dmd20:	
 	pop	es
 	ret

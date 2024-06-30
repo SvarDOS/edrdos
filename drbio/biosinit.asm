@@ -612,11 +612,9 @@ config_start:
 	mov	parent_psp,bx		; and make this the root process
 	mov	ah,MS_P_SETPSP		; Set the current PSP
 	int	DOS_INT
-if DOS5
 	mov	ax,3306h
 	int	21h			; get true version
 	mov	dosVersion,bx		; and plant in initial PSP
-endif
 	call	dos_version_check	; make sure we are on correct DOS
 
 	mov	ax,4458h
@@ -629,10 +627,8 @@ endif
 	int	DOS_INT
 	mov	func52_off,bx
 	mov	func52_seg,es		; save pointer to internal data
-if DOS5
 	mov	ax,ext_mem_size
 	mov	es:F52_EXT_MEM[bx],ax	; save extended memory size in DOS
-endif
 	mov	ax,TEMP_LDT/16		; use our temporary LDT's
 	add	ax,init_dseg		;  during system init
 	mov	es:F52_PATHOFF[bx],0	; point at the LDT's
@@ -1301,10 +1297,8 @@ DOSUpperMemoryRoot:
 ;------------------
 	les	bx,cs:drdos_ptr
 	mov	es:DRDOS_DMD_UPPER[bx],dx	; remember upper memory link
-if DOS5
 	les	bx,cs:func52_ptr
 	mov	es:F52_DMD_UPPER[bx],dx		; remember upper memory link
-endif
 	xor	ax,ax
 	retf	2
 

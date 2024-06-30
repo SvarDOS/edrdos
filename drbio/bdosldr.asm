@@ -35,7 +35,7 @@
 	include compat.def
 	include request.equ
 	include driverw.equ
-	include	config.equ
+	include	configw.equ
 
 ;	MISC constants
 CR		equ	0dh			;the usual
@@ -56,11 +56,7 @@ CGROUP		group	INITCODE, INITDATA
 INITCODE	segment public word 'INITCODE'
 ASSUME CS:CGROUP,DS:CGROUP
 
-if DOS5
 VER_MUSTBE	equ	1072h
-else
-VER_MUSTBE	equ	1071h
-endif
 
 	Public	dos_version_check
 
@@ -100,7 +96,7 @@ login_drive12:
 	call	device_request		; tell it to build a BPB
 ;	 jc	dev_fail		; return if can't determine BPB
 	 jnc	login_drive15
-	jmpnear	login_drive17		; return if can't determine BPB
+	jmp	login_drive17		; return if can't determine BPB
 login_drive15:
 	cmp	dl,boot_drv
 	 jne	login_drive16
@@ -514,7 +510,6 @@ rd_sector:
 	mov	bx,offset req_hdr	; BX -> request header
 	mov	[bx+RH_CMD],CMD_INPUT	; read from disk device
 	mov	req3_sector,cx		; set requested sector address
-if DOS5
 	mov	req_hdr,RH4_LEN
 	mov	req3_sector32,cx	;  with 32 sector number
 	mov	req3_sector32+2,bp
@@ -522,10 +517,6 @@ if DOS5
 	 jz	rd_sec1			; no, normal request header
 	mov	req3_sector,0FFFFh	; mark as a large request
 rd_sec1:
-else
-	mov	req3_sector+2,bp	; (support large DOS drives)
-	mov	req_hdr,24		; indicate large request
-endif
 	call	device_request		; tell it to read sectors
 	pop	cx
 	pop 	dx

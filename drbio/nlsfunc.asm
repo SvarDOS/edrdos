@@ -53,7 +53,7 @@ DA_IOCTL	equ	4000h		; device supports IOCTL string I/O
 DA_GETSET	equ	0040h		; supports 3.2 level functionality
 
 	include compat.def
-	include	config.equ
+	include	configw.equ
 	include	msdos.equ
 	include	mserror.equ
 	
@@ -247,7 +247,7 @@ f66_p33:
 f66_p35:	
 	mov	ax,1227h
 	int	2fh			; magic hook to close handle
-	jmpnear	f66_p40
+	jmp	f66_p40
 
 f66_perr:
 	mov	preperr,ax		; Save the error code and try the

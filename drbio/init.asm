@@ -47,7 +47,7 @@
 	include	request.equ		; request header equates
 	include	bpb.equ
 	include	udsc.equ
-	include	driver.equ
+	include	driverw.equ
 	include keys.equ		; common key definitions
 
 ; IBM AT Hardware equates
