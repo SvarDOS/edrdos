@@ -179,7 +179,11 @@ IDZ             equ     'Z'		; last id code
 
 ;PCMODE_DATA	DSEG	WORD		; DOS Data
 ;FDOS_DSEG	DSEG	WORD COMMON	; FDOS Parameter Block	
-;fdos_data	rw	7
+
+FDOS_DSEG	segment common word 'DATA'
+fdos_data	dw	7 dup (?)
+FDOS_DSEG	ends
+
 ;FIXED_DOS_DATA	CSEG	WORD	'DATA'	; Fixed DOS Data Area
 ;PCMODE_CODE	CSEG	WORD	'DATA'	; DATA relative CODE
 ;GLOBAL_DATA	DSEG	WORD		; GLOBAL DOS DATA (Process Independant)

@@ -70,9 +70,8 @@ bin/redir.obj: redir.a86 psp.def fdos.equ msdos.equ mserror.equ doshndl.def f52d
 bin/header.obj: header.asm pcmodew.equ vectors.def cmdlinew.equ doshndl.def driverw.equ exe.def f52dataw.def fdos.equ mserror.equ psp.def request.equ country.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/pcmif.obj: pcmif.a86 pcmode.equ fdos.def vectors.def msdos.equ mserror.equ psp.def fdos.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDOS5
-	$(FIXUPP) $^*.o86 $^@
+bin/pcmif.obj: pcmif.asm pcmodew.equ fdos.def vectors.def msdos.equ mserror.equ pspw.def fdos.equ
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/cio.obj: cio.a86 pcmode.equ driver.equ reqhdr.equ msdos.equ fdos.equ psp.def mserror.equ char.def redir.equ doshndl.def
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)

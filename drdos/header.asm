@@ -86,11 +86,6 @@ PCMCODE group PCM_HEADER,PCM_HISTORY,PCM_ICODE,PCM_CODEND
 	include	request.equ
 	include	country.def
 
-	extrn	int20_entry:near, int21_entry:near
-	extrn	int25_entry:near, int26_entry:near
-	extrn	int27_entry:near, int2F_entry:near
-	extrn	call5_entry:near
-
 PADDING		equ	14*1024		; offset code start by this much
 
 DOSINROM	equ	0800h
@@ -856,6 +851,12 @@ PCMODE_DSIZE	segment public para 'DATA'
 data_end	label word
 
 PCMODE_DSIZE ends
+
+
+	extrn	int20_entry:near, int21_entry:near
+	extrn	int25_entry:near, int26_entry:near
+	extrn	int27_entry:near, int2F_entry:near
+	extrn	call5_entry:near
 
 PCMODE_CODE	segment public word 'DATA'
 
