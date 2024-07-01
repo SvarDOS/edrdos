@@ -1255,8 +1255,7 @@ xlat_xlat:
 	sub	al,080h
 	push	bx
 	mov	bx,offset Standard_table
-	db	2eh	; CS segment override for xlat
-	xlat
+	xlat	cs:0
 	pop	bx
 xlat_exit:
 	retf
