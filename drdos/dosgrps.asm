@@ -42,7 +42,7 @@ PCMODE_CODE ends
 GLOBAL_DATA segment public word 'DATA'
 GLOBAL_DATA ends
 
-BDOS_DATA segment common word 'DATA'
+BDOS_DATA segment public word 'DATA'
 BDOS_DATA ends
 
 PCMODE_DSIZE segment public para 'DATA'

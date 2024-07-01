@@ -35,9 +35,8 @@ version.inc: ../version.inc
 bin/dosgrps.obj: dosgrps.asm
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/buffers.obj: buffers.a86 fdos.equ bdos.equ doshndl.def
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDELWATCH /DDOS5
-	$(FIXUPP) $^*.o86 $^@
+bin/buffers.obj: buffers.asm fdos.equ bdos.equ doshndl.def
+	$(WASM) $(WASM_FLAGS) -DDELWATCH -Fo$^@ -Fl$^*.lst $[@
 
 bin/dirs.obj: dirs.a86 bdos.equ mserror.equ fdos.equ
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDELWATCH
