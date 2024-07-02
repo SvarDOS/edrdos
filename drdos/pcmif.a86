@@ -1,4 +1,4 @@
-;    File              : $PCMIF.A86$
+;    File              : $PCMIF.ASM$
 ;
 ;    Description       :
 ;
@@ -122,15 +122,20 @@
 ; 14 jun 91 copy user regs to local copy after int24 for pcshell
 ;  8 aug 91 SI preserved on Int25/26 for SCAN 7.7
 
-	include	pcmode.equ
+PCMDATA group PCMODE_DATA,FDOS_DSEG
+PCMCODE group PCM_CODE,PCM_RODATA
+
+	include	pcmodew.equ
 	include	fdos.def
 	include	vectors.def
-	include	i:msdos.equ
-	include	i:mserror.equ
-	include	i:psp.def
-	include	i:fdos.equ
+	include	msdos.equ
+	include	mserror.equ
+	include	pspw.def
+	include	fdos.equ
 
-PCM_CODE	CSEG	BYTE
+
+PCM_CODE	segment public byte 'CODE'
+ASSUME DS:PCMDATA
 
 	extrn	pcmode_dseg:word
 	extrn	break_check:near		; Control-C Check 
@@ -138,7 +143,6 @@ PCM_CODE	CSEG	BYTE
 	extrn	fdos_nocrit:near
 	extrn	get_ddsc:near
 
-eject
 ;
 ;	This entry point is used when a CALLF PSP:0005 has been executed
 ;	Here the function number is passed in CL and not AH and only
@@ -154,7 +158,8 @@ eject
 call5_entry:
 	pop	ax		; Remove 000Ah return Offset
 	pushf			; Save the Flags
-	push bp	! mov bp,sp	; Get Stack Frame Pointer
+	push 	bp
+	mov 	bp,sp		; Get Stack Frame Pointer
 	mov	ax,02[bp]	; Get the FLAGS
 	xchg	ax,06[bp]	; Swap with the return offset
 	mov	02[bp],ax	; and then save the return offset
@@ -167,20 +172,18 @@ illegal_iret:
 	iret
 
 int21_e01:
-	mov	ds,word ptr .INT31_SEGMENT
-	jmps	int21_e02
+	mov	ds,word ptr ds:INT31_SEGMENT
+	jmp	int21_e02
 
-eject
 ;	++++++++++++++++++++++++++
 ;	Int 20 - Program Terminate
 ;	++++++++++++++++++++++++++
 ;
 	Public	int20_entry
 int20_entry:
-    mov ah,00h          
-;	jmps	int21_entry		; and jump to the standard entry point
+    	mov	ah,00h          
+;	jmp	int21_entry		; and jump to the standard entry point
 
-eject
 ;	+++++++++++++++++++++++++
 ;	Int 21 - Function Request
 ;	+++++++++++++++++++++++++
@@ -190,7 +193,7 @@ int21_entry:
 	cmp	ah,pcmode_ftl		; is it in range ?
 	 ja	illegal_iret		;  no, return BEFORE enabling ints
 	cld				; Clear the direction flag
-	PUSH$DOS			; Save User Registers
+	PUSH_DOS			; Save User Registers
 	mov	ds,pcmode_dseg		; get CS relative Data Segment
 	test	pcmode_dseg,0FFFFh	; if Data Segment is zero then get
 	 jz	int21_e01		; the Data segment address from
@@ -219,27 +222,19 @@ int21_e20:
 
 	mov	int21AX,ax		; save function number
 
-if DOS5
 	cmp	WindowsHandleCheck,26h	; is windows active ?
 	 jne	int21_e30
 	mov	ax,LocalMachineID	; get local machine ID (zero unless
 	mov	machine_id,ax		;  we are multi-tasking)
-else
-    callf   win386_local_machine    
-	cmp	machine_id,0		; did it nobble the machine ID
-	 jnz	int21_e30		; if so leave it alone
 
-	mov	ax,LocalMachineID	; get local machine ID (zero unless
-	mov	machine_id,ax		;  we are multi-tasking)
-endif
 int21_e30:
 	mov	ax,current_psp
 	mov	owning_psp,ax
 	mov	es,ax			; Get the PSP
 
 	mov	ax,sp
-	mov	PSP_USERSP,ax		; Save the SS:SP pointer to 
-	mov	PSP_USERSS,ss		; the register image ready for any
+	mov	es:PSP_USERSP,ax	; Save the SS:SP pointer to 
+	mov	es:PSP_USERSS,ss	; the register image ready for any
 					; Critical errors that might occur
 
 	xchg	ax,int21regs_off	; point to callers registers
@@ -268,8 +263,8 @@ int21_e30:
 	cmp	error_flag,0		; Use the "ERROR" Stack for the above
 	 jnz	int21_e50		;  functions 01-0C if error_flag set
 	mov	sp,offset indos_stack	; else use the "INDOS" stack for these
-	mov	int28_flag,TRUE		;  functions and generate INT 28s
-	jmps	int21_e50
+	mov	int28_flag,TRUE	and 0ffh	;  functions and generate INT 28s
+	jmp	int21_e50
 
 int21_e40:
 	mov	error_flag,0		; clear the error flag in case someone
@@ -285,7 +280,7 @@ int21_e40:
 	call	break_check		; Handle the Control-C
 int21_e50:
 if IDLE_DETECT
-	test	idle_flags,IDLE_DISABLE	; don't break the pipeline unless
+	test	idle_flags,word ptr IDLE_DISABLE	; don't break the pipeline unless
 	 jz	int21_idle		;  IDLE checking enabled
 int21_e60:
 endif
@@ -305,10 +300,9 @@ endif
 
 	Public	int21_exit
 int21_exit:
-	POP$DOS				; Restore Registers
+	POP_DOS				; Restore Registers
 	iret
 
-eject
 if IDLE_DETECT
 ; Only called if Idle detection is enabled
 ; AH,DL as on Int 21 Entry
@@ -320,31 +314,41 @@ if IDLE_DETECT
 	mov	bx,int28_reload		; reset the INT28 delay counter
 	mov	int28_delay,bx		;  with the Reload value
 endif
-	cmp ah,5Ch ! je int21_inactive	; Treat Lock/Unlock as inactive some
+	cmp 	ah,5Ch
+	je 	int21_inactive		; Treat Lock/Unlock as inactive some
 					; applications poll locked record.
-	cmp ah,44h ! je int21_inactive	; IO Control Treated as Inactive
-	cmp ah,2Ch ! ja int21_active	; > Get Current Time all active
-		     je int21_inactive	; Get Current Time inactive
-	cmp ah,2Ah ! je int21_inactive	; Get Current Date inactive
-	cmp ah,0Bh ! je int21_inactive	; Console Status
-	cmp ah,0Ch ! je int21_inactive	; Flush and Invoke Treated as Inactive
-	cmp ah,19h ! je int21_inactive	; Get Current Disk
-	cmp ah,06h ! jne int21_active	; Treat RAW_IO Status as Inactive
-	cmp dl,0FFh ! je int21_inactive	;
+	cmp 	ah,44h
+	je 	int21_inactive		; IO Control Treated as Inactive
+	cmp 	ah,2Ch
+	ja 	int21_active		; > Get Current Time all active
+	je 	int21_inactive		; Get Current Time inactive
+	cmp 	ah,2Ah
+	je 	int21_inactive		; Get Current Date inactive
+	cmp 	ah,0Bh
+	je 	int21_inactive		; Console Status
+	cmp 	ah,0Ch
+	je 	int21_inactive		; Flush and Invoke Treated as Inactive
+	cmp 	ah,19h
+	je 	int21_inactive		; Get Current Disk
+	cmp 	ah,06h
+	jne 	int21_active		; Treat RAW_IO Status as Inactive
+	cmp 	dl,0FFh
+	je 	int21_inactive
 
 int21_active:				; Active function Executed
-	or	idle_flags,IDLE_DOSFUNC	; set DOSFUNC flag for BIOS
+	or	idle_flags,word ptr IDLE_DOSFUNC	; set DOSFUNC flag for BIOS
 	call	active			; remember we were active
-	jmps	int21_e60		; continue execution
+	jmp	int21_e60		; continue execution
 
 int21_inactive:
 	call	inactive		; Process this INACTIVE function
-	jmps	int21_e60
+	jmp	int21_e60
 
 
 	Public	inactive
 inactive:
-	push es ! push ax
+	push 	es
+	push 	ax
 
 	dec	active_cnt		; Decrement the count
 	jnz	inactive_10		; Return if Non-Zero
@@ -355,10 +359,11 @@ inactive:
 	test	idle_flags,IDLE_DISABLE	; Has Idle Checking been enabled
 	 jnz	inactive_10		; Skip if NO.
 	mov	ax,PROC_IDLE		; Process is IDLE
-	callf	idle_vec		; Call the IDLE Handler
+	call	dword ptr idle_vec	; Call the IDLE Handler
 
 inactive_10:
-	pop ax ! pop es
+	pop 	ax
+	pop 	es
 	ret
 ;
 ;	This routine will reset the active count for functions which
@@ -382,7 +387,6 @@ ms_zero_AL:
 	xor	ax,ax			; AL = 0 for return
 	ret
 
-eject
 ;	DOS_ENTRY is used to call DOS functions internally.
 ;	eg. Func4B (exec) calls MS_X_OPEN, MS_X_READ, MS_X_CLOSE etc.
 ;	It is the responsibilty of the caller to make sure that no side
@@ -395,12 +399,17 @@ dos_entry:
 	clc
 	cld
 	pushf				; look like Int21 registers
-	pushf ! pushf			; fake CS/IP positions
-	push ds ! push es		; Save registers on the USER stack
-	push bp				; no Stack Swap is executed and DS
-	push di ! push si		; and ES are swapped.
-	push dx ! push cx
-	push bx ! push ax
+	pushf
+	pushf				; fake CS/IP positions
+	push 	ds
+	push 	es			; Save registers on the USER stack
+	push 	bp			; no Stack Swap is executed and DS
+	push 	di
+	push 	si			; and ES are swapped.
+	push 	dx
+	push 	cx
+	push 	bx
+	push 	ax
 	mov	bp,sp			; Initialise Stack Frame
 
 	call	get_dseg		; Get our Data Area
@@ -437,11 +446,15 @@ dos_entry:
 
 	dec	internal_flag
 
-	pop ax ! pop bx			; Update the registers then
-	pop cx ! pop dx			; set the flags and return
-	pop si ! pop di			; to the user
-	pop bp
-	pop es ! pop ds
+	pop 	ax
+	pop 	bx			; Update the registers then
+	pop 	cx
+	pop 	dx			; set the flags and return
+	pop 	si
+	pop 	di			; to the user
+	pop 	bp
+	pop 	es
+	pop 	ds
 	popf				; discard dos_IP
 	popf				;  and dos_CS
 	popf				; get result
@@ -497,7 +510,6 @@ internal_func:
 	mov	es,reg_DS[bp]		; ES = callers DS
 	ret				; "jump" to handler
 
-eject
 ;	INT25 and INT26 direct disk I/O interface
 ;
 ;Standard DOS 1.xx - 3.30 INT25/26 Interface
@@ -535,7 +547,6 @@ eject
 ;		Users orginal flags left on stack
 ;
 ;
-eject
 DDIO_INT13	equ     0
 DDIO_READ_OP	equ     1
 DDIO_WRITE_OP	equ     2
@@ -547,7 +558,7 @@ DDIO_WRITE_OP	equ     2
 	Public	int26_entry
 int26_entry:
 	mov 	ah,DDIO_WRITE_OP	; This is a WRITE operation	
-	jmps	int26_10
+	jmp	int26_10
 
 
 ;	+++++++++++++++++++++++++++
@@ -559,16 +570,19 @@ int25_entry:
 	mov 	ah,DDIO_READ_OP		; This is a READ operation	
 int26_10:				; Common Direct Disk I/O code
 	cld
-	push ds ! push es
+	push 	ds
+	push 	es
 	push	di
 	push	dx			; save DX for FLASHCARD
-	push ds ! pop es		; ES = callers DS
+	push 	ds
+	pop 	es			; ES = callers DS
 	call	get_dseg		; Get PCMODE Data Segment
 	inc	indos_flag		; Update the INDOS_FLAG
 	mov	normal_stack+2,ss	; save users SS:SP
 	mov	normal_stack,sp
 	cli
-	push ds ! pop ss		; use normal stack when in here
+	push 	ds
+	pop 	ss			; use normal stack when in here
 	mov	sp,offset normal_stack
 	sti
 	inc	cx			; CX = FFFF indicates this is
@@ -611,7 +625,7 @@ int26_20:
 	pop	es
 	 jnc	int26_40
 	xchg	ax,di			; AX = error code
-	jmps	int26_60		; return it
+	jmp	int26_60		; return it
 int26_30:	
 	mov	dx,es:word ptr 0[bx]	; Get Starting Sector Low
 	mov	di,es:word ptr 2[bx]	; Get Starting Sector High
@@ -649,12 +663,12 @@ int26_exit:				; Occurs and return to the calling app.
 	sti
 	pop	dx
 	pop	di
-	pop es ! pop ds			; restore callers registers
+	pop 	es
+	pop 	ds			; restore callers registers
 	retf				; leave flags on stack
 
 int13_error	db	03h,02h,80h,01h,10h,02h,40h,02h,04h,02h,02h,02h,02h
 
-eject
 ;	++++++++++++++++++++++++++++++++++++
 ;	Int 27 - Terminate but Stay Resident
 ;	++++++++++++++++++++++++++++++++++++
@@ -669,7 +683,6 @@ int27_entry:
 	shr	dx,1		; 15 then divide by 16
 	jmp	int21_entry
 
-eject
 ;
 ;	DO_INT24:
 ;	    On Entry:-
@@ -708,14 +721,15 @@ do_int24:
 	mov	al,ERR_FAIL		; Then return the FAIL condition
 	ret				; to the calling routine
 di24_05:
-	push ax ! push bp		; Save our Base Pointer and then the
+	push 	ax
+	push 	bp			; Save our Base Pointer and then the
 	cli				; Disable Interupts
 
 	mov	bp,es			; BP:SI points to dev header
 	mov	es,current_psp		; Get the current PSP and USER Stack
 
-	push	PSP_USERSS		; Save the Users Real SS and SP
-	push	PSP_USERSP		; on the internal Stack
+	push	es:PSP_USERSS		; Save the Users Real SS and SP
+	push	es:PSP_USERSP		; on the internal Stack
 	push	retry_sp		; also the retry info
 	push	retry_off
 	push	remote_call
@@ -728,8 +742,8 @@ di24_05:
 					; (an application error handler need
 					; never return so tidy up first)
 
-	mov	ss,PSP_USERSS		; Switch to the Users Stack
-	mov	sp,PSP_USERSP
+	mov	ss,es:PSP_USERSS	; Switch to the Users Stack
+	mov	sp,es:PSP_USERSP
 
 	int	24h			; Call the Critical Error Handler
 
@@ -738,7 +752,8 @@ di24_05:
 	call	get_dseg		; Reload DS just in case someone at
 					; A-T or Lotus cannot read
 
-	push ds ! pop ss		; Swap back to the Internal stack
+	push 	ds
+	pop 	ss		; Swap back to the Internal stack
 	mov	sp,critical_sp		; and process the returned info.
 
 	pop	machine_id
@@ -746,27 +761,34 @@ di24_05:
 	pop	retry_off		; restore retry info
 	pop	retry_sp
 	mov	es,current_psp		; Restore the Users original SS and
-	pop	PSP_USERSP		; SP registers from the Stack
-	pop	PSP_USERSS
+	pop	es:PSP_USERSP		; SP registers from the Stack
+	pop	es:PSP_USERSS
 
-	pop bp ! pop bx			; Restore BP and original AX
+	pop 	bp
+	pop 	bx			; Restore BP and original AX
 	sti
 
 	mov	error_flag,0
     inc indos_flag  
 
-	cmp al,ERR_IGNORE ! jnz di24_10	; Check for IGNORE and force
-	test bh,OK_IGNORE ! jnz di24_10 ; to become a FAIL if its an 
+	cmp al,ERR_IGNORE
+	jnz di24_10			; Check for IGNORE and force
+	test bh,OK_IGNORE
+	jnz di24_10 			; to become a FAIL if its an 
 	mov	al,ERR_FAIL		; invalid response.
 
 di24_10:
-	cmp al,ERR_RETRY ! jnz di24_20	; Check for RETRY and force
-	test bh,OK_RETRY ! jnz di24_20	; to become a FAIL if its an
+	cmp 	al,ERR_RETRY
+	jnz 	di24_20			; Check for RETRY and force
+	test 	bh,OK_RETRY
+	jnz 	di24_20			; to become a FAIL if its an
 	mov	al,ERR_FAIL		; invalid response.	
 
 di24_20:
-	cmp al,ERR_FAIL ! jnz di24_30	; Check for FAIL and force
-	test bh,OK_FAIL ! jnz di24_30	; to become a ABORT if its an
+	cmp 	al,ERR_FAIL
+	jnz 	di24_30			; Check for FAIL and force
+	test 	bh,OK_FAIL
+	jnz 	di24_30			; to become a ABORT if its an
 	mov	al,ERR_ABORT		; invalid response.	
 
 di24_30:
@@ -781,7 +803,7 @@ di24_40:
 di24_abort:				; Abort this Process
 	mov	ax,current_psp		; check not root application because
 	mov	es,ax			; it must not be terminated so force
-	cmp	ax,PSP_PARENT		; Is this the root Process
+	cmp	ax,es:PSP_PARENT	; Is this the root Process
 	mov	al,ERR_FAIL		; convert the error to FAIL
 	 je	di24_40			; if not we terminate
 	mov	exit_type,TERM_ERROR	; Set the correct exit Type
@@ -789,7 +811,6 @@ di24_abort:				; Abort this Process
 	mov	int21AX,ax
 	jmp	func4C			; Then terminate
 
-eject
 ;
 ;	Get the PCMODE Emulator data Segment from the PD
 ;
@@ -800,7 +821,7 @@ get_dseg:
 	jz	get_d10			; the Data segment address from
 	ret				; the segment portion of INT 31
 get_d10:
-	mov	ds,word ptr .INT31_SEGMENT
+	mov	ds,word ptr ds:INT31_SEGMENT
 	ret
 
 
@@ -813,7 +834,6 @@ invalid_function:
 	jmp	error_exit		; and Exit
 
 
-eject
 	Public	reload_registers
 reload_registers:
 ;----------------
@@ -831,11 +851,11 @@ reload_registers:
 	pop	ds
 	ret
 
-PCMODE_DATA	DSEG	WORD
+PCM_CODE ends
 
+PCMODE_DATA	segment public word 'DATA'
 	extrn	retry_sp:word
 	extrn	retry_off:word
-
 	extrn	break_flag:byte
 	extrn	current_psp:word
 	extrn	current_dsk:byte
@@ -858,12 +878,8 @@ PCMODE_DATA	DSEG	WORD
 	extrn	normal_stack:word
 	extrn	owning_psp:word
 	extrn	remote_call:word
-if DOS5
 	extrn	WindowsHandleCheck:byte
-else
-	extrn	win386_local_machine:dword
-endif
-	extrn lfnpathflag:byte
+	extrn	lfnpathflag:byte
 
 if IDLE_DETECT
 	extrn	active_cnt:word
@@ -877,13 +893,9 @@ endif
 	extrn	critical_sp:word
 	extrn	internal_flag:byte
 	extrn	int28_flag:byte
+PCMODE_DATA 	ends
 
-PCM_CODE	CSEG	BYTE
-;
-;	The following Function tables are forced onto a word boundary
-;	because of the word alignment of the PCMODE_RODATE segment.
-;	Only word based Read Only data is held in this segment.
-;
+PCM_CODE	segment public byte 'CODE'
 	extrn	func00:near, func01:near, func02:near, func03:near
 	extrn	func04:near, func05:near, func06:near, func07:near
 	extrn	func08:near, func09:near, func0A:near, func0B:near
@@ -910,10 +922,17 @@ PCM_CODE	CSEG	BYTE
 	extrn	func60:near, func62:near, func63:near, func65:near
 	extrn	func66:near, func67:near, func68:near, func69:near
 	extrn	func6C:near, func71:near, func73:near
+PCM_CODE 	ends
 
-PCM_RODATA	CSEG	WORD		
+;
+;	The following Function tables are forced onto a word boundary
+;	because of the word alignment of the PCMODE_RODATE segment.
+;	Only word based Read Only data is held in this segment.
+;
+
+PCM_RODATA segment public word 'CODE'
 	Public	pcmode_ft, pcmode_ftl
-pcmode_ft	rw	0
+pcmode_ft	label word
 	dw	func00			; (00) Terminate Program
 	dw	func01			; (01) Read Keyboard and Echo
 	dw	func02			; (02) Display Character
@@ -1035,5 +1054,7 @@ pcmode_ftl	equ	(offset $ - offset pcmode_ft)/2
 	;* Do Not Move This Entry *
 	;**************************
 	dw	ms_zero_AL		; Illegal Function Handler
+
+PCM_RODATA ends
 
 	end
