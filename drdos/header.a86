@@ -1,4 +1,4 @@
-;    File              : $HEADER.A86$
+;    File              : $HEADER.ASM$
 ;
 ;    Description       :
 ;
@@ -67,19 +67,24 @@
 ; As we use the patch area the pointer in the header should be incremented
 ; in order to retain progressively larger amounts of code.
 
-	include pcmode.equ
+PCMDATA group PCMODE_DATA,FIXED_DOS_DATA,PCMODE_CODE
+PCMDATA group BDOS_DATA,PCMODE_DSIZE
+
+PCMCODE group PCM_HEADER,PCM_HISTORY,PCM_ICODE,PCM_CODEND
+
+	include pcmodew.equ
 	include	vectors.def
 
-	include	i:cmdline.equ
-	include	i:doshndl.def
-	include	i:driver.equ
-	include i:exe.def
-	include	i:f52data.def
-	include i:fdos.equ
-	include	i:mserror.equ
-	include	i:psp.def
-	include	i:reqhdr.equ
-	include	i:country.def
+	include	cmdlinew.equ
+	include	doshndl.def
+	include	driverw.equ
+	include exe.def
+	include	f52dataw.def
+	include fdos.equ
+	include	mserror.equ
+	include	pspw.def
+	include	request.equ
+	include	country.def
 
 PADDING		equ	14*1024		; offset code start by this much
 
@@ -91,12 +96,12 @@ DOSINHMA	equ	1000h
 ;	The format of the header is FIXED and should not be modified.
 ;****************************************************************************
 
-PCM_HEADER	CSEG	PARA
+PCM_HEADER	segment public para 'CODE'
 
 	extrn	edit_size:word
 
 	dw	PADDING
-	rb	PADDING-2		; Insert Header
+	db	PADDING-2 dup (0)		; Insert Header
 
 	Public	code_start
 code_start:
@@ -119,7 +124,7 @@ os_version	dw	1072h			; 000Ah OS version
 		db	0EAh			; 0010h JMPF (MUST be para aligned)
 		dw	4*30h			; 0011h  through the Int 30 vec
 		dw	0			; 0013h  to CALL 5 entry point
-		rb	7			; 0015h make following offsets same as 5.0
+		db	7 dup (0)		; 0015h make following offsets same as 5.0
 		dw	0			; 001Ch Compressed Data Flag
 		dw	code_end-PADDING	; 001Eh PCMODE Code Size in Bytes
 		dw	data_end		; 0020h PCMODE Data Length in Bytes
@@ -131,11 +136,13 @@ patch_version	dw	DOSINROM+0000h		; 0022h sub-version (was SYSDAT length)
 		dw	NoYesChars		; 0028h offset in data of pointers to 
 						; default country info.
 
+PCM_HEADER ends
+
 ;****************************************************************************
 ;	The format of the data is FIXED and should not be modified.
 ;****************************************************************************
 
-PCMODE_DATA	DSEG	WORD
+PCMODE_DATA	segment public word 'DATA'
 
 
 	Public	codeSeg			; BDOS code segment
@@ -188,25 +195,22 @@ PCMODE_DATA	DSEG	WORD
 		
 dos_data	db	0
 		dw	code_start
-		rb	1	; padding
-if DOS5
+		db	0	; padding
 		dw	1
-else
-		dw	0
-endif
 
 
 ; make end of vladivar instance data public for the multi-tasker
-	rb	06h - (offset $ - offset dos_data)
+	db	06h - (offset $ - offset dos_data) dup (0)
 	dw	endOfInstanceData
 
-	rb	0eh - (offset $ - offset dos_data)
+	db	0eh - (offset $ - offset dos_data) dup (0)
+
 	Public	netbios, name_num, fcb_lru_count
 netbios		db	0		; NetBios Name Number
 name_num	db	0		; 0 - Undefined Name
 fcb_lru_count	dw	0		; fcb LRU counter
 
-	rb	26h-0ch-(offset $ - offset dos_data) ; align func52_data on 26
+	db	26h-0ch-(offset $ - offset dos_data) dup (0) ; align func52_data on 26
 
 ;************************************************************************
 ;*									*
@@ -219,14 +223,14 @@ net_delay	dw	1		;-000A Network delay count
 bcb_root	dw	-1,-1		;-0008 Current DOS disk buffer
 		dw	0		;-0004 Unread CON input
 dmd_root	dw	0		;-0002 Root of DOS Memory List (Segment)
-func52_data	rb	0
-ddsc_ptr	rd	0		; 0000 DWORD ptr to DDSC
+func52_data	label byte
+ddsc_ptr	label dword		; 0000 DWORD ptr to DDSC
 		dw	-1,-1
-file_ptr	rd	0		; 0004 DWORD ptr file table
+file_ptr	label dword		; 0004 DWORD ptr file table
 		dw	msdos_file_tbl,0
-clk_device	rd	0		; 0008 DWORD ptr Clock Device Header
+clk_device	label dword		; 0008 DWORD ptr Clock Device Header
 		dw	-1,-1		;      Initialize to an Invalid Address
-con_device	rd	0		; 000C DWORD ptr Console Device Header
+con_device	label dword		; 000C DWORD ptr Console Device Header
 		dw	-1,-1		;      Initialize to an Invalid Address
 sector_size	dw	128		; 0010 WORD Buffer Size (Max Sector Size)
 buf_ptr		dw	buf_info,0	; 0012 DWORD ptr to Disk Buffer Info
@@ -235,7 +239,7 @@ fcb_ptr		dw	dummy_fcbs,0	; 001A DWORD ptr FCB Control Structures
 		dw	0		; 001E WORD UNKNOWN
 phys_drv	db	0		; 0020 BYTE Number of Physical Drives
 last_drv	db	0		; 0021 BYTE Last Drive
-dev_root	rd	0		; 0022 DWORD ptr Device Driver List
+dev_root	label dword		; 0022 DWORD ptr Device Driver List
 nul_device	dw	-1,-1		;      Next Device Pointer
 		dw DA_CHARDEV+DA_ISNUL	; 0026 NUL Device Attributes
 		dw	nul_strat	; 0028 NUL Device Strategy routine
@@ -252,14 +256,14 @@ setverPtr	dw	0,0		; 0037 setver list
 bootDrv		db	0		; 0043 drive we booted from
 		db	0		; 0044 cpu type (1 if >=386)
 		dw	0		; 0045 Extended memory
-buf_info	rd	1		; 0047 disk buffer chain
+buf_info	dd	0		; 0047 disk buffer chain
 		dw	0		; 004B 0 (DOS 4 = # hashing chains)
-		rd	1		; 004D pre-read buffer
+		dd	0		; 004D pre-read buffer
 		dw	0		; 0051 # of sectors
 		db	0		; 0053 00=conv 01=HMA
 		dw	0		; 0054 deblock buf in conv
 deblock_seg	dw	0		; 0056 (offset always zero)
-		rb	3		; 0058 unknown
+		db	3 dup (0)	; 0058 unknown
 		dw	0		; 005B unknown
 		db	0, 0FFh, 0	; 005D unknown
 		db	0		; 0060 unknown
@@ -289,26 +293,26 @@ msdos_file_tbl	dw	-1		; 00A6 1st HDB entries
 		dw	-1		; Pointer to next Entry (None)
 		dw	3		; Number of Entries
 
-		rb	3*DHNDL_LEN	; Reserve 5 Internal Handles
+		db	3*DHNDL_LEN dup (0)	; Reserve 5 Internal Handles
 
-	rb	1fbh - (offset $ - offset dos_data)
+	db	1fbh - (offset $ - offset dos_data) dup (0)
 
 	Public	savbuf
 ;savbuf		rb	128		; cmdline editing temp buffer
-savbuf		rb	CMDLINE_LEN	; cmdline editing temp buffer
+savbuf		db	CMDLINE_LEN dup (0)	; cmdline editing temp buffer
 	Public	fdos_buf
 fdos_buf	db	2,0		; initialise buffer to empty
 ;		rb	128+1		; room for 128 byte readline + LF
-		rb	CMDLINE_LEN+1	; room for 128 byte readline + LF
+		db	CMDLINE_LEN+1 dup (0)	; room for 128 byte readline + LF
 
-	rb	2feh - (offset $ - offset dos_data)
+	db	2feh - (offset $ - offset dos_data) dup (0)
 ; this byte is used for ^P support
 	Public	cio_state
 cio_state	db	0		; 0 = no printer echo, ~0 echo
 	Public	verify_flag
 verify_flag	db	0		; ~0, write with verify
 
-	rb	300h - (offset $ - offset dos_data)
+	db	300h - (offset $ - offset dos_data) dup (0)
 ; this byte is used for TAB's
 	Public column
 column		db	0		; Current Cursor Column
@@ -337,7 +341,7 @@ net_name	db	'               ' ; 15 Character Network Name
 		dw	criticalSectionEnable
 		dw	0		; terminating null
 
-		rb	1		; padding
+		db	0		; padding
 
 ;
 ;	Variables contained the the "STATE_DATA" segment contain
@@ -360,7 +364,7 @@ net_name	db	'               ' ; 15 Character Network Name
 
 	Public	internal_data
 
-internal_data	rw	0		; <-- Address returned by INT21/5D06
+internal_data	label word		; <-- Address returned by INT21/5D06
 error_flag	db	0		; INDOS - 01 - Error Mode Flag
 indos_flag	db	0		; INDOS + 00 - Indos Flag
 error_drive	db	0		; INDOS + 01 - Drive on write protect error
@@ -368,12 +372,12 @@ error_locus	db	0		; INDOS + 02 - Error Locus
 error_code	dw	0		; INDOS + 03 - DOS format error Code
 error_action	db	0		; INDOS + 05 - Error Action Code
 error_class	db	0		; INDOS + 06 - Error Class
-error_dev	rd	1		; INDOS + 07 - Failing Device Address
-dma_offset	rw	1		; INDOS + 0B - DMA Offset
-dma_segment	rw	1		; INDOS + 0D - DMA Segment	
-current_psp	rw	1		; INDOS + 0F - Current PSP
-break_sp	rw	1		; INDOS + 11 - used in int 23
-retcode		rw	0
+error_dev	dd	0		; INDOS + 07 - Failing Device Address
+dma_offset	dw	0		; INDOS + 0B - DMA Offset
+dma_segment	dw	0		; INDOS + 0D - DMA Segment	
+current_psp	dw	0		; INDOS + 0F - Current PSP
+break_sp	dw	0		; INDOS + 11 - used in int 23
+retcode		label word
 user_retcode	db	0		; INDOS + 13 - return code from process
 system_retcode	db	0		; INDOS + 14 - reason for process terminate
 current_dsk	db	0		; INDOS + 15 - Current Drive
@@ -381,7 +385,7 @@ break_flag	db	0		; INDOS + 16 - Break Flag
 		dw	0		; INDOS + 17 - unknown
 
 	Public	swap_always
-swap_always	rw	0
+swap_always	label dword
 
 	Public	int21AX
 int21AX		dw	0		; INDOS + 19 - AX from last Int 21
@@ -408,7 +412,7 @@ retry_sp	dw	0		; SP for Error Retry
 
 
 ; Some important data structures....
-	rb	0350h - (offset $ - offset dos_data)	; DOS 5
+	db	0350h - ($ - offset dos_data) dup (0) ; DOS 5
 dayOfMonth		db	0
 month			db	0
 yearsSince1980		dw	0
@@ -424,7 +428,7 @@ int28_flag		db	FALSE
 
 	public	ioctlRH
 
-ioctlRH		rb	23		; up to 23 bytes possible
+ioctlRH		db	23 dup (0)	; up to 23 bytes possible
 
 	public	load_env, load_envsize, exe_loadhigh
 load_env	dw	0		; Paragraph of the new environment
@@ -437,13 +441,14 @@ exe_loadhigh	db	0		; load high flag
 ; These variables are used during FCB processing - we build another parameter
 ; block outside the MXDisk which makes handle calls to the FDOS
 
-fcb_pb		rw	7
-fcb_path	rb	15
-fcb_path2	rb	15
+fcb_pb		dw	7 dup (0)
+fcb_path	db	15 dup (0)
+fcb_path2	db	15 dup (0)
 
 	public	char_count
 char_count	db	0
 
+PCMODE_DATA ends
 
 ;****************************************************************************
 ;	The format of the data is FIXED and should not be modified.
@@ -451,7 +456,7 @@ char_count	db	0
 
 ; WARNING - if anyone adds/deletes PCMODE_DATA they MUST adjust these
 ; values so the following data will origin correctly
-FIXED_DOS_DATA	cseg	word
+FIXED_DOS_DATA	segment public word 'DATA'
 
 FIXED_DATA_START	equ	3B0h
 	public	MUSTBE03B0
@@ -463,7 +468,7 @@ minute		db	0
 hour		db	0
 hundredth	db	0
 second		db	0
-		rb	2		; padding
+		db	2 dup (0)	; padding
 
 	Public	reloc_buf, load_file, RELOC_CNT
 RELOC_CNT	equ	80h/16		; buffer 128 bytes here
@@ -471,23 +476,23 @@ RELOC_CNT	equ	80h/16		; buffer 128 bytes here
 ; function 4B uses these data area's as workspace during an EXEC
 
 	Public	pri_pathname
-reloc_buf	rb	0		; shared with primary pathname
-pri_pathname	rb	80h
+reloc_buf	label byte		; shared with primary pathname
+pri_pathname	db	80h dup (0)
 	Public	sec_pathname
-load_file	rb	0
-sec_pathname	rb	80h
+load_file	label	byte
+sec_pathname	db	80h dup (0)
 	Public	srch_buf
-srch_buf	rb	21+32		; 21 byte srch state, 32 byte dir entry
+srch_buf	db	21+32 dup (0)	; 21 byte srch state, 32 byte dir entry
 	Public	temp_ldt
-temp_ldt	rb	LDT_LEN
+temp_ldt	db	LDT_LEN dup (0)
 	Public	name_buf
-name_buf	rb	32		; space enough for 1 dir entry
+name_buf	db	32 dup (0)	; space enough for 1 dir entry
 
 magic_byte	db	0
-		rb	1		; padding
+		db	0		; padding
 	Public	file_attrib
 file_attrib	dw	0
-		rb	3		; padding
+		db	3 dup (0)	; padding
 	Public	remote_call
 remote_call	dw	0
 
@@ -495,29 +500,29 @@ remote_call	dw	0
     org 057Ch - FIXED_DATA_START 
 	Public	exit_type		; used by break and critical error
 exit_type	db	0		;  handlers during termination
-		rb	1		; padding
+		db	0		; padding
 	Public	term_psp
-term_psp    dw  0       
+term_psp    	dw  0       
 
 	Public	int24_esbp
-int24_esbp	rw	2
+int24_esbp	dw	2 dup (0)
 	Public	int21regs_ptr, int21regs_off, int21regs_seg
-int21regs_ptr	rw	0
+int21regs_ptr	label word
 int21regs_off	dw	0
 int21regs_seg	dw	0
 	public	critical_sp
 critical_sp	dw	0		; critical error internal stack
 	Public	current_ddsc
-current_ddsc	rw	2
+current_ddsc	dw	2 dup (0)
 
     org 059ah - FIXED_DATA_START 
 	Public	current_device
-current_device	rw	2
+current_device	dw	2 dup (0)
 	Public	current_dhndl
-current_dhndl	rw	2
+current_dhndl	dw	2 dup (0)
 	Public	current_ldt
-current_ldt	rw	2
-		rw	2		; pointer to callers FCB
+current_ldt	dw	2 dup (0)
+		dw	2 dup (0)		; pointer to callers FCB
 	Public	current_ifn
 current_ifn	dw	0
 
@@ -528,11 +533,11 @@ current_ifn	dw	0
 
     org 05ceh - FIXED_DATA_START 
 	Public	current_filepos
-current_filepos	rw	4
+current_filepos	dw	4 dup (0)
 
     org 05f0h - FIXED_DATA_START 
 	Public	prev_int21regs_ptr, prev_int21regs_off, prev_int21regs_seg
-prev_int21regs_ptr	rw	0
+prev_int21regs_ptr	label word
 prev_int21regs_off	dw	0
 prev_int21regs_seg	dw	0
 
@@ -541,17 +546,17 @@ prev_int21regs_seg	dw	0
 	Public	indos_stack, error_stack, normal_stack
 
 	Public	fcb_search_buf		; during FCB search 1st/next use bottom
-fcb_search_buf	rb	0		;  of error stack as scratch buffer
-	;	rb	43		;  - only used during int 21 call
+fcb_search_buf	label byte		;  of error stack as scratch buffer
+	;	db	43 dup (0)	;  - only used during int 21 call
 
-		rw	STACK_SIZE	; Error Processing Stack
-error_stack	rw	0
+		dw	STACK_SIZE dup (0)	; Error Processing Stack
+error_stack	label word
 
-		rw	STACK_SIZE	; Normal Function Stack Area
-normal_stack	rw	0
+		dw	STACK_SIZE dup (0)	; Normal Function Stack Area
+normal_stack	label word
 
-		rw	STACK_SIZE	; Indos Function Stack
-indos_stack	rw	0
+		dw	STACK_SIZE dup (0)	; Indos Function Stack
+indos_stack	label word
 
 lookahead_flag	db	0
 
@@ -566,7 +571,7 @@ file_mode   dw  0
 	Public	cle_state
 cle_state   dw  0       
 	Public	swap_indos
-swap_indos	rw	0
+swap_indos	label word
 
     org 0AADh - FIXED_DATA_START 
 
@@ -593,7 +598,7 @@ info2_len	equ	word ptr (offset $ - offset Ucasetbl)
     org 0B2Fh - FIXED_DATA_START 
 ; Filename upper case table
 FileUcasetbl	dw  128	; Table Size
-standard_table	rb	0
+standard_table	label byte
 	db	080h, 09ah,  'E',  'A', 08eh,  'A', 08fh, 080h
 	db	 'E',  'E',  'E',  'I',  'I',  'I', 08eh, 08fh
 	db	090h, 092h, 092h,  'O', 099h,  'O',  'U',  'U'
@@ -742,7 +747,7 @@ last_key_ext	equ	byte ptr 0d90h
 
 	Public	@private_data
 
-@private_data	rb	0		; We need some private data
+@private_data	label byte		; We need some private data
 		dw	endOfInstanceData ; 0000 historical PD offset
 dummy_sysdat	dw	1		; 0002 historical SYSDAT segment
 		dw	offset histbuf1	; 0004 History Control Block 1
@@ -772,7 +777,7 @@ hashmax		dw	0		; 0024 max dir entries hashed
 					; 002A pointer to global private data
 		dw	offset int2FBiosHandler
 					; 002C pointer to int 2F internal hook
-		rw	10		; space for expansion
+		dw	10 dup (0)	; space for expansion
 
 	Public	deblock_seg, fdos_stub
 
@@ -812,39 +817,48 @@ childCS		dw	0
 ;	The .EXE header is read into this data area and check for integrity
 ;	
 	Public	exe_buffer
-exe_buffer	rb	EXE_LENGTH	; Local EXE header buffer
+exe_buffer	db	EXE_LENGTH dup (0)	; Local EXE header buffer
 
 
-if IDLE_DETECT
+ifdef IDLE_DETECT
 
 	Public	idle_data
 	Public	active_cnt, idle_max
 	Public	idle_flags, idle_vec
 
-idle_data	rw	0		; Idle State Data Area
+idle_data	label word		; Idle State Data Area
 active_cnt	dw	0		; InActive Function Count
 idle_max	dw	10		; Max No. of consecutive funcs.
 idle_flags	dw	IDLE_INIT	; $IDLE$ Has not been loaded
-idle_vec	rd	1 		; DWORD pointer to IDLE handler
+idle_vec	dd	0 		; DWORD pointer to IDLE handler
 
 
 		Public	int28_delay, int28_reload
 int28_delay	dw	0		; No. Consecutive INT28's 
 int28_reload	dw	10		; INT28 Delay Reload Value
 		dw	indos_flag	; Offset of INDOS_FLAG
-		rw	2		; 2 OEM Reserved Words
+		dw	2 dup (0)	; 2 OEM Reserved Words
 endif
 
 	org	1000h - FIXED_DATA_START	; nice 4K boundry
 						; for multitasker
 
-PCMODE_DSIZE	DSEG	PARA
+FIXED_DOS_DATA ends
+
+PCMODE_DSIZE	segment public para 'DATA'
 
 	Public	data_end
-data_end	rw	0
+data_end	label word
+
+PCMODE_DSIZE ends
 
 
-PCMODE_CODE	CSEG	WORD 'DATA'
+	extrn	int20_entry:near, int21_entry:near
+	extrn	int25_entry:near, int26_entry:near
+	extrn	int27_entry:near, int2F_entry:near
+	extrn	call5_entry:near
+
+PCMODE_CODE	segment public word 'DATA'
 
 
 PCMODE_CODE_START	equ	1000h
@@ -853,11 +867,11 @@ MUSTBE1000:
 
 	Public	endOfInstanceData
 
-endOfInstanceData	rw	0
+endOfInstanceData	label word
 
 ;*** fixed data - init does segment fixups ***
 
-stub_entries	rw	0
+stub_entries	label word
 
 	Public	lock_bios, unlock_bios, lock_tables, unlock_tables
 
@@ -907,50 +921,45 @@ NUM_STUB_ENTRIES	equ	(offset $ - offset stub_entries)/4
 ; On the first Int 21 etc the A20Enable routine enables the A20 gate.
 ;
 
-	extrn	int20_entry:near, int21_entry:near
-	extrn	int25_entry:near, int26_entry:near
-	extrn	int27_entry:near, int2F_entry:near
-	extrn	call5_entry:near
-
-FirstCodeEntryPoint	rw	0
+FirstCodeEntryPoint	label word
 
 Int20Entry:
 	db	0EAh			; JMPF
 	dw	int20_entry
-	rb	5			; filled in at run time
+	db	5 dup (0)		; filled in at run time
 	
 
 Int21Entry:
 	db	0EAh			; JMPF
 	dw	int21_entry
-	rb	5			; filled in at run time
+	db	5 dup (0)		; filled in at run time
 
 Int25Entry:
 	db	0EAh			; JMPF
 	dw	int25_entry
-	rb	5			; filled in at run time
+	db	5 dup (0)		; filled in at run time
 
 Int26Entry:
 	db	0EAh			; JMPF
 	dw	int26_entry
-	rb	5			; filled in at run time
+	db	5 dup (0)		; filled in at run time
 
 Int27Entry:
 	db	0EAh			; JMPF
 	dw	int27_entry
-	rb	5			; filled in at run time
+	db	5 dup (0)		; filled in at run time
 
 Int2FEntry:
 	db	0EAh			; JMPF
 	dw	int2f_entry
-	rb	5			; filled in at run time
+	db	5 dup (0)		; filled in at run time
 
 Call5Entry:
 	db	0EAh			; JMPF
 	dw	call5_entry
-	rb	5			; filled in at run time
+	db	5 dup (0)		; filled in at run time
 
-LastCodeEntryPoint	rw	0
+LastCodeEntryPoint	label word
 
 
 BIOSA20Enable:
@@ -969,7 +978,7 @@ A20Disable:
 	 jae	A20Disable10		;  EXE pack kludge
 	push	ax
 	mov	ah,6			; disable the A20 gate during EXEC
-	callf	cs:xmsDriver		;  so buggy EXE packing will work
+	call	dword ptr cs:xmsDriver	;  so buggy EXE packing will work
 	pop	ax
 A20Disable10:
 	ret
@@ -990,8 +999,8 @@ A20Enable:
 	push	ds
 	mov	ax,0FFFFh
 	mov	ds,ax
-	mov	ax,ds:.94h		; is the HMA alias for Int 21
-	or	ax,ds:.96h		;  zero - if so the HMA is there
+	mov	ax,ds:94h		; is the HMA alias for Int 21
+	or	ax,ds:96h		;  zero - if so the HMA is there
 	pop	ds
 	 jnz	A20Enable10
 	pop	ax
@@ -1007,7 +1016,7 @@ A20Enable10:
 	mov	sp,offset error_stack	;  3rd part XMS driver needs a lot
 
 	mov	ah,5			; enable A20, ignoring errors as we
-	callf	cs:xmsDriver		;  can't do anything about them
+	call	dword ptr cs:xmsDriver	;  can't do anything about them
 
 	mov	ss,cs:oldSS		; switch back to callers stack
 	mov	sp,cs:oldSP
@@ -1090,7 +1099,7 @@ Func4B05Stub:
 	mov	ax,es
 	mov	ss,ax			; back to users stack
 	mov	sp,bp
-	POP$DOS				; Restore Registers
+	POP_DOS				; Restore Registers
 	iret
 
 
@@ -1111,11 +1120,11 @@ int2FNext	dw	Int2FBios, 0	; seg filled in at run time
 
 
 nul_strat:
-	cmp	RH_CMD,CMD_INPUT
+	cmp	es:RH_CMD[bx],CMD_INPUT
 	 jne	nul_strat10		; if it's input
-	mov	RH4_COUNT,0		; Say none transferred #IJ
+	mov	es:RH4_COUNT[bx],0		; Say none transferred #IJ
 nul_strat10:
-	mov	RH_STATUS,RHS_DONE	; Set the DONE bit in the
+	mov	es:RH_STATUS[bx],RHS_DONE	; Set the DONE bit in the
 nul_int:				; Request Header and Return
 	clc				; (indicate success for SHARE)
 	retf
@@ -1134,19 +1143,19 @@ lockbios:
 ;--------
 	push	ax
 	mov	ax,8002h
-	jmps	CriticalSection
+	jmp	short CriticalSection
 	
 unlockbios:
 ;----------
 	push	ax
 	mov	ax,8102h
-	jmps	CriticalSection
+	jmp	short CriticalSection
 
 locktables:
 ;----------
 	push	ax
 	mov	ax,8001h
-	jmps	CriticalSection
+	jmp	short CriticalSection
 
 unlocktables:
 ;------------
@@ -1212,7 +1221,7 @@ histsiz2	dw	0		; size (in bytes)
 ;		dw	16Ch,070h,002h	; BIOS dev_no (no longer required)
 		dw	600h,070h,002h	; BIOS local_char
 
-bdosInstanceFixups	rw	0
+bdosInstanceFixups	label word
 		dw	con_device,0,4	; CON: device ptr
 		dw	savbuf,0,column-savbuf+1
 		dw	dmd_upper_root,0,2
@@ -1222,11 +1231,11 @@ bdosInstanceFixups	rw	0
 		dw	0,0		; zero terminated instance list
 
 
-xmsDriver	rd	1
+xmsDriver	dd	0
 
 globalPrivateData:
-		rd	1		; 0000 delwatch driver vector
-		rw	4		; space for expansion
+		dd	0		; 0000 delwatch driver vector
+		dw	4 dup (0)	; space for expansion
 
 
 ;** COUNTRY INFO **
@@ -1247,7 +1256,7 @@ xlat_xlat:
 	sub	al,080h
 	push	bx
 	mov	bx,offset Standard_table
-	xlat	cs:al
+	xlat	cs:0
 	pop	bx
 xlat_exit:
 	retf
@@ -1289,13 +1298,13 @@ NoYesChars	db	'NnYy'
 dummy_fcbs	dw	0ffffh		; terminate now
 		dw	0
 		dw	1		; with one entry
-		rb	DHNDL_LEN	; this many bytes in it
+		db	DHNDL_LEN dup (0)	; this many bytes in it
 
     org 1232h - PCMODE_CODE_START   
 
 	Public	country_filename
 country_filename db	'\COUNTRY.SYS'
-		rb	64 - length country_filename
+		db	64 - (lengthof country_filename) dup (0)
 
     org 1276h - PCMODE_CODE_START   
 
@@ -1334,20 +1343,20 @@ intl_xlat dw	xlat_xlat	; Case Translation Routine
 	db	',',0		; Data List Separator
 info1_len	equ	word ptr (offset $ - offset country_data)
 				; If NOT COUNTRY.SYS then include the
-	rb	10		; 10 zero bytes held at the end of the
+	db	10 dup (0)	; 10 zero bytes held at the end of the
 				; country information.
 
 
 	Public lfn_find_handles
 	Public lfn_find_handles_end
 lfn_find_handles:
-	rw	32
+	dw	32 dup (0)
 lfn_find_handles_end:
 
 	Public lfn_find_handle_heap
 	Public lfn_find_handle_heap_end
 lfn_find_handle_heap:
-	rb	2Eh * 32
+	db	2Eh * 32 dup (0)
 lfn_find_handle_heap_end:
 
 	Public lfn_find_handle_heap_free
@@ -1358,14 +1367,16 @@ lfn_find_handle_heap_free:
 lfnpathflag:
 	db 0
 
+PCMODE_CODE ends
 
-PCM_CODEND	CSEG	PARA
+PCM_CODEND	segment public para 'CODE'
 
 	Public	code_end
-code_end	rb	0
+code_end	label byte
 
+PCM_CODEND ends
 
-BDOS_DATA	DSEG
+BDOS_DATA	segment public word 'DATA'
 
 	Public	hashroot, hashmax
 
@@ -1373,14 +1384,17 @@ BDOS_DATA	DSEG
 ; during CONFIG so we copy it from the private data area
 
 hashroot	dw	0,0
+BDOS_DATA ends
 
 
-PCM_HISTORY	CSEG
+PCM_HISTORY	segment public byte 'CODE'
 
 patch_area	dw	0666h
-		include	i:patch.cod
+		db 256 dup (090h)
 
-PCM_ICODE	cseg
+PCM_HISTORY ends
+
+PCM_ICODE	segment public byte 'CODE'
 
 ;
 ;	The following routine initializes all the standard MS-DOS interrupt
@@ -1437,9 +1451,9 @@ share_loop:
 ;	mov	cx,0
 	mov	es,cx			; Initialize the DOS vectors
 
-	mov	ax,es:.INT2F_OFFSET	; remember address of BIOS Int 2F
+	mov	ax,es:INT2F_OFFSET	; remember address of BIOS Int 2F
 	mov	ds:int2FBiosHandler,ax
-	mov	ax,es:.INT2F_SEGMENT
+	mov	ax,es:INT2F_SEGMENT
 	mov	ds:int2FBiosHandler+2,ax
 	mov	ds:int2FNext+2,ds	; fixup seg of out stub
 
@@ -1473,7 +1487,8 @@ dummy_vecs_skip:
 def_data_vecs_loop:
 	push	es
 	mov	es,bp
-	lods cs:ax ! mov di,ax		; Get the Vector Offset (from CS)
+	lods 	cs:word ptr ax
+	mov 	di,ax			; Get the Vector Offset (from CS)
 ;	db	2Eh			; CS:
 ;	movsw				; copy service routine offset
 	mov	es:byte ptr [bx],0eah	; jmp far
@@ -1491,7 +1506,7 @@ def_data_vecs_loop:
 	add	bx,5
 	loop	def_data_vecs_loop
 
-	mov	es:byte ptr .INT30_OFFSET,0EAh
+	mov	es:byte ptr INT30_OFFSET,0EAh
 					; fixup CALL 5 JMPF
 
 	mov	si,offset bdosInstanceFixups
@@ -1544,11 +1559,12 @@ pcmode_init2:
 	mov	ds:word ptr buf_ptr+2,ds
 	mov	ds:word ptr file_ptr+2,ds
 	mov	ds:word ptr fcb_ptr+2,ds
-	mov	ax,word ptr fcb_ptr
+	mov	ax,ds:word ptr fcb_ptr
 	mov	cl,4
 	shr	ax,cl
-	and	word ptr fcb_ptr,15
-	add	word ptr fcb_ptr+2,ax
+	and	word ptr ds:fcb_ptr,15
+	nop	; REMOVE AFTER JWASM CONVERSION
+	add	word ptr ds:fcb_ptr+2,ax
 ;	push	ax			; Save the memory size
 ;	push	bx			; First Free Paragraph
 ;	mov	ds:current_dsk,dl	; save initial drive
@@ -1657,7 +1673,6 @@ InstanceFixupLoop2:
 ;	mov	ds:dmd_root,es		; Save the DMD address in root
 	retf
 
-eject
 ;	
 ;
 ; On Entry:
@@ -1702,8 +1717,8 @@ pcmode_reinit10:
 	mov	ax,0FFFFh
 	mov	es,ax
 	inc	ax			; AX = 0
-	mov	es:.94h,ax		; zero the HMA alias for Int 21
-	mov	es:.96h,ax		;  we use this as our A20 gate test
+	mov	es:94h,ax		; zero the HMA alias for Int 21
+	mov	es:96h,ax		;  we use this as our A20 gate test
 
 	mov	bx,offset FirstCodeEntryPoint
 pcmode_reinit20:
@@ -1737,7 +1752,7 @@ pcmode_reinit30:
 	retf
 
 
-def_data_vecs	rw	0
+def_data_vecs	label word
 	dw	INT22_OFFSET, DummyIRET
 	dw	INT23_OFFSET, DummyIRET
 	dw	INT24_OFFSET, Int24Entry
@@ -1755,6 +1770,8 @@ def_data_vecs	rw	0
 no_def_data_vecs	equ	(offset $ - offset def_data_vecs)/4
 
 int_stubs_seg	dw	0
+
+PCM_ICODE ends
 
 end
 
