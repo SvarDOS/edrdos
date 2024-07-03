@@ -4,15 +4,42 @@
 ; The DR-DOS/OpenDOS Enhancement Project - http://www.drdosprojects.de
 ; Copyright (c) 2002-2009 Udo Kuhnt
 
+	.nolist
 	include	bdos.equ
 	include	fdos.equ
-	include	pcmode.equ
+	include	pcmodew.equ
 	include doshndl.def
 	include	lfn.equ
 	include	fdos.def
 	include	mserror.equ
+	.list
 
-BDOS_CODE	cseg	word
+PCMCODE	GROUP	BDOS_CODE,PCM_CODE
+PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA,FDOS_DSEG
+
+ASSUME DS:PCMDATA
+
+BDOS_DATA	segment public word 'DATA'
+	extrn	dcnt:word
+	extrn	fdos_pb:word
+BDOS_DATA	ends
+
+PCMODE_DATA	segment public word 'DATA'
+
+	extrn	int21regs_ptr:dword
+	extrn	dma_segment:word
+	extrn	dma_offset:word
+	extrn	current_psp:word
+
+	extrn lfn_find_handles:word
+	extrn lfn_find_handles_end:word
+	extrn lfn_find_handle_heap:word
+	extrn lfn_find_handle_heap_end:word
+	extrn lfn_find_handle_heap_free:word
+	extrn lfnpathflag:byte
+PCMODE_DATA	ends
+
+BDOS_CODE	segment public word 'CODE'
 
 	extrn	rd_pcdir:near
 	extrn	flush_dirbuf:near
@@ -47,14 +74,15 @@ del_lfn10:
 	 jnc	del_lfn20		; no further LFN entries, done
 	mov	DNAME[bx],0e5h		; else mark this entry as deleted
 	call	flush_dirbuf		; and copy it to the buffer
-	jmps	del_lfn10		; repeat with next entry
+	jmp	del_lfn10		; repeat with next entry
 del_lfn20:
 	pop	dcnt			; restore dir count
 	dec	dcnt
 	call	rd_pcdir		; and old dir entry
 	ret
+BDOS_CODE	ends
 
-PCM_CODE	cseg	byte
+PCM_CODE	segment public byte 'CODE'
 	extrn	return_AX_CLC:near
 	extrn	vfy_dhndl_ptr_AX:near
 	extrn	check_handle:near
@@ -181,7 +209,7 @@ f7142_dev:
 	 je	f7142_10		; seek from beginning
 	dec	al
 	 je	f7142_20		; seek from current position
-	jmps	f7142_30		; seek from end
+	jmp	f7142_30		; seek from end
 
 f7142_10:				; mode 0: set absolute position
 	mov	ax,[si]			; copy 64-bit offset to position
@@ -192,7 +220,7 @@ f7142_10:				; mode 0: set absolute position
 	mov	es:DHNDL_POSXLO[bx],ax
 	mov	ax,6[si]
 	mov	es:DHNDL_POSXHI[bx],ax
-	jmps	f7142_40
+	jmp	f7142_40
 
 f7142_20:				; mode 1: relative to current position
 	mov	ax,[si]			; add 64-bit offset to position
@@ -211,7 +239,7 @@ f7142_20:				; mode 1: relative to current position
 	adc	ax,es:DHNDL_POSXHI[bx]
 	mov	es:DHNDL_POSXHI[bx],ax
 	mov	6[si],ax
-	jmps	f7142_40
+	jmp	f7142_40
 
 f7142_30:				; mode 2: relative to end of file
 	mov	ax,[si]			; add 64-bit offset to file size
@@ -274,7 +302,7 @@ f7143_get_writetime:
 	mov	di,DDATE[bx]		; last write date
 	mov	es:reg_CX[bp],cx
 	mov	es:reg_DI[bp],di
-	jmps	f7143_exit
+	jmp	f7143_exit
 f7143_set_writetime:
 	mov	cx,es:reg_CX[bp]	; new last write time
 	mov	di,es:reg_DI[bp]	; new last write date
@@ -326,7 +354,7 @@ f714e_found_handle:
 	cmp ax, cx
 	jb f714e_oom
 
-	mov word ptr -2[di], bx
+	mov word ptr [di-2], bx
 	add lfn_find_handle_heap_free, cx
 	mov ax, current_psp
 	mov word ptr [bx], ax
@@ -334,7 +362,7 @@ f714e_found_handle:
 	shr di, 1			; make it a handle
 
 	mov	ax,4eh			; FindFirst
-	jmps	f714e_entry
+	jmp	f714e_entry
 
 func714f:
 	call lfn_get_handle
@@ -403,7 +431,7 @@ f714f_10:
 	xor	ax,ax			; zero high dword
 	stosw
 	stosw
-	mov	al,-7[si]		; extended file size
+	mov	al,[si-7]		; extended file size
 	stosw
 	xor	ax,ax
 	stosw
@@ -411,7 +439,7 @@ f714f_10:
 	movsw
 	add	di,8			; skip over reserved bytes
 	mov	cx,13
-	repnz	movsb			; copy file name
+	rep	movsb			; copy file name
 	add	di,260 - 13		; start of short name field
 	stosb				; no short name (0)
 	pop	ss:dma_offset		; restore old DTA
@@ -439,11 +467,11 @@ f714e_oom_j:
 lfn_free_handle:
 	mov ax, bx
 	and word ptr [di], 0		; clear the handle table
-
+	nop	; REMOVE AFTER JWASM CONVERSION
 	push ds
 	pop es
 	mov di, ax			; -> to overwrite
-	lea si, +2Eh[di]		; -> next
+	lea si, [di+2Eh]		; -> next
 	mov cx, offset lfn_find_handle_heap_end
 					; -> after last
 	sub cx, si			; = length of next to after last
@@ -452,7 +480,7 @@ lfn_free_handle:
 f71a1_loop:
 	scasw				; cmp ax, word ptr [es:di]
 	ja f71a1_next			; offset freed is above entry -->
-	sub word ptr -2[di], 2Eh	; offset freed is below, relocate this
+	sub word ptr [di-2], 2Eh	; offset freed is below, relocate this
 f71a1_next:
 	cmp di, offset lfn_find_handles_end
 					; more to go ?
@@ -674,7 +702,7 @@ f71a701_40:
 	mov	al,bl
 	add	es:[di],ax
 	adc	es:word ptr 2[di],0
-	mov	ax,-2[bp]		; restore date
+	mov	ax,[bp-2]		; restore date
 	and	ax,1e0h			; bits 5-8 contain the month
 	mov	cl,5
 	shr	ax,cl
@@ -689,7 +717,7 @@ f71a701_50:
 	mov	dl,cs:ndays[si]
 	add	ax,dx
 	inc	si
-	jmps	f71a701_50
+	jmp	f71a701_50
 f71a701_60:
 	cmp	bx,2			; has February already passed?
 	 ja	f71a701_70		; no
@@ -699,8 +727,9 @@ f71a701_60:
 	 je	f71a701_70		; 100 but not 400, no leap year
 	inc	ax			; yes, add one leap day
 f71a701_70:
-	mov	dx,-2[bp]		; restore date
+	mov	dx,[bp-2]		; restore date
 	and	dx,1fh			; bits 0-4 contain the days
+	nop	; REMOVE AFTER JWASM CONVERSION
 	add	ax,dx			; AX = days in year
 	dec	ax			; minus one for the first day in 1601
 	add	es:[di],ax		; date converted to days
@@ -719,7 +748,7 @@ f71a701_70:
 	pop	es:word ptr 4[di]
 	pop	es:word ptr 6[di]
 	add	sp,8			; clean up stack again
-	mov	ax,-4[bp]		; restore time
+	mov	ax,[bp-4]		; restore time
 	and	ax,0f800h		; bits 11-15 contain the hours
 	mov	cl,11
 	shr	ax,cl
@@ -729,7 +758,7 @@ f71a701_70:
 	adc	es:2[di],dx
 	adc	es:word ptr 4[di],0
 	adc	es:word ptr 6[di],0
-	mov	ax,-4[bp]		; restore time
+	mov	ax,[bp-4]		; restore time
 	and	ax,7e0h			; bits 5-10 contain the minutes
 	mov	cl,5
 	shr	ax,cl
@@ -739,7 +768,7 @@ f71a701_70:
 	adc	es:2[di],dx
 	adc	es:word ptr 4[di],0
 	adc	es:word ptr 6[di],0
-	mov	ax,-4[bp]		; restore time
+	mov	ax,[bp-4]		; restore time
 	and	ax,1fh			; bits 0-4 contain the 2-seconds
 	add	es:[di],ax		; and add subtotal
 	adc	es:2[di],dx
@@ -766,7 +795,7 @@ f71a701_80:
 	add	sp,24			; clean up stack again
 	xor	ax,ax			; centiseconds
 	push	ax
-	push	word ptr -6[bp]
+	push	word ptr [bp-6]
 	mov	ax,1			; 186A0h = 100000 100-nanoseconds
 	push	ax
 	mov	ax,86a0h
@@ -796,24 +825,9 @@ f71_error:
 	les	bp,int21regs_ptr
 	mov	es:reg_AX[bp],ax	; return error code
 	or	es:reg_FLAGS[bp],CARRY_FLAG ; set carry flag
+	nop	; REMOVE AFTER JWASM CONVERSION
 	stc
 	ret
+PCM_CODE	ends
 
-BDOS_DATA	dseg	word
-
-	extrn	dcnt:word
-	extrn	fdos_pb:word
-
-PCMODE_DATA	dseg	word
-
-	extrn	int21regs_ptr:dword
-	extrn	dma_segment:word
-	extrn	dma_offset:word
-	extrn	current_psp:word
-
-	extrn lfn_find_handles:word
-	extrn lfn_find_handles_end:word
-	extrn lfn_find_handle_heap:word
-	extrn lfn_find_handle_heap_end:word
-	extrn lfn_find_handle_heap_free:word
-	extrn lfnpathflag:byte
+	end

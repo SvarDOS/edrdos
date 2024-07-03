@@ -124,9 +124,8 @@ bin/dos7.obj: dos7.asm pcmode.equ fdos.equ fdos.def dos7.equ
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)
 	$(FIXUPP) $^*.o86 $^@
 
-bin/lfn.obj: lfn.asm bdos.equ fdos.equ pcmode.equ doshndl.def lfn.equ fdos.def mserror.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)
-	$(FIXUPP) $^*.o86 $^@
+bin/lfn.obj: lfn.asm bdos.equ fdos.equ pcmodew.equ doshndl.def lfn.equ fdos.def mserror.equ
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 
 clean: .SYMBOLIC
