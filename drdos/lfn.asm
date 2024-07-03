@@ -39,7 +39,7 @@ PCMODE_CODE	segment public word 'DATA'
 	extrn lfn_find_handle_heap_end:word
 	extrn lfn_find_handle_heap_free:word
 	extrn lfnpathflag:byte
-;	extrn lfn_search_redir:byte
+	extrn lfn_search_redir:byte
 PCMODE_CODE	ends
 
 BDOS_CODE	segment public word 'CODE'
@@ -381,7 +381,7 @@ f714e_entry:
 	mov	FD_FUNC,ax
 ;	mov	FD_LFNSEARCH,1		; use FAT+/LFN extensions
 	mov	fdos_pb+10,1		; use FAT+/LFN extensions
-	mov	lfnpathflag, 1
+	mov	word ptr lfnpathflag, 1
 	push	di			; handle
 	push	ds
 	push	ss:dma_segment		; save old DTA
@@ -434,7 +434,10 @@ f714f_10:
 	xor	ax,ax			; zero high dword
 	stosw
 	stosw
+	rol	ss:lfn_search_redir, 1
+	jc	f714F_redir_no_plus_size
 	mov	al,[si-7]		; extended file size
+f714F_redir_no_plus_size:
 	stosw
 	xor	ax,ax
 	stosw

@@ -1367,6 +1367,10 @@ lfn_find_handle_heap_free:
 lfnpathflag:
 	db 0
 
+	Public lfn_search_redir
+lfn_search_redir:
+	db 0
+
 PCMODE_CODE ends
 
 PCM_CODEND	segment public para 'CODE'

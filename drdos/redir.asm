@@ -58,7 +58,7 @@ title 'REDIR - DOS file system network redirector interace support'
 ;    ENDLOG
 
 PCMCODE	GROUP	BDOS_CODE
-PCMDATA	GROUP	PCMODE_DATA
+PCMDATA	GROUP	PCMODE_DATA,PCMODE_CODE
 
 ASSUME DS:PCMDATA
 
@@ -101,6 +101,10 @@ PCMODE_DATA	segment public word 'DATA'
 	extrn	file_mode:word
 
 PCMODE_DATA	ends
+
+PCMODE_CODE	segment public word 'DATA'
+	extrn lfn_search_redir:byte
+PCMODE_CODE	ends
 
 BDOS_CODE	segment public byte 'CODE'
 
@@ -280,6 +284,7 @@ redir_accept:
 ;============
 ; We have decided to accept an FDOS function.
 ; Note by this time the functions have been validated as legal
+	mov	lfn_search_redir, 0FFh
 	mov	file_attrib,16h		; default search attribs to all
 	pop	si			; discard the near return address
 	mov	si,2[bp]		; SI -> parameter block
