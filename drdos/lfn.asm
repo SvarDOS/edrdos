@@ -15,7 +15,7 @@
 	.list
 
 PCMCODE	GROUP	BDOS_CODE,PCM_CODE
-PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA,FDOS_DSEG
+PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA,FDOS_DSEG,PCMODE_CODE
 
 ASSUME DS:PCMDATA
 
@@ -30,14 +30,17 @@ PCMODE_DATA	segment public word 'DATA'
 	extrn	dma_segment:word
 	extrn	dma_offset:word
 	extrn	current_psp:word
+PCMODE_DATA	ends
 
+PCMODE_CODE	segment public word 'DATA'
 	extrn lfn_find_handles:word
 	extrn lfn_find_handles_end:word
 	extrn lfn_find_handle_heap:word
 	extrn lfn_find_handle_heap_end:word
 	extrn lfn_find_handle_heap_free:word
 	extrn lfnpathflag:byte
-PCMODE_DATA	ends
+;	extrn lfn_search_redir:byte
+PCMODE_CODE	ends
 
 BDOS_CODE	segment public word 'CODE'
 
