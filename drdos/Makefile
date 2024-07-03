@@ -10,6 +10,8 @@
 
 !include ../platform.mak
 
+WASM_FLAGS += -DDELWATCH -DJOIN
+
 objs  = bin/buffers.obj bin/dirs.obj bin/fdos.obj bin/fcbs.obj bin/bdevio.obj
 objs += bin/cdevio.obj bin/fioctl.obj bin/redir.obj bin/header.obj
 objs += bin/pcmif.obj bin/cio.obj bin/disk.obj bin/ioctl.obj bin/misc.obj
@@ -36,7 +38,7 @@ bin/dosgrps.obj: dosgrps.asm
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/buffers.obj: buffers.asm fdos.equ bdos.equ doshndl.def
-	$(WASM) $(WASM_FLAGS) -DDELWATCH -Fo$^@ -Fl$^*.lst $[@
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/dirs.obj: dirs.a86 bdos.equ mserror.equ fdos.equ
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDELWATCH
@@ -50,9 +52,8 @@ bin/fcbs.obj: fcbs.a86 mserror.equ fdos.equ driver.equ doshndl.def
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)
 	$(FIXUPP) $^*.o86 $^@
 
-bin/bdevio.obj: bdevio.a86 fdos.equ msdos.equ mserror.equ doshndl.def bdos.equ rh.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDELWATCH /DDOS5 /DJOIN
-	$(FIXUPP) $^*.o86 $^@
+bin/bdevio.obj: bdevio.asm driverw.equ fdos.equ mserror.equ doshndl.def bdos.equ request.equ
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/cdevio.obj: cdevio.a86 psp.def modfunc.def fdos.equ mserror.equ doshndl.def driver.equ rh.equ cmdline.equ
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDOS5

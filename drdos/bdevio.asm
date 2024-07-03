@@ -62,12 +62,16 @@ title 'BDEVIF - Block DEVice Input/Output support'
 PCMCODE	GROUP	BDOS_CODE
 PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
 
-	eject ! include i:mserror.equ	; F_DOS erros
-	eject ! include i:fdos.equ
-	eject ! include i:driver.equ
-	eject ! include i:doshndl.def
-	eject ! include bdos.equ
-	eject ! include rh.equ
+ASSUME CS:PCMCODE,DS:PCMDATA
+
+	.nolist
+	include mserror.equ	; F_DOS errors
+	include fdos.equ
+	include driverw.equ
+	include doshndl.def
+	include bdos.equ
+	include request.equ
+	.list
 
 ;*****************************************************
 ;*
@@ -75,7 +79,7 @@ PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
 ;*
 ;*****************************************************
 
-PCMODE_DATA	dseg	word
+PCMODE_DATA	segment public word 'DATA'
 	extrn	current_ddsc:dword
 	extrn	current_dhndl:dword
 	extrn	current_dsk:byte	; default drive
@@ -96,8 +100,10 @@ PCMODE_DATA	dseg	word
 	extrn	unlock_bios:dword
 	extrn	verify_flag:byte
 	extrn	net_retry:word
+PCMODE_DATA	ends
 
-BDOS_DATA	dseg	word
+
+BDOS_DATA	segment public word 'DATA'
 
 	extrn	bcb_root:dword
 	extrn	deblock_seg:word
@@ -130,7 +136,6 @@ BDOS_DATA	dseg	word
 	public	secperclu
 	public	fsroot
 
-eject
 ; The following specify the drive selected for the current operation
 
 hdsaddr		dw	0		; current HDS address (0 means at root)
@@ -142,7 +147,7 @@ physical_drv	db	0		; physical disk number
 
 ; Local copy of DDSC_ variables - ORDER CRITICAL - must match DDSC_
 
-local_ddsc	rb	0
+local_ddsc	label byte
 psecsiz		dw	0		; byte size of sector
 clmsk		db	0
 clshf		db	0
@@ -151,16 +156,12 @@ byte_nfats	db	0		; number of FAT's
 dirinroot	dw	0		; # dir entries in root
 datadd		dw	0		; sector offset of data sector
 lastcl		dw	0		; # last cluster (after adjustment)
-if DOS5
 		dw	0		; # sectors per FAT
-else
-		db	0		; # sectors per FAT (nb. may be inaccurate on large drives)
-endif
 diradd		dw	0		; sector offset of 1st root DIR sector
 
 LOCAL_DDSC_LEN	equ	offset $ - offset local_ddsc
 
-local_ddsc2	rb	0
+local_ddsc2	label byte
 ;		dw	0,0		; total free clusters on drive
 ;		dw	0		; FAT flags
 ;		dw	0		; FS info
@@ -197,11 +198,11 @@ fdrwreq		dw	0		; requested count (roundup)
 	public	fdrwflg
 fdrwflg		db	0		; bdosrw flags
 fdrwcnt		dw	0		; requested byte count for read/write
-fdrwptr		rd	0		; disk transfer address for read/write
+fdrwptr		label dword		; disk transfer address for read/write
 fdrwoff		dw	0		; offset for R/W DTA
 fdrwseg		dw	0		; segment for R/W DTA
 
-fdrwsec		rd	1		; physical block for fdosrw
+fdrwsec		dd	0		; physical block for fdosrw
 fdrwsecoff	dw	0		; offset within sector
 fdrwdircnt	dw	0		; # sectors in direct xfer
 
@@ -231,15 +232,15 @@ tsc3		dw	0,0,0,0,0,0,0,0
 
 	Public	req_hdr
 
-req_hdr		rb	0
+req_hdr		label byte
 req_len		db	22
-req_unit	rb	1
-req_cmd		rb	1
-req_status	rw	1
+req_unit	db	0
+req_cmd		db	0
+req_status	dw	0
 req_rwmode	db	0		; action hint for device drivers
-		rb	7
-req_media	rb	1
-		rb	16
+		db	7 dup (0)
+req_media	db	0
+		db	16 dup (0)
 
 req1_return	equ	byte ptr req_media+1
 req1_volid	equ	word ptr req_media+2
@@ -258,8 +259,10 @@ req4_sector	equ	word ptr req_media+7
 req4_volid	equ	dword ptr req_media+9
 req4_bigsector	equ	dword ptr req_media+13
 
-eject
-BDOS_CODE	cseg
+BDOS_DATA	ends
+
+
+BDOS_CODE	segment public byte 'CODE'
 
 	extrn	alloc_chain:near
 	extrn	bpb2ddsc:near		; converts BPB to DDSC
@@ -299,11 +302,7 @@ BDOS_CODE	cseg
 	public	div64
 	public	mul64
 
-eject
-
-eject
-
-	Public	get_ddsc
+	public	get_ddsc
 
 get_ddsc:
 ;--------
@@ -323,7 +322,7 @@ get_ddsc10:
 	cmp	al,es:DDSC_UNIT[bx]	; does the unit match ?
 	 je	get_ddsc20		; no, try the next
 	les	bx,es:DDSC_LINK[bx]
-	jmps	get_ddsc10
+	jmp	get_ddsc10
 get_ddsc20:
 ;	clc
 	ret
@@ -331,7 +330,6 @@ get_ddsc30:
 	stc
 	ret
 
-eject
 ;	Read/Write from/to disk file
 
 ;	entry:	CURRENT_DNHDL -> file handle
@@ -383,11 +381,11 @@ fdrw_noerror:
 	sbb	ax,lastpos+6
 	 jc	fdrw_buffered
 	call	deblock_rw_npr
-	jmps	fdrw_more
+	jmp	fdrw_more
 fdrw_direct:
 	mov	fdrwreq,cx		; requested count for direct r/w
 	call	direct_rw		; transfer straight to/from TPA
-	jmps	fdrw_more
+	jmp	fdrw_more
 fdrw_buffered:				; perform deblocked read/write
 	call	deblock_rw		; transfer via BDOS buffer
 fdrw_more:
@@ -501,7 +499,7 @@ fdw_t10:				; AX = # of clusters required in file
 	 jnz	fdw_t20
 	xchg	ax,es:DHNDL_BLK1[bx]	; forget about chain
 	xchg	dx,es:DHNDL_BLK1H[bx]
-	jmps	fdw_t50
+	jmp	fdw_t50
 
 fdw_t20:
 ;	xchg	ax,cx			; CX = # of blocks to keep
@@ -743,13 +741,13 @@ fdrw_s10:
 fdrw_s15:
 	push	cx
 	mov	cx,fdrwcnt		;  in the file
-	callf	share_stub+S_FDOSRW
+	call	dword ptr share_stub+S_FDOSRW
 	pop	cx
 	 jnc	fdrw_s20		; CY set on error
 	dec	cx
 	 jz	fdrw_s30
 	call	share_delay
-	jmps	fdrw_s15
+	jmp	fdrw_s15
 fdrw_s20:
 	ret
 
@@ -830,6 +828,7 @@ fdw_e05:
 	test	dx,dx
 	 jnz	fdw_e06			; if no starting block do the lot
 	 jmp	fdw_e30
+	 nop	; REMOVE AFTER JWASM CONVERSION
 fdw_e06:
 ;	dec	cx			;  else count # extra blocks required
 	sub	fdw_extend_cl,1		;  else count # extra blocks required
@@ -850,7 +849,7 @@ fdw_e07:
 	sub	fdw_extend_cl,cx
 	mov	cx,es:DHNDL_IDXH[bx]
 	sbb	fdw_extend_cl+2,cx
-	jmps	fdw_e11
+	jmp	fdw_e11
 fdw_e10:
 	mov	ax,es:DHNDL_BLK1[bx]
 	mov	dx,es:DHNDL_BLK1H[bx]
@@ -974,7 +973,7 @@ fdrw_seek05:
 fdrw_seek06:
 	sub	ax,es:DHNDL_IDX[bx]	; skip this many
 	sbb	dx,es:DHNDL_IDXH[bx]
-	jmps	fdrw_seek20
+	jmp	fdrw_seek20
 fdrw_seek10:
 	mov	cx,es:DHNDL_BLK1[bx]	; start with 1st block
 	mov	fdrw_seek_cl,cx
@@ -1048,7 +1047,7 @@ fdrw_seek_error:
 
 deblock_rw_npr:
 	mov	cx,BF_ISDAT		; CH = no preread, buffer is data
-	jmps	deblkrw05
+	jmp	deblkrw05
 
 deblock_rw:
 ;----------
@@ -1076,7 +1075,7 @@ deblkrw10:
 	les	di,fdrwptr		; destination is user memory
 	pop	ds			; source segment is data buffer
 	lea	si,BCB_DATA[si+bx]	; DS:SI -> data
-	jmps	dblkrw40		; copy the data
+	jmp	dblkrw40		; copy the data
 
 dblkrw30:				; we're writing
 	or	es:BCB_FLAGS[si],BF_DIRTY; mark buffer as dirty
@@ -1117,7 +1116,7 @@ direct_rw03:
 ;	 jbe	direct_rw10		; then leave it alone
 	jnc	direct_rw05
 	xor	dx,dx
-	jmps	direct_rw10		; then leave it alone
+	jmp	direct_rw10		; then leave it alone
 direct_rw05:
 ;	div	clsize			; else get # of extra clusters
 ;	push	cx
@@ -1176,19 +1175,20 @@ direct_rw30:
 	mov	word ptr pblock,ax
 	mov	ax,word ptr fdrwsec+WORD
 	mov	word ptr pblock+WORD,ax
-	mov	rwmode,0000$0110b	;data read/write
+	mov	rwmode,00000110b	;data read/write
 	mov	cl,fdrwflg
 	and	cl,1			; CL = read/write flag
 	 jz	direct_rw40
 	xor	cx,cx			; indicate no retries
 	call	read_block		; read in the data
-	jmps	direct_rw50
+	jmp	direct_rw50
 direct_rw40:
 	call	write_block		; write out the data
 direct_rw50:
 	call	SynchroniseBuffers	; synchronize BCBs with direct transfer
 	pop	ax			; recover bytes xfered
-	push	ds ! pop es		; restore ES = SYSDAT
+	push	ds
+	pop 	es			; restore ES = SYSDAT
 	ret
 
 
@@ -1282,7 +1282,8 @@ SynchroniseBuffers10:
 	test	ds:BCB_FLAGS[bx],BF_DIRTY; if buffer dirty, did read old data
 	 jz	SynchroniseBuffers30	; else data read was valid
 
-	push	ax ! push dx		; save record address
+	push	ax
+	push 	dx			; save record address
 
 	mov	ax,ss:psecsiz		; # of bytes in sector buffer
 	push	cx			; save drive number
@@ -1295,24 +1296,20 @@ SynchroniseBuffers10:
 	lea	si,BCB_DATA[bx]
 	rep	movsw			; move CX words (one physical sector)
 	pop	cx			; restore drive number
-	pop	dx ! pop ax		; restore record address
-	jmps	SynchroniseBuffers30
+	pop	dx
+	pop 	ax			; restore record address
+	jmp	SynchroniseBuffers30
 
 SynchroniseBuffers20:			; multi sector write
 	mov	ds:BCB_DRV[bx],0FFh	; discard this sector
 SynchroniseBuffers30:
-if DOS5
 	mov	bx,ds:BCB_NEXT[bx]
 	cmp	bx,ss:word ptr bcb_root
-else
-	lds	bx,ds:BCB_NEXT[bx]	; get next buffer address
-	cmp	bx,0ffffh
-endif
 	 jne	SynchroniseBuffers10	; if so stop
-	push ss ! pop ds		; restore DS
+	push 	ss
+	pop 	ds			; restore DS
 	ret
 
-eject
 	Public	blockif, ddioif
 	
 ;=======	================================
@@ -1350,28 +1347,15 @@ ddioif:
 	mov	dx,word ptr pblock+WORD	; DX:AX = starting block
 	push	es
 	les	si,es:DDSC_DEVHEAD[bx]	; ES:SI -> device driver
-if DOS5
 ; DOS 4 support
 	mov	word ptr req4_bigsector,ax
 	mov	word ptr req4_bigsector+2,dx
 	mov	req_len,RH4_LEN		; set length of request header
-	test	es:DH_ATTRIB[si],DA_BIGDRV ; large sector number support?
+	test	es:DEVHDR.ATTRIB[si],DA_BIGDRV ; large sector number support?
 	 jz	blockif10		; no, normal request header
 	mov	ax,-1			; indicate we use 32-bit sector number
 blockif10:
 	mov	req4_sector,ax		; set requested sector address
-else
-	mov	word ptr req4_bigsector,ax
-	mov	word ptr req4_bigsector+2,dx
-
-	mov	req4_sector,ax		; set requested sector address
-	mov	req4_sector+2,dx	; (support large DOS drives)
-	mov	req_len,RH4_LEN		; assume 22 bytes in request header
-	test	es:DH_ATTRIB[si],DA_BIGDRV ; large sector number support?
-	 jz	blockif10		; no, normal request header
-	mov	req_len,RH4_LEN+2	; else indicate long request
-blockif10:
-endif
 	pop	es
 
 	call	block_device_driver	; make call to device driver
@@ -1423,10 +1407,10 @@ device_driver:
 	push	es
 	push	bx
 	push	bp
-	callf	ss:lock_bios		; lock access to BIOS
+	call	dword ptr ss:lock_bios	; lock access to BIOS
 	push	cs
 	call	device_driver10		; fake a callf
-	callf	ss:unlock_bios		; unlock access to BIOS
+	call	dword ptr ss:unlock_bios	; unlock access to BIOS
 	pop	bp
 	pop	bx
 	pop	es
@@ -1448,16 +1432,15 @@ device_driver10:
 	mov	ax,offset device_driver11
 	push	ax
 	push	ds
-	push	ds:DH_STRATEGY[si]	; strategy routine address on stack
+	push	ds:DEVHDR.STRATEGY[si]	; strategy routine address on stack
 	retf				; retf to strategy and device_driver11
 device_driver11:
 	pop	si
 	pop	ds
 	push	ds
-	push	ds:DH_INTERRUPT[si]	; interrupt routine address on stack
+	push	ds:DEVHDR.INTERRUPT[si]	; interrupt routine address on stack
 	retf				; retf to interrupt, us
 
-eject
 ;	Select drive and check for door open ints
 ;	Build fdos_hds to refer to the drive
 
@@ -1492,12 +1475,14 @@ select_logical_drv05:
 	mov	al,es:LDT_NAME[bx]	; get the drive from the ascii name
 	and	al,1fh			;  as the drive may require rebuilding
 	dec	ax			; make it zero based
-	push es ! push bx
+	push 	es
+	push 	bx
 	call	select_physical_drv	; select the physical root
-	pop bx ! pop es
+	pop 	bx
+	pop 	es
 	cmp	es:LDT_ROOTLEN[bx],2	; if logical and physical roots
 	 jbe	select_logical_drv30	;  are the same we are OK now
-if JOIN
+ifdef JOIN
 	mov	al,es:LDT_DRV[bx]	; should we be on a different
 	cmp	al,fdos_hds_drv		;  physical drive ?
 	 jne	select_logical_drv10	; if so then we'd better rebuild
@@ -1515,7 +1500,7 @@ select_logical_drv20:
 	mov	fdos_hds_root+2,dx
 	mov	fdos_hds_blk,ax
 	mov	fdos_hds_blk+2,dx
-if JOIN
+ifdef JOIN
 	mov	al,es:LDT_DRV[bx]	; same with drive
 	mov	fdos_hds_drv,al
 endif
@@ -1555,7 +1540,6 @@ select_drv_critical_error:
 ; be physical ones - so we want a critical error
 	jmp	generate_critical_error
 
-eject
 select_adrive:
 ;-------------
 ; This entry is called to physically select a drive (eg. when flushing buffers)
@@ -1593,11 +1577,11 @@ select_adrive:
 	call	build_ddsc_from_bpb	; else get BPB and build new DDSC
 	 jc	select_drv_err		; carry flag reset
 	call	select_ddsc		; use to DDSC for select
-if DELWATCH
+ifdef DELWATCH
 	mov	ah,DELW_NEWDISK		; we have a new disk so I guess
 	mov	al,physical_drv		;  I'd better tell delwatch
 	les	bx,current_ddsc		;  about the new disk so it
-	callf	fdos_stub		;  knows to update itself
+	call	dword ptr fdos_stub	;  knows to update itself
 endif
 	clc				;select disk function ok
 	ret
@@ -1617,8 +1601,10 @@ select_ddsc:
 ;	ES:BX -> DDSC_ of drive to be selected
 	mov	word ptr current_ddsc,bx
 	mov	word ptr current_ddsc+WORD,es
-	push ds ! push es
-	pop ds ! pop es			; swap ES and DS
+	push 	ds
+	push 	es
+	pop 	ds
+	pop 	es			; swap ES and DS
 	lea	si,DDSC_SECSIZE[bx]	; DS:SI -> DDSC_ original
 	mov	di,offset local_ddsc	; ES:DI -> DDSC_ copy
 	mov	cx,LOCAL_DDSC_LEN
@@ -1632,16 +1618,18 @@ select_ddsc:
 	xor	ax,ax
 	mov	es:bdatadd+2,ax
 	mov	es:blastcl+2,ax
-	jmps	select_ddsc05
+	jmp	select_ddsc05
 select_ddsc04:
 	lea	si,DDSC_BDATADDR[bx]
 	mov	di,offset local_ddsc2
 	mov	cx,LOCAL_DDSC2_LEN
 	rep	movsb			; more interesting bits to copy
 select_ddsc05:
-;	push es ! pop ds		; DS=ES=local data segment
-	push ds ! push es
-	pop ds ! pop es			; swap ES and DS
+;	push 	es ! pop ds		; DS=ES=local data segment
+	push 	ds
+	push 	es
+	pop 	ds
+	pop 	es			; swap ES and DS
 ;	mov	ax,psecsiz		; now initialise some other vaiiables
 ;	mov	cl,clshf
 ;	shl	ax,cl			; AX = bytes per cluster
@@ -1666,7 +1654,7 @@ select_ddsc05:
 	mov 	nfatrecs,ax
 	xor	ax,ax
 	mov	nfatrecs+2,ax
-	jmps	select_ddsc20
+	jmp	select_ddsc20
 select_ddsc10:
 	mov	ax,es:word ptr DDSC_BFATRECS[bx]	; # of sectors per FAT
 	mov 	nfatrecs,ax
@@ -1694,7 +1682,6 @@ select_ddsc30:
 
 
 
-eject
 
 build_ddsc_from_bpb:	; call device driver to build BPB, convert to DDSC_
 ;-------------------
@@ -1726,7 +1713,7 @@ build_bpb10:
 
 	push	ds
 	lds	si,es:DDSC_DEVHEAD[bx]	; DS:SI -> device header
-	mov	ax,ds:DH_ATTRIB[si]	; non-FAT ID driver ("non-IBM") bit
+	mov	ax,ds:DEVHDR.ATTRIB[si]	; non-FAT ID driver ("non-IBM") bit
 	pop	ds			;   in device header attributes
 	test	ax,DA_NONIBM
 	 jnz	bldbpb30		; skip if media byte in FAT not used
@@ -1734,19 +1721,16 @@ build_bpb10:
 	mov	req_rwmode,0		; read of system area
 	mov	req_len,RH4_LEN		; set length field
 	mov	req_cmd,CMD_INPUT	; read first FAT sector off disk
-if DOS5
 	test	ax,DA_BIGDRV		; large sector numbers ?
-endif
 	mov	ax,1
 	mov	req4_count,ax		; read 1st FAT sector
 	cwd				; DS:AX = sector 1
 	mov	word ptr req4_bigsector,ax
 	mov	word ptr req4_bigsector+2,dx
-if DOS5
 	 jz	bldbpb20
-	dec ax ! dec ax			; AX = 0FFFFh
+	dec 	ax
+	dec 	ax			; AX = 0FFFFh
 bldbpb20:
-endif
 	mov	req4_sector,ax		; set requested sector address
 	mov	req4_sector+2,dx	; (support large DOS drives)
 	call	block_device_driver	; try to read FAT sector, AX = status
@@ -1774,7 +1758,6 @@ bldbpb_err:
 	ret
 
 
-eject
 
 ;-----------
 check_media:	; check media if DPH media flag set
@@ -1815,7 +1798,7 @@ chkmed20:
 
 chkmed_changed:				; disk has changed for sure
 	call	discard_files		; discard open files
-	jmps	chkmed30		; discard buffers, build bpb required
+	jmp	chkmed30		; discard buffers, build bpb required
 
 chkmed_maybe:				; disk has possibly changed
 	call	discard_dir		; we can always discard dir as they
@@ -1856,7 +1839,7 @@ mlu10:
 	mov	es:LDT_BLKH[bx],0FFFFh
 mlu20:
 	inc	ax			; onto next LDT
-	jmps	mlu10
+	jmp	mlu10
 mlu30:
 	pop	bx
 	pop	ax
@@ -1881,7 +1864,7 @@ write_block:
 	cmp	verify_flag,0		; is verify on ?
 	 je	rdwr_block
 	mov	al,CMD_OUTPUT_VERIFY	; assume use write w/ verify
-	jmps	rdwr_block
+	jmp	rdwr_block
 
 ;----------
 read_block:
@@ -1939,7 +1922,6 @@ gen_crit_err10:
 	add	ax,ED_PROTECT		;  and start with write protect
 	jmp	fdos_error		;  now return with error
 
-eject
 
 clus2sec:		; convert from cluster/offset to sector/offset
 ;--------
@@ -2016,6 +1998,7 @@ div64_loop:
 	 jb	div64_2
 div64_1:
 	or	word ptr 2+4[bp],1	; divisor fits one time
+	nop	; REMOVE AFTER JWASM CONVERSION
 	sub	ax,2+8[bp]		; subtract divisor
 	sbb	dx,2+10[bp]
 	sbb	si,0
@@ -2073,6 +2056,7 @@ div32_loop:
 	 jb	div32_2
 div32_1:
 	or	word ptr 2+4[bp],1	; divisor fits one time
+	nop	; REMOVE AFTER JWASM CONVERSION
 	sub	ax,2+8[bp]		; subtract divisor
 	sbb	dx,2+10[bp]
 div32_2:
@@ -2120,8 +2104,8 @@ mul64_20:
 	mov	ax,16[bp+si]		; multiply two words
 	mul	word ptr 24[bp+di]
 	xchg	bx,di
-	add	-4[bp+di],ax		; and add the product to the result
-	adc	-2[bp+di],dx
+	add	[bp+di-4],ax		; and add the product to the result
+	adc	[bp+di-2],dx
 	jcxz	mul64_40		; skip if highest words
 mul64_30:
 	jnc	mul64_40		; no carry, so no further adds needed
@@ -2147,7 +2131,7 @@ mul64_45:
 	inc	si			; next word to compare
 	inc	si
 	loop	mul64_45		; until highest dword has been checked
-	jmps	mul64_60		; 64-bit result
+	jmp	mul64_60		; 64-bit result
 mul64_50:
 	stc
 mul64_60:
@@ -2326,6 +2310,7 @@ output_hex10:
 	jg	output_hex20
 	add	al,30h
 	jmp	output_hex30
+	nop	; REMOVE AFTER JWASM CONVERSION
 output_hex20:
 	add	al,37h
 output_hex30:
@@ -2337,8 +2322,10 @@ output_hex30:
 	loop	output_hex10
 	push	cs
 	pop	ds
-	lea	si,ds:output_hex40
+ASSUME DS:PCMCODE
+	lea	si,output_hex40
 	call	output_msg
+ASSUME DS:PCMDATA
 	pop	ds
 	pop	si
 	pop	cx
@@ -2346,5 +2333,7 @@ output_hex30:
 	pop	ax
 	ret
 output_hex40	db	20h,0		; end of string
+
+BDOS_CODE	ends
 
 	end
