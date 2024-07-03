@@ -1,5 +1,5 @@
 title 'REDIR - DOS file system network redirector interace support'
-;    File              : $REDIR.A86$
+;    File              : $REDIR.ASM$
 ;
 ;    Description       :
 ;
@@ -60,19 +60,22 @@ title 'REDIR - DOS file system network redirector interace support'
 PCMCODE	GROUP	BDOS_CODE
 PCMDATA	GROUP	PCMODE_DATA
 
-	eject ! include i:psp.def
-	eject ! include i:fdos.equ
-	eject ! include i:msdos.equ
-	eject ! include i:mserror.equ
-	eject ! include i:doshndl.def	; DOS Handle Structures
-	eject ! include i:f52data.def	; DRDOS Structures
-	eject ! include i:redir.equ
+ASSUME DS:PCMDATA
+
+	.nolist
+	include pspw.def
+	include fdos.equ
+	include msdos.equ
+	include mserror.equ
+	include doshndl.def	; DOS Handle Structures
+	include f52dataw.def	; DRDOS Structures
+	include redir.equ
+	.list
 
 FD_EXPAND	equ	55h
 
-	eject
 
-PCMODE_DATA	dseg
+PCMODE_DATA	segment public word 'DATA'
 
 	extrn	current_dsk:byte
 	extrn	current_ddsc:dword
@@ -97,7 +100,9 @@ PCMODE_DATA	dseg
 	extrn	int2f_stack:word
 	extrn	file_mode:word
 
-BDOS_CODE	cseg
+PCMODE_DATA	ends
+
+BDOS_CODE	segment public byte 'CODE'
 
 	Public	islocal
 	Public	redir_asciiz_dev_offer
@@ -120,7 +125,7 @@ BDOS_CODE	cseg
 	extrn	ifn2dhndl:near
 	extrn	get_xftptr:near
 	extrn	output_hex:near
-if KANJI
+ifdef KANJI
 	extrn	dbcs_lead:near
 endif
 
@@ -135,7 +140,8 @@ redir_dhndl_offer:
 redir_dhndl_accept:
 ; copy some info from DHNDL_ to local variables
 	push	ds
-	push ss ! pop ds
+	push 	ss
+	pop 	ds
 	mov	ax,es:DHNDL_DEVOFF[bx]
 	mov	word ptr current_ddsc,ax
 	mov	ax,es:word ptr DHNDL_DEVSEG[bx]
@@ -149,7 +155,7 @@ redir_dhndl_accept:
 	mov	ax,es:word ptr DHNDL_POSX+2[bx]
 	mov	word ptr current_filepos+6,ax
 	pop	ds
-	jmps	redir_accept		; now we can process the call
+	jmp	redir_accept		; now we can process the call
 
 
 redir_asciiz_dev_offer:
@@ -175,12 +181,19 @@ redir_move_offer:
 	push	ds
 	mov	si,2[bp]		; SI -> parameter block
 	lds	si,10[si]		; DS:SI -> user supplied name
-	push ss ! pop es
+	push 	ss
+	pop 	es
 	mov	di,offset sec_pathname	; DI -> where to build pathname
-	push ds ! push si ! push di ! push bp
+	push 	ds
+	push 	si
+	push 	di
+	push 	bp
 	mov	ax,I2F_PPATH
 	int	2fh			; offer path build to someone else
-	pop bp ! pop di ! pop si ! pop ds
+	pop 	bp
+	pop 	di
+	pop 	si
+	pop 	ds
 	mov	cx,0			; if accepted then it's a remote drive
 	 jnc	redir_move_offer10
 	call	build_remote_path	; build path if it a remote drive
@@ -272,7 +285,7 @@ redir_accept:
 	mov	si,2[bp]		; SI -> parameter block
 	mov	si,ds:[si]		; fdos code number
 	add	si,si			; make it a word offset
-	jmp	cs:redir_tbl-(39h*WORD)[si]	; call the relevant function
+	jmp	cs:[si+redir_tbl-(39h*WORD)]	; call the relevant function
 
 
 redir_badfunc:
@@ -392,7 +405,7 @@ islocal:
 	push	dx
 	xchg	ax,dx
 	call	get_ldt_flags
-if JOIN
+ifdef JOIN
 	test	ax,LFLG_JOINED+LFLG_NETWRKD
 					; are REMOTE/JOINED bits set ?
 else
@@ -413,13 +426,13 @@ isremote:
 ;		(Only AX corrupted)
 ;
 	call	get_ldt_flags
-if JOIN
+ifdef JOIN
 	test	ax,LFLG_JOINED		; is JOINED bit set ?
 	 jnz	isremote10
 endif
 	test	ax,LFLG_NETWRKD		; is REMOTE bit set ?
 	ret
-if JOIN
+ifdef JOIN
 isremote10:
 	test	ax,LFLG_NETWRKD		; is REMOTE bit set ?
 	stc				; STC to indicate JOIN'd
@@ -437,15 +450,18 @@ redir_dev_check:
 ;
 	mov	word ptr current_ldt,0ffffh
 	mov	err_drv,DHAT_DRVMSK
-	push ds ! push bp
+	push 	ds
+	push 	bp
 	mov	si,2[bp]		; SI -> parameter block
 	lds	si,2[si]		; DS:SI -> user supplied name
 	mov	dx,si			; DS:DX as well..
-	push ss ! pop es
+	push 	ss
+	pop 	es
 	mov	di,offset pri_pathname	; DI -> where to build pathname
 	mov	ax,I2F_PPATH
 	int	2fh			; offer path build to someone else
-	pop bp ! pop ds
+	pop 	bp
+	pop 	ds
 	ret
 
 build_remote_path:
@@ -473,14 +489,14 @@ build_remote_path:
 	 ja	build_remote_path30	; return "invalid drive" if error
 	xchg	ax,dx			; DL = ASCIIZ supplied drive
 	lodsw				; get possible '\\'
-	jmps	build_remote_path15
+	jmp	build_remote_path15
 build_remote_path10:
 	mov	ss:word ptr current_ldt,0ffffh
 	call	check_dslash		; is it "\\"
 	 je	build_remote_path20		; if so forget about the drive #
 build_remote_path15:
 	call	isremote		; test if drive DL is remote
-if JOIN
+ifdef JOIN
 	 jb	build_remote_path30	; return "invalid drive" if JOINed
 endif
 	 jnz	build_remote_path20	; it's remote, go build a path
@@ -491,7 +507,8 @@ endif
 build_remote_path20:
 ; Build a path from the CSD and the pathname in the parameter block
 	mov	si,cx			; DS:SI -> source ASIIZ name
-	push ss ! pop es		; ES:DI -> MSNET buffer
+	push 	ss
+	pop 	es			; ES:DI -> MSNET buffer
 	call	redir_build_path
 	 jc	build_remote_path30
 	xor	cx,cx			; CY clear, CX == 0
@@ -503,7 +520,6 @@ build_remote_path30:
 
 
 
-eject
 ;	MAKE DIRECTORY (MKDIR)
 
 ;	+----+----+----+----+----+----+
@@ -520,10 +536,9 @@ eject
 
 redir_mkdir:
 	mov	ax,I2F_MKDIR		; it's a make dir
-	jmps	redir_pathop_common
+	jmp	redir_pathop_common
 
 
-eject
 ;	REMOVE DIRECTORY (RMDIR)
 
 ;	+----+----+----+----+----+----+
@@ -545,7 +560,8 @@ redir_rmdir:
 
 redir_pathop_common:
 	push	ds
-	push ss ! pop ds
+	push 	ss
+	pop 	ds
 	call	int2f_ldt
 	pop	ds
 	 jc	redir_pathop_common10
@@ -556,7 +572,6 @@ redir_pathop_common10:
 
 
 
-eject
 ;	CHANGE DIRECTORY (CHDIR)
 
 ;	+----+----+----+----+----+----+
@@ -586,7 +601,8 @@ redir_chdir:
 	cmp	ds:word ptr 1[si],'=:'	; 'd:=' specification?
 	 je	redir_chdir40
 
-	push ss ! pop ds		; DS = PCMODE
+	push 	ss
+	pop 	ds			; DS = PCMODE
 
 	cmp	word ptr current_ldt,-1
 	 je	redir_chdir40		; we reject any chdir of the form
@@ -594,7 +610,8 @@ redir_chdir:
 	mov	ax,I2F_CHDIR
 	call	int2f_ldt		; is this a valid path ?
 	 jc	redir_chdir30
-	push 	ds ! pop es
+	push 	ds
+	pop 	es
 	mov	si,offset pri_pathname
 
 ; DGM - don't allow path greater than 66 chars
@@ -615,7 +632,6 @@ redir_chdir40:
 	ret
 
 
-eject
 ;	CREATE FILE (CREAT)
 
 ;	+----+----+----+----+----+----+----+----+
@@ -644,9 +660,8 @@ redir_creat:
 	mov	int2f_cmd,I2F_XCREATE
 redir_creat10:
 	jmp	redir_open_create_common
+	nop	; REMOVE AFTER JWASM CONVERSION
 
-
-eject
 ;	OPEN FILE (OPEN)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -710,7 +725,8 @@ redir_openfile:
 	call	find_dhndl		; find DHNDL_
 	 jc	redir_openf40		; return if a problem with this
 	push	ax			; save IFN
-	push es ! push bx		; save DHNDL_
+	push 	es
+	push 	bx			; save DHNDL_
 
 	mov	ax,file_mode
 	and	al,not DHM_LOCAL
@@ -720,7 +736,8 @@ redir_openfile:
 	mov	ax,int2f_cmd		; either open or create
 	call	int2f_dhndl		; lets try the command
 
-	pop bx ! pop es			; recover DHNDL_
+	pop 	bx
+	pop 	es			; recover DHNDL_
 	pop	dx			; recover IFN
 	 jc	redir_openf30		; on error discard the handle
 	xchg	ax,dx			; return AL = IFN
@@ -744,7 +761,6 @@ redir_openf40:
 	mov	bx,ED_HANDLE		; no handles are left
 	ret
 
-eject
 ;	CLOSE FILE (CLOSE)
 
 ;	+----+----+----+----+
@@ -786,7 +802,6 @@ redir_close30:
 	mov	bx,ED_H_MATCH		; assume invalid IFN
 	ret
 
-eject
 ;	READ FROM FILE (READ)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -817,7 +832,6 @@ redir_rw_handle:
 	mov	8[si],cx		; CX = Count
 	ret
 
-eject
 ;	WRITE TO FILE (WRITE)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -837,7 +851,7 @@ eject
 redir_write:
 ;-----------
 	mov	ax,I2F_WRITE
-	jmps	redir_rw_handle
+	jmp	redir_rw_handle
 
 redir_rw:
 ;--------
@@ -860,6 +874,7 @@ redir_rw10:
 	mov	cl,4
 	mov	di,dx			; save dma offset
 	and	dx,15			; make offset within para
+	nop	; REMOVE AFTER JWASM CONVERSION
 	shr	di,cl			; convert offset to para offset
 	mov	si,ds			; add to segment
 	add	di,si			; DI:DX -> DMA address
@@ -888,7 +903,6 @@ redir_rw20:
 	ret
 	
 
-eject
 ;	DELETE FILE (UNLINK)
 
 ;	+----+----+----+----+----+----+
@@ -913,7 +927,6 @@ redir_unlink_move_common:
 	pop	ax
 	jmp	redir_pathop_common
 
-eject
 ;	GET/SET FILE POSITION (LSEEK)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -969,18 +982,18 @@ redir_lseek16:
 	xor	dx,dx
 	dec	dx
 	mov	cx,dx
-	jmps	redir_lseek90
+	jmp	redir_lseek90
 redir_lseek17:
 	mov	dx,es:DHNDL_POSLO[di]
 	mov	cx,es:DHNDL_POSHI[di]
-	jmps	redir_lseek90
+	jmp	redir_lseek90
 
 redir_lseek20:				; seek mode 0: set absolute position
 	mov	es:DHNDL_POSLO[di],dx	; set new file offset
 	mov	es:DHNDL_POSHI[di],cx	; SI = error code/0 at this point
 	mov	es:DHNDL_POSXLO[di],ax
 	mov	es:DHNDL_POSXHI[di],ax
-;	jmps	redir_lseek90
+;	jmp	redir_lseek90
 
 redir_lseek90:
 	mov	4[si],dx		; set 32-bit file offset
@@ -1002,16 +1015,15 @@ redir_lseek30:				; seek mode 2: relative to end
 	xchg	ax,dx			; AX:DX = new EOF relative position
 	xchg	ax,cx			;  and finally get into CX:DX 
 	xor	ax,ax			; no problems...
-	;jmps	redir_lseek90		; MYST-removed,file offset wasn't updated
-	jmps	redir_lseek20		; MYST-added,go and update the new file offset.
+	;jmp	redir_lseek90		; MYST-removed,file offset wasn't updated
+	jmp	redir_lseek20		; MYST-added,go and update the new file offset.
 redir_lseek40:
 	add	dx,es:DHNDL_SIZELO[di]	; add file size + offset
 	adc	cx,es:DHNDL_SIZEHI[di]
 	xor	ax,ax
-	jmps	redir_lseek20
+	jmp	redir_lseek20
 
 
-eject
 ;	GET/SET FILE ATTRIBUTES (CHMOD)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -1048,7 +1060,7 @@ redir_chmod:
 	mov	cx,16h			;  with everything attribs
 	 jb	redir_chmod10		;  was it ?
 	mov	ax,ED_ACCESS		; no, return access denied
-	jmps	redir_chmod20		;  cause it DR password stuff
+	jmp	redir_chmod20		;  cause it DR password stuff
 redir_chmod10:
 	mov	int2f_stack,cx		; attribs on the stack
 	call	int2f_ldt		; do the Int 2F
@@ -1062,7 +1074,6 @@ redir_chmod20:
 	xchg	ax,bx			; return result in BX
 	ret
 
-eject
 ;	GET DISK PARAMETER BLOCK
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -1104,7 +1115,6 @@ redir_getdpb10:
 	mov	bx,0ffh			; return 0xFF (ie. bad drive)
 	ret
 
-eject
 ;	FIND FIRST FILE
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -1140,9 +1150,8 @@ redir_first:	; 13-find first matching file
 	 jne	redir_first10
 	mov	ax,I2F_XSFIRST		; srch first, no valid LDT
 redir_first10:
-	jmps	srch_buf_common
+	jmp	srch_buf_common
 
-eject
 ;	FIND NEXT FILE
 
 ;	+----+----+
@@ -1164,7 +1173,8 @@ redir_next:	; 14-find next matching file
 ;---------
 ; ONLY 1 file returned for now.....
 ;
-	push ss ! pop es
+	push 	ss
+	pop 	es
 	mov	di,offset srch_buf	; point ES:DI -> search buffer
 	mov	ax,I2F_SNEXT
 srch_buf_common:
@@ -1226,7 +1236,6 @@ redir_restore_srch_state:
 	pop	ds
 	ret
 
-eject
 ;	COMMIT FILE (COMMIT)
 
 ;	+----+----+----+----+
@@ -1254,7 +1263,6 @@ redir_commit20:
 	ret
 
 
-eject
 ;	CREATE NEW FILE
 
 ;	+----+----+----+----+----+----+----+----+
@@ -1284,7 +1292,6 @@ redir_mknew:
 	mov	file_mode,DHM_RW	; Open Compatibility mode, Read/Write
 	jmp	redir_open_create_common
 
-eject
 ;	LOCK/UNLOCK FILE DATA (LOCK/UNLOCK)
 
 ;	+----+----+----+----+----+----+----+----+
@@ -1308,7 +1315,6 @@ redir_lock:
 ; Lock uses I2F_LOCK, with CX,DX,SI as per INT 21, DI on stack
 ; Unlock uses I2F_UNLOCK with same.
 	mov	bx,2[bp]		; BX -> parameter block
-if DOS5
 	push	bp
 	lea	bp,4[bx]		; BP -> parameter block 
 	mov	dx,bp			; as does DX
@@ -1317,19 +1323,6 @@ if DOS5
 	mov	bh,5Ch			; lock/unlock in BX
 	call	int2f_dhndl		; try the operation
 	pop	bp
-else
-	mov	dx,ds:4[bx]		; get low word of offset in DX
-	mov	cx,ds:6[bx]		;  and the hi word in CX
-	mov	di,ds:8[bx]		; get low word of length in DI
-	mov	si,ds:10[bx]		;  and high in SI
-	mov	int2f_stack,di		; length low is on stack
-	mov	ax,I2F_LOCK		; assume lock
-	cmp	ds:word ptr 12[bx],0
-	 je	redir_lock10
-	mov	ax,I2F_UNLOCK		; no, it must be unlock
-redir_lock10:
-	call	int2f_dhndl		; try the operation
-endif
 	 jc	redir_lock20
 	xor	ax,ax			; success
 redir_lock20:
@@ -1337,7 +1330,6 @@ redir_lock20:
 	ret
 
 
-eject
 ;	EXPAND FILE
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -1365,7 +1357,6 @@ redir_expand:
 	xor	bx,bx			; no errors
 	ret
 
-eject
 ;	RENAME FILE
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -1388,7 +1379,6 @@ redir_move:
 	mov	ax,I2F_REN		; it's a rename
 	jmp	redir_unlink_move_common
 
-eject
 ;	GET/SET FILE DATE/TIME
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -1418,7 +1408,7 @@ redir_dattim:
 	mov	word ptr 6[si],ax	;  into the parameter block
 	mov	ax,es:DHNDL_TIME[bx]
 	mov	word ptr 8[si],ax	; and the time	
-	jmps	redir_dattim20
+	jmp	redir_dattim20
 redir_dattim10:
 	mov	ax,word ptr 6[si]	; copy the date we are given
 	mov	es:DHNDL_DATE[bx],ax	;  into the DOSHNDL
@@ -1426,9 +1416,10 @@ redir_dattim10:
 	mov	es:DHNDL_TIME[bx],ax
 	or	es:DHNDL_WATTR[bx],DHAT_TIMEOK
 	and	es:DHNDL_WATTR[bx],not DHAT_CLEAN
+	nop	; REMOVE AFTER JWASM CONVERSION
 redir_dattim20:
 	xor	bx,bx			;  all went OK
-	jmps	redir_dattim40
+	jmp	redir_dattim40
 redir_dattim30:
 	mov	bx,ED_FUNCTION		; bad function number
 redir_dattim40:
@@ -1465,7 +1456,8 @@ redir_bp10:
 ; it's a normal "A:\subdir\filename.ext" pathname format
 	dec	si			; we have swallowed the 1st two
 	dec	si			;  chars - now we change our mind
-	push ds ! push si
+	push 	ds
+	push 	si
 	lds	si,es:current_ldt
 	mov	cx,ds:LDT_ROOTLEN[si]	; copy the root portion of the name
 	rep	movsb			; copy the server stub name
@@ -1475,8 +1467,9 @@ redir_bp10:
 	call	copy_asciiz		; no, copy the rest of the path
 	call	redir_bp_append_slash	; append '\' for our path processing
 redir_bp11:
-	pop si ! pop ds
-	jmps	redir_bp_next_level	; continue processing given path
+	pop 	si
+	pop 	ds
+	jmp	redir_bp_next_level	; continue processing given path
 
 redir_bp20:
 ; It is a "\\server\sharename\subdir\filename.ext" format
@@ -1488,23 +1481,23 @@ redir_bp21:
 	 jz	redir_bp_exit20		; go with what we've got....
 	call	check_slash		; have we found the root '\' ?
 	 je	redir_bp23
-if KANJI
+ifdef KANJI
 	call	dbcs_lead		; is it the 1st of a kanji pair
 	 jne	redir_bp22		; no, onto next char
 	stosb				; copy the 1st character
 	movsb				; copy 2nd byte of KANJI pair
-	jmps	redir_bp21		; now we can move onto next char
+	jmp	redir_bp21		; now we can move onto next char
 redir_bp22:
 endif
 	call	toupper			; upper case the character
 	stosb				; copy the character
-	jmps	redir_bp21		; go and do another one
+	jmp	redir_bp21		; go and do another one
 
 redir_bp23:
 	mov	dx,di			; bodge root to the top
 ;	mov	al,'\'
 	stosb				; put in a '\'
-	jmps	redir_bp_next_level	; yes, this is the new "root"
+	jmp	redir_bp_next_level	; yes, this is the new "root"
 
 ; We have reached the terminating NUL
 redir_bp_exit:
@@ -1529,7 +1522,7 @@ redir_bp_exit10:
 	dec	di			;  have one so we can remove it
 	cmp	di,dx			; are we talking about the root ?
 	 jne	redir_bp_exit20
-	cmp	es:byte ptr 0FFFFh[di],':'
+	cmp	es:byte ptr [di-1],':'
 	 jne	redir_bp_exit20		; if we have a trailing ':' allow
 	inc	di			;  a '\' at the root
 redir_bp_exit20:
@@ -1557,7 +1550,7 @@ redir_bp40:
 	 jnz	redir_bp_ED_PATH	; reject as not allowed here
 	mov	al,'\'			; make sure it's a BSLASH
 	stosb
-	jmps	redir_bp_next_level	; start at a new level
+	jmp	redir_bp_next_level	; start at a new level
 
 ; Is it a '.' ?
 redir_bp50:
@@ -1576,7 +1569,7 @@ redir_bp51:				; othewise it's a ".EXT"
 	mov	ax,'.'+256*BP_DOT	; so we are back to the '.'
 	stosb				; store the '.' in destination
 	mov	cx,3			; expand the extention
-	jmps	redir_bp_next_char
+	jmp	redir_bp_next_char
 redir_bp52:				; It might be a "." or ".."
 	call	check_slash		; is it '.\'
 	 je	redir_bp_next_char	; discard them both
@@ -1600,7 +1593,7 @@ redir_bp60:
 	mov	al,'?'
 	rep	stosb			; expand it
 ;	or	ah,BP_WILD		; remember wild-card encountered
-;	jmps	redir_bp_next_char	;  check for wildcards
+;	jmp	redir_bp_next_char	;  check for wildcards
 ;
 ;	 				; we can just fall through
 ;
@@ -1614,7 +1607,7 @@ redir_bp80:
 ; Uppercase the character, look out for KANJI etc
 	 jcxz	redir_bp_next_char	; discard if no space is left
 	dec	cx			; one less to expand
-if KANJI
+ifdef KANJI
 	call	dbcs_lead		; is it the 1st of a kanji pair
 	 jne	redir_bp90
 	inc	si			; skip 2nd byte
@@ -1623,12 +1616,12 @@ if KANJI
 	stosb				; store 1st byte of kanji character
 	dec	si			; point at 2nd byte again
 	movsb				; copy 2nd byte of kanji character
-	jmps	redir_bp_next_char
+	jmp	redir_bp_next_char
 redir_bp90:
 endif
 	call	toupper			; make it upper case
 	stosb				; plant the character
-	jmps	redir_bp_next_char
+	jmp	redir_bp_next_char
 
 
 redir_bp_ddot:
@@ -1649,28 +1642,31 @@ redir_bp_ddot10:
 	cmp	di,dx			; are we at the root anyway ?
 	 jle	redir_bp_ED_PATH	;  then don't discard any
 ; We now start at ES:DX and work along till ES:DI -> char after last '\'
-	push ds ! push si
-	push es ! pop ds
+	push 	ds
+	push 	si
+	push 	es
+	pop 	ds
 	mov	si,dx			; DS:SI -> char after root
 	mov	cx,dx			; last '\' position in CX
 redir_bp_ddot20:
 	lodsb
 	cmp	si,di			; end of the line yet ?
 	 jae	redir_bp_ddot30		; yes, stop now
-if KANJI
+ifdef KANJI
 	call	dbcs_lead		; is it 1st of a kanji pair ?
 	 jne	redir_bp_ddot25
 	lodsb				; skip the 2nd too
-	jmps	redir_bp_ddot20		; then go on to next char
+	jmp	redir_bp_ddot20		; then go on to next char
 redir_bp_ddot25:
 endif
 	call	check_slash		; is it a '\'
 	 jne	redir_bp_ddot20		; no, do next
 	mov	cx,si			; save position after the '\'
-	jmps	redir_bp_ddot20
+	jmp	redir_bp_ddot20
 redir_bp_ddot30:
 	mov	di,cx			; last '\' was here..
-	pop si ! pop ds
+	pop 	si
+	pop 	ds
 	clc				; no errors
 	ret
 
@@ -1688,12 +1684,12 @@ redir_bp_append_slash10:
 	mov	al,es:[di]		; get a character
 	inc	di			; point to next
 	test	al,al			; is it NUL ?
-if KANJI
+ifdef KANJI
 	 je	redir_bp_append_slash20
 	call	dbcs_lead		; is it 1st of a kanji pair ?
 	 jne	redir_bp_append_slash10
 	inc	di			; skip the 2nd too
-	jmps	redir_bp_append_slash10	;  (it might be '\')
+	jmp	redir_bp_append_slash10	;  (it might be '\')
 redir_bp_append_slash20:
 else
 	 jnz	redir_bp_append_slash10
@@ -1734,7 +1730,7 @@ int2f_ldt:
 ;	CY set, AX = Our Negative Error Code
 ;
 	les	di,ss:current_ldt
-	jmps	int2f_op
+	jmp	int2f_op
 
 int2f_dhndl:
 ;----------
@@ -1747,7 +1743,8 @@ int2f_dhndl:
 	les	di,ss:current_dhndl
 int2f_op:
 	push	ds
-	push ss ! pop ds
+	push 	ss
+	pop 	ds
 	push	int2f_stack		; put word on stack
 	int	2fh			; get the info
 	pop	int2f_stack		; clean up the stack
@@ -1757,5 +1754,6 @@ int2f_op:
 ;	stc				; we have a problem
 int2f_op10:
 	ret
+BDOS_CODE	ends
 
 end

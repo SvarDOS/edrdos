@@ -10,7 +10,7 @@
 
 !include ../platform.mak
 
-WASM_FLAGS += -DDELWATCH -DJOIN
+WASM_FLAGS += -DDELWATCH -DKANJI -DJOIN
 
 objs  = bin/buffers.obj bin/dirs.obj bin/fdos.obj bin/fcbs.obj bin/bdevio.obj
 objs += bin/cdevio.obj bin/fioctl.obj bin/redir.obj bin/header.obj
@@ -63,9 +63,8 @@ bin/fioctl.obj: fioctl.a86 fdos.equ rh.equ msdos.equ mserror.equ doshndl.def dri
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DPASSWORD /DJOIN /DDOS5
 	$(FIXUPP) $^*.o86 $^@
 	
-bin/redir.obj: redir.a86 psp.def fdos.equ msdos.equ mserror.equ doshndl.def f52data.def redir.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DKANJI /DDOS5 /DJOIN
-	$(FIXUPP) $^*.o86 $^@
+bin/redir.obj: redir.asm pspw.def fdos.equ msdos.equ mserror.equ doshndl.def f52dataw.def redir.equ
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 	
 bin/header.obj: header.asm pcmodew.equ vectors.def cmdlinew.equ doshndl.def driverw.equ exe.def f52dataw.def fdos.equ mserror.equ psp.def request.equ country.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
