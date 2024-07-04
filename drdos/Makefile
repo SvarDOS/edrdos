@@ -40,9 +40,8 @@ bin/dosgrps.obj: dosgrps.asm
 bin/buffers.obj: buffers.asm fdos.equ bdos.equ doshndl.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/dirs.obj: dirs.a86 bdos.equ mserror.equ fdos.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDELWATCH
-	$(FIXUPP) $^*.o86 $^@
+bin/dirs.obj: dirs.asm bdos.equ mserror.equ fdos.equ
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/fdos.obj: fdos.a86 version.inc psp.def modfunc.def fdos.equ rh.equ msdos.equ mserror.equ doshndl.def driver.equ f52data.def  bdos.equ funcs.fdo utils.fdo
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDELWATCH /DKANJI /DDOS5 /DPASSWORD /DJOIN /DUNDELETE /Dshortversion

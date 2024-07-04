@@ -41,21 +41,26 @@ title 'DIRS - dos directory support'
 ;	---------  ---	---------------------------------------
 ;   19 Aug 91 Initial version created for VLADIVAR
 
-eject
 PCMCODE	GROUP	BDOS_CODE
-PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
+PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA,FIXED_DOS_DATA
+
+ASSUME DS:PCMDATA
 
 include	bdos.equ
-include i:mserror.equ
-include	i:fdos.equ
+include mserror.equ
+include	fdos.equ
 
-eject
-PCMODE_DATA	dseg
-if DELWATCH
+
+PCMODE_DATA	segment public word 'DATA'
+PCMODE_DATA	ends
+
+FIXED_DOS_DATA	segment public word 'DATA'
+ifdef DELWATCH
 	extrn	fdos_stub:dword		; for calling delwatch TSR
 endif
+FIXED_DOS_DATA	ends
 
-BDOS_DATA	dseg	word
+BDOS_DATA	segment public word 'DATA'
 	extrn	adrive:byte
 	EXTRN	clsize:WORD
 	extrn	diradd:word
@@ -70,21 +75,20 @@ BDOS_DATA	dseg	word
 	extrn	psecsiz:word
 	extrn	fsroot:dword
 
-eject
 
-hash		rw	2		; hash code work area
+hash		dw	2 dup (0)	; hash code work area
 
 ; The dirbcb says what is in the local dirbuf
 
 dirbcb		db	0ffh		; drive of dirbuf entry
 dirbcb_cl	dw	0,0		; cluster of dirbuf entry
 dirbcb_dcnt	dw	0		; directory index of dirbuf entry
-dirbcb_block	rw	2		; block of dirbuf entry
+dirbcb_block	dw	2 dup (0)	; block of dirbuf entry
 dirbcb_offset	dw	0		; byte offset in block of dirbuf entry
 
 
 	public	dirbuf
-dirbuf		rb	32		; local directory buffer
+dirbuf		db	32 dup (0)	; local directory buffer
 
 	public	dirp
 dirp		dw	0		; directory entry pointer
@@ -105,9 +109,9 @@ rd_pcdir_cl	dw	0,0		; current cluster in rd_pcdir
 rd_pcdir_rel	dw	0		; relative cluster in chain
 rd_pcdir_last	dw	0		; last relative position
 find_hcb_cl	dw	0,0		; current cluster in find_hcb
+BDOS_DATA	ends
 
-
-BDOS_CODE	cseg
+BDOS_CODE segment public byte 'CODE'
 	extrn	alloc_cluster:NEAR
 	extrn	clus2sec:near
 	extrn	hdsblk:near		; get current directory block
@@ -122,9 +126,6 @@ BDOS_CODE	cseg
 	extrn	output_msg:near
 	extrn	output_hex:near
 
-eject
-
-
 	public	allocdir
 	public	discard_dirbuf
 	public	finddfcb
@@ -136,7 +137,7 @@ eject
 	public	mkhsh
 	public	setenddir
 	public	rd_pcdir
-eject
+
 
 fill_dirbuf:	;get 32 byte directory entry
 ;----------
@@ -172,7 +173,7 @@ fill_dirbuf07:
 	mov	cx,ax
 	pop	ax
 	call	clus2sec		; DX:AX -> sector
-	jmps	fill_dirbuf20		; BX = offset in sector
+	jmp	fill_dirbuf20		; BX = offset in sector
 fill_dirbuf10:
 	mov	ax,FCBLEN
 	mul	bx			; DX:AX = byte offset
@@ -191,15 +192,18 @@ fill_dirbuf20:
 	mov	cx,0FF00h+BF_ISDIR	; locate directory sector
 	call	locate_buffer		; ES:SI -> BCB_
 	pop	bx			; BX = offset within sector
-	push es ! pop ds		; DS:SI -> buffer control block
+	push 	es
+	pop 	ds			; DS:SI -> buffer control block
 	lea	si,BCB_DATA[si+bx]	; DS:SI -> data in buffer
-	push ss ! pop es
+	push 	ss
+	pop 	es
 	mov	di,offset dirbuf	; ES:DI -> dir buffer
 	push	di
 	mov	cx,32/WORD		; copy into local buffer
 	rep	movsw
 	pop	di			; DI -> dir buffer
-	push ss ! pop ds
+	push 	ss
+	pop 	ds
 	mov	al,adrive		; remember where we are
 	mov	dirbcb,al		;  so we can write it back
 	ret
@@ -254,7 +258,8 @@ flush_dir10:				;  also be never used)
 	call	mkhsh			; AX = hash code of our entry
 	stosw				; update hash code for dir entry
 flush_dir20:
-	push	ds ! pop es		; ES = local data segment
+	push	ds
+	pop 	es			; ES = local data segment
 	ret
 
 ;--------------
@@ -349,7 +354,7 @@ rd_pcdir10:
 	 ja	rd_pcdir30
 	cmp	ax,blastcl
 	 jbe	rd_pcdir10
-	jmps	rd_pcdir30	; yes, set end of directory
+	jmp	rd_pcdir30	; yes, set end of directory
 rd_pcdir20:
 	mov	chdblk,ax	; remember this cluster for next time
 	mov	chdblk+2,dx
@@ -357,12 +362,12 @@ rd_pcdir20:
 	mov	rd_pcdir_last,cx
 	mov	cl,FCBSHF	; to divide by fcb size
 	shr	bx,cl		; BX = dir offset in cluster
-	jmps	rd_pcdir50	;  now go and find the entry
+	jmp	rd_pcdir50	;  now go and find the entry
 
 
 rd_pcdir30:
 	call	setenddir	; yes, set dcnt to end of directory
-	jmps	rd_pcdir60
+	jmp	rd_pcdir60
 
 rd_pcdir40:
 ; we are in the root directory
@@ -396,16 +401,14 @@ chk_wild:	;check fcb for ? marks
 ; On Exit:
 ;	ZF set if ? found
 ;	BX preserved
-	push	ds ! pop es		; ES -> SYSDAT
+	push	ds
+	pop 	es			; ES -> SYSDAT
 	lea	di,byte ptr FNAME[bx]	; ES:DI -> name to scan
 	mov	cx,11
 	mov	al,'?'			; scan for wild cards
 	repne	scasb
 	ret
 
-eject
-
-eject
 ;---------
 finddfcbf:	; Find matching directory fcb(dfcb) from beginning of directory
 ;---------
@@ -504,12 +507,12 @@ gtdo31:
 	 ja	unhashed
 	cmp	ax,blastcl
 	 jbe	gtdo3
-	jmps	unhashed		; out of luck
+	jmp	unhashed		; out of luck
 gtdo4:
 	add	dcnt,ax			; we have found a match, so start
 	pop	ax			;  search here
 	pop	dx
-;	jmps	unhashed
+;	jmp	unhashed
 unhashed:				;   /* locate entry */
 	mov	chdblk,0
 	mov	chdblk+2,0
@@ -540,7 +543,7 @@ gtd3:
 	 jz	gtd2			; YES		(00 -> never used)
 	cmp	al,0E5h			; Is the dfcb empty?
 	 je	gtd2			; YES		 (E5 -> erased)
-	jmps	gtd_next		; NO, try the next
+	jmp	gtd_next		; NO, try the next
 
 gtd4:					; looking for particular entry
 	call	hdsblk			; Are we at the root?
@@ -561,7 +564,7 @@ gtd5:
 	mov	ax,finddfcb_mask	; do we want labels/pending deletes
 	test	DATTS[bx],ah		; filter out volume labels?
 	 jnz	gtd_next		;  we normally reject them
-if DELWATCH
+ifdef DELWATCH
 	cbw				; we want labels - do we want
 	test	word ptr DBLOCK1[bx],ax	;  DELWATCH pending deletes
 	 jnz	gtd_next		;  ie. labels with fat chain
@@ -578,7 +581,7 @@ match3:
 	 jcxz	match4			; stop if we have done all 11
 	repe	cmpsb			; compare if 11 bytes the same
 	 je	match4			;  skip if all bytes the same
-	cmp	byte ptr 0-1[si],'?'	; else was INFO_FCB byte = '?'
+	cmp	byte ptr [si-1],'?'	; else was INFO_FCB byte = '?'
 	 je	match3			;  in that case it matches too
 	inc	ax			; else we didn't match (AL<>0)
 match4:
@@ -587,12 +590,14 @@ match4:
 ;	 jnz	gtd_next		; no, try for another
 	 jz	match5
 	 jmp	gtd_next		; no, try for another
+	 nop	; REMOVE AFTER JWASM CONVERSION
 match5:
 	mov	bx,dirp			; Return (BX)
 	jmp	gtd2
+	nop	; REMOVE AFTER JWASM CONVERSION
 
 
-eject
+
 find_hcb:				; find HCB_ for given drive
 ;--------
 ; On Entry:
@@ -665,7 +670,6 @@ find_hcb30:
 	stc				; return failure
 	ret
 
-eject
 ;-----
 mkhsh:
 ;-----
@@ -703,8 +707,7 @@ mkhsh2:					;return hash code in AX
 	ret
 
 
-eject
-if DELWATCH
+ifdef DELWATCH
 	Public	fixup_hashing
 ;
 ; update hashing for current drive if DELWATCH changes a directory entry
@@ -744,7 +747,6 @@ fixup_ck10:
 endif
 
 
-eject
 
 hashsrch:
 ;--------
@@ -769,7 +771,8 @@ hashsrch10:
 	sub	ax,di
 	shr	ax,1			; make dir offset
 hashsrch20:
-	push ds ! pop es
+	push 	ds
+	pop 	es
 	clc				; we have found it
 	ret
 
@@ -778,7 +781,8 @@ hashsrch30:
 	 jnc	hashsrch10		;  look again if we succeeded
 
 	mov	ax,es:HCB_CNT[bx]	; failure, so return # to skip
-	push ds ! pop es
+	push 	ds
+	pop 	es
 ;	stc				;  for quicker search
 	ret
 
@@ -810,7 +814,8 @@ rehash_entry20:
 	push	es
 	push	bx			; save hash control pointer
 	push	cx			; save # entries to do
-	push ds ! pop es		; back to small model
+	push 	ds
+	pop 	es			; back to small model
 	xor	cx,cx			; return any entry
 	call	gtd_next		; unhashed search
 	pop	cx			; restore # entries to do
@@ -873,7 +878,6 @@ hash_etd20:
 
 
 
-eject
 hshdscrd:
 ;--------
 ;	purge hash blocks for physical drive
@@ -896,20 +900,19 @@ hshdsc2:
 	mov	ds:HCB_DRV[bx],0ffh	;	h->hd = 0xff;
 hshdsc3:
 	mov	bx,ds:HCB_LINK[bx]	; get next hash code block
-	jmps	hshdsc1
+	jmp	hshdsc1
 hshdsc4:
 	pop	bx
 	pop	ds
 	ret
 
 
-eject
 
 enlarge_root:
-if DELWATCH
+ifdef DELWATCH
 	mov	ah,DELW_FREERD		; lets ask DELWATCH if it can
 	mov	al,adrive		; free a root directory entry
-	callf	ss:fdos_stub		;  for this drive
+	call	dword ptr ss:fdos_stub		;  for this drive
 	 jnc	allocdir		; it says it has so try again
 endif
 allocdir_err:
@@ -951,7 +954,7 @@ allocdir25:
 	call	getnblk			; NO -- get next block then
         pop	bx
 	pop	cx
-	jmps	allocdir20
+	jmp	allocdir20
 
 allocdir30:
 	push	cx
@@ -988,5 +991,7 @@ allocdir35:
         call	setenddir		; Set up for search first
 	mov	cx,1			; Find empty fcb
 	jmp	getdir			; Can not return with not found error
+
+BDOS_CODE	ends
 
 	END
