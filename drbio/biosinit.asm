@@ -254,7 +254,7 @@ biosinit30:
 
 	mov	ax,offset biosinit_end+32
 	mov	cl,4			; Leave the Last Paragraph Free for
-    shr ax,cl           ;  himem DMD 
+    	shr 	ax,cl           	;  himem DMD 
 	neg	ax			; Calculate the destination
 	add	ax,mem_size		; Segment for the BIOS relocation
 
