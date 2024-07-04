@@ -87,9 +87,8 @@ bin/misc.obj: misc.a86 version.inc pcmode.equ msdos.equ mserror.equ psp.def driv
 bin/support.obj: support.asm pcmodew.equ fdos.def mserror.equ doshndl.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/dosmem.obj: dosmem.a86 pcmode.equ msdos.equ mserror.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)
-	$(FIXUPP) $^*.o86 $^@
+bin/dosmem.obj: dosmem.asm pcmodew.equ msdos.equ mserror.equ
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/error.obj: error.a86 pcmode.equ fdos.def msdos.equ mserror.equ psp.def char.def reqhdr.equ
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)

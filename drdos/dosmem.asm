@@ -1,4 +1,4 @@
-;    File              : $DOSMEM.A86$
+;    File              : $DOSMEM.ASM$
 ;
 ;    Description       :
 ;
@@ -36,9 +36,17 @@
 ;    Remove historic CDOS comment
 ;    ENDLOG
 ;
-	include	pcmode.equ
-	include i:msdos.equ
-	include i:mserror.equ
+
+PCMDATA group PCMODE_DATA,FDOS_DSEG
+PCMCODE group PCM_CODE
+
+ASSUME DS:PCMDATA
+
+	.nolist
+	include	pcmodew.equ
+	include msdos.equ
+	include mserror.equ
+	.list
 	
 BEST_FIT	equ	01h		; allocate BEST match memory block
 LAST_FIT	equ	02h		; allocate LAST matching memory block
@@ -47,7 +55,7 @@ UPPER_ONLY_FIT	equ	40h		; only allocate from upper memory
 
 FIRST_FIT	equ	04h		; we use this internally...
 
-PCM_CODE	CSEG	BYTE
+PCM_CODE	segment public byte 'CODE'
 	extrn	error_exit:near		; Standard Error Handler
 	extrn	return_AX_CLC:near
 	extrn	return_BX:near
@@ -61,7 +69,7 @@ PCM_CODE	CSEG	BYTE
 ;
 	Public	func48
 func48:					; bx = request size
-	callf	lock_tables		; lock global tables
+	call	dword ptr lock_tables	; lock global tables
 	call	search_mem		; look for block bx or bigger
 	 jc	memory_avbl_error	;  skip on error
 	test	mem_strategy,LAST_FIT	; is it last fit ?
@@ -75,13 +83,13 @@ func48:					; bx = request size
 	mov	bx,cx			; real block is the next one
 f48_10:
 	mov	ax,current_psp		; Change the Owner
-	mov	DMD_PSP,ax		; we now own this block
+	mov	es:DMD_PSP,ax		; we now own this block
 
 	push	es
 	call	make_dmd		; make new DMD for allocated mem
 	pop	ax
 	inc	ax			; return starting segment
-	jmps	memory_exit		; unlock global tables
+	jmp	memory_exit		; unlock global tables
 
 
 ;	*****************************
@@ -91,10 +99,10 @@ f48_10:
 ;
 	Public	func49
 func49:
-	callf	lock_tables		; lock global tables
+	call	dword ptr lock_tables	; lock global tables
 	call	get_dmd			; es -> dmd
 	 jc	memory_error		; skip if block invalid
-	mov	ax,DMD_PSP		; get owner field
+	mov	ax,es:DMD_PSP		; get owner field
 	cmp	ax,dmd_owner
 	mov	ax,es			; return DMD address in AX
 	 jb	func49_10
@@ -104,9 +112,9 @@ func49:
 func49_10:
 	xor	dx,dx			; yes, owner = 0 means free block
 func49_20:
-	mov	DMD_PSP,dx		; free/set new owner
+	mov	es:DMD_PSP,dx		; free/set new owner
 	call	merge_mem		; merge with adjacent free blocks
-;	jmps	memory_exit
+;	jmp	memory_exit
 
 ; centralised exit point to unlock system tables
 
@@ -117,14 +125,14 @@ memory_exit:
 ; On Exit
 ;	None
 ;
-	callf	unlock_tables		; unlock global tables
+	call	dword ptr unlock_tables	; unlock global tables
 	jmp	return_AX_CLC		; return DMD address
 
 memory_avbl_error:
 	mov	bx,cx
 	call	return_BX		; return biggest block available
 memory_error:
-	callf	unlock_tables		; unlock global tables
+	call	dword ptr unlock_tables	; unlock global tables
 	mov	locus,LOC_MEMORY
 	jmp	error_exit		; Jump to error handler
 
@@ -136,27 +144,27 @@ memory_error:
 ;
 	Public	func4A
 func4A:
-	callf	lock_tables		; lock global tables
+	call	dword ptr lock_tables	; lock global tables
 	call	get_dmd			; es -> dmd
 	 jc	memory_error		; skip if block invalid
 
-	push	DMD_LEN			; save the current DMD length
+	push	es:DMD_LEN		; save the current DMD length
 	call	merge_mem		; pick up unallocated blocks
 	pop	ax			; return original DMD length
 	 jc	memory_error		; if dmd's destroyed
 
 	mov	ax,ED_MEMORY		; assume insufficient mem
-	mov	cx,DMD_LEN		; cx = available size
+	mov	cx,es:DMD_LEN		; cx = available size
 	cmp	cx,bx			; if avail < req, then
 	 jb	memory_avbl_error	; return maximum possible
 
 	mov	ax,current_psp		; Force this block to be owned by the
-	mov	DMD_PSP,ax		; current PSP. MACE Utilities
+	mov	es:DMD_PSP,ax		; current PSP. MACE Utilities
 
 	call	make_dmd		; new block on top
     call    reload_ES       
 	mov	ax,es
-	jmps	memory_exit
+	jmp	memory_exit
 
 ;	*****************************
 ;	***    DOS Function 58    ***
@@ -170,7 +178,7 @@ func4A:
 	Public	func58
 
 func58:
-	callf	lock_tables		; lock global tables
+	call	dword ptr lock_tables	; lock global tables
 	cmp	al,3
 	 ja	f58_error		; Range Check Sub-Function
 	cbw				; AH = 0
@@ -178,12 +186,12 @@ func58:
 	add	si,si			; SI = word offset of sub-function
 	call	cs:f58_tbl[si]		; execute the sub-function
 	 jnc	memory_exit		; return the result
-	jmps	memory_error		;  or the error
+	jmp	memory_error		;  or the error
 	
 
 f58_error:
 	mov	ax,ED_FUNCTION
-	jmps	memory_error
+	jmp	memory_error
 
 f58_tbl	dw	f58_get_strategy
 	dw	f58_set_strategy
@@ -230,7 +238,7 @@ f58_set_link10:
 	pop	es
 	cmp	ax,cx			; upper memory chain ?
 	 jne	f58_set_link10
-	mov	DMD_ID,dl		; set appropriate link type
+	mov	es:DMD_ID,dl		; set appropriate link type
 	mov	ax,(MS_M_STRATEGY*256)+3; return AX unchanged
 ;	clc
 f58_set_link20:
@@ -239,7 +247,6 @@ f58_set_link20:
 
 
 
-eject
 ;****************************************
 ;*					*
 ;*	Memory Function Subroutines	*
@@ -262,11 +269,11 @@ free_all_loop:
 	jc	free_all_fail		;   then quit now
 
 	mov	dl,al			; dl = id code
-	cmp	DMD_PSP,bx		; if block is owned by another
+	cmp	es:DMD_PSP,bx		; if block is owned by another
 	jnz	free_all_next		;   then check next
 
-	and	DMD_PSP,0		; Free this partition
-
+	and	es:DMD_PSP,0		; Free this partition
+	nop	; REMOVE AFTER JWASM CONVERSION
 free_all_next:
 	push	es
 	call	next_dmd		; es -> next block up
@@ -306,10 +313,10 @@ set_owner:
 	call	check_dmd_id		; Check for a valid DMD
 	 jc	s_o20
 	mov	ax,current_psp
-	cmp	ax,DMD_PSP		; Check the Current PSP owns the memory
+	cmp	ax,es:DMD_PSP		; Check the Current PSP owns the memory
 	 jnz	s_o10
-	mov	DMD_PSP,bx		; Set the new owner and return	
-	jmps	s_o20
+	mov	es:DMD_PSP,bx		; Set the new owner and return	
+	jmp	s_o20
 
 s_o10:
 	mov	ax,ED_BLOCK
@@ -340,13 +347,13 @@ search_mem_loop:
 	call	check_dmd_id		; if block is invalid
 	 jc	search_mem_exit		;   then quit now
 
-	cmp	DMD_PSP,0		; if block is owned
+	cmp	es:DMD_PSP,0		; if block is owned
 	 jnz	search_mem_next		;   then check another
 
 	call	merge_mem		; group with unallocated blocks
 
 	mov	ax,es			; AX = current DMD
-	mov	cx,DMD_LEN		; cx = block length
+	mov	cx,es:DMD_LEN		; cx = block length
 
 	cmp	cx,si			; is it the biggest block we
 	 jb	search_mem40		;   have found so far ?
@@ -379,12 +386,12 @@ search_mem_next:
 	 jnz	search_mem_next10	; then also search UMBs
 	cmp	di,0FFFFh		; no block found in lower mem?
 	 je	search_mem_next10	; then also search UMBs
-	jmps	search_mem_exit		; else return the previously found block 
+	jmp	search_mem_exit		; else return the previously found block 
 search_mem_next10:
 	or	mem_strategy,FIRST_FIT	; grab 1st high memory block we find
 	test	mem_strategy,UPPER_ONLY_FIT
 	 jnz	search_mem_init		; upper only is another special case
-	jmps	search_mem_loop	
+	jmp	search_mem_loop	
 
 search_mem_exit:
 	and	mem_strategy,not FIRST_FIT
@@ -408,7 +415,7 @@ search_next_dmd:
 ;	ES = AX = next DMD
 ;	DX/DI preserved
 ;
-	cmp	DMD_ID,IDM		; do we have any more blocks ?
+	cmp	es:DMD_ID,IDM		; do we have any more blocks ?
 	 jne	search_mem_error	;  no, return CY set
 ;	jmp	next_dmd		; else try next DMD
 
@@ -418,7 +425,7 @@ search_next_dmd:
 
 next_dmd:
 	mov	ax,es
-	add	ax,DMD_LEN
+	add	ax,es:DMD_LEN
 	inc	ax			; allow for dmd itself
 	mov	es,ax
 	ret
@@ -431,23 +438,23 @@ next_dmd:
 
 merge_mem:
 	push	es
-	cmp	DMD_ID,IDM		; if no more dmd's
+	cmp	es:DMD_ID,IDM		; if no more dmd's
 	 jnz	merge_mem_done		;   then just quit
 
 	call	next_dmd
 	call	check_dmd_id		; if id is invalid
 	 jc	merge_mem_quit		;   then return an error
 
-	cmp	DMD_PSP,0		; if next dmd is owned
+	cmp	es:DMD_PSP,0		; if next dmd is owned
 	 jnz	merge_mem_done		;   then done
 
-	mov	cx,DMD_LEN		; if free, grab its length
+	mov	cx,es:DMD_LEN		; if free, grab its length
 	pop	es			; restore base dmd
 
-	mov	DMD_ID,al		; use next's id (in case of last)
+	mov	es:DMD_ID,al		; use next's id (in case of last)
 	inc	cx
-	add	DMD_LEN,cx		; add new memory to base
-	jmps	merge_mem		;   and try again
+	add	es:DMD_LEN,cx		; add new memory to base
+	jmp	merge_mem		;   and try again
 
 merge_mem_done:
 	clc				; clear error flag
@@ -465,15 +472,15 @@ make_dmd:
 	cmp	bx,cx			; if request and size match
 	 jz	make_dmd_done		;   then that's all we need
 
-	mov	dl,DMD_ID		; get current block id
-	mov	DMD_LEN,bx		; else shrink this block
-	mov	DMD_ID,IDM		; not the last now
+	mov	dl,es:DMD_ID		; get current block id
+	mov	es:DMD_LEN,bx		; else shrink this block
+	mov	es:DMD_ID,IDM		; not the last now
 	call	next_dmd
-	mov	DMD_ID,dl		; our old id for the new dmd
-	mov	DMD_PSP,0		; new block is free
+	mov	es:DMD_ID,dl		; our old id for the new dmd
+	mov	es:DMD_PSP,0		; new block is free
 	sub	cx,bx
 	dec	cx
-	mov	DMD_LEN,cx		; length is whatever is left
+	mov	es:DMD_LEN,cx		; length is whatever is left
 
 make_dmd_done:
 	ret
@@ -488,7 +495,7 @@ get_dmd:
 	mov	ax,es
 	dec	ax			; back up to dmd
 	mov	es,ax
-;	jmps	check_dmd_id		; fall through
+;	jmp	check_dmd_id		; fall through
 
 ;	Check first byte in the dmd for a valid id code
 ;	entry:	es -> dmd
@@ -498,7 +505,7 @@ get_dmd:
 	Public	check_dmd_id
 
 check_dmd_id:
-	mov	al,DMD_ID
+	mov	al,es:DMD_ID
 	cmp	al,IDM			; if not last
 	jz	check_dmd_done		;   then good
 	cmp	al,IDZ			; if last
@@ -510,8 +517,9 @@ check_dmd_error:
 check_dmd_done:
 	ret
 
+PCM_CODE	ends
 	
-PCMODE_DATA	DSEG
+PCMODE_DATA	segment public word 'DATA'
 
 	extrn	lock_tables:dword
 	extrn	unlock_tables:dword
@@ -524,5 +532,7 @@ PCMODE_DATA	DSEG
 	extrn	locus:byte
 	extrn	mem_strategy:byte
 	extrn	dmd_root:word
+
+PCMODE_DATA	ends
 
 	end
