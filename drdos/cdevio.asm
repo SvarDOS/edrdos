@@ -44,23 +44,27 @@ title 'F_DOS Character device I/O'
 ;    ENDLOG
 
 PCMCODE	GROUP	BDOS_CODE
-PCMDATA	GROUP	BDOS_DATA
+PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
 
-	eject ! include i:psp.def
-	eject ! include i:modfunc.def
-	eject ! include i:fdos.equ
-	eject ! include i:mserror.equ
-	eject ! include i:doshndl.def
-	eject ! include i:driver.equ
-	eject ! include rh.equ
-	eject ! include cmdline.equ
+ASSUME DS:PCMDATA
 
+	include pspw.def
+	include modfunc.def
+	include fdos.equ
+	include mserror.equ
+	include doshndl.def
+	include driverw.equ
+	include request.equ
+	include cmdlinew.equ
 
-BDOS_DATA	dseg
-
+PCMODE_DATA	segment public word 'DATA'
 	extrn	fdos_buf:byte		; caveat: in PCMODE data segment
+PCMODE_DATA	ends
+
+BDOS_DATA	segment public word 'DATA'
 	extrn	fdos_pb:word
 	extrn	fdos_ret:word
+BDOS_DATA	ends
 
 ;
 ;	Critical Error responses from the default INT 24 handler and
@@ -71,7 +75,7 @@ ERR_RETRY	equ	1		; Retry the Operation
 ERR_ABORT	equ	2		; Terminate the Process
 ERR_FAIL	equ	3		; Fail Function
 
-BDOS_CODE	cseg
+BDOS_CODE	segment public byte 'CODE'
 
 	public	open_dev
 	public	close_dev
@@ -106,7 +110,8 @@ open_dev:
 
 ;	Note:	We own the MXdisk here, fdos_pb -> parameter data
 
-	push es ! push bx		; save device driver address
+	push 	es
+	push 	bx			; save device driver address
 	call	alloc_xfn		; DI = XFN
 	push	di			; save XFN
 	call	alloc_dhndl		; ES:BX -> DHNDL, AX = IFN
@@ -123,14 +128,15 @@ open_dev:
 	pop	es:DHNDL_DEVOFF[bx]
 	pop	es:DHNDL_DEVSEG[bx]	; save device driver address
 
-	push si ! push dx		; save IFN/XFN
+	push 	si
+	push 	dx			; save IFN/XFN
 
 	mov	es:DHNDL_COUNT[bx],1
 	push	ds
 	mov	ax,fdos_pb+6		; AX = open mode
 	mov	cx,DHAT_DEV+DHAT_CLEAN+DHAT_TIMEOK
 	lds	si,es:DHNDL_DEVPTR[bx]	; DS:SI -> device driver
-	or	cl,ds:byte ptr DH_ATTRIB[si]
+	or	cl,ds:byte ptr DEVHDR.ATTRIB[si]
 					; get attrib from device driver
 	test	al,DHM_LOCAL		; is it private ?
 	 jz	open_dev10
@@ -139,7 +145,7 @@ open_dev:
 open_dev10:
 	mov	es:DHNDL_MODE[bx],ax
 	mov	es:DHNDL_WATTR[bx],cx
-	lea	si,DH_NAME[si]		; copy the device name
+	lea	si,DEVHDR.NAM[si]	; copy the device name
 	lea	di,DHNDL_NAME[bx]	;  from the device header
 	mov	cx,8/WORD
 	rep	movsw
@@ -148,7 +154,8 @@ open_dev10:
 	rep	stosb
 	pop	ds
 	
-	pop dx ! pop ax			; AX = IFN, DX = XFN
+	pop 	dx
+	pop 	ax			; AX = IFN, DX = XFN
 
 	push	es
 	call	get_xftptr		; ES:DI -> PSP_XFTPTR for current_psp
@@ -179,22 +186,27 @@ open_close_dev:
 ; entry:	ES:BX = DHNDL_
 ;		AL = cmd_type (CMD_DEVICE_OPEN/CMD_DEVICE_CLOSE)
 ;
-	push ds ! push es
-	push bx ! push si
+	push 	ds
+	push 	es
+	push 	bx
+	push 	si
 	lds	si,es:DHNDL_DEVPTR[bx]	; DS:SI -> device driver
-	test	ds:DH_ATTRIB[si],DA_REMOVE
+	test	ds:DEVHDR.ATTRIB[si],DA_REMOVE
 	 jz	ocdev1			 ; does the device support OPEN/CLOSE/RM
 	sub	sp,RH13_LEN-2*word	; make space on stack for RH_
 	push	ax			; RH_CMD = AL
 	mov	ax,RH13_LEN
 	push	ax			; RH_LEN = RH13_LEN
-	push ss ! pop es
+	push 	ss
+	pop 	es
 	mov	bx,sp			; ES:BX -> RH_
 	call	device_driver		; call the device driver
 	add	sp,RH13_LEN		; recover stack space
 ocdev1:
-	pop si ! pop bx
-	pop es ! pop ds
+	pop 	si
+	pop 	bx
+	pop 	es
+	pop 	ds
 	ret
 
 dup_dev:
@@ -319,11 +331,18 @@ inst_io20:
 	cmp	al,1Ah			; EOF - don't send it or anything after
 	 je	inst_io30		;  and exit without xfering any
 inst_io25:
-	push ds ! push es ! push di ! push cx
+	push 	ds
+	push 	es
+	push 	di
+	push 	cx
 	lds	si,es:DHNDL_DEVPTR[di]	; DS:SI -> device driver
-	push ss ! pop es		; ES:BX -> RH_
+	push 	ss
+	pop 	es			; ES:BX -> RH_
 	call	device_driver		; execute the command
-	pop cx ! pop di ! pop es ! pop ds
+	pop 	cx
+	pop 	di
+	pop 	es
+	pop 	ds
 	 jns	inst_io_continue	; if no errors carry on
 	push	es
 	les	si,es:DHNDL_DEVPTR[di]	; ES:SI -> device driver
@@ -333,7 +352,7 @@ inst_io25:
 	 je	inst_io20		; retry the operation
 	 ja	inst_io30		; fail - return error
 	mov	ds:RH_STATUS[bx],RHS_DONE
-	jmps	inst_io_ignore		; ignore - fiddle status and
+	jmp	inst_io_ignore		; ignore - fiddle status and
 inst_io_continue:			;  say we did it all
 	mov	dx,ds:RH4_COUNT[bx]	; how many did we xfer ?
 	test	dx,dx			;  if we haven't done any
@@ -385,6 +404,7 @@ read_con:	; handle read from cooked console
 	test	ah,DHAT_READY		; now see if we have
 	 jnz	con_dev_not_eof
 	jmp	con_dev_exit		; yes, just return zero chars read
+	nop	; REMOVE AFTER JWASM CONVERSION
 con_dev_not_eof:
 	push	es
 	push	bx			; save DHNDL_
@@ -392,7 +412,8 @@ con_dev_loop:
 	mov	bx,word ptr fdos_buf	; get # of bytes already used
 	xor	ax,ax
 	xchg	al,bh			; get # bytes in the buffer
-	inc ax ! inc ax			; also count the CR/LF
+	inc 	ax
+	inc 	ax			; also count the CR/LF
 	sub	ax,bx			; have we any bytes left in the buffer?
 	 ja	con_dev_cont		; yes, return them
 	 				; no, we need a fresh input line
@@ -400,7 +421,8 @@ con_dev_loop:
 	mov	fdos_buf,CMDLINE_LEN	; read up to 128 characters
 	mov	si,2[bp]		; SI -> parameter block
 	mov	bx,ds:2[si]		; BX = input handle
-	push	ds ! pop es
+	push	ds
+	pop 	es
 	mov	dx,offset fdos_buf	; ES:DX -> console buffer
 	mov	cx,bx			; output to same handle as input
 	push	bx
@@ -415,7 +437,7 @@ con_dev_loop:
 	pop	bx			; Same Output handle
 	mov	cx,1			; Only One Character
 	call	cooked_write
-	jmps	con_dev_loop
+	jmp	con_dev_loop
 
 con_dev_cont:				; BX = buffer offset
 	mov	di,2[bp]		; DI -> parameter block
@@ -431,7 +453,8 @@ con_dev_ok:
 	rep	movsb			; read all the data
 	pop	cx			; restore count
 	mov	al,1Ah			; now we look for EOF mark...
-	push ds ! pop es
+	push 	ds
+	pop 	es
 	lea	di,fdos_buf+2[bx]	; ES:DI -> function 10 buffer
 	mov	si,cx			; keep count safe
 	repne	scasb
@@ -449,9 +472,6 @@ con_dev_exit:
 	ret
 
 
-
-
-eject
 
 first_dev:	; F_DOS FIRST call on device performed
 ;---------	; Called with MXDisk
@@ -480,7 +500,7 @@ first_dev:	; F_DOS FIRST call on device performed
 
 	mov	cx,8
 frstdev1:				; scan off trailing spaces
-	cmp	es:byte ptr 0-1[di],' '
+	cmp	es:byte ptr [di-1],' '
 	 jne	frstdev2
 	dec	di
 	loop	frstdev1
@@ -490,14 +510,12 @@ frstdev2:
 	ret
 
 
-eject
-
 ioc6_dev:	; IOCTL(6) - input status for device
 ;--------
 ;	entry:	ES:BX -> DHNDL_
 
 	mov	al,CMD_INPUT_NOWAIT
-	jmps	ioc67d			; call the device driver
+	jmp	ioc67d			; call the device driver
 
 
 ioc7_dev:	; IOCTL(7) - output status for device
@@ -512,7 +530,8 @@ ioc67d:					; common code for I/O STATUS
 	mov	ax,RH5_LEN
 	push	ax			; RH_LEN = RH5_LEN
 	lds	si,es:DHNDL_DEVPTR[bx]	; DS:SI -> device driver
-	push ss ! pop es
+	push 	ss
+	pop 	es
 	mov	bx,sp			; ES:BX -> RH_
 	mov	es:RH5_CHAR[bx],0	; zero the char
 	call	device_driver		; do the CALLF's to the device driver
@@ -528,5 +547,7 @@ ioc67d_ret:
 	mov	ds:6[si],dx		; update returned status
 	sub	bx,bx			; no error occurred
 	ret				;	for now
+
+BDOS_CODE	ends
 
 	end				; of CDEVIO.A86

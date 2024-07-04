@@ -55,9 +55,8 @@ bin/fcbs.obj: fcbs.a86 mserror.equ fdos.equ driver.equ doshndl.def
 bin/bdevio.obj: bdevio.asm driverw.equ fdos.equ mserror.equ doshndl.def bdos.equ request.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/cdevio.obj: cdevio.a86 psp.def modfunc.def fdos.equ mserror.equ doshndl.def driver.equ rh.equ cmdline.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDOS5
-	$(FIXUPP) $^*.o86 $^@
+bin/cdevio.obj: cdevio.asm pspw.def modfunc.def fdos.equ mserror.equ doshndl.def driverw.equ request.equ cmdlinew.equ
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/fioctl.obj: fioctl.a86 fdos.equ rh.equ msdos.equ mserror.equ doshndl.def driver.equ f52data.def
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DPASSWORD /DJOIN /DDOS5

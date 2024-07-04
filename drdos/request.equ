@@ -137,11 +137,12 @@ RH4_BUFSEG	equ	word ptr 16	; BDOS: Buffer Segment
 RH4_COUNT	equ	word ptr 18	; BDOS: sector count
 RH4_SECTOR	equ	word ptr 20	; BDOS: starting sector
 RH4_VOLID	equ	dword ptr 22	; driver: volume if illegal disk change
-RH4_BIGSECTOR   equ dword ptr 26   
+RH4_BIGSECTOR   equ     dword ptr 26   
 RH4_BIGSECTORLO	equ	word ptr 26
 RH4_BIGSECTORHI	equ	word ptr 28
 
 RH4_LEN		equ	30
+RH4_CDEV_LEN    equ     22
 
 ;	Request Header for Non-Destructive Input
 
