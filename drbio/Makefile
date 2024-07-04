@@ -58,9 +58,16 @@ version.inc: ../version.inc
 
 clean: .SYMBOLIC
 	rm -f bin/drbio.sys
+	rm -f bin/DRBIO.SYS
 	rm -f bin/bios.exe
+	rm -f bin/BIOS.EXE
+	rm -f bin/bios.bin
+	rm -f bin/BIOS.BIN
 	rm -f bin/*.obj
-	rm -f bin/*.o86
+	rm -f bin/*.OBJ
 	rm -f bin/*.lst
+	rm -f bin/*.LST
 	rm -f bin/*.map
+	rm -f bin/*.MAP
 	rm -f version.inc
+	rm -f VERSION.INC
