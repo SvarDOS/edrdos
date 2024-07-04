@@ -1,5 +1,5 @@
 title 'DIRS - dos directory support'
-;    File              : $DIRS.A86$
+;    File              : $DIRS.ASM$
 ;
 ;    Description       :
 ;
@@ -46,9 +46,11 @@ PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA,FIXED_DOS_DATA
 
 ASSUME DS:PCMDATA
 
+.nolist
 include	bdos.equ
 include mserror.equ
 include	fdos.equ
+.list
 
 
 PCMODE_DATA	segment public word 'DATA'

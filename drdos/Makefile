@@ -70,9 +70,8 @@ bin/header.obj: header.asm pcmodew.equ vectors.def cmdlinew.equ doshndl.def driv
 bin/pcmif.obj: pcmif.asm pcmodew.equ fdos.def vectors.def msdos.equ mserror.equ pspw.def fdos.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/cio.obj: cio.a86 pcmode.equ driver.equ reqhdr.equ msdos.equ fdos.equ psp.def mserror.equ char.def redir.equ doshndl.def
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)
-	$(FIXUPP) $^*.o86 $^@
+bin/cio.obj: cio.asm pcmodew.equ driverw.equ request.equ msdos.equ fdos.equ pspw.def mserror.equ char.def redir.equ doshndl.def
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/disk.obj: disk.a86 pcmode.equ fdos.def doshndl.def fdos.equ psp.def msdos.equ mserror.equ redir.equ
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDELWATCH

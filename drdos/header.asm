@@ -695,13 +695,7 @@ days_in_month	db	31,28,31,30,31,30	; Jan, Feb, Mar, Apr, May, Jun
 
 	Public	last_key_ext
 
-;;last_key_ext	db	0			; flag set if last key zero
-;** LINKER BODGE **
-; I'd like to do the above, but LINKCMD blows up when I do (it seems to be to
-; many relocatable publics in the data segment that do it). So as a work around
-; I do the below instead. Since the location is fixed anyway it works out OK.
-last_key_ext	equ	byte ptr 0d90h
-;** LINKER BODGE **
+	last_key_ext	db	0			; flag set if last key zero
 
     org 0e5bh - FIXED_DATA_START    
 	

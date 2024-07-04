@@ -1,5 +1,5 @@
 title 'F_DOS Character device I/O'
-;    File              : $CDEVIO.A86$
+;    File              : $CDEVIO.ASM$
 ;
 ;    Description       :
 ;
