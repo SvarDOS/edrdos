@@ -49,37 +49,45 @@
 ; 12 Dec 90 keep error server number inverted so local = 0, more compatible
 
 ;
-	include	pcmode.equ
-	include	fdos.def	
-	include i:mserror.equ
-	include	i:doshndl.def
 
-eject
-PCM_CODE	CSEG	BYTE
+PCMDATA group PCMODE_DATA,FDOS_DSEG
+PCMCODE group PCM_CODE
+
+ASSUME DS:PCMDATA
+
+	.nolist
+	include	pcmodew.equ
+	include	fdos.def	
+	include mserror.equ
+	include	doshndl.def
+	.list
+
+PCM_CODE	segment public byte 'CODE'
 	extrn	error_exit:near		; Standard Error Exit Routine
 	extrn	fcberror_exit:near	; Special FCB function Error Exit
 	extrn	fdos_entry:near
 	extrn	get_dseg:near
 
-eject
 ;
 ;	STRLEN determines the length of the string passed in DS:SI
 ;	and returns the byte length in CX.
 ;
 	Public	strlen
 strlen:
-	push es ! push di
-	push ds ! pop es
+	push 	es
+	push 	di
+	push 	ds
+	pop 	es
 	mov	di,si
 	mov	cx,0FFFFh
 	sub	al,al
 	repnz	scasb	
-	pop di ! pop es
+	pop 	di
+	pop 	es
 	not	cx
 	dec	cx
 	ret
 
-eject
 ;
 ;	This routine sets the address to be returned to by the 
 ;	FDOS when an error has occured and the RETRY request has been
@@ -109,6 +117,7 @@ set_retry:
 	push	bx
 	lds	bx,int21regs_ptr	; point to users registers
 	and	reg_FLAGS[bx],not CARRY_FLAG
+	nop	; REMOVE AFTER JWASM CONVERSION
 	mov	al,reg_AL[bx]		; clear CY assuming we will succeed
 	pop	bx			;  and reload AL with entry value
 	pop	ds
@@ -142,11 +151,14 @@ return_AX_CLC:
 ; On Exit:
 ;	ES:DI trashed
 ;
-	push ds ! push di
+	push 	ds
+	push 	di
 	lds	di,ss:int21regs_ptr
 	mov	reg_AX[di],ax		; return AX to caller
 	and	reg_FLAGS[di],not CARRY_FLAG
-	pop di ! pop ds
+	nop	; REMOVE AFTER JWASM CONVERSION
+	pop 	di
+	pop 	ds
 	ret
 
 
@@ -177,12 +189,18 @@ fcbfdos_e10:				; to the calling routine.
 	Public	fdos_nocrit
 fdos_nocrit:
 	mov	dx,offset fdos_data	; point to fdos parameter block
-	push ds ! push es
-	push si ! push di ! push bp
+	push 	ds
+	push 	es
+	push 	si
+	push 	di
+	push 	bp
 	call	fdos_entry		; BDOS module entry point
 	or	ax,ax			; Set the Flags
-	pop  bp ! pop  di ! pop  si
-	pop es ! pop  ds
+	pop  	bp
+	pop  	di
+	pop  	si
+	pop 	es
+	pop  	ds
 	ret
 
 
@@ -209,10 +227,12 @@ return_BX:
 ; On Exit:
 ;	All regs preserved
 ;
-	push ds ! push si
+	push 	ds
+	push 	si
 	lds	si,ss:int21regs_ptr
 	mov	reg_BX[si],bx		; return BX to caller
-	pop si ! pop ds
+	pop 	si
+	pop 	ds
 	ret
 
 	Public	return_CX
@@ -223,10 +243,12 @@ return_CX:
 ; On Exit:
 ;	All regs preserved
 ;
-	push ds ! push bx
+	push 	ds
+	push 	bx
 	lds	bx,ss:int21regs_ptr
 	mov	reg_CX[bx],cx		; return CX to caller
-	pop bx ! pop ds
+	pop 	bx
+	pop 	ds
 	ret
 
 	Public	return_DX
@@ -237,13 +259,17 @@ return_DX:
 ; On Exit:
 ;	All regs preserved
 ;
-	push ds ! push bx
+	push 	ds
+	push 	bx
 	lds	bx,ss:int21regs_ptr
 	mov	reg_DX[bx],dx		; return DX to caller
-	pop bx ! pop ds
+	pop 	bx
+	pop 	ds
 	ret
 
-PCMODE_DATA	DSEG	WORD
+PCM_CODE	ends
+
+PCMODE_DATA	segment public word 'DATA'
 
 
 	extrn	current_psp:word
@@ -253,6 +279,7 @@ PCMODE_DATA	DSEG	WORD
 	extrn	retry_sp:word
 	extrn	valid_flg:byte
 
+PCMODE_DATA	ends
 
 	end
 

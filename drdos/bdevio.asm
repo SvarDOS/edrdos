@@ -1,5 +1,5 @@
 title 'BDEVIF - Block DEVice Input/Output support'
-;    File              : $BDEVIO.A86$
+;    File              : $BDEVIO.ASM$
 ;
 ;    Description       :
 ;

@@ -48,6 +48,7 @@ PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
 
 ASSUME DS:PCMDATA
 
+	.nolist
 	include pspw.def
 	include modfunc.def
 	include fdos.equ
@@ -56,6 +57,7 @@ ASSUME DS:PCMDATA
 	include driverw.equ
 	include request.equ
 	include cmdlinew.equ
+	.list
 
 PCMODE_DATA	segment public word 'DATA'
 	extrn	fdos_buf:byte		; caveat: in PCMODE data segment
