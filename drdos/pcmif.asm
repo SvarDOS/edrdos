@@ -125,6 +125,7 @@
 PCMDATA group PCMODE_DATA,FDOS_DSEG
 PCMCODE group PCM_CODE,PCM_RODATA
 
+	.nolist
 	include	pcmodew.equ
 	include	fdos.def
 	include	vectors.def
@@ -132,6 +133,7 @@ PCMCODE group PCM_CODE,PCM_RODATA
 	include	mserror.equ
 	include	pspw.def
 	include	fdos.equ
+	.list
 
 
 PCM_CODE	segment public byte 'CODE'

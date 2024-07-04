@@ -1,4 +1,4 @@
-;    File              : $DISK.A86$
+;    File              : $DISK.ASM$
 ;
 ;    Description       :
 ;
@@ -94,22 +94,30 @@
 ; 23 mar 92 func67 will now shrink #handles
 ;
 
-	include	pcmode.equ
+PCMDATA group PCMODE_DATA,FDOS_DSEG,GLOBAL_DATA,BDOS_DATA
+PCMCODE group PCM_CODE
+
+ASSUME DS:PCMDATA
+
+	.nolist
+	include	pcmodew.equ
 	include	fdos.def
-	include	i:doshndl.def
-	include	i:fdos.equ
-	include	i:psp.def
-	include	i:msdos.equ
-	include	i:mserror.equ
-	include	i:redir.equ
+	include	doshndl.def
+	include	fdos.equ
+	include	pspw.def
+	include	msdos.equ
+	include	mserror.equ
+	include	redir.equ
+	.list
 
 FCB_LEN		equ	32
 XFCB_LEN	equ	FCB_LEN+7
 
-BDOS_DATA	dseg	word
+BDOS_DATA	segment public word 'DATA'
 	extrn	dosfat:word
+BDOS_DATA	ends
 
-PCM_CODE	CSEG	BYTE
+PCM_CODE	segment public byte 'CODE'
 	extrn	dbcs_lead:near
 	extrn	dos_entry:near
 	extrn	fdos_nocrit:near
@@ -143,7 +151,8 @@ func0D:
 	mov	ax,I2F_FLUSH
 	int	2fh			; magic INT2F flush remote buffers
 	pop	ax
-	push ss ! pop ds
+	push 	ss
+	pop 	ds
 	ret
 
 ;	*****************************
@@ -201,7 +210,6 @@ valid_drive10:
 	test	al,al			; set ZF if valid drive
 	ret
 
-eject
 ;	*****************************
 ;	***    DOS Function 0F    ***
 ;	***    Open File (FCB)    ***
@@ -338,7 +346,6 @@ fcb_error:
 
 
 
-eject
 ;	*****************************
 ;	***    DOS Function 19    ***
 ;	***      Current Disk     ***
@@ -471,7 +478,7 @@ f36_OK25:
 	xor	ax,ax
 	mov	al,es:DDSC_CLMSK[bx]	; get the sectors per cluster -1
 	inc	ax			; AX = sectors per cluster
-if DELWATCH
+ifdef DELWATCH
 	add	cx,FD_ADJUST		; now add in DELWATCH adjustment
 	adc	dx,0
 endif
@@ -483,7 +490,7 @@ f36_OK30:
 	shl	al,1			; cluster size * 2
 	shr	dx,1			; free clusters / 2
 	rcr	cx,1
-	jmps	f36_OK30			; try again
+	jmp	f36_OK30			; try again
 f36_OK40:
 	cmp	dx,0			; more than fits into 16-bit register?
 	 je	f36_OK50			; no, the value is exact
@@ -522,7 +529,6 @@ fdos_DI10:
 	les	bx,FD_DPB		; get the DPB pointer
 	ret
 
-eject
 ;	*****************************
 ;	***    DOS Function 2F    ***
 ;	***   Get Disk Trans Adr  ***
@@ -539,7 +545,6 @@ func2F:
 	ret
 
 
-eject
 ;	*****************************
 ;	***    DOS Function 41    ***
 ;	***    Delete File(s)     ***
@@ -589,7 +594,7 @@ func4F:
 
 fdos_common41:
 	call	set_retry_RF		; Valid to RETRY or FAIL
-;	jmps	fdos_name
+;	jmp	fdos_name
 
 fdos_name:
 	mov	FD_NAMEOFF,dx		; Initialise Pointer
@@ -598,7 +603,6 @@ fdos_name:
 	mov	FD_LFNSEARCH,0		; do not use FAT+/LFN extensions
 	jmp	fdos_ax_crit
 
-eject
 ;	*****************************
 ;	***    DOS Function 5B    ***
 ;	***   Create New File     ***
@@ -620,7 +624,7 @@ func3C:
 	mov	FD_FUNC,FD_NEW		; no, create a new file
 f3C_10:
 	mov	FD_MODE,DHM_RW		; create as read/write
-	jmps	fdos_name		; go do it
+	jmp	fdos_name		; go do it
 
 ;	*****************************
 ;	***    DOS Function 3D    ***
@@ -652,7 +656,7 @@ funcExtendedOpenCreate:
 	pop	ax
 	 ja	open_mode_err
 	mov	FD_MODE,ax			; Set Open Mode
-	jmps	fdos_name
+	jmp	fdos_name
 
 open_mode_err:
 	mov	ax,ED_ACC_CODE			; This is an illegal open mode
@@ -746,7 +750,7 @@ func43:
 	 jc	f42_error
 	call	reload_registers	; get back AL
 	test	al,81h
-     jnz    f43_exit        
+	 jnz    f43_exit        
 	mov	cx,FD_ATTRIB
 	call	return_CX		; Return Attribs/Password
 	xchg	ax,cx			; Also in AX
@@ -784,7 +788,7 @@ func3E:
 	mov	al,OK_FAIL
 	call	set_retry		; Valid to FAIL
 	mov	FD_NEWHND,cx		; (in case it's force dup)
-;	jmps	fdos_ax_handle
+;	jmp	fdos_ax_handle
 
 fdos_ax_handle:
 	mov	FD_HANDLE,bx
@@ -804,7 +808,7 @@ func5C:
 	mov	word ptr FD_LENGTH+0,di	; Lock Length (LOW)
 	mov	word ptr FD_LENGTH+2,si	; Lock Length (HIGH)
 	mov	FD_LFLAG,ax		; Lock Type
-	jmps	fdos_ax_handle
+	jmp	fdos_ax_handle
 
 ;	*****************************
 ;	***    DOS Function 47    ***
@@ -906,13 +910,13 @@ func5A:
 	xor	ax,ax			; no previous char
 func5A_10:
 	xchg	ax,bx			; BL = previous char
-	lods	es:al			; get next char
+	lodsb	es:0			; get next char
 	test	al,al			; is it the end of the string?
 	 jz	func5A_20
 	call	dbcs_lead		; is it a KANJI char?
 	 jnz	func5A_10
 	inc	si			; skip 2nd char of pair
-	jmps	func5A_10
+	jmp	func5A_10
 func5A_20:
 	dec	si			; SI -> NUL
 	cmp	bl,'\'			; was last char a '\' ?
@@ -927,9 +931,13 @@ func5A_30:
 ; We generate a unique name based upon the time and date - if this already
 ; exists we keep retrying knowing the number of files is finite and we must
 ; succeed eventually
-	push cx ! push dx ! push si	; append a unique'ish name
+	push 	cx
+	push 	dx
+	push 	si			; append a unique'ish name
 	call	func5A_append_unique_name
-	pop si ! pop dx ! pop cx
+	pop 	si
+	pop 	dx
+	pop 	cx
 	mov	ah,MS_X_MKNEW		; try to create unique file
 	call	dos_entry
 	 jnc	func5A_50		; exit if we succeeded
@@ -1041,12 +1049,14 @@ f67_10:
 f67_20:
 	
 	push	bx			; save # of handles wanted
-	push ds ! pop es
+	push ds
+	pop es
 	mov	di,offset PSP_XFT	; ES:DI -> new handle table
 	cmp	bx,20			;  if we are setting to the
 	 je	f67_30			;   default size
 	add	bx,15			; calculate memory required
-	mov cl,4 ! shr bx,cl		; num of paragraphs required
+	mov 	cl,4
+	shr 	bx,cl			; num of paragraphs required
 	xor	di,di			;  offset will be zero
 	mov	ah,MS_M_ALLOC		;  allocate the memory
 	call	dos_entry
@@ -1179,8 +1189,9 @@ f6C_close_on_error:
 f6C_error:
 	jmp	error_exit		; generate critical error
 
+PCM_CODE	ends
 
-PCMODE_DATA	DSEG	WORD
+PCMODE_DATA	segment public word 'DATA'
 	extrn	current_psp:word
 	extrn	current_dsk:byte
 	extrn	dma_offset:word
@@ -1188,15 +1199,18 @@ PCMODE_DATA	DSEG	WORD
 	extrn	int21regs_ptr:dword
 	extrn	last_drv:byte
 	extrn	remote_call:word
-if DELWATCH
+ifdef DELWATCH
 	extrn	fdos_stub:dword
 endif
+PCMODE_DATA	ends
 
-GLOBAL_DATA	dseg	word
+GLOBAL_DATA	segment public word 'DATA'
 ; When creating unique files we use the date/time to make the name.
 ; We add this seed value to "randomise" things, INCing on failure so the next
 ; attempt usually succeeds.
 
 unique_name_seed	dw	0	; so we don't have to wait 1 second
+
+GLOBAL_DATA	ends
 
 end
