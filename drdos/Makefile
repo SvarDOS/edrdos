@@ -110,9 +110,8 @@ bin/history.obj: history.a86 pcmode.equ msdos.equ char.def cmdline.equ
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)
 	$(FIXUPP) $^*.o86 $^@
 
-bin/cmdline.obj: cmdline.a86 pcmode.equ msdos.equ char.def cmdline.equ reqhdr.equ driver.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)
-	$(FIXUPP) $^*.o86 $^@
+bin/cmdline.obj: cmdline.asm pcmodew.equ msdos.equ char.def cmdlinew.equ request.equ driverw.equ
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/dos7.obj: dos7.asm pcmode.equ fdos.equ fdos.def dos7.equ
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)

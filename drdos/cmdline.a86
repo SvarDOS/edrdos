@@ -36,15 +36,25 @@
 ; 	DOSPLUS Command Line Editor Routines
 ;
 
-	include	pcmode.equ
-	include	i:msdos.equ
-	include i:char.def
-	include	i:cmdline.equ
-	include	i:reqhdr.equ
-	include	i:driver.equ
+	.nolist
+	include	pcmodew.equ
+	include	msdos.equ
+	include char.def
+	include	cmdlinew.equ
+	include	request.equ
+	include	driverw.equ
+	.list
 
+PCMDATA group PCMODE_DATA,FDOS_DSEG
+PCMCODE group PCM_CODE,PCM_RODATA
 
-PCM_CODE	CSEG	BYTE
+ASSUME DS:PCMDATA
+
+EDIT_CNTRL	equ	cs:word ptr 0[bx]	; Character and Esc Flag
+EDIT_FUNC	equ	cs:word ptr 2[bx]	; Edit Function Address
+EDIT_LEN	equ	4			; Edit Table Entry Size
+
+PCM_CODE	segment public byte 'CODE'
 	public	read_line, edit_size
 
 	extrn	dbcs_lead:near
@@ -116,7 +126,8 @@ read_line:
 					; control block
 	mov	RL_INPUT,bx		; Initialize the INPUT Handle
 	mov	RL_OUTPUT,cx		; the OUTPUT Handle
-	inc dx ! inc dx			; Skip max and Returned Length
+	inc 	dx
+	inc 	dx			; Skip max and Returned Length
 	mov	RL_BUFOFF,dx		; and save the buffer offset
 	mov	RL_BUFSEG,es		;  and segment
 	xor	ax,ax			; now we zero
@@ -130,23 +141,24 @@ read_line:
 	test	ax,RLF_ENHANCED
 	 jz	read_line10
 	call	init_history		;  setup the history buffers
-	jmps	read_line20
+	jmp	read_line20
 read_line10:
 	and	RL_FLAGS,not RLF_INS	; clear insert mode
+	nop	; REMOVE AFTER JWASM CONVERSION
 read_line20:
 	mov	di,dx			; di -> buffer
 	xor	bx,bx
-	or	bl,es:byte ptr -2[di]	; Get the Maximum number of chars
+	or	bl,es:byte ptr [di-2]	; Get the Maximum number of chars
 	mov	RL_MAXLEN,bx		; and save for later
 	 jnz	read_line30		; make sure some chars are requested
-	jmps	ret_string10		; if no chars just return
+	jmp	ret_string10		; if no chars just return
 	
 ret_string:
 	pop	ax			; Remove local return address
 	mov	ax,RL_FLAGS		; get command line editor state
 	mov	cle_state,ax		;  save state for next time
 	mov	di,RL_BUFOFF		; Get the buffer Offset
-	mov	es:byte ptr -1[di],dl	; Return the number of characters
+	mov	es:byte ptr [di-1],dl	; Return the number of characters
 	push	dx			; Save length of entry
 	add	di,dx			; Point to the end of the buffer
 	mov	al,CR
@@ -167,7 +179,7 @@ read_line30:
 	mov	dx,si			; with an empty buffer.
 
 	xor	bx,bx
-	or	bl,es:byte ptr -1[di]	; Check if the buffer contains any
+	or	bl,es:byte ptr [di-1]	; Check if the buffer contains any
 	 jz	read_line40		; data which is terminated by a CR
 	cmp	es:byte ptr [bx+di],CR
 	 jnz	read_line40
@@ -184,6 +196,7 @@ read_line40:
 ;
 read_line_loop:
 	and	RL_FLAGS,not RLF_KANJI	; initial flags
+	nop	; REMOVE AFTER JWASM CONVERSION
 	call	get_char		; read the first character (AH Esc Flg)
 
 	mov	cx,edit_size		; now scan the control table looking
@@ -208,6 +221,7 @@ read_ll10:
 
 	call	save_char		; not an command so save the character
 	or	RL_FLAGS,RLF_DIRTY	;  and remember we have something new
+	nop	; REMOVE AFTER JWASM CONVERSION
 
 ; Are we in search mode ?
 
@@ -224,14 +238,13 @@ read_ll20:
 	push	ax			; no, keep rewinding cursor
 	call	prev_char		;  until we reach position
 	pop	ax			;  before we tried to match
-	jmps	read_ll20
+	jmp	read_ll20
 
 read_ll_found_cmd:			; get the address of the corresponding
 	mov	cx,EDIT_FUNC		;  function from the table	
 	call	cx			;  execute the correct function
-	jmps	read_line_loop		;  and go back for next character
+	jmp	read_line_loop		;  and go back for next character
 
-eject
 ;
 ;	the SAVE_CHAR routine will write the character in AL into 
 ;	the buffer in memory and then update the screen image. The
@@ -241,7 +254,7 @@ save_c10:
 	ret
 
 save_char:
-	cmp	ah,TRUE			; Ignore any un-matched escape 
+	cmp	ah,TRUE	and 0FFh	; Ignore any un-matched escape 
 	jz	save_c10		; sequences
 	call	save_kanji		; Test if AL is a Kanji Character
 					; and setup up the parameter blocks
@@ -265,10 +278,12 @@ intsave_char:
 
 	cmp	dx,si			; Are we at the end of the line
 	 jnz	intsave_c10		; No so check character types
-	push ax ! push cx
+	push 	ax
+	push 	cx
 	call	skip_one_char		; Skip the coresponding character in
-	pop cx ! pop ax			; the save buffer
-	jmps	simple_save
+	pop 	cx
+	pop 	ax			; the save buffer
+	jmp	simple_save
 
 intsave_c10:
 	push	ax			; Save the Input Character
@@ -310,14 +325,18 @@ simple_s10:
 ;	amount of code required.
 ;
 save_c30:
-	push ax ! push cx
+	push 	ax
+	push 	cx
 	call	deln_char
-	pop cx ! pop ax
+	pop 	cx
+	pop 	ax
 	cmp	dx,si
 	 jz	simple_save
 	or	RL_FLAGS,RLF_INS
+	nop	; REMOVE AFTER JWASM CONVERSION
 	call	save_c50
 	and	RL_FLAGS,not RLF_INS
+	nop	; REMOVE AFTER JWASM CONVERSION
 	ret
 
 bell_char:
@@ -340,29 +359,40 @@ save_c50:
 ;
 ;	Create space in the current buffer for the new character
 ;
-	push ds
-	push si ! push di
-	mov cx,dx ! sub cx,si		; CX -> Number of bytes to move
-	mov di,dx ! add di,RL_BUFOFF	; DI -> End of Destination Offset
-	add di,bx ! dec di		;    -> + Insert Char len - 1
-	mov si,di ! sub si,bx		; SI -> DI - Insert Char Len
-	push es ! pop ds		; DS == ES
+	push 	ds
+	push 	si
+	push 	di
+	mov 	cx,dx
+	sub 	cx,si			; CX -> Number of bytes to move
+	mov 	di,dx
+	add 	di,RL_BUFOFF		; DI -> End of Destination Offset
+	add 	di,bx
+	dec 	di			;    -> + Insert Char len - 1
+	mov 	si,di
+	sub 	si,bx			; SI -> DI - Insert Char Len
+	push 	es
+	pop 	ds			; DS == ES
 	std				; Make the right amount of space in
 	rep	movsb			; the buffer	
 	cld
-	pop di ! pop si
+	pop 	di
+	pop 	si
 	pop	ds
 
 	add	dx,bx			; Update the Buffer Length
 	stosb				; Save the New character
 	test	RL_FLAGS,RLF_KANJI	; Check if this was a Kanji Character
 	 jz	save_c60		; No
-	xchg al,ah ! stosb		; Yes Save high byte
+	xchg 	al,ah
+	stosb		; Yes Save high byte
 
 save_c60:
-	mov cx,dx ! sub cx,si		; Display the updated string
-	add si,bx ! push si		; Save the Updated Index
-	mov si,di ! sub si,bx		; Get the offset of the new char
+	mov 	cx,dx
+	sub 	cx,si			; Display the updated string
+	add 	si,bx
+	push 	si			; Save the Updated Index
+	mov 	si,di
+	sub 	si,bx			; Get the offset of the new char
 	call	put_string		; in the buffer and display all
 	pop	si			; Restore the new index
 	xchg	di,dx			; and calculate the number of BS
@@ -378,12 +408,14 @@ save_c60:
 ;
 save_kanji:
 	and	RL_FLAGS,not RLF_KANJI
+	nop	; REMOVE AFTER JWASM CONVERSION
 	mov	RL_KANJI,ax		; Save the Character
 	call	char_type		; Is this the first byte of a 
 	test	ah,CHAR_KANJI		; two byte Kanji character
 	mov	cx,1			; Character size in bytes
 	 jz	save_k10		; No
 	or	RL_FLAGS,RLF_KANJI	; Set internal Flag
+	nop	; REMOVE AFTER JWASM CONVERSION
 	call	get_char		; Get the high byte and save
 	mov	byte ptr RL_KANJI+1,al	; in the local variable
 	mov	ax,RL_KANJI		; Get the complete character
@@ -391,21 +423,22 @@ save_kanji:
 save_k10:
 	ret
 
-eject
 ;
 ;	The following group of functions modify the flags which control
 ;	the command line editor.
 ;
 toggle_ins:
 	xor	RL_FLAGS,RLF_INS	; Toggle the OverWrite/Insert
+	nop	; REMOVE AFTER JWASM CONVERSION
 	ret				; Flag
 
 toggle_search:
 	and	RL_FLAGS,not RLF_MATCH	; clear match bit
+	nop	; REMOVE AFTER JWASM CONVERSION
 	xor	RL_FLAGS,RLF_SEARCH	; Toggle the Search on/off flag
+	nop	; REMOVE AFTER JWASM CONVERSION
 	ret
 
-eject
 ;
 ;	This group of functions moves the cursor along the display
 ;	as well as updating the local variables.
@@ -431,7 +464,8 @@ next_c05:
 	mov	al,es:[di]		; Get the Offset of the next character
 	mov	cx,1			; the character itself and assume
 	call	char_type		; it is 1 byte long
-	test ah,CHAR_KANJI ! jz next_c10
+	test 	ah,CHAR_KANJI
+	jz 	next_c10
 	inc	cx
 next_c10:
 	xchg	si,di			; Get the string offset in SI
@@ -444,7 +478,9 @@ next_c10:
 prev_char:
 	test	si,si			; begining of line ?
 	 jz	prev_w30
-	push dx ! push si ! push di
+	push 	dx
+	push 	si
+	push 	di
 	mov	si,RL_BUFOFF		; Scan from the begining of the buffer
 	mov	dx,si			; keeping the last match in DX
 prev_c10:
@@ -452,24 +488,26 @@ prev_c10:
 	cmp	si,di			; Stop when we get to the current
 	 je	prev_w20		; character location
 	mov	dx,si			; Save current location
-	jmps	prev_c10		; and repeat
+	jmp	prev_c10		; and repeat
 
 prev_w20:
 	sub	si,dx			; Calculate character length
 	push	si			; save for update
 
 	sub	di,RL_BUFOFF		; Convert Offset to Index
-	neg si ! add si,di		; Set the buffer index to the current
+	neg 	si
+	add 	si,di		; Set the buffer index to the current
 	call	calc_chars		; location and the previous character
 	call	bs_out			; BackSpace over character
 	pop	cx			; Restore the character size
-	pop di ! pop si ! pop dx
+	pop 	di
+	pop 	si
+	pop 	dx
 	sub	si,cx			; Update the Index and Pointer
 	sub	di,cx			; variables.
 prev_w30:
 	ret
 
-eject
 ;
 ;	This group of functions deletes characters or groups of characters
 ;	from the buffer.
@@ -482,27 +520,31 @@ delf_char:
 ;	ret				;  discard next saved char
 
 del_eol:
-	mov cx,dx ! sub cx,si		; Calculate the number of bytes to 
+	mov 	cx,dx
+	sub 	cx,si			; Calculate the number of bytes to 
 	jcxz	del_eol10		; delete and jump to DELN_WORD if
 	add	cx,di			; non zero. Convert to an offset
-	jmps	deln_w10		; and jmp to common code.	
+	jmp	deln_w10		; and jmp to common code.	
 del_eol10:
 	ret
 
 delp_char:
-	or si,si ! jz del_eol10		; Ignore if the user is at the start 
+	or 	si,si
+	jz 	del_eol10		; Ignore if the user is at the start 
 	call	back_one_char		; of the line otherwise move back one
 	call	prev_char		; character in the line buffer
 
 
 deln_char:
-	cmp dx,si ! jz del_eol10
+	cmp 	dx,si
+	 jz 	del_eol10
 	mov	al,es:[di]		; Get the Offset of the next character
 	lea	cx,1[di]		; the character itself and assume
 	call	char_type		; it is 1 byte long
-	test ah,CHAR_KANJI ! jz deln_w10
+	test 	ah,CHAR_KANJI
+	 jz 	deln_w10
 	inc	cx
-;	jmps	deln_w10
+;	jmp	deln_w10
 
 ;
 ;	The 3 delete functions come together at this point with the standard
@@ -517,20 +559,25 @@ deln_w10:
 	mov	bx,cx			; Save the Column count
 	pop	ax			; restore the delete offset
 
-	push bx ! push bx		; Save the count twice
+	push 	bx
+	push 	bx			; Save the count twice
 
-	push si ! push di
-	mov cx,dx ! sub cx,si		; No of chars from old EOL
+	push 	si
+	push 	di
+	mov 	cx,dx
+	sub 	cx,si			; No of chars from old EOL
 	mov	si,ax			; Get the Source Offset
 	sub	ax,di			; calculate its length.
 	sub	dx,ax			; Update the string length
 
 	sub	cx,ax			; Number of chars to copy
 	push	ds			; Move the contents of the
-	push es ! pop ds		; string down in memory and
+	push 	es
+	pop 	ds			; string down in memory and
 	rep	movsb			; then update the screen image
 	pop	ds
-	pop si ! pop di			; Get the current buffer offset
+	pop 	si
+	pop 	di			; Get the current buffer offset
 					; Restore SWAPPED SI <-> DI
 
 	mov	cx,dx			; Calculate the length of the
@@ -573,7 +620,6 @@ del_line:
 del_l10:
 	ret
 
-eject
 ;
 ;	The following routines manipulate the SAVE Buffer data. Which
 ;	is initialised on entry to this function.
@@ -618,7 +664,8 @@ soc_20:
 back_one_char:
 	push	dx
 	mov	bx,offset savbuf	; Get the Buffer address
-	mov cx,bx ! add cx,RL_SAVPOS	; CX is the Current location
+	mov 	cx,bx
+	add 	cx,RL_SAVPOS		; CX is the Current location
 	mov	dx,bx			; DX is last matching character	
 boc_10:
 	cmp	bx,cx			; Have we reached the current Char
@@ -630,7 +677,7 @@ boc_10:
 	test	ah,CHAR_KANJI		; Increment pointer by 2 for a Kanji
 	 jz	boc_10			; character
 	inc	bx
-	jmps	boc_10
+	jmp	boc_10
 
 boc_20:	
 	sub	dx,offset savbuf	; Calculate the character Index
@@ -643,11 +690,13 @@ copy_char:
 	jz	copy_c5
 	call	next_char	; Otherwise just move by 1
 	jmp	copy_c10
+	nop	; REMOVE AFTER JWASM CONVERSION
+
 copy_c5:
 	call	skip_one_char		; Calculate Bytes to copy
 	jcxz	copy_c10		; Skip Update in no characters skipped
 	sub	RL_SAVPOS,cx		; Restore the Buffer Position
-	jmps	copy_a10		; and copy the data
+	jmp	copy_a10		; and copy the data
 copy_c10:
 	ret
 
@@ -656,7 +705,7 @@ copy_till_char:
 	jnz	move_till_char
 	call	skip_till_char		; Returns index to the next char
 	sub	RL_SAVPOS,cx
-	jmps	copy_a10
+	jmp	copy_a10
 move_till_char:
 	mov	RL_SAVPOS,si		; Start search from the current
 	call	skip_till_char		; position
@@ -678,14 +727,17 @@ copy_a10:
 
 	push	RL_FLAGS		; Save State flags and prevent
 	or	RL_FLAGS,RLF_INS	; SAVPOS being modified
+	nop	; REMOVE AFTER JWASM CONVERSION
 copy_a20:
 	push	cx
 	and	RL_FLAGS,not RLF_KANJI
+	nop	; REMOVE AFTER JWASM CONVERSION
 	call	skip_one_char		; Return the next character and its 
 	cmp 	cx,1 
 	jz 	copy_a25		; size in bytes
 	mov	RL_KANJI,ax		; Save the Kanji Character and
 	or	RL_FLAGS,RLF_KANJI	; set the control flag
+	nop	; REMOVE AFTER JWASM CONVERSION
 	pop 	bx
 	dec 	bx
 	push 	bx			; Decrement the Loop Count
@@ -709,16 +761,17 @@ stc_10:
 	call	skip_one_char		; Get the Next Character
 	jcxz	stc_40			; Buffer exhausted
 	add	dx,cx			; Update the Total Byte Count
-	cmp cx,2 ! jz stc_20		; Was this a Kanji Character
+	cmp 	cx,2
+	 jz 	stc_20			; Was this a Kanji Character
 	test RL_FLAGS,RLF_KANJI		; No but are we looking for one ?
-	jnz	stc_10			; Yes so get the next character
+	 jnz	stc_10			; Yes so get the next character
 	cmp	al,byte ptr RL_KANJI	; Have we got a matching character ?
 	jnz	stc_10			; No so look again
-	jmps	stc_30			; Return Sucess 
+	jmp	stc_30			; Return Sucess 
 
 stc_20:					; Kanji Character in Buffer
 	test RL_FLAGS,RLF_KANJI		; Are we looking for a Kanji Char
-	jz	stc_10			; No so try again
+	 jz	stc_10			; No so try again
 	cmp	ax,RL_KANJI		; Check the character and repeat
 	jnz	stc_10			; if they donot match
 
@@ -755,15 +808,20 @@ save_line:
 	mov	cx,savbuf_size		; the save buffer size
 save_l5:
 	mov	RL_SAVMAX,cx		; Set the Save Data Length
-	push ds ! push es
-	push si ! push di
+	push 	ds
+	push 	es
+	push 	si
+	push 	di
 
-	push ds ! pop es
+	push 	ds
+	pop 	es
 	lds	si,RL_BUFPTR
 	mov	di,offset savbuf
 	rep	movsb			; save the data
-	pop di ! pop si
-	pop es ! pop ds
+	pop 	di
+	pop 	si
+	pop 	es
+	pop 	ds
 save_l10:
 ;	ret
 
@@ -789,7 +847,6 @@ ctlat_char:		;; JFL make F7 return a CTL @
 ;	ret
 
 
-eject
 ;
 ;	CHAR_TYPE get the next character from the buffer ES:SI and returns
 ;	its type in AH using the equates CHAR_????. The character is returned
@@ -798,28 +855,40 @@ eject
 ;
 ;	
 char_type:
-	mov ah,CHAR_SPACE or CHAR_STD	; WhiteSpace
-	cmp al,' ' ! jz char_t100
+	mov 	ah,CHAR_SPACE or CHAR_STD	; WhiteSpace
+	cmp 	al,' '
+	 jz 	char_t100
 	mov	ah,CHAR_TAB		; Tab Character
-	cmp al,TAB ! jz char_t100
-	mov ah,CHAR_ALPHAN or CHAR_STD	
-	cmp al,CTLU ! jz char_t100	; Control-U and Control-T are treated
-	cmp al,CTLT ! jz char_t100	; as normal characters
+	cmp 	al,TAB
+	 jz 	char_t100
+	mov 	ah,CHAR_ALPHAN or CHAR_STD	
+	cmp 	al,CTLU
+	 jz 	char_t100		; Control-U and Control-T are treated
+	cmp 	al,CTLT
+	 jz 	char_t100		; as normal characters
 	mov	ah,CHAR_CTL		; Control Character
-	cmp al,' ' ! jb char_t100
+	cmp 	al,' '
+	 jb 	char_t100
 
-	mov ah,CHAR_ALPHAN or CHAR_STD	
-	cmp al,'0' ! jb  char_t90	; Return SYMBOL
-	cmp al,'9' ! jbe char_t100	; Return AlphaNumeric
-	cmp al,'A' ! jb  char_t90	; Return Symbol
-	cmp al,'Z' ! jbe char_t100	; Return AlphaNumeric
-	cmp al,'a' ! jb  char_t90	; Return Symbol
-	cmp al,'z' ! jbe char_t100	; Return AlphaNumeric
-	cmp al,80h ! jb  char_t90	; Return Symbol
+	mov 	ah,CHAR_ALPHAN or CHAR_STD	
+	cmp 	al,'0'
+	 jb  	char_t90		; Return SYMBOL
+	cmp 	al,'9'
+	 jbe 	char_t100		; Return AlphaNumeric
+	cmp 	al,'A'
+	 jb  	char_t90		; Return Symbol
+	cmp 	al,'Z'
+	 jbe 	char_t100		; Return AlphaNumeric
+	cmp 	al,'a'
+	 jb  	char_t90		; Return Symbol
+	cmp 	al,'z'
+	 jbe 	char_t100		; Return AlphaNumeric
+	cmp 	al,80h
+	 jb  	char_t90		; Return Symbol
 
 	mov	ah, CHAR_KANJI		; assume character is 16 bits
 	call	dbcs_lead		; is byte a DBCS lead?
-	je	char_t100		;  yes - done
+	 je	char_t100		;  yes - done
 char_t90:
 	mov	ah,CHAR_OTHER or CHAR_STD ; no - Normal Character Symbol
 
@@ -844,34 +913,36 @@ char_t100:
 ;			AH	Character type Flags
 ;			AL	First byte of Character
 char_info:
-	lods	es:al
+	lodsb	es:0
 	call	char_type		; Test the character type and assume
 	inc	bx			; it will take 1 Screen location
 	test	ah,CHAR_ONECOL
-	jnz	char_i20
+	 jnz	char_i20
 
 	inc	bx			; Now check for the Control Characters
 	test	ah,CHAR_CTL		; which take up 2 cols
-	jnz	char_i20
+	 jnz	char_i20
 
 	test	ah,CHAR_KANJI		; If this was the first byte of a 
-	jz	char_i10		; KANJI character then skip the
-	inc si ! dec cx			; next byte
-	jmps	char_i20
+	 jz	char_i10		; KANJI character then skip the
+	inc 	si
+	dec 	cx			; next byte
+	jmp	char_i20
 
 char_i10:
 	push	ax			; Save AX and calculate the number
-	dec bx ! dec bx			; of screen locations that this TAB
+	dec 	bx
+	dec 	bx			; of screen locations that this TAB
 	mov	ax,bx			; character will use based on the fact
 	and 	ax,7			; BX contains the current column
-	neg ax ! add ax,8
+	neg 	ax
+	add 	ax,8
 	add	bx,ax
 	pop	ax
 
 char_i20:
 	ret
 
-eject
 ;
 ;	CALC_CHARS calculates the number of character locations used
 ;	on the screen to display a particular sub-string of the current
@@ -885,7 +956,8 @@ eject
 ;
 calc_chars:
 	push	bx
-	push si ! push di
+	push 	si
+	push 	di
 	mov	bx,RL_INICOL		; Get the initial Column
 	sub	di,si			; DI = Sub-string length bytes
 	mov	cx,si			; Use the Start Index for the
@@ -906,22 +978,22 @@ calc_c30:
 
 	sub	bx,di
 	mov	cx,bx
-	pop di ! pop si
+	pop 	di
+	pop 	si
 	pop	bx
 	ret
 
-eject
 ;
 ;	The following functions are purely Low level character output
 ;	functions.
 ;
 space_out:				; Write CX Space characters to the
 	mov	al,' '			; Output handle
-	jmps	block_out
+	jmp	block_out
 	
 bs_out:
 	mov	al,CTLH			; Write CX BackSpace characters to
-;;	jmps	block_out		; Output Handle
+;;	jmp	block_out		; Output Handle
 
 block_out:
 	 jcxz	block_o20
@@ -938,14 +1010,16 @@ block_o20:
 ;
 put_string:
 	jcxz	puts_s20
-	push cx ! push si
+	push 	cx
+	push 	si
 put_s10:
 	push	cx
-	lods	es:al
+	lodsb	es:0
 	call	put_char
 	pop	cx
 	loop	put_s10
-	pop si ! pop cx
+	pop 	si
+	pop 	cx
 puts_s20:
 	ret
 
@@ -953,10 +1027,14 @@ puts_s20:
 ;	Display the character in AL
 ;
 put_char:
-	cmp al,' ' ! jae write_char	; skip if it's printable
-	cmp al,CTLT! je write_char	; Control-T and Control-U are treated
-	cmp al,CTLU! je	write_char	; like normal Characters.
-	cmp al,TAB ! je write_char	; skip if it's TAB
+	cmp 	al,' '
+	 jae 	write_char		; skip if it's printable
+	cmp 	al,CTLT
+	 je 	write_char		; Control-T and Control-U are treated
+	cmp 	al,CTLU
+	 je	write_char		; like normal Characters.
+	cmp 	al,TAB
+	 je 	write_char		; skip if it's TAB
 	or	al,040h			; Convert Character to Uppercase
 	push	ax			; save it
 	mov	al,'^'			; display the character
@@ -970,7 +1048,8 @@ write_char:
 	push	di
 	push	ax			; char on stack
 	mov	bx,RL_OUTPUT		; Output AL to the OUTPUT Handle
-	push ss ! pop es		; ES:DX -> Character Buffer
+	push 	ss
+	pop 	es			; ES:DX -> Character Buffer
 	mov	si,sp			; buffer offset
 	mov	cx,1			; character count
 	call	cooked_write		; Write Character
@@ -995,11 +1074,12 @@ get_char:
 
 	call	get_dseg		; point at pcmode data
 	lds	si,con_device		; DS:SI -> current console device
-	test	ds:DH_ATTRIB[si],DA_IOCTL ; test bit 14: IOCTL bit
+	test	ds:DEVHDR.ATTRIB[si],DA_IOCTL ; test bit 14: IOCTL bit
 	 jz	get_c05			; error if IOCTL not supported
 	sub	sp,RH_SIZE		; reserve this many words on the stack
 	mov	bx,sp			; SS:BX -> request packet
-	push ss ! pop es		; ES:BX -> request packet
+	push 	ss
+	pop 	es			; ES:BX -> request packet
 	lea	dx,RL_FLAGS		; point at flags
 	mov	es:RH_CMD[bx],CMD_OUTPUT_IOCTL
 	mov	es:RH_LEN[bx],RH4_LEN
@@ -1028,75 +1108,200 @@ get_c10:
 	pop	ds
 	ret
 
-PCM_RODATA	CSEG	WORD
+PCM_CODE	ends
 
-EDIT_CNTRL	equ	cs:word ptr 0[bx]	; Character and Esc Flag
-EDIT_FUNC	equ	cs:word ptr 2[bx]	; Edit Function Address
-EDIT_LEN	equ	4			; Edit Table Entry Size
+PCM_RODATA	segment public word 'CODE'
 
 esc_char	db	0		; Command Line Editor Escape Character
 edit_size	dw	(offset edit_end - edit_table)/EDIT_LEN
 
-edit_table	db CR	! db NESC_CODE ! dw ret_string
-	db LF	! db NESC_CODE ! dw ignore_char
-	db CTLH	! db NESC_CODE ! dw delp_char
-	db DEL	! db NESC_CODE ! dw delf_char
+edit_table db CR
+	db NESC_CODE
+	dw ret_string
 
-	db ESC	! db NESC_CODE ! dw del_line
-	db ';'  ! db ESC_CODE  ! dw copy_char		; Function 1
-	db '<'  ! db ESC_CODE  ! dw copy_till_char	; Function 2
-	db '='  ! db ESC_CODE  ! dw copy_all		; Function 3
-	db '>'  ! db ESC_CODE  ! dw skip_till_char	; Function 4
-	db '?'  ! db ESC_CODE  ! dw mem_line		; Function 5
+	db LF
+	db NESC_CODE
+	dw ignore_char
 
-	db '@'  ! db ESC_CODE  ! dw eof_char		; Function 6
-	db 'A'  ! db ESC_CODE  ! dw ctlat_char		; Function 7
-	db 'B'	! db ESC_CODE or DISABLE ! dw match_cmd	; Function 8
+	db CTLH
+	db NESC_CODE
+	dw delp_char
 
-	db 'R'  ! db ESC_CODE  ! dw toggle_ins		; Insert
-	db 'S'  ! db ESC_CODE  ! dw delf_char		; Delete
-	db 'K'  ! db ESC_CODE or DISABLE  ! dw prev_char ; Left Arrow 
-	db 'M'  ! db ESC_CODE or DISABLE  ! dw next_char	; Right Arrow
+	db DEL
+	db NESC_CODE
+	dw delf_char
+
+	db ESC
+	db NESC_CODE
+	dw del_line
+
+	db ';' 
+	db ESC_CODE 
+	dw copy_char		; Function 1
+
+	db '<'
+	db ESC_CODE 
+	dw copy_till_char	; Function 2
+
+	db '='
+	db ESC_CODE 
+	dw copy_all		; Function 3
+
+	db '>'
+	db ESC_CODE 
+	dw skip_till_char	; Function 4
+
+	db '?'
+	db ESC_CODE 
+	dw mem_line		; Function 5
+
+	db '@'
+	db ESC_CODE 
+	dw eof_char		; Function 6
+
+	db 'A'
+	db ESC_CODE 
+	dw ctlat_char		; Function 7
+
+	db 'B'
+	db ESC_CODE or DISABLE
+	dw match_cmd		; Function 8
+
+	db 'R'
+	db ESC_CODE 
+	dw toggle_ins		; Insert
+
+	db 'S'
+	db ESC_CODE 
+	dw delf_char		; Delete
+
+	db 'K'
+	db ESC_CODE or DISABLE 
+	dw prev_char ; Left Arrow 
+
+	db 'M'
+	db ESC_CODE or DISABLE 
+	dw next_char	; Right Arrow
+
 ; When advanced editing is disabled the match for Left/Right arrows will fall
 ; through to here
-	db 'K'  ! db ESC_CODE  ! dw delp_char		; Left Arrow - compat
-	db 'M'  ! db ESC_CODE  ! dw copy_char		; Right Arrow - compat
+	db 'K' 
+	db ESC_CODE 
+	dw delp_char		; Left Arrow - compat
+
+	db 'M' 
+	db ESC_CODE 
+	dw copy_char		; Right Arrow - compat
 ;
 ; Extended functions from here on
 ;
-	db 'C'  ! db ESC_CODE or DISABLE ! dw del_cur_history_buffer ; Func 9
-	db 'D'  ! db ESC_CODE or DISABLE ! dw del_history_buffers ; Func 10
-	db 'G'  ! db ESC_CODE or DISABLE  ! dw goto_bol		; Home
-	db 'O'  ! db ESC_CODE or DISABLE  ! dw goto_eol		; End
-	db 't'  ! db ESC_CODE or DISABLE  ! dw next_word	; Control Right Arrow
-	db 's'  ! db ESC_CODE or DISABLE  ! dw prev_word	; Control Left Arrow
+	db 'C' 
+	db ESC_CODE or DISABLE
+	dw del_cur_history_buffer ; Func 9
 
+	db 'D' 
+	db ESC_CODE or DISABLE
+	dw del_history_buffers ; Func 10
 
-	db CTLV	! db NESC_CODE or DISABLE ! dw toggle_ins
-	db CTLQ	! db NESC_CODE or DISABLE ! dw goto_bol
-	db CTLW	! db NESC_CODE or DISABLE ! dw goto_eol
-	db CTLR	! db NESC_CODE or DISABLE ! dw match_cmd
-	db CTLD	! db NESC_CODE or DISABLE ! dw next_char
-	db CTLS	! db NESC_CODE or DISABLE ! dw prev_char
-	db CTLF	! db NESC_CODE or DISABLE ! dw next_word
-	db CTLA	! db NESC_CODE or DISABLE ! dw prev_word
-	db CTLG ! db NESC_CODE or DISABLE ! dw deln_char
-	db CTLT ! db NESC_CODE or DISABLE ! dw deln_word
-	db CTLY ! db NESC_CODE or DISABLE ! dw del_line
-	db CTLB ! db NESC_CODE or DISABLE ! dw del_bol
-	db CTLK ! db NESC_CODE or DISABLE ! dw del_eol
+	db 'G' 
+	db ESC_CODE or DISABLE 
+	dw goto_bol		; Home
 
-	db 'I'  ! db ESC_CODE or DISABLE  ! dw ignore_char	; PageUP
-	db 'Q'  ! db ESC_CODE or DISABLE  ! dw ignore_char	; PageDown
-	db 'H'  ! db ESC_CODE or DISABLE  ! dw prev_cmd 	; Up Arrow
-	db 'P'  ! db ESC_CODE or DISABLE  ! dw next_cmd		; Down Arrow
-	db CTLE ! db NESC_CODE or DISABLE ! dw prev_cmd
-	db CTLX ! db NESC_CODE or DISABLE ! dw next_cmd
-	db CTLUB ! db NESC_CODE or DISABLE ! dw toggle_search	; Default search mode
-edit_end	rb	0
+	db 'O' 
+	db ESC_CODE or DISABLE 
+	dw goto_eol		; End
 
+	db 't' 
+	db ESC_CODE or DISABLE 
+	dw next_word	; Control Right Arrow
 
-PCMODE_DATA	DSEG	WORD
+	db 's' 
+	db ESC_CODE or DISABLE 
+	dw prev_word	; Control Left Arrow
+
+	db CTLV
+	db NESC_CODE or DISABLE
+	dw toggle_ins
+
+	db CTLQ
+	db NESC_CODE or DISABLE
+	dw goto_bol
+
+	db CTLW
+	db NESC_CODE or DISABLE
+	dw goto_eol
+
+	db CTLR
+	db NESC_CODE or DISABLE
+	dw match_cmd
+
+	db CTLD
+	db NESC_CODE or DISABLE
+	dw next_char
+
+	db CTLS
+	db NESC_CODE or DISABLE
+	dw prev_char
+	db CTLF
+	db NESC_CODE or DISABLE
+	dw next_word
+
+	db CTLA
+	db NESC_CODE or DISABLE
+	dw prev_word
+
+	db CTLG
+	db NESC_CODE or DISABLE
+	dw deln_char
+
+	db CTLT
+	db NESC_CODE or DISABLE
+	dw deln_word
+
+	db CTLY
+	db NESC_CODE or DISABLE
+	dw del_line
+
+	db CTLB
+	db NESC_CODE or DISABLE
+	dw del_bol
+
+	db CTLK
+	db NESC_CODE or DISABLE
+	dw del_eol
+
+	db 'I'
+	db ESC_CODE or DISABLE 
+	dw ignore_char	; PageUP
+
+	db 'Q'
+	db ESC_CODE or DISABLE 
+	dw ignore_char	; PageDown
+
+	db 'H'
+	db ESC_CODE or DISABLE 
+	dw prev_cmd 	; Up Arrow
+
+	db 'P'
+	db ESC_CODE or DISABLE 
+	dw next_cmd		; Down Arrow
+
+	db CTLE
+	db NESC_CODE or DISABLE
+	dw prev_cmd
+
+	db CTLX
+	db NESC_CODE or DISABLE
+	dw next_cmd
+
+	db CTLUB
+	db NESC_CODE or DISABLE
+	dw toggle_search	; Default search mode
+edit_end	label byte
+
+PCM_RODATA	ends
+
+PCMODE_DATA	segment public word 'DATA'
 
 	extrn	con_device:dword	; Current Console Device
 	extrn	column:byte 		; Console Cursor Location
@@ -1107,6 +1312,7 @@ PCMODE_DATA	DSEG	WORD
 	extrn	savbuf:byte		; fixed location in DOS data area
 
 	extrn	cle_state:word		; command line editing state
+PCMODE_DATA	ends
 
 	end
 
