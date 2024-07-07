@@ -1,4 +1,4 @@
-;    File              : $Workfile$
+;    File              : $INT2F.ASM$
 ;
 ;    Description       :
 ;
@@ -51,15 +51,23 @@
 ;
 ;   DOS INT 2F Support
 ;
-	include	pcmode.equ
-	include i:msdos.equ
-	include	i:mserror.equ
-	include	i:driver.equ
-	include	i:psp.def
-	include	i:doshndl.def
-	include	i:redir.equ
 
-PCM_CODE	CSEG	BYTE
+PCMCODE	GROUP	PCM_CODE
+PCMDATA	GROUP	PCMODE_DATA,FDOS_DSEG,GLOBAL_DATA
+
+ASSUME DS:PCMDATA
+
+	.nolist
+	include	pcmodew.equ
+	include msdos.equ
+	include	mserror.equ
+	include	driverw.equ
+	include	pspw.def
+	include	doshndl.def
+	include	redir.equ
+	.list
+
+PCM_CODE	segment public byte 'CODE'
 
 	extrn	get_dseg:near		; in PCMIF.PCM
 	extrn	do_int24:near		; in PCMIF.PCM
@@ -69,7 +77,6 @@ PCM_CODE	CSEG	BYTE
 	extrn	ReadTOD:near		; in UTILS.FDO (in BDOS_CODE)
 	extrn	share_delay:near	; in UTILS.FDO (in BDOS_CODE)
 
-eject
 
 PointHMA:
 ;--------
@@ -105,7 +112,7 @@ QueryHMA:
 ;
 	push	ds
 	call	PointHMA		; registers ready for return
-	jmps	int2F_BIOS		; give CONFIG processing a chance
+	jmp	int2F_BIOS		; give CONFIG processing a chance
 
 
 AllocHMA:
@@ -124,7 +131,7 @@ AllocHMA:
 	cmp	ax,bx			; enough room up there ?
 	 jae	AllocHMA10
 	mov	di,es			; ES:DI = FFFF:FFFF
-	jmps	AllocHMA20
+	jmp	AllocHMA20
 AllocHMA10:
 	add	hmaRoot,bx		; set new start
 	mov	ax,es:2[di]		; get length
@@ -140,7 +147,6 @@ AllocHMA20:
 	pop	ds
 	iret
 
-eject
 ;	++++++++++++++++++++++++++++
 ;	Int 2F - Multiplex Interrupt
 ;	++++++++++++++++++++++++++++
@@ -183,22 +189,28 @@ eject
 int2F_entry:
 	sti
 	cld
-	cmp ah,012h ! je i2f_12		; intercept the AH=12 subfunctions
-	cmp ah,011h ! je i2f_11		; intercept the AH=11 subfunctions
-	cmp ah,010h ! je i2f_10		; intercept the AH=10 subfunctions
-	cmp ah,005h ! je i2f_05		; intercept the AH=05 subfunctions
-	cmp ax,4A01h! je QueryHMA	; intercept Query Free HMA Space
-	cmp ax,4A02h! je AllocHMA	; intercept Allocate HMA space
-	cmp ah,016h ! jne int2F_exit	; intercept the AH=16 subfucntions
+	cmp ah,012h
+	 je i2f_12		; intercept the AH=12 subfunctions
+	cmp ah,011h
+	 je i2f_11		; intercept the AH=11 subfunctions
+	cmp ah,010h
+	 je i2f_10		; intercept the AH=10 subfunctions
+	cmp ah,005h
+	 je i2f_05		; intercept the AH=05 subfunctions
+	cmp ax,4A01h
+	 je QueryHMA		; intercept Query Free HMA Space
+	cmp ax,4A02h
+	 je AllocHMA		; intercept Allocate HMA space
+	cmp ah,016h
+	 jne int2F_exit		; intercept the AH=16 subfucntions
 	jmp	WindowsHooks		; go do windows things...
 int2F_exit:
 	push	ds			; pass onto BIOS now
 	call	get_dseg		; trying to remain ROMMABLE
 int2F_BIOS:
-	jmpf	ds:int2FNext		;  hence this complication
+	jmp	dword ptr ds:int2FNext	;  hence this complication
 
 
-eject
 i2f_05:
 ;------
 ; CRITICAL ERROR MSG
@@ -210,7 +222,6 @@ i2f_05:
 	retf	2			; IRET, but keep flags
 
 
-eject
 i2f_10:
 ;------
 ; SHARE
@@ -222,12 +233,12 @@ i2f_10:
 	xchg	ax,bx			; we will index with it
 	push	ds
 	call	get_dseg		; get PCMode data seg
-	push ds ! pop es
+	push 	ds
+	pop 	es
 	call	i2f_10tbl[bx]		; execute the function
 	pop	ds
 	retf	2			;  and return
 
-eject
 i2f_11:
 ;------
 ; MSNET redirector
@@ -238,7 +249,6 @@ i2f_11:
 i2f_11_10:
 	retf	2			; return
 
-eject
 i2f_12:
 ;------
 ; DOS Internal
@@ -277,11 +287,7 @@ i2f_12tbl	dw	i2f_1200
 		dw	i2f_120B
 		dw	i2f_120C
 		dw	i2f_120D
-if DOS5
 		dw	share_delay	; delay
-else
-		dw	i2f_120E	; get buffers
-endif
 		dw	i2f_12nyi	; relink buffer ES:DI ([DI+5].20 <- 0) - Trout
 		dw	i2f_1210
 		dw	i2f_1211
@@ -441,16 +447,6 @@ i2f_120D:
 	ret
 
 
-if DOS5 eq 0
-i2f_120E:
-; Disk Buffers
-; On Return ES:DI -> first disk buffer
-;
-	les	di,ss:bcb_root		; get head of buffer chain
-	ret
-endif
-
-
 i2f_1210:
 ; Find Dirty Buffer Entry DS:SI -> 1st buffer, On exit DS:SI-> 1st dirty buffer
 ; ZF set if none found
@@ -472,11 +468,14 @@ i2f_1211:
 	
 i2f_1212:
 ; Get length of ASCIIZ string ES:DI
-	push ds ! push si
-	push es ! pop ds
+	push 	ds
+	push 	si
+	push 	es
+	pop 	ds
 	mov	si,di			; make DS:SI -> ASCIIZ
 	call	i2f_1225		;  then use our other primitive
-	pop si ! pop ds
+	pop 	si
+	pop 	ds
 	ret
 
 i2f_1213:
@@ -488,11 +487,13 @@ i2f_1214:
 ; Compare far pointers DS:SI with ES:DI
 	cmp	di,si
 	 jne	i2f_1214_10
-	push ax ! push bx
+	push 	ax
+	push 	bx
 	mov	ax,ds
 	mov	bx,es
 	cmp	ax,bx
-	pop bx ! pop ax
+	pop 	bx
+	pop 	ax
 i2f_1214_10:
 	ret
 
@@ -557,7 +558,9 @@ i2f_1218:
 
 i2f_1219:
 ; Stack = drive (0=default, 1 = A: etc)
-	push ds ! push si ! push word ptr 8[bp]
+	push 	ds
+	push 	si
+	push 	word ptr 8[bp]
 	dec	byte ptr 8[bp]		; make drive zero based
 	cmp	byte ptr 8[bp],0ffh	; do we want the default ?
 	 jne	i2f_1219_10
@@ -571,7 +574,9 @@ i2f_1219_10:
 	 jnz	i2f_1219_20
 	stc				; indicate an error
 i2f_1219_20:
-	pop word ptr 8[bp] ! pop si ! pop ds
+	pop 	word ptr 8[bp]
+	pop 	si
+	pop 	ds
 	ret
 
 i2f_121A:
@@ -656,7 +661,9 @@ i2f_121D_10:
 
 i2f_121E:
 ; Compare Filenames at DS:SI and ES:DI
-	push si ! push di ! push cx
+	push 	si
+	push 	di
+	push 	cx
 	call	i2f_1225		; find length of DS:SI filename
 	push	cx
 	call	i2f_1212		; find length of ES:DI filename
@@ -678,14 +685,18 @@ i2f_121E_10:
 	pop	cx
 	loope	i2f_121E_10		; yes, try again if we have any left
 i2f_121E_20:
-	pop cx ! pop di ! pop si
+	pop 	cx
+	pop 	di
+	pop 	si
 	mov	ax,8[bp]		; return stack value in AX
 	ret
 
 i2f_121F:
 ; Build drive info into block
 ; Stack = Drive (1=A: etc)
-	push ds ! push si ! push dx
+	push 	ds
+	push 	si
+	push 	dx
 	call	get_dseg
 	les	di,current_ldt
 	push	di
@@ -719,7 +730,9 @@ i2f_121F_30:
 	mov	ax,ds			; AX = DDSC seg
 	stosw
 	mov	ax,0FFFFh		; AX = FFFF
-	stosw ! stosw ! stosw		; fill in block info
+	stosw
+	stosw
+	stosw		; fill in block info
 ;	stosw ! stosw
 ;	lea	di,LDT_ROOTLEN
 	mov	ax,2
@@ -729,7 +742,9 @@ i2f_121F_30:
 ;	lea	di,LDT_ROOTH
 	stosw
 	pop	di
-	pop dx ! pop si ! pop ds
+	pop 	dx
+	pop 	si
+	pop 	ds
 	ret
 
 i2f_1220:
@@ -738,10 +753,10 @@ i2f_1220:
 	call	get_dseg
 	mov	es,current_psp
 	mov	ax,6			; assume illegal
-	cmp	bx,PSP_XFNMAX		; is it a legal handle
+	cmp	bx,es:PSP_XFNMAX	; is it a legal handle
 	cmc				; invert CY for error return
 	 jc	i2f_1220_10		;  no, forget it
-	les	di,PSP_XFTPTR		; get XFT from PSP
+	les	di,es:PSP_XFTPTR	; get XFT from PSP
 	add	di,bx			; add in the offset
 ;	clc
 i2f_1220_10:
@@ -767,6 +782,7 @@ i2f_1222_10:
 	 jz	i2f_1222_20
 	lodsw				; skip this one
 	jmp	i2f_1222_10		; and try the next
+	nop	; REMOVE AFTER JWASM CONVERSION
 i2f_1222_20:
 	cmp	ah,0ffh			; valid error class ?
 	 je	i2f_1222_30
@@ -804,24 +820,24 @@ i2f_1223_10:
 endif
 	mov	si,offset nul_device	; start from NUL
 i2f_1223_20:
-	test	ds:DH_ATTRIB[si],DA_CHARDEV
+	test	ds:DEVHDR.ATTRIB[si],DA_CHARDEV
 	 jz	i2f_1223_30		; skip unless character device
 	mov	cx,8
 	lea	di,name_buf		; point at name we are looking for
 	push	si
-	lea	si,ds:DH_NAME[si]	; point a device name
+	lea	si,ds:DEVHDR.NAM[si]	; point a device name
 	repe	cmpsb			; compare the names
 	pop	si
 	 jne	i2f_1223_30		; if we found it, save info
 	mov	es:word ptr current_device,si
 	mov	es:word ptr current_device+2,ds
-	mov	bh,ds:byte ptr DH_ATTRIB[si]
+	mov	bh,ds:byte ptr DEVHDR.ATTRIB[si]
 	or	bh,0e0h
 	xor	bh,20h			; clear this bit
 	clc				; we found it
-	jmps	i2f_1223_50
+	jmp	i2f_1223_50
 i2f_1223_30:
-	lds	si,ds:DH_NEXT[si]
+	lds	si,ds:DEVHDR.NEXT[si]
 	cmp	si,0ffffh		; any more entries ?
 	 jne	i2f_1223_20		; yes, do them
 i2f_1223_40:
@@ -851,26 +867,32 @@ i2f_1226:
 	mov	al,cl			; open mode in CL on entry
 	mov	ah,MS_X_OPEN		; open the file
 DOS:
-	push ds ! push es ! pop ds ! pop es
+	push 	ds
+	push 	es
+	pop 	ds
+	pop 	es
 	call	dos_entry		; reverse DS/ES before for dos_entry
-	push ds ! push es ! pop ds ! pop es
+	push 	ds
+	push 	es
+	pop 	ds
+	pop 	es
 	ret
 
 i2f_1227:
 ; Close file BX
 	mov	ah,MS_X_CLOSE		; close the file
-	jmps	DOS
+	jmp	DOS
 
 i2f_1228:
 ; LSEEK on file BX
 	mov	ax,[bp]			; seek mode in BP on entry
 	mov	ah,MS_X_LSEEK		; do the seek
-	jmps	DOS
+	jmp	DOS
 	
 i2f_1229:
 ; Read from file BX
 	mov	ah,MS_X_READ
-	jmps	DOS
+	jmp	DOS
 
 i2f_122A:
 ; Set fastopen entry point to DS:SI
@@ -887,7 +909,7 @@ i2f_122B:
 ; IOCTL
 	mov	al,[bp]			; get IOCTL minor
 	mov	ah,MS_X_IOCTL
-	jmps	DOS
+	jmp	DOS
 
 i2f_122C:
 ; Get 2nd device driver header address
@@ -907,7 +929,7 @@ i2f_122D:
 ;
 ; Our FDOS extentions live here
 ;
-if DELWATCH
+ifdef DELWATCH
 	extrn	locate_buffer:near
 	extrn	flush_drive:near
 	extrn	delfat:near
@@ -921,7 +943,7 @@ endif
 
 i2f_10tbl	dw	i2f_10nyi	; never gets here...
 		dw	i2f_1001	; install fdos hook
-if DELWATCH
+ifdef DELWATCH
 if FALSE
 		dw	i2f_1002	; read buffer
 		dw	i2f_1003	; flush buffers
@@ -958,7 +980,7 @@ i2f_1001:
 i2f_10nyi:
 	ret
 
-if DELWATCH
+ifdef DELWATCH
 if FALSE
 
 i2f_1002:
@@ -1064,7 +1086,8 @@ i2f_1009:
 ;		2[si] = mid byte of record number
 ;		3[si] =  hi byte of record number
 ;
-	push cs ! pop es
+	push 	cs
+	pop 	es
 	mov	si,offset invalid_dir_bcb
 	ret
 
@@ -1082,18 +1105,14 @@ WindowsHooks:
 ; On Exit:
 ;	Various
 ;
-if DOS5
 	cmp	al,07h			; 1607: Virtual device init
 	 je	WindowsDOSMGR
-endif
 	test	dx,1			; is it a DOSX broadcast ?
 	 jnz	WindowsExit
 	cmp	al,05h			; 1605: Windows enhanced mode init
 	 je	WindowsStartup
-if DOS5
 	cmp	al,06h			; 1606: Windows enhanced mode exit
 	 je	WindowsShutdown
-endif
 WindowsExit:
 	iret
 
@@ -1103,10 +1122,8 @@ WindowsStartup:
 ;--------------
 	push	ds
 	call	get_dseg		; DS -> our data
-if DOS5
 	inc	criticalSectionEnable	; enable Int 2Ah for Windows
 	inc	WindowsHandleCheck
-endif
 
 ;;if 0		Put this back in, as instance data still required
 ;;		Removed pointer to vxd in HEADER.A86   BAP
@@ -1119,7 +1136,6 @@ endif
 ;;endif
 	jmp	int2F_BIOS		; pass on to the BIOS
 
-if DOS5
 
 WindowsShutdown:
 ;---------------
@@ -1140,7 +1156,9 @@ WindowsDOSMGR:
 	 jcxz	WindowsCX0
 	dec	cx
 	 jcxz	WindowsCX1
-	dec	cx ! dec cx ! dec cx
+	dec	cx
+	dec 	cx
+	dec 	cx
 	 jcxz	WindowsCX4
 	dec	cx
 	 jcxz	WindowsCX5
@@ -1206,9 +1224,9 @@ WindowsCX5NoDev:
 ;	xor	cx,cx			; CX = 0
 	iret
 
-endif
-eject
-PCMODE_DATA	DSEG	WORD
+PCM_CODE	ends
+
+PCMODE_DATA	segment public word 'DATA'
 	extrn	hmaRoot:word
 	extrn	last_drv:byte
 	extrn	phys_drv:byte
@@ -1238,22 +1256,23 @@ PCMODE_DATA	DSEG	WORD
 	extrn	err_drv:byte
 	extrn	rwmode:byte
 
-if DOS5
 	extrn	indos_flag:byte, machine_id:byte, internal_data:byte, dmd_upper_root:word
 
 	extrn	criticalSectionEnable:byte
 	extrn	WindowsHandleCheck:byte
 
-GLOBAL_DATA	dseg
+PCMODE_DATA	ends
+
+GLOBAL_DATA	segment public word 'DATA'
 	
 windowsData	dw	5		; version number ?
-		dw	$		; dummy
-		dw	$		; dummy
+		dw	$-offset windowsData	; dummy
+		dw	$-offset windowsData	; dummy
 		dw	offset indos_flag
 		dw	offset machine_id
 		dw	offset internal_data-10
 		dw	offset dmd_upper_root
-else
-	extrn	bcb_root:dword
-endif
+
+GLOBAL_DATA	ends
+
 	end
