@@ -1,4 +1,4 @@
-;    File              : $PROCESS.A86$
+;    File              : $PROCESS.ASM$
 ;
 ;    Description       :
 ;
@@ -42,20 +42,27 @@
 ;    ENDLOG
 ;
 
- 	include	pcmode.equ
+PCMDATA group PCMODE_DATA,FDOS_DSEG,PCMODE_CODE
+PCMCODE group PCM_CODE
+
+ASSUME DS:PCMDATA
+
+	.nolist
+ 	include	pcmodew.equ
 	include fdos.def
-	include	i:psp.def
-	include i:mserror.equ
+	include	pspw.def
+	include mserror.equ
 	include	vectors.def
-	include i:msdos.equ
-	include i:exe.def
-	include	i:char.def
-	include	i:redir.equ
-	include	i:doshndl.def
+	include msdos.equ
+	include exe.def
+	include	char.def
+	include	redir.equ
+	include	doshndl.def
+	.list
 
 HILOAD	equ	TRUE
 
-PCM_CODE	CSEG	BYTE
+PCM_CODE	segment public byte 'CODE'
 	extrn	check_dmd_id:near
 	extrn	dbcs_lead:near
 	extrn	error_exit:near
@@ -97,7 +104,7 @@ create_psp:
 	mov	ax,current_psp		; All based on the Current PSP
 	call	copy_psp		; Do the Basic Copy
 	mov	ax,current_psp		; get the Current PSP address
-	mov	PSP_PARENT,ax		;   and save it in child's psp
+	mov	es:PSP_PARENT,ax	;   and save it in child's psp
 
 	cmp	ax,dx			; Is this the ROOT level DOS process
 	 jz	create_psp10		; Yes because Current PSP == New PSP
@@ -124,7 +131,7 @@ create_psp10:
 func26:
 	les	di,int21regs_ptr	; Get pointer to INT 21 structure of
 	mov	es,es:reg_CS[di]	; IP/CS/Flags and get the USER CS this
-	mov	si,PSP_MEMORY		; is used as the PSP for this function 
+	mov	si,es:PSP_MEMORY	; is used as the PSP for this function 
 	mov	ax,es			; call and NOT current_psp
 	mov	cx,PSPLEN/2		; copy whole PSP
 	push	dx
@@ -132,9 +139,9 @@ func26:
 	pop	es
 	mov	cx,20			; default XFT table has twenty files
 	mov	di,offset PSP_XFT	;  and is in the PSP at this offset
-	mov	PSP_XFNMAX,cx		; say we have 20 files max
-	mov	PSP_XFTOFF,di
-	mov	PSP_XFTSEG,es
+	mov	es:PSP_XFNMAX,cx	; say we have 20 files max
+	mov	es:PSP_XFTOFF,di
+	mov	es:PSP_XFTSEG,es
 	push	ds
 	mov	ds,current_psp		; we copy 1st 20 entries of current
 	lds	si,ds:PSP_XFTPTR	;  XFT to the child PSP
@@ -149,7 +156,8 @@ copy_psp:
 	mov	es,dx			; Point ES to the New PSP
 	mov	ds,ax			; Get the current PSP for this function
 	xor	ax,ax
-	mov di,ax ! mov si,ax
+	mov 	di,ax
+	mov 	si,ax
 	rep	movsw			; Copy into New PSP
 
 	mov	ds,ax			; Copy the current Terminate, Critical 
@@ -158,16 +166,16 @@ copy_psp:
 	mov	cl,6
 	rep	movsw			; BREAK,TERM, CRIT ERR SAVED HERE
 	pop	ds
-	pop	PSP_MEMORY
+	pop	es:PSP_MEMORY
 
-	mov	PSP_INT20,020CDh	; Interrupt 20h Terminate
-	mov	PSP_RES1,0FFFFh
-	mov	PSP_RES2,0FFFFh
-	mov	PSP_DOSCALL,021CDh	; INT 21h Function Call
-	mov	PSP_DOSRETF,0CBh	; RETF
+	mov	es:PSP_INT20,020CDh	; Interrupt 20h Terminate
+	mov	es:PSP_RES1,0FFFFh
+	mov	es:PSP_RES2,0FFFFh
+	mov	es:PSP_DOSCALL,021CDh	; INT 21h Function Call
+	mov	es:PSP_DOSRETF,0CBh	; RETF
 
-	mov	PSP_LONGCALL,09Ah	; CALLF AnySeg:MemSize
-	mov	ax,PSP_MEMORY		; Get the Top of Memory
+	mov	es:PSP_LONGCALL,09Ah	; CALLF AnySeg:MemSize
+	mov	ax,es:PSP_MEMORY	; Get the Top of Memory
 	sub	ax,dx			; Convert it to Memory Size
 	cmp	ax,1000h		; Check for Over 64Kb
 	mov	bx,0FEF0h		; Assume Over 64Kb
@@ -178,7 +186,7 @@ copy_psp:
 	sub	bx,110h			; Reserve 110h Bytes for .COM Stack
 sce_10:	
 	push	dx
-	mov	PSP_LONGOFF,bx		; Save the Byte Length
+	mov	es:PSP_LONGOFF,bx		; Save the Byte Length
 	xor 	dx,dx			; Call 5 Entry Segment
 	mov 	ax,INT30_OFFSET		; Call 5 Entry Offset
 	mov	cl,4			
@@ -186,7 +194,7 @@ sce_10:
 	shr	bx,cl			; Jump Offset/16 => JO
 	add	ax,dx			; EO + ES
 	sub	ax,bx			; EO + ES - JO => JS 
-	mov	PSP_LONGSEG,ax
+	mov	es:PSP_LONGSEG,ax
 	pop	dx
 	ret
 
@@ -219,7 +227,6 @@ func62:
 	mov	reg_BX[bp],bx
 	ret
 
-eject
 ;**************************************************
 ;**************************************************
 ;***						***
@@ -283,9 +290,12 @@ func4B:
 	jmp	start_child		; Go for It every thing else OK
 
 f4B_01:
-	cmp al,5 ! je f4B05		; Sub-Func 5:- Exec Hook
-	cmp al,3 ! je f4B_02		; Sub-Func 3:- Load Overlay
-	cmp al,1 ! jbe f4B_02		; Sub-Func 1:- Load and No Execute
+	cmp 	al,5
+	 je 	f4B05			; Sub-Func 5:- Exec Hook
+	cmp 	al,3
+	 je 	f4B_02			; Sub-Func 3:- Load Overlay
+	cmp 	al,1
+	 jbe 	f4B_02			; Sub-Func 1:- Load and No Execute
 					; Sub-Func 0:- Load and Execute
 f4B_invalid:
 	jmp	invalid_function	; Otherwise illegal Sub-Function
@@ -323,12 +333,13 @@ ES_OVERLAY	equ	0002h
 	les	bp,int21regs_ptr	; point to user stack
 	mov	es:reg_AX[bp],0		; return successful
 	and	es:reg_FLAGS[bp],not CARRY_FLAG
+	nop	; REMOVE AFTER JWASM CONVERSION
 	mov	ax,prev_int21regs_off
 	mov	int21regs_off,ax
 	mov	ax,prev_int21regs_seg
 	mov	int21regs_seg,ax
 	dec	indos_flag		; no longer in DOS
-	jmpf	func4B05_stub		; exit via stub code
+	jmp	dword ptr func4B05_stub	; exit via stub code
 
 
 f4B_02:
@@ -338,9 +349,11 @@ f4B_02:
 	dec	ax
 	mov	load_handle,ax		; Mark Load file as CLOSED
 
-	push es ! push dx		; expand the filename to a
+	push 	es
+	push 	dx			; expand the filename to a
 	call	get_filename		;  full path to be inherited
-	pop dx ! pop es			;  in the environment
+	pop 	dx
+	pop 	es			;  in the environment
 	 jc	f4B_10			; Exit on error
 	mov	ax,(MS_X_OPEN*256)+20h	; Open File
 ;	mov	al,0$010$0$000B		; ReadOnly & DenyWrite
@@ -359,7 +372,8 @@ f4B_04:
 	 jc	f4B_10			; Stop On error
 
 f4B_05:
-	push ds ! pop es		; ES local again
+	push 	ds
+	pop 	es			; ES local again
 	mov	load_handle,ax		; Save for Error Handling
 	xchg	ax,bx			; Get the File Handle
 	mov	si,offset exe_buffer
@@ -375,16 +389,15 @@ f4B_05:
 
 	call	loadimage		; load and relocate image
 	 jc	f4B_10			; f4B_error - Return with an error
-if DOS5
 	mov	si,offset load_file	; Copy the process name into the DMD
 	call	FindName		; DS:SI -> start of name
 	call	GetVersion		; AX = version to return
 	mov	es,current_psp		; poke the current psp
-	mov	PSP_VERSION,ax		;  with the version number
-endif
+	mov	es:PSP_VERSION,ax	;  with the version number
 	jmp	return_AX_CLC		; All done
 f4b_10:
 	jmp	f4B_error
+	nop	; REMOVE AFTER JWASM CONVERSION
 
 
 ;
@@ -424,7 +437,7 @@ f4B_g15:
 	add	EXE_CS[si],dx		; bias the code segment
 	add	EXE_SS[si],dx		;   and the stack segment too
 	jmp	start_child		; goodbye!
-
+	nop	; REMOVE AFTER JWASM CONVERSION
 ;
 f4B_go_com:				; Go for it .COM
 ;	mov	dx,load_psp		; based at PSP seg
@@ -432,12 +445,12 @@ f4B_go_com:				; Go for it .COM
 	mov	EXE_IP[si],100h		;   and ss:sp for child
 	mov	EXE_SS[si],dx
 	mov	es,dx
-	mov	bx,PSP_LONGOFF		; ax = segment size in bytes
+	mov	bx,es:PSP_LONGOFF	; ax = segment size in bytes
 	add	bx,110h - 2		; Initialise stack in reserved area
 	mov	EXE_SP[si],bx		; save as stack ptr
 	mov	es:word ptr[bx],0	; put one zero on the stack
 	jmp	start_child		; goodbye!
-
+	nop	; REMOVE ATFER JWASM CONVERSION
 ;
 ;	Function 4B Error Handler. This exit routine will free all
 ;	resources allocated to a process during the EXEC function and
@@ -472,7 +485,6 @@ f4B_e10:				; Now Free any memory allocated
 f4B_e20:
 	ret
 
-eject	
 start_child:
 	mov	es,current_psp		; ds -> psp
 	mov	dx,0080h		; default dma offset
@@ -488,7 +500,8 @@ start_child:
 ;
 	add	di,DWORD*3+WORD		; skip user supplied info
 	mov	ax,EXE_SP[si]
-	dec ax ! dec ax			; return ss:sp-2
+	dec 	ax
+	dec 	ax			; return ss:sp-2
 	stosw
 	xchg	ax,bx			; save SP for later
 	mov	ax,EXE_SS[si]
@@ -500,7 +513,8 @@ start_child:
 	pop	ds
 
 	lea	si,EXE_IP[si]		; point at IP
-	lodsw ! stosw			; copy it, and get in AX for return
+	lodsw
+	stosw				; copy it, and get in AX for return
 	movsw				; copy EXE_CS too
 	jmp	return_AX_CLC		; all went OK
 
@@ -514,14 +528,14 @@ start_child_go:
 	xor	dx,dx			; start with valid drives
 	mov	es,current_psp		; Get the PSP Address and check
 	push	dx
-	mov	al,PSP_FCB1		; if the drive specifier for FCB1
+	mov	al,es:PSP_FCB1		; if the drive specifier for FCB1
 	call	valid_drive		; is invalid set AL to FF
 	pop	dx
 	 jz	reg_s10
 	mov	dl,0FFh
 reg_s10:
 	push	dx
-	mov	al,PSP_FCB2		; if the drive specifier for FCB2
+	mov	al,es:PSP_FCB2		; if the drive specifier for FCB2
 	call	valid_drive		; is invalid set AH to FF
 	pop	dx
 	 jz	reg_s20
@@ -559,10 +573,9 @@ if 0
 	sti
 	retf				; lets go!
 else
-	jmpf	exec_stub
+	jmp	dword ptr exec_stub
 endif
 
-eject
 ;	*****************************
 ;	***    DOS Function 00    ***
 ;	***   Terminate Process	  ***
@@ -581,7 +594,7 @@ func00:
 	cmp	ax,bx			;  with an Int 20 at funny moments
 	 je	func4c			;  (I have "NOW!" in mind)
 	mov	es,bx			; fiddle CS PSP parent so we return to
-	mov	PSP_PARENT,ax		;  current_psp then fiddle current_psp
+	mov	es:PSP_PARENT,ax	;  current_psp then fiddle current_psp
 	mov	current_psp,bx		;  to be user CS
 
 ;	*****************************
@@ -643,7 +656,7 @@ f4C_10:
 	mov	ah,MS_X_CLOSE		; close this handle
 	call	dos_entry		; so freeing up PSP entry
 	inc	bx			; onto next handle
-	cmp	bx,PSP_XFNMAX		; done them all yet?
+	cmp	bx,es:PSP_XFNMAX	; done them all yet?
 	 jb	f4C_10
 	mov	FD_FUNC,FD_EXIT		; Must Close all Open FCB's
 	call	fdos_nocrit
@@ -652,7 +665,8 @@ f4C_10:
 	mov	ax,I2F_PCLOSE		; but we will call the MSNET
 	int	2fh			; extention's cleanup code anyway
 
-	push ss ! pop ds		; reload DS with data segment
+	push 	ss
+	pop 	ds			; reload DS with data segment
 
 	mov	bx,current_psp		; free all memory associated
 	call	free_all		;  with this PSP
@@ -698,9 +712,9 @@ f4C_20:
 	mov	ss:reg_AX[bp],ax	; Set AX to the Process RETCODE
 	xor	ax,ax
 	mov	ds,ax
-	mov	ax,ds:word ptr .INT22_OFFSET
+	mov	ax,ds:word ptr INT22_OFFSET
 	mov	ss:reg_IP[bp],ax   	; PSP_TERM_IP
-	mov	ax,ds:word ptr .INT22_OFFSET+WORD
+	mov	ax,ds:word ptr INT22_OFFSET+WORD
 	mov	ss:reg_CS[bp],ax   	; PSP_TERM_CS
 	mov	ss:reg_FLAGS[bp],0b202h	; force flags to 0F202h
 					;  ie Interrupts enabled and
@@ -710,7 +724,6 @@ f4C_20:
 	jmp	int21_exit		; Jump to the Exit routine	
 
 
-eject
 ;	*****************************
 ;	***    DOS Function 4D    ***
 ;	*** Get Sub-Func Ret-Code ***
@@ -722,7 +735,6 @@ func4D:
 	xchg	ax,retcode		; subsequent calls and return the
 	jmp	return_AX_CLC		; saved value to the caller
 
-eject
 ;****************************************
 ;*					*
 ;*	Process Control Subroutines	*
@@ -750,7 +762,8 @@ get_filename:
 	lodsw				; get 1st two chars in filename
 	cmp	ah,':'			; is a drive specified ?
 	 je	get_filename10
-	dec si ! dec si			; forget we looked
+	dec 	si
+	dec 	si			; forget we looked
 	mov	al,ss:current_dsk	; and use the default drive
 	add	al,'A'
 get_filename10:
@@ -800,7 +813,7 @@ build_env:
 	or	ax,ax			; environment to be used. If AX is
 	 jnz	b_e10			; 0000 then use the current environment
 	mov	es,current_psp
-	mov	cx,PSP_ENVIRON		; Current Environment Segment 
+	mov	cx,es:PSP_ENVIRON		; Current Environment Segment 
 	mov	es,cx			; If the current environment segment
 	mov	di,cx			; is zero then return a size of
 	 jcxz	b_e35			; zero bytes
@@ -825,26 +838,33 @@ b_e30:
 	mov	bx,cx			; Get the String Length
 	add	bx,di			; Add the environment size
 	add	bx,15 + 4		; and convert to paragraphs
-	shr bx,1 ! shr bx,1
-	shr bx,1 ! shr bx,1
+	shr 	bx,1
+	shr 	bx,1
+	shr 	bx,1
+	shr 	bx,1
 	mov	load_envsize,bx		; Save the Environment Size
 	call	mem_alloc		; allocate the memory
 	pop	bx
 	 jc	b_e50
 	mov	load_env,ax		; Save the Environment location
-	push cx ! push di		; Save STRLEN and Offset
+	push 	cx
+	push 	di			; Save STRLEN and Offset
 	push	ds			; Save DS
 	push	es
 	mov	es,ax			; Point ES at the NEW environment
 	pop	ds			; Point DS at the Old environment
 	mov	cx,di			; Get the environment size
-	xor si,si ! mov di,si		; Initialize the pointers
+	xor 	si,si
+	mov 	di,si			; Initialize the pointers
 	rep	movsb 			; and copy. Nothing moves if CX == 0
 	pop	ds
 
-	pop di ! pop cx			; Get the string pointers
-	xor ax,ax ! stosw		; Add terminating zeros
-	inc ax ! stosw			; Initialise the String COUNT field
+	pop 	di
+	pop 	cx			; Get the string pointers
+	xor 	ax,ax
+	stosw				; Add terminating zeros
+	inc 	ax
+	stosw				; Initialise the String COUNT field
 
 
 	mov	si,offset load_file	; and size information and 
@@ -890,7 +910,7 @@ if HILOAD
 	call	mem_setblock		; then grow it to that size
 	mov	ax,ds			; ax = base of the block again
 	pop	ds
-	jmps	c_p20			
+	jmp	c_p20			
 c_p15:
 endif
 	call	mem_alloc		; allocate size and if error occurs
@@ -920,7 +940,6 @@ cp_exit:
 	pop	bx
 	ret
 
-eject
 ;LOADIMAGE:
 ;
 ;	This function reads in the load image of the file into memory
@@ -981,7 +1000,8 @@ reloc_image:
 ;	CY clear if OK, else AX = error code
 
 
-	push ds ! pop es		; ES -> Local Buffer Segment
+	push 	ds
+	pop 	es			; ES -> Local Buffer Segment
 	mov	dx,offset reloc_buf	; DX -> Local Buffer Offset
 
 	mov	cx,RELOC_CNT		; AX -> Buffer Size
@@ -994,7 +1014,8 @@ reloc_image:
 reloc_i10:
 	push	ax			; save # items left to read
 	push	cx			; and # reloc to read
-	shl cx,1 ! shl cx,1		; calculate # byte to read
+	shl 	cx,1
+	shl 	cx,1			; calculate # byte to read
 	mov	ah,MS_X_READ		; relocation buffer.
 	call	dos_entry
 	pop	cx
@@ -1039,13 +1060,17 @@ reloc_i30:
 MAX_READPARA	equ	3200		; Maximum Number of Paragraphs to 
 					; read in one command 50Kb
 readfile:
-	push si ! push di
+	push 	si
+	push 	di
 	mov	si,offset exe_buffer	; Get the .EXE header
 	mov	dx,EXE_HEADER[si]	; get the header size in paragraphs
 	mov	cx,4			; and seek to that offset in the
 	rol	dx,cl			; file before reading any data
 	mov	cl,dl
-	and cx,0Fh ! and dx,not 0Fh
+	and 	cx,0Fh
+	nop	; REMOVE AFTER JWASM CONVERSION
+	and 	dx,not 0Fh
+	nop	; REMOVE AFTER JWASM CONVERSION
 	mov	ax,(MS_X_LSEEK*256)+0
 	call	dos_entry		; Execute LSEEK Function
 	jc	rf_error
@@ -1063,7 +1088,7 @@ rf_10:
 	mov	ah,MS_X_READ		 ; Read the Block into the
 	call	dos_entry		 ; buffer Exit if Error
 	jc	rf_error
-	jmps	rf_10			 ; Else go for the next bit
+	jmp	rf_10			 ; Else go for the next bit
 
 rf_20:					; Now reading the last part of
 	mov	cl,4			; the image so convert remainder
@@ -1074,7 +1099,8 @@ rf_20:					; Now reading the last part of
 	jc	rf_error		; Stop on Error
 	xor	ax,ax			; Reset the carry Flag and Zero AX
 rf_error:				; Error exit Carry Flag Set and AX
-	pop di ! pop si			; contains the error code.
+	pop di
+	pop si				; contains the error code.
 	ret
 
 ;	Copy old PSP contents to new PSP.
@@ -1087,13 +1113,15 @@ pblk_to_psp:
 	mov	dx,load_psp
 	call	point_param_block	; ES:DI -> users parameter block
 
-	push es ! push di
+	push 	es
+	push 	di
 	lds	si,es:dword ptr 2[di]	; Get the Source Pointer
 	mov	cx,128			; Copy the complete command line
 	mov	di,offset PSP_COMLEN	; because BASCOM places a segment value
 	mov	es,dx			; after the CR which was not previously
 	rep	movsb			; copied.
-	pop di ! pop es
+	pop 	di
+	pop 	es
 
 	lds	si,es:dword ptr 6[di]	; get 1st FCB address
 	mov	ax,offset PSP_FCB1	; First FCB Offset
@@ -1121,7 +1149,8 @@ copy_fcb:
 	mov	cx,12			; Copy Drive, Name and Extension
 	rep	movsb			;  and copy it
 	xchg	ax,cx			; AX = 0
-	stosw ! stosw			; zero last 4 bytes
+	stosw
+	stosw				; zero last 4 bytes
 	pop	di
 	pop	es
 	ret
@@ -1146,12 +1175,14 @@ set_up_psp:
 
 	mov	es,ax			; Now Zero Fill the New PSP
 	mov	cx,(offset PSP_FCB1)/2	;  up to user supplied parameters
-	xor ax,ax ! mov di,ax
+	xor 	ax,ax
+	mov 	di,ax
 	rep	stosw
-	jmps	setup_psp20		; and skip the INT22 Fudge
+	jmp	setup_psp20		; and skip the INT22 Fudge
 
 setup_psp10:				; Get the Function return address
-	xor di,di ! mov es,di		;  and force into INT 22
+	xor 	di,di
+	mov 	es,di			;  and force into INT 22
 	mov	di,INT22_OFFSET		; Set Interrupt Vectors 22
 	push	ds
 	lds	si,int21regs_ptr
@@ -1175,7 +1206,7 @@ setup_psp20:
 ;
 	call	create_psp		; Create the New Process
 	mov	ax,load_env		; Now Update the Environment
-	mov	PSP_ENVIRON,ax
+	mov	es:PSP_ENVIRON,ax
 	mov	si,offset load_file	; Copy the process name into the DMD
 ;	jmp	SetPspNameAndVersion
 
@@ -1192,19 +1223,15 @@ SetPspNameAndVersion:
 	mov	es,bx			; ES points at DMD (We Hope)
 	call	check_dmd_id		; Check for a valid DMD
 	 jc	SetPspNameAndVersion10	; bail out now if none
-if DOS5
 	inc	bx			; BX -> PSP again
 	push	bx			; keep it on the stack
-endif
 	call	FindName		; DS:SI -> start of name
 	push	si
 	call	SetName			; update the name field
 	pop	si
-if DOS5
 	call	GetVersion		; AX = version to return
 	pop	es			; ES = PSP
-	mov	PSP_VERSION,ax		; set version number
-endif
+	mov	es:PSP_VERSION,ax	; set version number
 SetPspNameAndVersion10:
 	ret
 
@@ -1224,13 +1251,13 @@ FindName10:
 	call	dbcs_lead		; is it a double byte pair ?
 	 jne	FindName20
 	lodsb				; include the second byte
-	jmps	FindName10
+	jmp	FindName10
 FindName20:
 	cmp	al,'\'			; is it a seperator ?
 	 je	FindName
 	cmp	al,'/'
 	 je	FindName
-	jmps	FindName10
+	jmp	FindName10
 FindName30:
 	xchg	cx,si			; SI -> start of leaf name
 	sub	cx,si
@@ -1257,7 +1284,7 @@ SetName10:
 	cmp	di,(offset DMD_NAME)+DMD_NAME_LEN
 	 jae	SetName30		; don't overflow if name too long
 	movsb				; and the second
-	jmps	SetName10
+	jmp	SetName10
 
 SetName20:
 	stosb
@@ -1276,7 +1303,6 @@ SetName40:
 	 jb	SetName40		; zero the rest of the name
 	ret
 
-if DOS5
 GetVersion:
 ;----------
 ; On Entry:
@@ -1294,9 +1320,10 @@ GetVersion10:
 	ret
 
 GetVersion20:
-	mov	al,es:0FFFFh[di]	; skip the name
+	mov	al,es:[di-1]		; skip the name
 	cbw
-	inc ax ! inc ax			; skip the version
+	inc 	ax
+	inc 	ax			; skip the version
 	add	di,ax			; try the next entry
 GetVersion30:
 	mov	al,es:byte ptr [di]	; get length field
@@ -1313,7 +1340,7 @@ GetVersion40:
 	 jne	GetVersion50
 	inc	bx			; we will skip 2 characters
 	cmp	ax,es:[bx+di]		; do both character match ?
-	jmps	GetVersion60
+	jmp	GetVersion60
 
 GetVersion50:
 	call	toupper			; upper case it
@@ -1328,9 +1355,7 @@ GetVersion60:
 	 jb	GetVersion40
 	mov	ax,es:[bx+di]		; get version number from setver list
 	ret
-endif
 
-eject
 ;
 ;	GET_DATA reads the EXE header using the handle passed in BX
 ;
@@ -1356,8 +1381,10 @@ get_execdata:
 	xor	dx,dx
 	call	dos_entry		; get file length in DX:AX
 	 jc	gd_exit
-	xchg al,ah ! mov ah,dl		; DX:AX / 512
-	shr dx,1 ! rcr ax,1
+	xchg 	al,ah
+	mov 	ah,dl			; DX:AX / 512
+	shr 	dx,1
+	rcr 	ax,1
 	inc	ax			; Handle Final Partial Page
 	mov	EXE_SIZE[si],ax		; No. of 512 Byte Pages
 	xor	ax,ax
@@ -1370,7 +1397,6 @@ get_execdata:
 gd_exit:
 	ret
 
-eject
 ;
 ;	Determine if the file to be loaded is a DOS EXE format file
 ;	if YES then return with the carry flag reset. Assume that the
@@ -1395,12 +1421,14 @@ check_e10:
 image_size:
 	mov	dx,EXE_SIZE[si]		; No of 512 pages in System Image
 	dec	dx			; Adjust for Final Partial Page
-	mov cl,5 ! shl dx,cl		; No. 512 Byte Blocks to Para
+	mov 	cl,5
+	shl 	dx,cl			; No. 512 Byte Blocks to Para
 	sub	dx,EXE_HEADER[si]	; Remove the Header Size	
 
 	mov 	ax,EXE_FINAL[si]
 	add	ax,15
-	dec cl ! shr ax,cl		; AX is Partial Block in PARA
+	dec 	cl
+	shr 	ax,cl			; AX is Partial Block in PARA
 	add	dx,ax			; DX is Image Size in PARA's
 	ret
 
@@ -1444,9 +1472,10 @@ point_param_block:
 	xchg	ax,di			; ES:DI -> parameter block
 	ret
 
+PCM_CODE	ends
 	
 		
-PCMODE_DATA	DSEG	WORD
+PCMODE_DATA	segment public word 'DATA'
 	extrn	current_dsk:byte
 	extrn	current_psp:word
 	extrn	retcode:word		; Complete return code passed to F4B
@@ -1470,12 +1499,9 @@ PCMODE_DATA	DSEG	WORD
 	extrn	exec_stub:dword
 	extrn	func4B05_stub:dword
 
-if DOS5
 	extrn	dos_version:word
 	extrn	setverPtr:dword
-endif
 
-eject
 ;	To improve Network performance the EXE relocation items are
 ;	now read into the following buffer. All the data items contained
 ;	between RELOC_BUF and RELOC_SIZE are destroyed by the LOADIMAGE
@@ -1508,7 +1534,9 @@ eject
 	extrn	load_max:word			; ditto, but not messed with
 	extrn	exe_loadhigh:byte		; load high flag
 
-PCM_HEADER	CSEG	PARA
+PCMODE_DATA	ends
+
+PCMODE_CODE	segment public word 'DATA'
 
 	extrn lfn_find_handles:word
 	extrn lfn_find_handles_end:word
@@ -1516,8 +1544,12 @@ PCM_HEADER	CSEG	PARA
 	extrn lfn_find_handle_heap_end:word
 	extrn lfn_find_handle_heap_free:word
 
-PCM_CODE	cseg	byte
+PCMODE_CODE	ends
+
+PCM_CODE	segment public byte 'CODE'
 
 	extrn lfn_free_handle:near
+
+PCM_CODE	ends
 
 	end

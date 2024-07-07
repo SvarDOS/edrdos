@@ -89,9 +89,8 @@ bin/dosmem.obj: dosmem.asm pcmodew.equ msdos.equ mserror.equ
 bin/error.obj: error.asm pcmodew.equ fdos.def msdos.equ mserror.equ pspw.def char.def request.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/process.obj: process.a86 pcmode.equ fdos.def psp.def mserror.equ vectors.def msdos.equ exe.def char.def redir.equ doshndl.def
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDOS5
-	$(FIXUPP) $^*.o86 $^@
+bin/process.obj: process.asm pcmodew.equ fdos.def pspw.def mserror.equ vectors.def msdos.equ exe.def char.def redir.equ doshndl.def
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/network.obj: network.asm pcmodew.equ mserror.equ redir.equ doshndl.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
