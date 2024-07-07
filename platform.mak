@@ -27,10 +27,4 @@ EXE2BIN = exe2bin
 
 COMPBIOS = $(LTOOLS)$(SEP)compbios
 COMPBDOS = $(LTOOLS)$(SEP)compbdos
-
-RASM = $(LTOOLS)$(SEP)rasm86.exe
-RASM_SH = $(LTOOLS)$(SEP)rasm_sh.exe
-RASM_FLAGS = $$sz
-
 FIXUPP = $(LTOOLS)$(SEP)fixupp.exe
-ROUND = $(LTOOLS)$(SEP)round.exe

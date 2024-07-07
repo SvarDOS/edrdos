@@ -1,11 +1,9 @@
 # DRDOS.SYS Makefile for Open Watcom
-# currently only for DOS because of proprietary Digital Research tools
 # Tools needed to build:
 #   - JWASM assembler
 #   - Open Watcom 1.9+: WLINK, EXE2BIN
-#   - RASM_SH, RASM86, FIXUPP, ROUND and COMPBDOS from the ..\LTOOLS directory
+#   - COMPBDOS from the ..\LTOOLS directory
 
-.EXTENSIONS: .a86
 .ERASE
 
 !include ../platform.mak
