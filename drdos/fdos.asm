@@ -1,5 +1,5 @@
 title 'F_DOS - DOS file system'
-;    File              : $FDOS.A86$
+;    File              : $FDOS.ASM$
 ;
 ;    Description       :
 ;
@@ -157,21 +157,24 @@ title 'F_DOS - DOS file system'
 PCMCODE	GROUP	BDOS_CODE
 PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
 
-	eject ! include i:psp.def
-	eject ! include i:modfunc.def
-	eject ! include i:fdos.equ
-	eject ! include rh.equ
-	eject ! include i:msdos.equ
-	eject ! include i:mserror.equ
-	eject ! include i:doshndl.def	; DOS Handle Structures
-	eject ! include i:driver.equ
-	eject ! include i:f52data.def	; DRDOS Structures
-	eject ! include bdos.equ
-	eject
+ASSUME DS:PCMDATA
+
+	.nolist
+	include pspw.def
+	include modfunc.def
+	include fdos.equ
+	include request.equ
+	include msdos.equ
+	include mserror.equ
+	include doshndl.def	; DOS Handle Structures
+	include driverw.equ
+	include f52dataw.def	; DRDOS Structures
+	include bdos.equ
+	.list
 
 FD_EXPAND equ 55h
 
-PCMODE_DATA	dseg
+PCMODE_DATA	segment public byte 'DATA'
 
 	extrn	current_ddsc:dword
 	extrn	current_device:dword
@@ -203,15 +206,17 @@ PCMODE_DATA	dseg
 	extrn	sec_pathname:byte
 	extrn	temp_ldt:byte
 	extrn	unlock_tables:dword
-    extrn   WindowsHandleCheck:byte
+	extrn   WindowsHandleCheck:byte
 	extrn	net_delay:word
 	extrn lfnpathflag:byte
 
-if KANJI
+ifdef KANJI
 	extrn	DBCS_tbl:word		; Double Byte Character Table
 endif
 
-BDOS_DATA	dseg	word
+PCMODE_DATA	ends
+
+BDOS_DATA	segment public word 'DATA'
 
 	extrn	adrive:byte
 	extrn	cur_dma:word
@@ -224,7 +229,7 @@ BDOS_DATA	dseg	word
 chdir_cl	dw	0,0
 chkcds_cl	dw	0,0
 
-NO_CRIT_ERRORS	equ	0100$0000b	; critical error shouldn't be generated
+NO_CRIT_ERRORS	equ	01000000b	; critical error shouldn't be generated
 					; warning - must match PCMODE.EQU
 	
 	extrn	fdrwflg:byte
@@ -256,14 +261,14 @@ path_drive	dw	0
 
 	Public	fdos_hds_blk, fdos_hds_root, fdos_hds_drv
 
-fdos_hds	rw	0		; temporary HDS that we make up
+fdos_hds	label word		; temporary HDS that we make up
 fdos_hds_blk	dw	0,0
 fdos_hds_root	dw	0,0
 fdos_hds_drv	db	0
 
 HDS_LEN		equ	offset $ - offset fdos_hds
 
-saved_hds	rw	0		; saved HDS on F_DOS rename
+saved_hds	label word		; saved HDS on F_DOS rename
 saved_hds_blk	dw	0,0
 saved_hds_root	dw	0,0
 saved_hds_drv	db	0
@@ -279,9 +284,9 @@ blk		dw	0,0		; temp variable for cluster #
 attributes	db	0		;fcb interface attributes hold byte
 
 	public	info_fcb
-info_fcb	rb	1+8+3		;local user FCB drive+name+ext
+info_fcb	db	1+8+3 dup (0)	;local user FCB drive+name+ext
 
-save_area	rb	32		;save area for dirbuf during rename and
+save_area	db	32 dup (0)	;save area for dirbuf during rename and
 					;info_fcb during create(mustbe_nolbl)
 					;parental name during chdir
 
@@ -293,11 +298,11 @@ fdos_addr	dw	0		; address of F_DOS function
 
 	Public	fdos_info, fdos_pb, fdos_ret
 	
-fdos_info	rw	3		; off, seg, size of parameter block
-fdos_pb		rw	7		; copy of parameter block
+fdos_info	dw	3 dup (0)	; off, seg, size of parameter block
+fdos_pb		dw	7 dup (0)	; copy of parameter block
 fdos_ret	dw	0		; return value for function
 
-if PASSWORD
+ifdef PASSWORD
 ; Password support uses the following data stuctures:
 ;
 ; The global_password field is set by an IOCTL call and remains constant.
@@ -314,12 +319,13 @@ if PASSWORD
 	Public	global_password
 global_password	dw	0
 local_password	dw	0
-password_buffer	rb	8
+password_buffer	db	8 dup (0)
 
 endif
 
-eject
-BDOS_CODE	cseg
+BDOS_DATA	ends
+
+BDOS_CODE	segment public byte 'CODE'
 
 
 	extrn	pcmode_dseg:word	; Pointer to System Data Page
@@ -374,7 +380,6 @@ BDOS_CODE	cseg
 	extrn	is_lfn:near		; check if long filename entry
 	extrn	del_lfn:near		; delete long filenames
 
-eject
 	public	bpb2ddsc		; build DDSC from a BPB
 	Public	check_slash
 	public	dbcs_lead
@@ -424,21 +429,23 @@ eject
 	public	fdos_mkddsc	; 29-build DDSC from BPB
 	public	fdos_select	; 30-select drive
 
-if JOIN
+ifdef JOIN
 	Public	check_join
 	Public	mv_join_root
 endif
 
-eject
+BDOS_CODE	ends
 
-eject !	include	funcs.fdo
-eject !	include	utils.fdo
+include	funcs.fdo
+include	utils.fdo
 
-BDOS_DATA	dseg	word
+BDOS_DATA	segment public word 'DATA'
 
 		include version.inc
 		db	' Patches to original OpenDOS source code '
 		db	'Copyright (c) 2002-2011 Udo Kuhnt'
 		db	0
+
+BDOS_DATA	ends
 
 	END

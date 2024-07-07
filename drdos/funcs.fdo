@@ -31,7 +31,7 @@
 ;    ENDLOG
 ;	General function include module for FDOS.A86
 
-BDOS_CODE	cseg
+BDOS_CODE	segment public byte 'CODE'
 	extrn	mul32:near
 	extrn	output_hex:near
 
@@ -148,7 +148,7 @@ local_disk:	; continue execution within MXdisk semaphore
 ;	This function will make local copies of the parameters
 ;	and continue
 
-	callf	ss:lock_tables
+	call	dword ptr ss:lock_tables
 	pop	fdos_addr		; return address
 	add	sp,2*WORD		; discard return from call fdos_tbl[bx]
 					;    and function #
@@ -157,20 +157,23 @@ local_disk:	; continue execution within MXdisk semaphore
 	mov	sp_save,sp		; save for re-entry/errors
 	mov	ds,ax			; DS:SI -> paremeter block
 fdos_reenter:
-	push ss ! pop es		; ES = local data segment
+	push 	ss
+	pop 	es			; ES = local data segment
 	mov	di,offset fdos_pb	; ES:DI -> local parameter block copy
-	lodsw ! stosw			; load subfunction number
+	lodsw
+	stosw				; load subfunction number
 	mov	es:fdos_info,si		; save it for BDOS return
 	mov	es:fdos_info+WORD,ds	; save parameter segment for return
 	mov	bx,ax
 	add	bx,ax
 	add	bx,ax			; BX = function # * 3
-	mov	cl,byte ptr fdos_tbl-(39h*(WORD+BYTE))+WORD[bx]
+	mov	cl,byte ptr [bx+fdos_tbl-(39h*(WORD+BYTE))+WORD]
 	mov	ch,0
 					; get table of # of parameters
 	mov	es:fdos_info+2*WORD,cx	; save the parameter count
 	rep	movsw			; copy parameter block
-	push es ! pop ds		; DS = SYSDAT
+	push 	es
+	pop 	ds			; DS = SYSDAT
 	mov	ioexerr,0FFh		; assume default error code
 	mov	rwmode,0
 
@@ -192,7 +195,7 @@ fdos_error:
 	mov	cx,fdos_info+2*WORD	; get parameter block size
 	rep	movsw			; copy return values
 	mov	bx,ax
-	callf	ss:unlock_tables
+	call	dword ptr ss:unlock_tables
 	ret				; return to BDOS, which copies BX to AX
 
 	Public	fdos_restart
@@ -202,34 +205,34 @@ fdos_restart:	; we want to restart the function after an error
 ;
 	mov	sp,sp_save		; break out from low levels
 	lds	si,dword ptr fdos_info
-	dec	si ! dec si		; DS:SI -> parameter block
-	jmps	fdos_reenter		; try from scratch
+	dec	si
+	dec 	si			; DS:SI -> parameter block
+	jmp	fdos_reenter		; try from scratch
 
 fdos_ED_ROOM:
 ;-----------
 	mov	ax,ED_ROOM		; no more files
-	jmps	fdos_error
+	jmp	fdos_error
 
 fdos_ED_DRIVE:
 ;-----------
 	mov	ax,ED_DRIVE		; bad drive
-	jmps	fdos_error
+	jmp	fdos_error
 
 fdos_ED_PATH:
 	mov	ax,ED_PATH		; invalid path or drive
-	jmps	fdos_error
+	jmp	fdos_error
 
 fdos_ED_PROTECT:
 	mov	ax,ED_PROTECT		; write protect error
-	jmps	fdos_error
+	jmp	fdos_error
 
 	Public	fdos_ED_ACCESS
 
 fdos_ED_ACCESS:
 	mov	ax,ED_ACCESS		; access denied error
-	jmps	fdos_error
+	jmp	fdos_error
 
-eject
 ;	MAKE DIRECTORY (MKDIR)
 
 ;	+----+----+----+----+----+----+
@@ -296,13 +299,13 @@ mkdir_err:
 	call	update_dir		; release this entry
 mkdir_access:
 	jmp	fdos_ED_ACCESS		; return "access denied" error
+	nop	; REMOVE AFTER JWASM CONVERSION
 
 chk_no_dot:				; reject "." and ".." names
 	cmp	info_fcb+1,'.'
 	 je	mkdir_access
 	ret
 
-eject
 ;	REMOVE DIRECTORY (RMDIR)
 
 ;	+----+----+----+----+----+----+
@@ -332,7 +335,7 @@ fdos_rmdir:
 	call	finddfcbf		; find the entry again
 	call	rmdir_ok		; make sure not in use
 	call	finddfcbf		; find the entry again
-if PASSWORD
+ifdef PASSWORD
     call    check_pwd_any      
 endif
 kill_entry:
@@ -351,7 +354,6 @@ fdos_rmdir40:
 	mov	ax,ED_DIR
 	jmp	fdos_error
 
-eject
 ;	CHANGE DIRECTORY (CHDIR)
 
 ;	+----+----+----+----+----+----+
@@ -396,7 +398,7 @@ fdos_move_chdir:
 	mov	ax,path_drive		; else same as path drive
 	mov	orig_drive,ax
 chdir10:
-if JOIN
+ifdef JOIN
 	call	offer_join		; are we opening a JOIN'd drive ?
 	 jnc	chdir30			;  if so move to it and skip open_dir
 endif
@@ -406,7 +408,7 @@ endif
 	 jz	chdir_ED_PATH		; skip if no valid directory
 	test	DATTS[bx],DA_DIR	; check directory attribute
 	 jz	chdir_ED_PATH		; return if not a directory
-if PASSWORD
+ifdef PASSWORD
 	call	check_pwd_any		; check if PW prot'd & wrong PW
 endif
 	call	open_dir		; else open last directory
@@ -454,8 +456,9 @@ chdir50:
 	mov	ax,word ptr current_ddsc
 	mov	word ptr LDT_PDT[di],ax
 	mov	ax,word ptr current_ddsc+WORD
-	mov	word ptr LDT_PDT+WORD[di],ax
-	push ss ! pop es		; now build ASCII path
+	mov	word ptr [di+LDT_PDT+WORD],ax
+	push 	ss
+	pop 	es			; now build ASCII path
 ;	lea	di,LDT_NAME[di]		; ES:DI -> name
 	xchg	ax,dx
 	stosw				; plant 'A:'
@@ -466,10 +469,11 @@ chdir50:
 	mov	fdos_hds_root+2,0
 	mov	fdos_pb+6,di		; rebuild into LDT_ at the address
 	mov	fdos_pb+8,es
-	push ds ! pop es
+	push 	ds
+	pop 	es
 chdir60:
 	call	hdsblk			; get current block
-if JOIN
+ifdef JOIN
 	 jnz	chdir65			; if not at root unparse
 	call	check_join		; check if drive is joined to another
 	 jz	chdir80			; at root, unJOIN'd, so exit
@@ -477,13 +481,17 @@ if JOIN
 	xchg	al,fdos_hds_drv		; update HDS drive so we can force
 	push	es			;  an exit next time round
 	call	get_ldt			; now copy the JOIN'd name
-	push ds ! push es ! pop ds ! pop es	
+	push 	ds
+	push	es
+	pop 	ds
+	pop 	es	
 	lea	si,LDT_NAME+3[bx]	; point to my JOIN data
 	mov	di,offset save_area
 	call	copy_asciiz
-	push es ! pop ds
+	push 	es
+	pop 	ds
 	pop	es
-	jmps	chdir70			; copy this into place
+	jmp	chdir70			; copy this into place
 chdir65:
 else
 	 jz	chdir80			; if at root, we're done
@@ -491,13 +499,15 @@ endif
 	call	parent2save_area	; parental name written in save_area
 chdir70:
 	dec	di			; DI -> '\0' at end
-	mov	al,'\' ! stosb		; add a trailing backslash
+	mov	al,'\'
+	stosb			; add a trailing backslash
 	sub	di,offset save_area+1
 	mov	dx,di			; DX = length of name
 
 	push	es			; insert name into user buffer
 	les	di,dword ptr fdos_pb+6
-	mov	al,0 ! scasb		; check if first directory
+	mov	al,0
+	scasb			; check if first directory
 	 je	chdir75			; if not 1st in path
 	inc	dx			; we need space for '\'
 chdir75:
@@ -507,6 +517,7 @@ chdir75:
 	rep	movsb			; copy directory into user buffer
 	pop	es			; ES = local segment again
 	jmp	chdir60			; try again til root
+	nop	; REMOVE AFTER JWASM CONVERSION
 
 chdir80:				; arrive here when root reached
 	mov	ax,orig_drive		; get logical drive
@@ -514,7 +525,8 @@ chdir80:				; arrive here when root reached
 	 jc	chdir85			; no LDT_, what happended ?
 	push	ds
 	mov	di,bx			; ES:DI -> destination LDT_
-	push ss ! pop ds
+	push 	ss
+	pop 	ds
 	mov	si,offset pri_pathname	; DS:SI -> new LDT_ we just built
 	mov	cx,LDT_LEN
 	rep	movsb			; copy the new LDT_ into place
@@ -534,7 +546,6 @@ chdir80:				; arrive here when root reached
 chdir85:
 	ret
 
-eject
 ;	CREATE FILE (CREAT)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -567,7 +578,7 @@ creat_disk:
 	test	byte ptr fdos_pb+8,DA_VOLUME
 	 jz	creat_nolbl		; skip if not volume label
 	call	mustbe_nolbl		; do we have an existing label ?
-	jmps	creat_new_file		; no, create one
+	jmp	creat_new_file		; no, create one
 creat_nolbl:
 	call	finddfcbf		; find entry, ignore labels
 	 jz	creat_new_file		; skip if it doesn't exist yet
@@ -575,7 +586,7 @@ creat_nolbl:
 	call	check_no_dir		; make sure not a directory
 	call	check_ro		; check if file is read/only
 	call	close_if_open		; make sure not open by any process
-if PASSWORD
+ifdef PASSWORD
 	call	check_pwd_d		; check if PW req'd & supplied	
 endif
 	mov	bx,dirp
@@ -587,7 +598,7 @@ endif
 creat10:
 	call	delfat			; so it is truncated to zero size
 	call	update_fat		; update file allocation table
-	jmps	creat2			; reinitialize directory entry
+	jmp	creat2			; reinitialize directory entry
 
 creat_new_file:				; create new file - shared by MKNEW
 	call	allocdir		; allocate a directory entry
@@ -623,7 +634,6 @@ creat_access_err:
 	jmp	fdos_ED_ACCESS		; return "access denied"
 
 
-eject
 ;	OPEN FILE (OPEN)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -656,7 +666,7 @@ open_disk:
 	call	finddfcbf		; search by name
 	 jz	open8			; bail out if not found
 	mov	al,byte ptr fdos_pb+8	; check requested attributes
-if PASSWORD
+ifdef PASSWORD
 	cmp	dosfat,FAT32		; FAT32 filesystem?
 	 je	open1			; yes, then ignore passwords
 	cmp	word ptr DPWD[bx],0
@@ -672,12 +682,12 @@ endif
 	test	DATTS[bx],al
 	 jnz	open9			; error if attrib not as requested
 	mov	ax,fdos_pb+6		; determine open mode
-if PASSWORD
+ifdef PASSWORD
 	sub	dx,dx			; assume no PW conflicts
 endif
 	test	al,DHM_RW+DHM_WO	; test if read/only access
 	 jz	open2
-if PASSWORD				; if write or r/w check writes
+ifdef PASSWORD				; if write or r/w check writes
 	or	dx,PWM_W		;  check for write password
 endif
 ;	mov	bx,dirp			; get directory pointer
@@ -687,7 +697,7 @@ endif
 	 jz	open9			; allow it, but adjust to read-only
 	and	al,not DHM_RWMSK	;  open mode and proceed
 open2:
-if PASSWORD
+ifdef PASSWORD
 	test	al,DHM_WO		; will we try to read?
 	 jnz	open3			; skip if not open for reading
 	or	dx,PWM_R + PWM_E	; else check for read/exec password
@@ -705,7 +715,6 @@ open9:
 	jmp	fdos_ED_ACCESS		; return "access denied" error
 
 
-eject
 ;	CLOSE FILE (CLOSE)
 
 ;	+----+----+----+----+
@@ -732,7 +741,7 @@ fdos_close:
 	 jc	close20			; skip if character device close
 close_dhndl:
 	call	release_handle		; release file handle into pool
-	callf	ss:share_stub+S_CLOSE	; call the fdos stub routine
+	call	dword ptr ss:share_stub+S_CLOSE	; call the fdos stub routine
 	dec	es:DHNDL_COUNT[bx]	; one less XFN refers to this IFN
 	test	es:DHNDL_WATTR[bx],DHAT_REMOTE+DHAT_CLEAN
 	 jnz	close10			; skip update if not dirty local file
@@ -744,7 +753,6 @@ close10:
 close20:				; handle refers to character device
 	jmp	close_dev		; close the device handle
 
-eject
 ;	READ FROM FILE (READ)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -809,7 +817,6 @@ rw_ED_ACCESS:
 	mov	bx,ED_ACCESS		; return access denied
 	ret
 
-eject
 ;	WRITE TO FILE (WRITE)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -849,7 +856,6 @@ fdos_write:
 fdos_write_dev:
 	jmp	write_dev		; write to character device
 	
-eject
 ;	DELETE FILE (UNLINK)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -912,7 +918,7 @@ unlink6:
 	 jnz	unlink8			; yes, go for it
 unlink7:
 	call	close_if_same_psp	; make sure not open by any process
-if PASSWORD
+ifdef PASSWORD
 	call	check_pwd_d		; check for password
 endif
 	call	kill_file		; delete file
@@ -930,7 +936,7 @@ unlink_attribs:
 ;	ZF = 1 if delete OK, ZF = 0 if file should be skipped
 ;
 	mov	al,byte ptr fdos_pb+8	; check attributes
-if PASSWORD
+ifdef PASSWORD
 	cmp	dosfat,FAT32		; FAT32 filesystem?
 	 je	unlink_attribs10	; yes, then ignore passwords
 	cmp	word ptr DPWD[bx],0
@@ -947,7 +953,6 @@ endif
 	ret
 
 
-eject
 ;	GET/SET FILE POSITION (LSEEK)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -999,7 +1004,7 @@ lseek2:					; seek mode 1: relative to position
 	add	es:DHNDL_POSXLO[bx],0ffffh; yes, then extend the sign to 64-bit
 	adc	es:DHNDL_POSXHI[bx],0ffffh
 lseek2a:
-	jmps	lseek4a			; update new position
+	jmp	lseek4a			; update new position
 
 lseek3:					; seek mode 2: relative to end
 ;	add	ax,es:DHNDL_SIZELO[bx]
@@ -1014,7 +1019,7 @@ lseek3:					; seek mode 2: relative to end
 	mov	ax,es:DHNDL_SIZEXHI[bx]
 	mov	es:DHNDL_POSXHI[bx],ax
 	pop	ax
-	jmps	lseek2
+	jmp	lseek2
 lseek4:					; seek mode 0: set absolute position
 	mov	es:DHNDL_POSLO[bx],ax
 	mov	es:DHNDL_POSHI[bx],dx
@@ -1037,7 +1042,7 @@ lseek4c:
 	xor	ax,ax
 	dec	ax
 	mov	dx,ax
-	jmps	lseek4e
+	jmp	lseek4e
 lseek4d:
 	mov	ax,es:DHNDL_POSLO[bx]
 	mov	dx,es:DHNDL_POSHI[bx]
@@ -1046,7 +1051,6 @@ lseek4e:
 	mov	fdos_pb+6,dx
 	ret
 
-eject
 ;	GET/SET FILE ATTRIBUTES (CHMOD)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -1068,7 +1072,7 @@ eject
 ;	attrib:	file attribute if flag=0
 ;	size:	file size if flag=0
 ;
-if PASSWORD
+ifdef PASSWORD
 ;	entry:
 ;	------
 ;	name:	pointer to ASCIIZ file name
@@ -1087,7 +1091,7 @@ if PASSWORD
 ;		password mode if flag = 2
 ;		encrypted password if flag = 4
 endif
-if UNDELETE
+ifdef UNDELETE
 ;	entry:
 ;	------
 ;	name:	pointer to ASCIIZ file name
@@ -1103,7 +1107,7 @@ endif
 
 fdos_chmod:
 ;----------
-if UNDELETE
+ifdef UNDELETE
 	mov	si,2[bp]		; SI -> parameter block
 	mov	al,6[si]		; AX = flag
 	sub	al,80h			; is it undelete or purge
@@ -1127,7 +1131,7 @@ if UNDELETE
 	mov	ah,DELW_PURGE		; no, it must be purge entry
 fdos_undelete_purge:
 	mov	al,physical_drv		; give delwatch a chance to do it
-	callf	ss:fdos_stub
+	call	dword ptr ss:fdos_stub
 	 jc	fdos_ED_FUNCTION	; return error if DELWATCH not there
 	mov	fdos_ret,ax		;  else return result
 	ret
@@ -1158,13 +1162,13 @@ chmod10:
 	mov	bx,dirp			; BX -> matching directory entry
 	mov	ax,DSIZE[bx]
 	mov	fdos_pb+10,ax
-	mov	ax,DSIZE+WORD[bx]
+	mov	ax,[bx+DSIZE+WORD]
 	mov	fdos_pb+12,ax
 	xor	ax,ax
 	mov	al,DATTS[bx]		; get directory attributes
 	mov	cx,fdos_pb+6		; get function #
 	 jcxz	chmod30			; always allow get attribs
-if PASSWORD
+ifdef PASSWORD
 	cmp	cl,5			; validate sub-function number
 	 ja	chmod15
 	mov	ax,0
@@ -1202,7 +1206,7 @@ chmod12:
 	jmp	fdos_ED_ACCESS		; return "access denied"
 chmod13:
 	xor	DATTS[bx],dl		; set new attributes
-if PASSWORD
+ifdef PASSWORD
 	jmp	chmod90
 else
 	jmp	update_dir		; update directory
@@ -1210,11 +1214,11 @@ endif
 
 chmod15:
 	mov	ah,PASSWD_CHMOD		; call out to SECURITY TSR
-	callf	ss:fdos_stub
+	call	dword ptr ss:fdos_stub
 	 jc	fdos_ED_FUNCTION
-	jmps	chmod90
+	jmp	chmod90
 
-if PASSWORD
+ifdef PASSWORD
 chmod20:
 ; Password support for functions 3-5
 ; BX = DIRP
@@ -1242,7 +1246,7 @@ chmod30:
 	ret
 
 
-if PASSWORD
+ifdef PASSWORD
 ; Password support for functions 3/5
 ; BX = DIRP
 ; CX = flag
@@ -1296,11 +1300,6 @@ chmod90:
 	jmp	update_dir		; now update the directory
 
 
-
-
-
-
-eject
 ;	DUPLICATE FILE HANDLE (DUP)
 
 ;	+----+----+----+----+----+----+
@@ -1324,7 +1323,7 @@ fdos_dup:
 	 jnc	fdos_fdup		; share the code with DUP2
 	mov	bx,ED_HANDLE		; can't find a handle
 	ret
-eject
+
 ;	FORCE DUPLICATE FILE HANDLE (DUP2)
 
 ;	+----+----+----+----+----+----+
@@ -1365,7 +1364,6 @@ fdos_fdup:
 dup_err:				; complain someone stole my handle
 	jmp	fdos_ED_H_MATCH
 
-eject
 ;	GET CURRENT DIRECTORY
 ;	
 ;	+----+----+----+----+----+----+----+----+
@@ -1400,9 +1398,11 @@ fdos_curdir:
 	call	rebuild_ldt_curdir	; no, better rebuild it
 fdos_curdir10:
 	push	ds
-	push es ! push bx		; save LDT
+	push 	es
+	push 	bx			; save LDT
 	les	di,dword ptr fdos_pb+4	; ES:DI -> destination buffer
-	pop si ! pop ds			; DS:SI -> LDT
+	pop 	si
+	pop 	ds			; DS:SI -> LDT
 	add	si,ds:LDT_ROOTLEN[si]	; skip the '\\server\dir'
 	lodsb				; eat the slash
 	call	check_slash		; if it is one..
@@ -1418,7 +1418,6 @@ fdos_curdir30:
 	jmp	fdos_ED_DRIVE		; naughty - it's a bad drive
 
 
-eject
 ;	GET DISK PARAMETER BLOCK
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -1446,11 +1445,11 @@ fdos_getdpb:
 	test	fdos_pb+2,8000h		; free space required ?
 	 jnz	fdos_getdpb10
 	call	update_ddsc_free	; then make sure it is up to date
-if DELWATCH
+ifdef DELWATCH
 	xor	cx,cx			; assume no adjustment
 	mov	ah,DELW_SPACE
 	mov	al,physical_drv		; now we call DELWATCH to
-	callf	fdos_stub		;  add pending deletes
+	call	dword ptr fdos_stub	;  add pending deletes
 	mov	fdos_pb+8,cx		; return free space adjust value
 endif
 fdos_getdpb10:
@@ -1459,7 +1458,6 @@ fdos_getdpb10:
 	mov	fdos_pb+6,es
 	ret
 
-eject
 ;	FLUSH BUFFERS
 
 ;	+----+----+
@@ -1504,7 +1502,6 @@ fdos_flush20:
 ;	ret
 
 
-eject
 ;	SELECT DRIVE
 
 ;	+----+----+----+----+
@@ -1531,7 +1528,7 @@ fdos_select:
 	 jnz	fdos_select20		;  skip physical selection bit
 	test	ax,LFLG_PHYSICAL
 	 jz	fdos_select30		;  skip physical selection bit
-if JOIN
+ifdef JOIN
 	test	ax,LFLG_JOINED		; JOINed drives are bad news
 	 jnz	fdos_select30		;  so don't select one
 endif
@@ -1546,7 +1543,6 @@ fdos_select20:
 fdos_select30:
 	ret
 
-eject
 ;	EXECUTE CHILD (EXEC)
 
 ;	+----+----+----+----+
@@ -1569,9 +1565,9 @@ fdos_exec:
 	mov	di,offset PSP_XFT
 	mov	es,cx			; get child PSP
 	mov	cx,XFNMAX		; get # of handles in child PSP
-	mov	PSP_XFNMAX,cx
-	mov	PSP_XFTOFF,di
-	mov	PSP_XFTSEG,es
+	mov	es:PSP_XFNMAX,cx
+	mov	es:PSP_XFTOFF,di
+	mov	es:PSP_XFTSEG,es
 	mov	al,0FFh			; assume all handles closed
 	rep	stosb
 	xor	si,si			; start with XFN 0
@@ -1603,7 +1599,6 @@ exec30:
 	ret
 
 
-eject
 ;	FIND FIRST FILE
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -1637,7 +1632,7 @@ fdos_first:
 	mov	ax,fdos_pb+8		; get search attribute
 	mov	attributes,al		; set for attribute match
 	mov	dcnt,0FFFFh		; search from beginning
-	jmps	search_next		; find next matching file
+	jmp	search_next		; find next matching file
 
 fdos_first10:
 	jmp	first_dev		; return device name
@@ -1646,7 +1641,6 @@ next_deverr:				; NEXT after FIRST on device:
 	mov	bx,ED_FILE		; "no more files"
 	ret
 
-eject
 ;	FIND NEXT FILE
 
 ;	+----+----+
@@ -1688,12 +1682,12 @@ search_next:
 	 jnz	search_n10		; these bits take precedence
 	test	al,DA_VOLUME		; searching for label?
 	 jz	search_n10		; search for directory label only
-if UNDELETE
+ifdef UNDELETE
 	cmp	al,DA_DELWATCH+DA_VOLUME
 	 jne	search_vol		; searching for pending delete entries?
 	call	find_pending_delete	; did we find it ?
 	 jz	search_next_err		; No, then skip
-	jmps	search_n30		; save search state for user
+	jmp	search_n30		; save search state for user
 search_vol:
 endif
 	call	find_label		; did we find it ?
@@ -1707,7 +1701,7 @@ search_n10:
 	mov	finddfcb_mask,DA_VOLUME*256	; restore mask
 	 jz	search_next_err		; if not found
 	mov	al,attributes		; get attributes that we support
-if PASSWORD
+ifdef PASSWORD
 	cmp	dosfat,FAT32		; FAT32 filesystem?
 	 je	search_n20		; yes, then ignore passwords
 	cmp	word ptr DPWD[bx],0	; does it have a password?
@@ -1722,10 +1716,11 @@ endif
 	test	DATTS[bx],al		; any attributes we don't support
 	 jnz	search_n10		; then don't count this one
 search_n30:
-	push ss ! pop es
+	push 	ss
+	pop 	es
 	mov	di,offset srch_buf	; ES:DI -> DMA search address
 	push	di			; save for later
-if JOIN
+ifdef JOIN
 	mov	al,fdos_hds_drv		; save the PHYSICAL drive
 else
 	mov	al,byte ptr path_drive	; save the specified drive
@@ -1762,17 +1757,20 @@ search_n35:
 
 	pop	si			; SI = offset srch_buf
 	call	les_di_dmaptr		; ES:DI -> DMA address
-	push ss ! pop ds		; DS:SI -> srch_buf
+	push 	ss
+	pop 	ds			; DS:SI -> srch_buf
 	mov	cx,21
 	rep	movsb			; copy from buffer to user DMA
 	mov	bx,dirp			; BX -> matching entry
 	mov	al,DATTS[bx]
 	stosb				; return directory attribute
 	lea	si,DTIME[bx]
-	movsw ! movsw			; return time, date
+	movsw
+	movsw				; return time, date
 	inc	si
 	inc	si			; skip starting cluster
-	movsw ! movsw			; return file size
+	movsw
+	movsw				; return file size
 	mov	al,DSIZEX[bx]		; compute extended file size
 	mov	ah,al
 	and	al,111b
@@ -1783,18 +1781,18 @@ search_n35:
 	 jz	search_n38		; no, return 32bit file size
 	or	al,ah
 	mov	es:[di]-11,al		; return extended file size
-	jmps	search_n40
+	jmp	search_n40
 search_n38:
 	or	al,ah
 	 je	search_n40		; if below 4 GB then skip
 	sub	di,4			; else go back to file size field
 	xor	ax,ax			; AX=FFFFh
 	dec	ax
-	stosw ! stosw			; report 4 GB - 1
+	stosw
+	stosw				; report 4 GB - 1
 search_n40:
 	jmp	unparse			; return file name
 
-eject
 ;	COMMIT FILE (COMMIT)
 
 ;	+----+----+----+----+
@@ -1839,9 +1837,11 @@ file_update:
 	xor	cx,cx			; find any entry
 	mov	chdblk,cx		; non-sequential access
 	mov	chdblk+2,cx
-	push es ! push bx
+	push 	es
+	push 	bx
 	call	getdir			; read the directory entry
-	pop bx ! pop es
+	pop 	bx
+	pop 	es
 	test	ax,ax			; did we find something?
 	 jz	file_updt10		; skip if directory entry lost
 	xchg	ax,di			; DI -> directory entry in buffer
@@ -1865,19 +1865,25 @@ file_update:
 file_update05:
 	mov	ax,es:DHNDL_BLK1[bx]	; 1st block in file
 	lea	di,DTIME[di]		; DI -> [time,date,block1,size]
-	push es ! push bx
+	push 	es
+	push 	bx
 	push	ds
 	lea si,DHNDL_TIME[bx]
-	push ds ! push es
-	pop ds ! pop es			; swap ES and DS
-	movsw ! movsw			; copy time then date
+	push 	ds
+	push 	es
+	pop 	ds
+	pop 	es			; swap ES and DS
+	movsw
+	movsw				; copy time then date
 	stosw				; now 1st cluster
-	movsw ! movsw			; finally file size
+	movsw
+	movsw				; finally file size
 	pop	ds
 	call	update_dir		; update directory
 	call	update_fat		; flush dirty FAT
 	call	update_dat		; flush all dirty data buffers
-	pop	bx ! pop es
+	pop	bx
+	pop 	es
 	or	es:DHNDL_ATTR[bx],DHAT_CLEAN
 	ret				; only mark as clean AFTER it's written
 
@@ -1886,9 +1892,6 @@ file_updt10:
 	mov	fdos_ret,ax		; save error code
 	ret
 
-
-
-eject
 ;	CREATE NEW FILE
 
 ;	+----+----+----+----+----+----+----+----+
@@ -1925,7 +1928,7 @@ mknew10:
     mov ax,ED_EXISTS        
 	jmp	fdos_error
 
-eject
+
 ;	LOCK/UNLOCK FILE DATA (LOCK/UNLOCK)
 
 ;	+----+----+----+----+----+----+----+----+
@@ -1956,7 +1959,7 @@ fdos_lock:
 	mov	ax,ED_ACCESS		; assume a problem
 	 jc	lock_error		; can't lock/unlock device handles
 	mov	di,offset fdos_pb
-	callf	ss:share_stub+S_LOCKS	; call the stub routine
+	call	dword ptr ss:share_stub+S_LOCKS	; call the stub routine
 	 jnc	lock_ret		; return error if we got one
 lock_error:
 	jmp	fdos_error		; can't do locking
@@ -1966,7 +1969,7 @@ lock_dev:
 lock_ret:
 	ret
 
-eject
+
 ;	BUILD DDSC FROM BPB
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -1996,7 +1999,7 @@ fdos_mkddsc:
 	cmp	dx,4152h		; does the second signature match?
 	 jne	mkddsc_noext		; no, proceed with normal function
 	call	bpb2ddsc		; convert BPB to DDSC
-	jmps	mkddsc_ext
+	jmp	mkddsc_ext
 mkddsc_noext:
 	call	bpb2ddsc_noext		; convert BPB to normal DDSC (without extended drive info)
 mkddsc_ext:
@@ -2006,7 +2009,7 @@ mkddsc_ext:
 
 bpb2ddsc_noext:
 	mov	bl,0			; do not build extended DDSC
-	jmps	bpb2ddsc02
+	jmp	bpb2ddsc02
 bpb2ddsc:
 ;--------
 ; build a DDSC from a BPB, leavinf UNIT, RUNIT, DEVICE, FIRST, and LINK fields
@@ -2044,11 +2047,7 @@ bpb2ddsc02:
 	mov	es:DDSC_MEDIA[di],al	; set media byte
 
 	lodsw				; get # of sectors in a fat
-if DOS5
 	mov	es:DDSC_NFATRECS[di],ax	; set FAT size
-else
-	mov	es:DDSC_NFATRECS[di],al	; set FAT size
-endif
 ;	mov	es:word ptr DDSC_BFATRECS[di],ax	; FAT size (32-bit)
 ;	mov	es:word ptr DDSC_BFATRECS+2[di],0
 
@@ -2091,7 +2090,7 @@ bpb2ddsc20:				; count # of 1 bits
 	inc	cx			; count another 1 bit
 	shr	dx,1
 	rcr	ax,1			; div by two
-	jmps	bpb2ddsc20		; repeat until all 1's counted
+	jmp	bpb2ddsc20		; repeat until all 1's counted
 bpb2ddsc30:				; CL = log2 (CH)
 	mov	es:DDSC_CLSHF[di],cl	; set cluster shift
 	inc	ax			; clusters 0/1 reserved (+2), and we
@@ -2160,8 +2159,8 @@ bpb2ddsc41b:
 	 je	bpb2ddsc42		; yes, then leave it
 	mov	es:word ptr DDSC_DATADDR[di],0	; else mark this entry as invalid
 bpb2ddsc42:
-	mov	ax,-20[si]		; get low word of size
-	mov	dx,-18[si]		; get high word of size
+	mov	ax,[si-20]		; get low word of size
+	mov	dx,[si-18]		; get high word of size
 	sub	ax,es:word ptr DDSC_BDATADDR[di]	; subtract non-data portion
 	sbb	dx,es:word ptr DDSC_BDATADDR+2[di]
 	xor	cx,cx
@@ -2188,7 +2187,7 @@ bpb2ddsc44:
 bpb2ddsc50:
 	ret
 
-eject
+
 ;	DIRECT DISK IO
 
 ;	+----+----+----+----+----+----+
@@ -2259,7 +2258,7 @@ fdos_ddio20:
 fdos_ddio30:
 	jmp	fdos_ED_DRIVE		; return bad drive error
 
-eject
+
 ;	EXPAND FILE NAME
 
 ;	+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
@@ -2318,7 +2317,8 @@ fdos_expand21:
 	 jnz	fdos_expand22		; make sure it's a valid drive
 	jmp	fdos_expand50
 fdos_expand22:
-	push ss ! pop es
+	push 	ss
+	pop 	es
 	mov	di,offset pri_pathname	; build name in pathname buffer
 	lds	si,dword ptr fdos_pb+2
 
@@ -2364,7 +2364,8 @@ fdos_expand25:
 	mov	bx,2			;  only append if real root
 fdos_expand30:
 	mov	si,offset pri_pathname	; SS:SI -> full path
-	push ss ! pop ds		; leave current ldt -> buffer as LAN
+	push 	ss
+	pop 	ds			; leave current ldt -> buffer as LAN
 	mov	word ptr current_ldt,si	;  MAN 2.1 extended edition expects it
 	mov	word ptr current_ldt+WORD,ds
 	mov	ax,'\'			; get pathchar in AX for checks
@@ -2387,7 +2388,7 @@ fdos_expand60:
 expand_dev:
 ;----------
 	les	si,dword ptr fdos_pb+2	; this is the original source
-	lods	es:ax			; get the source
+	lodsw	es:0			; get the source
 	les	di,dword ptr fdos_pb+10	; data will end up here
 	cmp	ah,':'			; is a drive specified ?
 	 je	expand_dev10
@@ -2401,7 +2402,7 @@ expand_dev10:
 	mov	bx,offset name_buf	; DS:BX -> name buffer
 	jmp	unparse			; unparse the device name
 
-eject
+
 ;	RENAME FILE
 
 ;	+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
@@ -2434,7 +2435,7 @@ move10:
 	 jz	fdos_ED_FILE		; error if no match occurred
 move20:
 	call	close_if_same_psp	; make sure not open by other PDs
-if PASSWORD
+ifdef PASSWORD
 	call	check_pwd_any		; check if password protected
 endif
 	mov	si,dirp			; get matching directory entry
@@ -2462,7 +2463,7 @@ move25:
 	 je	move30			;   source and destination
 
 	mov	ax,ED_DEVICE		; "not same device" error
-	jmps	fdos_moverr		; return the error
+	jmp	fdos_moverr		; return the error
 fdos_ED_FILE:
 	mov	ax,ED_FILE		; get error code
 fdos_moverr:
@@ -2470,7 +2471,7 @@ fdos_moverr:
 
 move30:					; same drive for source & destination
 	mov	al,byte ptr fdos_pb+8	; check attributes
-if PASSWORD
+ifdef PASSWORD
 	cmp	dosfat,FAT32		; FAT32 filesystem?
 	 je	move31			; yes, then ignore passwords
 	cmp	save_area+DPWD,0
@@ -2492,7 +2493,7 @@ endif
 	mov	cx,11
 move40:					; fill in the wild card characters
 	lodsb				; get next character from new name
-if KANJI
+ifdef KANJI
 	call	dbcs_lead		; is it the 1st of a kanji pair
 	 jne	move45
 	dec	cx			; copied this one
@@ -2500,7 +2501,7 @@ if KANJI
 	stosb				; copy 1st byte of Kanji pair
 	inc	bx
 	lodsb				; copy 2nd byte
-	jmps	move50
+	jmp	move50
 move45:
 endif
 	call	toupper			; make it upper case
@@ -2519,7 +2520,7 @@ move55:
 	call	move_comp		; source & destination in same dir?
 	 jne	move60			; skip if moving to different directory
 	call	move_seek		; else find old entry again
-	jmps	move70			; replace name in old entry
+	jmp	move70			; replace name in old entry
 
 move60:					; moving to different directory
 	test	save_area+DATTS,DA_DIR	; can't move directory to new path
@@ -2557,7 +2558,9 @@ move80:
 	mov	ax,saved_dcnt		; restore dcnt for remote call
 	mov	dcnt,ax			; to function properly
 	and	chdblk,0
+	nop	; REMOVE AFTER JWASM CONVERSION
 	and	chdblk+2,0
+	nop	; REMOVE AFTER JWASM CONVERSION
 
 	call	finddfcb		; try to locate another directory entry
 	 jz	move90			; no, return now
@@ -2587,7 +2590,9 @@ move_seek:				; re-seek the old directory entry
 	dec	ax			; move back one for GETDIR
 	mov	dcnt,ax			; set search offset
 	and	chdblk,0		; follow the chains, not sequential
+	nop	; REMOVE AFTER JWASM CONVERSION
 	and	chdblk+2,0
+	nop	; REMOVE AFTER JWASM CONVERSION
 	mov	cl,0			; return next entry
 	jmp	getdir			; in current directory
 
@@ -2600,7 +2605,7 @@ move_comp:
 move_comp10:
 	ret
 
-eject
+
 ;	GET/SET FILE DATE/TIME
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -2636,7 +2641,7 @@ fdos_dattim:
 dattim1:				; else set date/time stamp
 	mov	dx,fdos_pb+6		; set date
 	mov	ax,fdos_pb+8		;  and time
-	jmps	set_timestamp
+	jmp	set_timestamp
 
 	Public	timestamp_dhndl
 
@@ -2667,7 +2672,7 @@ set_timestamp:
 	and	es:DHNDL_ATTR[bx],not DHAT_CLEAN
 	mov	es:DHNDL_DATE[bx],dx	; remember to update directory
 	mov	es:DHNDL_TIME[bx],ax	; ask SHARE to record the changes
-	callf	share_stub+S_RECORD	;  for the benefit of others
+	call	dword ptr share_stub+S_RECORD	;  for the benefit of others
 	ret
 
 
@@ -2703,3 +2708,5 @@ fcb_reopen0:
 fcb_reopen_error:
 	mov	ax,ED_NOFCBS
 	jmp	fdos_error
+
+BDOS_CODE	ends

@@ -61,6 +61,16 @@
 ;    ENDLOG
 ;	General utility include module for FDOS.A86
 
+
+BDOS_DATA	segment public word 'DATA'
+
+join_name	db	'd:\filename.ext',0
+
+BDOS_DATA	ends
+
+
+BDOS_CODE	segment public byte 'CODE'
+
 select_pb2:
 ;----------
 	call	get_pb2_drive		; get drive from parameter block
@@ -111,7 +121,7 @@ dbcs_lead:
 ; Lost
 ;	no registers changed
 
-if KANJI
+ifdef KANJI
 	push	si
 	push	bx
 	push	ax
@@ -123,7 +133,7 @@ if KANJI
 ; the given character.
 	mov	bl, al			; bl = byte to be tested
 dbcs_loop:
-	lods	ss:ax			; al/ah = start/end of range
+	lodsw	ss:0			; al/ah = start/end of range
 	test 	ax, ax			; end of table?
 	 jz	dbcs_no			;  yes - exit (not in table)
 	cmp	al, bl			; start <= bl?
@@ -133,7 +143,7 @@ dbcs_loop:
 
 	cmp	al, al			; return with Z flag set
 	jmp	dbcs_exit
-
+	nop	; REMOVE AFTER JWASM CONVERSION
 dbcs_no:
 	cmp	al, 1			; return with Z flag reset
 
@@ -160,12 +170,12 @@ kanji_eos1:
 	 jz	kanji_eos9		; return if NUL found
 	mov	dx,di
 	inc	di			; move to next character
-if KANJI
+ifdef KANJI
 	call	dbcs_lead		; is this first half of 16-bit char?
 	 jne	kanji_eos1		; skip if normal character
 	inc	di			; else skip 2nd half (should really check)
 endif
-	jmps	kanji_eos1		; loop back for next character
+	jmp	kanji_eos1		; loop back for next character
 
 kanji_eos9:
 	mov	di,dx			; ES:DI -> last character
@@ -181,18 +191,18 @@ path_chop:
 	test	al,al			; end of string?
 	 jz	path_chop2		; yes, string scanned
 	inc	di			; next character
-if KANJI
+ifdef KANJI
 	call	dbcs_lead		; lead-in of 16-bit character?
 	 jne	path_chop1		; no, normal 8-bit
 	inc	di			; skip hi-byte (should really check)
-	jmps	path_chop		; try again
+	jmp	path_chop		; try again
 path_chop1:
 endif
 	call	check_slash		; is this a path character
 	 jne	path_chop		; loop back if not path character
 	mov	dx,cx			; last but one '/' = last '/'
 	mov	cx,di			; last '/' = current '/'
-	jmps	path_chop		; repeat
+	jmp	path_chop		; repeat
 path_chop2:
 	mov	di,dx			; ES:DI -> last but one slash + 1
 	sub	ax,ax			; get a NUL byte
@@ -211,8 +221,10 @@ rebuild_ldt_root:
 ;	LDT_ROOT rebuilt from ASCII LDT_NAME
 ;
 	push	ds
-	push es ! pop ds		; DS:BX -> LDT_
-	push ss ! pop es
+	push 	es
+	pop 	ds			; DS:BX -> LDT_
+	push 	ss
+	pop 	es
 	mov	di,offset temp_ldt	; ES:DI -> temp LDT_
 	lea	si,LDT_NAME+3[bx]	; point to start of pathname
 	mov	cx,LDT_ROOTLEN[bx]	; CX = end of root portion
@@ -226,13 +238,14 @@ rebuild_ldt_root:
 	mov	LDT_ROOTLEN[bx],2	; force ourselves into the root
 	mov	LDT_NAME+3[bx],al	;  as the media has changed
 rebuild_ldt_root10:
-	push ds ! pop es		; ES:BX -> LDT_
+	push 	ds
+	pop 	es			; ES:BX -> LDT_
 	pop	ds
 	mov	ax,fdos_hds_blk
 	mov	dx,fdos_hds_blk+2
 	mov	es:LDT_ROOT[bx],ax	; update our root block
 	mov	es:LDT_ROOTH[bx],dx
-if JOIN
+ifdef JOIN
 	mov	al,fdos_hds_drv		;  and the physical drive
 	mov	es:LDT_DRV[bx],al
 endif
@@ -249,8 +262,10 @@ rebuild_ldt_curdir:
 ;	LDT_DRV and LDT_BLK rebuilt from ASCII LDT_NAME
 ;
 	push	ds
-	push es ! pop ds		; DS:BX -> LDT_
-	push ss ! pop es
+	push 	es
+	pop 	ds			; DS:BX -> LDT_
+	push 	ss
+	pop 	es
 	mov	di,offset temp_ldt	; ES:DI -> temp LDT_
 	mov	si,LDT_ROOTLEN[bx]	; SI = end of root portion
 	lea	si,LDT_NAME[bx+si]	; point to subdir entry
@@ -262,7 +277,8 @@ rebuild_ldt_curdir10:
 	test	al,al			; anything to do?
 	 jz	rebuild_ldt_curdir40	;  no, we are already there
 rebuild_ldt_curdir20:
-	lodsb ! stosb			; copy the string
+	lodsb
+	stosb				; copy the string
 	test	al,al			; until we hit the terminating NUL
 	 jnz	rebuild_ldt_curdir20
 	dec	di
@@ -275,13 +291,14 @@ rebuild_ldt_curdir20:
 rebuild_ldt_curdir30:
 	mov	LDT_NAME[bx+si],0	; move ASCII to root
 rebuild_ldt_curdir40:
-	push ds ! pop es		; ES:BX -> LDT_
+	push 	ds
+	pop 	es			; ES:BX -> LDT_
 	pop	ds
 	mov	ax,fdos_hds_blk
 	mov	dx,fdos_hds_blk+2
 	mov	es:LDT_BLK[bx],ax	; update our curdir block
 	mov	es:LDT_BLKH[bx],dx
-if JOIN
+ifdef JOIN
 	mov	al,fdos_hds_drv		;  and the physical drive
 	mov	es:LDT_DRV[bx],al
 endif
@@ -301,11 +318,13 @@ select_dir:
 	stosw				;  (and so a NULL path)
 	xor	ax,ax
 	stosb
-	push ds ! push bx		; make sure LDT survives
-	push ss ! pop ds		; DS back to SYSDAT
+	push 	ds
+	push 	bx			; make sure LDT survives
+	push 	ss
+	pop 	ds			; DS back to SYSDAT
 	mov	si,offset temp_ldt	; ES:SI -> directory to select
 	call	path_prep_next		;  try to move into it
-if JOIN
+ifdef JOIN
 	call	offer_join		; are we opening a JOIN'd drive ?
 	 jnc	select_dir20
 endif
@@ -313,7 +332,8 @@ endif
 	 jz	select_dir10		; stop if we can't
 	test	DATTS[bx],DA_DIR	; check if directory
 	 jz	select_dir10		; fail if this is a file
-	push ds ! pop es
+	push 	ds
+	pop 	es
 	lea	di,DNAME[bx]		; ES:DI -> ASCII name to open
 	mov	cx,8+3
 	mov	al,' '
@@ -328,11 +348,11 @@ select_dir10:
 	mov	fdos_hds_blk+2,dx
 	stc				; return error
 select_dir20:
-	pop bx ! pop ds
+	pop 	bx
+	pop 	ds
 	ret
 
 
-eject
 ;	Run down the path and parse final name
 ;	exit:	ds:dx -> info_fcb parsed at path end
 ;		cf = 1, and al = code on any error
@@ -357,19 +377,20 @@ path_prep_check:
 path_prep_cont:
 	push	di			; DX = drive code (0-15)
 	push	es			; save string address
-	push ds ! pop es		; ES = SYSDAT
+	push 	ds
+	pop 	es			; ES = SYSDAT
 	call	select_unique		; select the drive and
 	pop	es
 	pop	si			; es:si -> past drive
 
-	lods	es:al			; get first character
+	lodsb	es:0			; get first character
 	call	check_slash		; if '\' or '/' then start at root
 	 jne	path_prep_curdir	;  else select current directory
 	push	es
 	call	path_prep_root		; fake a '.' entry for the root
 	pop	es
 path_prep_cont05:
-	lods	es:al			; get next char
+	lodsb	es:0			; get next char
 	dec	si			; forget we looked
 	test	al,al			; if just a '\' stop now
 ;	 jz	path_prep_done
@@ -378,8 +399,8 @@ path_prep_cont05:
 path_prep_cont10:
 	call	check_slash     
 	 jne	path_prep_next		;  otherwise start processing from root
-	lods	es:al
-	jmps	path_prep_cont05
+	lodsb	es:0
+	jmp	path_prep_cont05
 ;	mov	ax,ED_ACCESS		; get correct error code
 ;	stc				;  and return if \\
 ;	ret
@@ -387,15 +408,17 @@ path_prep_cont10:
 path_prep_curdir:
 ; We need to select the current directory as a start for our operations
 	dec	si			; forget about char we looked at
-	push es ! push si		;  and save position in name
+	push 	es
+	push 	si			;  and save position in name
 	mov	al,logical_drv		; get the current logical drive
 	call	get_ldt			;  and hence the LDT structures
 	 jc	path_prep_curdir30	; no LDT, leave at physical root
-if JOIN
+ifdef JOIN
 	mov	al,fdos_hds_drv		; are we on a known drive ?
 	sub	al,es:LDT_DRV[bx]	; (we may be on joined drive)
 	 jne	path_prep_curdir10	; if not better rebuild
-	cbw ! dec ax			; AX = FFFF
+	cbw
+	dec 	ax			; AX = FFFF
 else
 	mov	ax,0FFFFh
 endif
@@ -411,7 +434,8 @@ path_prep_curdir20:
 	mov	fdos_hds_blk,ax
 	mov	fdos_hds_blk+2,dx
 path_prep_curdir30:
-	pop si ! pop es			; ES:SI -> name again
+	pop 	si
+	pop 	es			; ES:SI -> name again
 
 path_prep_next:
 ;--------------
@@ -441,7 +465,7 @@ path_prep_next:
 	call	check_no_wild		; no wilds cards in path's
 	 je	path_prep_error		; skip if wild cards found
 
-if JOIN
+ifdef JOIN
 	push	es
 	push	si
 	call	offer_join		; are we opening a JOIN'd drive ?
@@ -451,7 +475,8 @@ if JOIN
 endif
 	push	es
 	push	si			; save string address
-	push ds ! pop es		; ES = local segment
+	push 	ds
+	pop 	es			; ES = local segment
 	call	finddfcbf		; locate the directory entry
 	pop	si
 	pop	es			; restore string address
@@ -460,13 +485,16 @@ endif
 	test	DATTS[bx],DA_DIR	; check if directory
 	 jz	path_prep_error		; fail if this is a file
 
-	push	es ! push si		; save string address
-	push	ds ! pop  es		; ES = local segment
-if PASSWORD
+	push	es
+	push 	si			; save string address
+	push	ds
+	pop  	es			; ES = local segment
+ifdef PASSWORD
 	call	check_pwd_any		; check if PW req'd & supplied
 endif
 	call	open_dir		; go down one level
-	pop	si ! pop  es		; restore string address
+	pop	si
+	pop  	es			; restore string address
 	 jnc	path_prep_next		; if open is good, repeat
 path_prep_error:
 	mov	ax,ED_PATH		; return code in case of error
@@ -477,7 +505,7 @@ path_prep_error:
 path_prep_done:
 	cmp	info_fcb+1,'.'		; is it '.' or '..' ?
 	 jne	path_prep_exit		; if so get its full name
-if JOIN
+ifdef JOIN
 	call	offer_join		; are we opening a JOIN'd drive ?
 	 jnc	path_prep_root		;  if so move into the dir
 endif
@@ -510,17 +538,20 @@ path_prep_done15:
 	mov	local_password,ax	; ensure we can get back down
 	lea	si,DNAME[bx]		; point to it's name
 	mov	cx,11
-	push ds ! pop es
+	push 	ds
+	pop 	es
 	mov	di,offset info_fcb+1
 	rep	movsb			; copy parental name to info_fcb
 path_prep_exit:
-	push	ds ! pop  es		; restore ES to local segment
+	push	ds
+	pop  	es			; restore ES to local segment
 	clc
 	ret
 
 
 path_prep_root:
-	push	ds ! pop es		; ES = local segment
+	push	ds
+	pop 	es			; ES = local segment
 	mov	al,info_fcb		; preserve drive setting
 	call	clear_info_fcb
 	mov	info_fcb+1,'.'		; fake a '.' directory
@@ -535,25 +566,28 @@ clear_info_fcb:
 ; On Exit:
 ;	All regs preserved
 ;
-	push di ! push cx ! push ax
+	push 	di
+	push 	cx
+	push 	ax
 	mov	di,offset info_fcb
 	stosb				; set the drive code
 
 	mov	cx,11
 	mov	al,' '
 	rep	stosb			; fill name with blanks
-if PASSWORD
+ifdef PASSWORD
 	mov	cx,8
 	mov	di,offset password_buffer
 	rep	stosb			; blank password buffer
 	mov	es:local_password,cx	; zero out local password
 endif
-	pop ax ! pop cx ! pop di
+	pop 	ax
+	pop 	cx
+	pop 	di
 	clc
 	ret
 
 
-eject
 ;	Get drive from path name, or if none, use default drive
 ; On Entry:
 ;	es:di -> path name
@@ -568,7 +602,7 @@ get_path_drive:
 	cmp	es:byte ptr 1[di],':'	; if the second char is ':',
 	 jz	get_path_explicit	;    then drive is in pathname
 	call	current_dsk2al
-	jmps	get_path_ok		; common code from here
+	jmp	get_path_ok		; common code from here
 
 get_path_explicit:
 	mov	al,es:[di]		; grab the drive designator
@@ -588,7 +622,6 @@ get_path_error:
 	stc				; flag the error
 	ret
 
-eject
 asciiz_dev_offer:
 ;----------------
 ; On Entry:
@@ -611,9 +644,11 @@ asciiz_dev_offer:
 	 je	asciiz_dev_offer30	;  you do get them....
 	cmp	ds:byte ptr 1[si],':'	; is a drive specified
 	 jne	asciiz_dev_offer10
-	inc si ! inc si			; skip that, but no more
+	inc 	si
+	inc 	si			; skip that, but no more
 asciiz_dev_offer10:
-	push ss ! pop es		; ES:DI -> scratch FCB in build
+	push 	ss
+	pop 	es			; ES:DI -> scratch FCB in build
 	mov	di,offset name_buf	;  name in pcmode data buffer
 	mov	al,' '
 	mov	cx,8+3
@@ -654,13 +689,15 @@ asciiz_dev_offer15:
 asciiz_dev_offer20:
 	test	al,al			; if not a NUL by now forget it
 	 jnz	asciiz_dev_offer30
-	push ss ! pop ds
+	push 	ss
+	pop 	ds
 	mov	si,offset name_buf	; DS:SI -> name
 	call	check_device_common	; try to find the name
 	 jnc	asciiz_dev_accept	; if we can handle it here
 asciiz_dev_offer30:
 	pop	ds			; DS back to normal
-	push ss ! pop es		; ditto with ES
+	push 	ss
+	pop 	es			; ditto with ES
 	ret				; not a device - proceed
 
 asciiz_dev_accept:
@@ -683,7 +720,6 @@ asciiz_dev_accept10:
 asciiz_dev_accept20:
 	jmp	expand_dev		; 'expand' the device locally
 
-eject
 chk_no_dev:		; check file is not a character device
 ;----------
 ; On Entry:
@@ -693,7 +729,8 @@ chk_no_dev:		; check file is not a character device
 ;
 	call	check_device		; is this a device ?
 	 jnc	chk_not_dev10
-	push ds ! pop es		; ES points to data again
+	push 	ds
+	pop 	es			; ES points to data again
 	ret
 chk_not_dev10:
 	jmp	fdos_ED_ACCESS		; blow caller away
@@ -721,26 +758,26 @@ check_device_common:
 ;	CY clear if found
 ;	ES:BX -> device header
 ;
-	push ss ! pop es		; Get the PCMODE Data Segment
+	push 	ss
+	pop 	es			; Get the PCMODE Data Segment
 	mov	bx,offset dev_root	;  hence the Device List
 	mov	ax,si			; keep copy of start in AX
 check_device10:
-	test	es:DH_ATTRIB[bx],DA_CHARDEV
+	test	es:DEVHDR.ATTRIB[bx],DA_CHARDEV
 	 jz	check_device20		; skip unless it's a character device
-	lea	di,DH_NAME[bx]		; ES:DI -> device name
+	lea	di,DEVHDR.NAM[bx]	; ES:DI -> device name
 	mov	cx,8/2			; compare file name w/o extension
 	repe	cmpsw			; compare until CX == 0 or mismatch
 	 je	check_device30
 check_device20:
 	mov	si,ax			; restore starting address
-	les	bx,es:DH_NEXT[bx]	; get next device driver
+	les	bx,es:DEVHDR.NEXT[bx]	; get next device driver
 	cmp	bx,0FFFFh		; end of the chain ?
 	 jne	check_device10
 	stc				; indicate character device not found
 check_device30:
 	ret
 
-eject
 
 no_dir_vol:
 ;----------
@@ -750,7 +787,6 @@ no_dir_vol:
 dir_vol_err:
 	jmp	fdos_ED_ACCESS		; return "access denied"
 
-eject
 
 
 get_pb2_drive:
@@ -762,7 +798,6 @@ get_pb2_drive:
 get_pb2_drv1:
 	ret
 
-eject
 
 mkdir_init:
 ;----------
@@ -770,13 +805,15 @@ mkdir_init:
 	push	ax			; Init 1st block of the directory
 	call	zeroblk			; zero the block
 ;	pop ax ! push ax		; get the block number
-	pop ax ! pop dx			; get the block number
+	pop 	ax
+	pop 	dx			; get the block number
 	push	dx
 	push	ax
 	xor	bx,bx			; seek to beginning of cluster
 	call	fill_dirbuf		; DI -> directory entry
 ;	pop dx ! push dx		; get our own block #
-	pop ax ! pop dx			; get our own block #
+	pop 	ax
+	pop 	dx			; get our own block #
 	push	dx
 	push	ax
 ;	mov	ax,' .'			; this is the "." directory
@@ -814,7 +851,6 @@ init_dot10:
 	pop	bx
 	jmp	stamp_date_and_time	; set date DX and time AX in dir BX
 
-eject
 
 ;	Utility functions for RMDIR and UNLINK
 
@@ -832,9 +868,11 @@ rmdir_ok05:
 	xor	bx,bx			; start at beginning
 rmdir_ok1:
 	push	dx
-	push	ax ! push bx		; save block, offset
+	push	ax
+	push 	bx			; save block, offset
 	call	fill_dirbuf		; locate directory entry
-	pop	bx ! pop ax		; restore offset, block
+	pop	bx
+	pop 	ax			; restore offset, block
 	pop	dx
 	cmp	DNAME[di],0		; is it virgin entry?
 	 je	rmdir_ok4		;    yes, no entries above here
@@ -845,7 +883,7 @@ rmdir_ok1:
 	mov	bx,di
 	call	is_lfn			; check if it is a long filename
 	 jc	rmdir_ok3		; we do not care for orphaned LFNs
-if DELWATCH
+ifdef DELWATCH
 ; We have found a dir entry - better check if it is a pending delete
 ; and that delwatch is installed. Then we can ignore it.
 	test	DATTS[di],DA_VOLUME	; is the volume label bit set
@@ -856,7 +894,7 @@ if DELWATCH
 ;	 jz	rmdir_not_empty		; yes, fall thru to delwatch check
 	xchg	ax,dx			; AH = DELW_RDMASK, DX = dir cluster
 	mov	si,di			; -> directory buffer (for DELWATCH)
-	callf	ss:fdos_stub		; is the delwatch TSR installed
+	call	dword ptr ss:fdos_stub	; is the delwatch TSR installed
 	xchg	ax,dx			; AX = dir cluster
 	pop	dx
 	 jnc	rmdir_ok3		; delwatch will handle pending deletes
@@ -948,7 +986,6 @@ chkcds20:
 	ret
 
 
-eject
 ;
 ; Go down one level in directory
 ; On Entry:
@@ -1106,8 +1143,11 @@ mkspace_parent:
 	mov	si,di			; SI -> source of copy
 	add	di,dx			; point to beyond insertion
 	push	ds
-	push	es ! pop ds		; move string backwards to make space
-	std ! rep movsb ! cld		; for directory name
+	push	es
+	pop 	ds			; move string backwards to make space
+	std
+	rep 	movsb
+	cld				; for directory name
 	pop	ds
 	mov	cx,dx			; CX = length of new directory name
 	mov	si,offset save_area	; SI -> unparsed name
@@ -1122,11 +1162,14 @@ mkspace_parent:
 find_parent:
 	mov	blk,ax			; save the block number
 	mov	blk+2,dx
-	push ds ! pop es
+	push 	ds
+	pop 	es
 	mov	di,offset info_fcb+1
-	mov	ax,'..' ! stosw		; file name is '..'
+	mov	ax,'..'
+	stosw				; file name is '..'
 	mov	al,' '			; pad with spaces
-	mov	cx,9 ! rep stosb
+	mov	cx,9
+	rep 	stosb
 	call	finddfcbf		; find pointer to parent
 	 jz	fndpar2			; shouldn't happen...
 	call	open_dir		; go up one level
@@ -1158,7 +1201,6 @@ fndpar3:
 fndpar2:
 	ret				; ZF = 0 if found
 
-eject
 path_prep_chk:
 ;-------------
 ;	Run down the path and parse final name
@@ -1171,7 +1213,6 @@ chk_no_dot_or_wild:
 	call	chk_no_dot		; no subdirs entries either
 ;	jmp	chk_no_wild		; wild cards not allowed
 
-eject
 chk_no_wild:		; make sure path doesn't contain wild cards
 ;-----------		;  (or is all spaces)
 	call	check_no_wild		; error if any wildcards
@@ -1181,7 +1222,8 @@ chk_no_wild:		; make sure path doesn't contain wild cards
 check_no_wild:		; make sure path doesn't contain wild cards
 ;-------------		;  (or is all spaces) ZF set on problem
 	push	es
-	push	ds ! pop es		; ES -> SYSDAT
+	push	ds
+	pop 	es			; ES -> SYSDAT
 	mov	di,offset info_fcb+1
 	mov	cx,11
 	mov	al,'?'			; scan for wild cards
@@ -1209,7 +1251,8 @@ chk_for_root:
 	 jne	chk_for_root10		; no, no further checks required
 	cmp	fdos_hds_blk+2,0
 	 jne	chk_for_root10
-	push ds ! pop es
+	push 	ds
+	pop 	es
 	mov	di,offset info_fcb+1
 	mov	al,'.'			;  check for root
 	scasb				; is it a '.' entry ?
@@ -1231,8 +1274,10 @@ chk_for_root10:
 
 parse_path:
 ;----------
-	push	ds ! push  es
-	pop	ds ! pop   es
+	push	ds
+	push  	es
+	pop	ds
+	pop   	es
 
 	call	clear_info_fcb		; initialise to blanks and drive AL
 
@@ -1251,7 +1296,7 @@ parse_path10:
 	lodsb				; get next char
 	cmp	al,' '			; skip all spaces
 	 je	parse_path10
-	jmps	parse_path30		; now exit as normal
+	jmp	parse_path30		; now exit as normal
 
 parse_path20:
 	call	check_delim		; if first char = delimeter
@@ -1282,19 +1327,22 @@ parse_path30:
 	mov	cx,3			; length of ext field
 	call	parse_one		; parse just extension
 parse_path40:
-if PASSWORD
+ifdef PASSWORD
 	cmp	al,';'			; check if password specified
 	 jne	parse_path50		; skip if no password
 	mov	di,offset password_buffer
 	mov	cx,8			; length of password field
 	call	parse_one		; parse just password
 	push	ax
-	push ds ! push si
-	push ss ! pop ds		; DS:SI -> ASCII password
+	push 	ds
+	push 	si
+	push 	ss
+	pop 	ds			; DS:SI -> ASCII password
 	mov	si,offset password_buffer
 	call	hash_pwd		; AX = encrypted password
 	mov	local_password,ax	; remember it in case we need it
-	pop si ! pop ds
+	pop 	si
+	pop 	ds
 	pop	ax
 endif
 parse_path50:
@@ -1327,8 +1375,10 @@ parse_path75:
 parse_path80:
 	dec	si			; retract a byte (CY unaffected)
 parse_path90:
-	push  ds  !  push  es
-	pop   ds  !  pop   es
+	push 	ds
+	push 	es
+	pop 	ds
+	pop 	es
 	ret
 
 
@@ -1361,10 +1411,10 @@ parse_one_wild:
 	cmp byte ptr [si], 0
 	jne parse_one_ignore_no_asterisk
 	clc
-	jmps	parse_one_ignore	; skip until a delimiter
+	jmp	parse_one_ignore	; skip until a delimiter
 
 parse_one_char:
-if KANJI
+ifdef KANJI
 	call	dbcs_lead		; is it 1st byte of Kanji pair?
 	 jnz	parse_one_skip		; skip if straight 8-bit
 	inc	si			; assume both chars discarded
@@ -1408,7 +1458,7 @@ check_delim:
 	ret
 
 check_delim_char:
-if KANJI
+ifdef KANJI
 	call	dbcs_lead		; if it's 1st of kanji pair
 	 jne	check_delim10		; DON'T upper case it
 	test	al,al			; clear zf
@@ -1416,13 +1466,18 @@ if KANJI
 check_delim10:
 endif
 	call	toupper			; make it upper case
-	push es ! push di ! push cx
-	push cs ! pop es
+	push 	es
+	push 	di
+	push 	cx
+	push 	cs
+	pop 	es
 	lea	di,delim_string		; es:di -> delimeters
-	mov	cx,length delim_string
+	mov	cx,lengthof delim_string
 	cld
 	repnz	scasb			; match al against the list
-	pop cx ! pop di ! pop es
+	pop 	cx
+	pop 	di
+	pop 	es
 	clc				; never return cf set
 	ret				; with zf set by scasb
 
@@ -1468,21 +1523,20 @@ isupper:
 	ret
 
 toupper_intl:
-	callf	ss:intl_xlat		; call international upper case vector
+	call	dword ptr ss:intl_xlat	; call international upper case vector
 	ret
 
-eject
 kill_file:	; release clusters for file/dir and delete entry
 ;---------
 	call	del_lfn			; delete any preceding LFN entries
 	mov	bx,dirp			; get pointer to directory entry
-if DELWATCH
+ifdef DELWATCH
 	call	hdsblk			; AX = directory root cluster
 	xchg	ax,dx			; DX = dir cluster
 	mov	cx,dcnt			; CX = directory index for entry
 	mov	ah,DELW_DELETE		; we are about to delete this dir
 	mov	al,physical_drv		;  directory entry so give delwatch
-	callf	ss:fdos_stub		;  a chance to make it pending delete
+	call	dword ptr ss:fdos_stub	;  a chance to make it pending delete
 	 jnc	kill_file10		; delwatch took it - just update dir
 endif
 	mov	al,0E5h			; deleted file mark
@@ -1498,7 +1552,6 @@ kill_file05:
 kill_file10:
 	jmp	flush_dirbuf		; update the directory
 					; done it! (DIR/FAT still dirty)
-eject
 
 mustbe_nolbl:
 ;------------
@@ -1508,7 +1561,8 @@ mustbe_nolbl:
 ;	Only returns if no label exists
 ;	forces us to root of drive
 ;
-	push	ds ! pop es		; ES = DS for string ops
+	push	ds
+	pop 	es			; ES = DS for string ops
 	mov	si,offset info_fcb+1
 	mov	di,offset save_area	; SI->search name, DI->save area
 	mov	cx,11
@@ -1526,7 +1580,8 @@ mustbe_nolbl:
 	pop	cx			; CX = length (11)
 	pop	di			; DI = info_fcb+1
 	pop	si			; SI = save_area
-	push	ds ! pop es		; ES = DS for string ops
+	push	ds
+	pop 	es			; ES = DS for string ops
 	rep	movsb			; restore info_fcb
 	 jnz	mustbe_nolbl10		; if we found a label bail out
 	ret
@@ -1571,7 +1626,7 @@ find_label40:
 	mov	finddfcb_mask,DA_VOLUME*256
 	ret				; back to no VOL labels or pending dels
 
-if UNDELETE
+ifdef UNDELETE
 find_pending_delete: 			; find pending delete only
 ;-------------------
 ; On Entry:
@@ -1608,7 +1663,6 @@ find_pending_delete30:
 
 endif
 
-eject
 find_xfn:	; find spare external file number
 ;--------
 ;	exit:	DI = new handle
@@ -1703,8 +1757,10 @@ creat_handle:
 	call	check_with_share	; does SHARE approve ?
 	call	alloc_dhndl		; allocate a DHNDL_ structure
 	mov	fdos_ret,ax		; remember IFN in case it's FCB
-	pop dx ! push dx		; DX = open mode
-	push es ! push bx		; save DHNDL_ pointer
+	pop 	dx
+	push 	dx			; DX = open mode
+	push 	es
+	push 	bx			; save DHNDL_ pointer
 	test	dh,DHM_FCB/100h		; FCB call?
 	 jne	creat_handle10		; skip XFN allocation if FCB
 	push	ax			; save IFN
@@ -1715,7 +1771,8 @@ creat_handle:
 	 jc	creat_handle10			; skip if we don't have one
 	mov	es:[di+bx],al		; set IFN in PSP
 creat_handle10:
-	pop bx ! pop es
+	pop 	bx
+	pop 	es
 	lea	di,DHNDL_COUNT[bx]	; point at open count
 	mov	ax,1
 	stosw				; open by one
@@ -1763,7 +1820,8 @@ creat_handle25:
 	stosw
 	xor	ax,ax
 	stosw				; zero higher file size bits
-	stosw ! stosw			; also the high dword of the position
+	stosw
+	stosw			; also the high dword of the position
 	lea	si,DTIME[si]
 	lea	di,DHNDL_TIME[bx]
 	movsw				; copy the time
@@ -1771,33 +1829,22 @@ creat_handle25:
 	movsw				; and the date
 	lodsw				; skip 1st cluster (already done)
 ;	lea	di,DHNDL_SIZE[bx]
-	movsw ! movsw			; copy the file size
+	movsw
+	movsw			; copy the file size
 ;	lea	di,DHNDL_POS[bx]
 	xor	ax,ax			; zero current position
-	stosw ! stosw
+	stosw
+	stosw
 ;	lea	di,DHNDL_IDX[bx]
 	stosw				; zero block index
 	lea	di,DHNDL_IDXH[bx]
 	stosw
-if DOS5
 	call	hdsblk			; get directory block
 	lea	di,DHNDL_DBLK[bx]
 	stosw
 	mov	ax,dx
 	lea	di,DHNDL_DBLKH[bx]
 	stosw
-else
-	lea	di,DHNDL_BLK[bx]
-	stosw				; and current block
-	lea	di,DHNDL_BLKH[bx]
-	stosw
-	call	hdsblk			; get directory block
-	lea	di,DHNDL_DBLK[bx]
-	stosw
-	mov	ax,dx
-	lea	di,DHNDL_DBLKH[bx]
-	stosw
-endif
 	mov	ax,dcnt			; set DCNT of file
 	lea	di,DHNDL_DCNTLO[bx]
 	stosb				; store low byte of DCNT
@@ -1811,12 +1858,12 @@ endif
 	stosw
 	lea	di,DHNDL_SHARE[bx]	; zero sharing record
 	stosw
-if DOS5
-	stosw ! stosw ! stosw		; zero DHNDL_BLK + IFS
+	stosw
+	stosw
+	stosw				; zero DHNDL_BLK + IFS
 	lea	di,DHNDL_BLKH[bx]
 	stosw
-endif
-	callf	ss:share_stub+S_OPEN	; we have opened this handle
+	call	dword ptr ss:share_stub+S_OPEN	; we have opened this handle
 					;  ask SHARE to register it
 	 jc	create_handle30
 	mov	ax,fdos_ret		; AX = handle to return
@@ -1850,9 +1897,11 @@ select_handle:		; select directory of current handle
 ;
 	mov	al,es:DHNDL_ATTR[bx]	; get physical drive
 	and	al,DHAT_DRVMSK		;  from attrib field
-	push es ! push bx
+	push 	es
+	push 	bx
 	call	select_physical_drv	; select the drive
-	pop bx ! pop es
+	pop 	bx
+	pop 	es
 	mov	ax,es:DHNDL_DBLK[bx]
 	mov	dx,es:DHNDL_DBLKH[bx]
 	mov	fdos_hds_blk,ax		; copy HDS_BLK
@@ -1876,7 +1925,7 @@ check_handle:
 	test	es:DHNDL_WATTR[bx],DHAT_REMOTE+DHAT_DEV
 	stc				; assume device/network file
 	 jnz	chkhnd10		; return with CY = 0 if disk file
-	callf	ss:share_stub+S_UPDATE	; make sure DHNDL_ info valid
+	call	dword ptr ss:share_stub+S_UPDATE	; make sure DHNDL_ info valid
 	 jc	chkhnd20		; if not close it down
 chkhnd10:
 	ret
@@ -1912,9 +1961,9 @@ vfy_dhndl_ptr_AX:			; alternative entry point - AX=handle
 	test	ss:byte ptr remote_call+1,DHM_FCB/100h; if we are doing an FCB operation
 	 jnz	vfy_dhndl10		;  deal only with IFN, forget PSP
 	mov	es,ss:current_psp
-	cmp	ax,PSP_XFNMAX		; CX = # entries in table
+	cmp	ax,es:PSP_XFNMAX	; CX = # entries in table
 	 jae	vfy_dhndl_err
-	les	di,PSP_XFTPTR		; ES:DI -> user file table
+	les	di,es:PSP_XFTPTR	; ES:DI -> user file table
 	mov	bx,ax			; get user file number (0-19)
 	mov	al,es:[bx+di]		; get IFN for this handle
 vfy_dhndl10:
@@ -1992,7 +2041,6 @@ rlshnd_err:				; else bad handle
 	jmp	fdos_ED_H_MATCH		; return the error
 
 
-eject
 check_no_dir:		; check if entry is directory
 ;--------
 ;	entry:	BX -> directory entry
@@ -2017,7 +2065,7 @@ chk_ro_err:
 discard_files:				; discard all handles on adrive
 ;-------------
 	mov	al,adrive
-	callf	ss:share_stub+S_DISCARD	; tell share to forget about files
+	call	dword ptr ss:share_stub+S_DISCARD	; tell share to forget about files
 	ret
 
 
@@ -2050,7 +2098,7 @@ close_if_open:
 ;		close it and allow us to proceed.
 
 	mov	di,S_CLOSE_IF_OPEN	; check if file already open
-;	jmps	check_with_share
+;	jmp	check_with_share
 
 check_with_share:
 ;----------------
@@ -2063,7 +2111,7 @@ check_with_share:
 	xchg	ax,dx			; directory block
 	mov	cx,dcnt			; get the directory count in CX
 	mov	al,physical_drv		; get physical drive in AL
-	callf	ss:share_stub[di]	; ask SHARE if it knows of anyone open
+	call	dword ptr ss:share_stub[di]	; ask SHARE if it knows of anyone open
 	 jc	check_with_share10
 	ret				; must be OK.
 
@@ -2071,9 +2119,7 @@ check_with_share10:
 	jmp	fdos_error		; bail out with an error
 
 
-eject
 
-eject
 ;
 ;	Return a pointer to the DOS Handle corresponding to the internal
 ;	handle number passed in AX
@@ -2128,7 +2174,10 @@ ifn2dh15:
 ;
 	Public	find_dhndl
 find_dhndl:
-	push cx ! push dx ! push di ! push si
+	push 	cx
+	push 	dx
+	push 	di
+	push 	si
 	mov	ax,ss:machine_id	; get current process
 	mov	dx,ss:owning_psp	; DX = owining PSP
 	xor	si,si			; SI = IFN
@@ -2162,7 +2211,7 @@ find_dh40:
 	 jne	find_dh10
 find_dh45:
 	stc				; no more handles,
-	jmps	find_dh70		;  exit in failure..
+	jmp	find_dh70		;  exit in failure..
 
 find_dh50:
 	mov	es:DHNDL_COUNT[bx],0FFFFh
@@ -2177,7 +2226,10 @@ find_dh60:
 	mov	ss:current_ifn,ax
 	clc				; we have found and allocated a handle
 find_dh70:
-	pop di ! pop si ! pop dx ! pop cx
+	pop di
+	pop si
+	pop dx
+	pop cx
 	ret
 
 
@@ -2197,8 +2249,8 @@ get_xftptr:
 	test	ss:byte ptr remote_call+1,DHM_FCB/100h; if we are doing an FCB operation
 	 jnz	get_xftptr_err		;  deal only with IFN, forget PSP
 	mov	es,ss:current_psp
-	mov	cx,PSP_XFNMAX		; CX = # entries in table
-	les	di,PSP_XFTPTR		; ES:DI -> user file table
+	mov	cx,es:PSP_XFNMAX	; CX = # entries in table
+	les	di,es:PSP_XFTPTR	; ES:DI -> user file table
 	ret
 
 get_xftptr_err:
@@ -2244,12 +2296,13 @@ les_di_dmaptr:
 copy_asciiz:
 ;----------
 ; Copy an ASCIIZ string from DS:SI to ES:DI
-	lodsb ! stosb
+	lodsb
+	stosb
 	test	al,al
 	 jnz	copy_asciiz
 	ret
 
-if JOIN
+ifdef JOIN
 
 check_join:
 ;----------
@@ -2264,7 +2317,8 @@ check_join:
 ;	    ZF set
 ;	(All other regs presrved)
 ;
-	push es ! push bx
+	push 	es
+	push 	bx
 	mov	al,fdos_hds_drv		; get drive from HDS_
 	mov	ah,al			; save HDS_DRV in AH
  	cmp	join_drv,0		; need we do anything ?
@@ -2298,7 +2352,8 @@ check_join10:
 check_join20:
 	test	bl,bl			; set ZF appropriately
 check_join30:
-	pop bx ! pop es
+	pop 	bx
+	pop 	es
 	ret
 
 offer_join:		; are we opening a JOIN'd drive ?
@@ -2348,14 +2403,16 @@ oj_dir:
 ; We are in the physical root of a non-joined drive. We now need to see if
 ; the dir we are searching for corresponds with a joined drive
 ;
-	push si ! push di
+	push 	si
+	push 	di
 	call	build_match_name	; join_name = what we are looking for
 	call	look_for_match		; see if we can find it
 	 jc	oj_dir10
 	call	mvhds_drvroot		; we have a match - move into it
 	clc				; say we handled it
 oj_dir10:
-	pop di ! pop si
+	pop 	di
+	pop 	si
 	ret
 
 	
@@ -2405,7 +2462,8 @@ build_match_name:
 	dec	al			; make it zero based
 	call	get_ldt			; ES:BX -> LDT for this drive
 	mov	al,es:LDT_NAME[bx]	; get the drive "D"
-	push ds ! pop es		; ES -> SYSDAT
+	push 	ds
+	pop 	es			; ES -> SYSDAT
 	mov	di,offset join_name	; construct the target name
 	stosb				; plant the drive letter
 	mov	ax,'\:'
@@ -2413,11 +2471,6 @@ build_match_name:
 	mov	bx,offset info_fcb+1	; DS:SI -> name we are looking for
 	jmp	unparse			; unparse the name
 
-BDOS_DATA	dseg	word
-
-join_name	db	'd:\filename.ext',0
-
-BDOS_CODE	cseg
 
 	Public	mv_join_root
 	
@@ -2427,7 +2480,9 @@ mv_join_root:
 ; see if it is a JOIN'd drive. If it is we poke the drive and reselect
 ; the disk so we are at the real root of the drive.
 ;
-	push bx ! push si ! push di	; save index registers
+	push 	bx
+	push 	si
+	push 	di			; save index registers
 	mov	ax,fdos_hds_root
 	mov	dx,fdos_hds_root+2
 	mov	fdos_hds_blk,ax		; move us to virtual root
@@ -2438,7 +2493,9 @@ mv_join_root:
 	 jz	mvj_root10		; no, we've done enough
 	call	mvhds_drvroot		; make it real root
 mvj_root10:
-	pop di ! pop si ! pop bx	; restore index registers
+	pop 	di
+	pop 	si
+	pop 	bx			; restore index registers
 	ret
 
 
@@ -2466,7 +2523,6 @@ mvhds_drvroot10:
 
 endif	;JOIN
 
-eject
 stamp_dir_entry:
 ;---------------
 ; On Entry:
@@ -2477,7 +2533,7 @@ stamp_dir_entry:
 ; Apply current date/time stamp to a directory, along with any other
 ; security information required.
 ;
-if PASSWORD
+ifdef PASSWORD
 	mov	cx,local_password	; were we given a password ?
 	 jcxz	stamp_dir_entry10	;  if so apply it
 	mov	bx,dirp
@@ -2502,7 +2558,7 @@ stamp_date_and_time:
 	mov	DDATE[bx],dx
 	mov	DTIME[bx],ax
 	mov	ah,PASSWD_CREAT		; call out to SECURITY TSR
-	callf	ss:fdos_stub
+	call	dword ptr ss:fdos_stub
 	 jc	stamp_date_and_time10
 	jmp	fdos_error		; return an error if required
 stamp_date_and_time10:
@@ -2565,7 +2621,8 @@ select_from_DTA:
 	mov	path_drive,ax		; restore path drive
 	call	select_physical_drv	; select the drive in AL
 	push	ds
-	push ds ! pop es		; ES = local segment
+	push 	ds
+	pop 	es			; ES = local segment
 	call	lds_si_dmaptr		; DS:SI -> DMA address
 	inc	si			; skip the drive #
 	mov	di,offset info_fcb+1	; copy FCB back to INFO_FCB
@@ -2587,17 +2644,17 @@ select_from_DTA:
 	mov	fdos_hds_blk+2,dx
 	ret
 
-if PASSWORD
+ifdef PASSWORD
 
 check_pwd_d:		; check if PW protected in any mode
 ;-----------
 	mov	ax,PWM_D
-	jmps	check_pwd
+	jmp	check_pwd
 
 check_pwd_any:		; check if PW protected in any mode
 ;-------------
 	mov	ax,PWM_ANY
-;	jmps	check_pwd
+;	jmp	check_pwd
 
 check_pwd:		; check for password mismatch
 ;---------
@@ -2610,7 +2667,7 @@ check_pwd:		; check for password mismatch
 	mov	bx,dirp			; BX -> file to be opened/deleted/etc.
 	xchg	ax,cx			; password mode in CX
 	mov	ah,PASSWD_CHECK		; call out to SECURITY TSR
-	callf	ss:fdos_stub
+	call	dword ptr ss:fdos_stub
 	 jnc	check_pwd20
 
 	xor	ax,ax
@@ -2721,3 +2778,5 @@ share_delay_20:
 	pop	cx
 share_delay_30:
 	ret
+
+BDOS_CODE	ends

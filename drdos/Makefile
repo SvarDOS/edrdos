@@ -10,7 +10,7 @@
 
 !include ../platform.mak
 
-WASM_FLAGS += -DDELWATCH -DJOIN -DKANJI -DPASSWORD
+WASM_FLAGS += -DDELWATCH -DJOIN -DKANJI -DPASSWORD -DUNDELETE
 
 objs  = bin/buffers.obj bin/dirs.obj bin/fdos.obj bin/fcbs.obj bin/bdevio.obj
 objs += bin/cdevio.obj bin/fioctl.obj bin/redir.obj bin/header.obj
@@ -43,9 +43,8 @@ bin/buffers.obj: buffers.asm fdos.equ bdos.equ doshndl.def
 bin/dirs.obj: dirs.asm bdos.equ mserror.equ fdos.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/fdos.obj: fdos.a86 version.inc psp.def modfunc.def fdos.equ rh.equ msdos.equ mserror.equ doshndl.def driver.equ f52data.def  bdos.equ funcs.fdo utils.fdo
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDELWATCH /DKANJI /DDOS5 /DPASSWORD /DJOIN /DUNDELETE /Dshortversion
-	$(FIXUPP) $^*.o86 $^@
+bin/fdos.obj: fdos.asm version.inc pspw.def modfunc.def fdos.equ request.equ msdos.equ mserror.equ doshndl.def driverw.equ f52dataw.def  bdos.equ funcs.fdo utils.fdo
+	$(WASM) $(WASM_FLAGS) -Dshortversion -Fo$^@ -Fl$^*.lst $[@
 
 bin/fcbs.obj: fcbs.asm fdos.equ msdos.equ mserror.equ doshndl.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
