@@ -1,4 +1,4 @@
-;    File              : $ERROR.A86$
+;    File              : $ERROR.ASM$
 ;
 ;    Description       :
 ;
@@ -45,13 +45,18 @@
 ;	directly to the user but is still saved for func59
 ;
 
-	include pcmode.equ
+PCMDATA group PCMODE_DATA,FDOS_DSEG
+PCMCODE group PCM_CODE,PCM_RODATA
+
+ASSUME DS:PCMDATA
+
+	include pcmodew.equ
 	include	fdos.def
-	include i:msdos.equ
-	include i:mserror.equ
-	include i:psp.def
-	include	i:char.def
-	include	i:reqhdr.equ
+	include msdos.equ
+	include mserror.equ
+	include pspw.def
+	include	char.def
+	include	request.equ
 
 ;
 ERR_TBL_CODE	equ	byte ptr 0	; Error Code in Table
@@ -60,7 +65,7 @@ ERR_TBL_ACTION	equ	byte ptr 2	; Error Action entry in Table
 ERR_TBL_LOCUS	equ	byte ptr 3	; Locus entry in table
 ERR_TBL_LEN	equ	4		; 4 bytes per entry
 ;
-PCM_CODE	CSEG	BYTE
+PCM_CODE	segment public byte 'CODE'
 	extrn	get_dseg:near
 	extrn	do_int24:near
 	extrn	reload_registers:near
@@ -85,10 +90,10 @@ func59:
 	mov	reg_DI[si],di
 	mov	reg_BX[si],bx
 	mov	reg_CX[si],cx
-	push ss ! pop ds
+	push 	ss
+	pop 	ds
 	jmp	return_AX_CLC	
 
-eject
 ;	On Entry:-	AX == Internal Error Number 
 ;
 ;	On Exit:-	None
@@ -117,6 +122,7 @@ error_ret:
 error_r10:					; otherwise negate
 	les	di,int21regs_ptr
 	or	es:reg_FLAGS[di],CARRY_FLAG	; set the "users" carry Flag
+	nop	; REMOVE AFTER JWASM CONVERSION
 	stc					; also set real one
 if offset reg_AX EQ 0
 	stosw					; save return code
@@ -138,7 +144,6 @@ fcberror_exit:
 fe_e10:
 	ret
 
-eject
 ;	WARNING - may be called from FDOS with DS = SYSDAT
 ;
 ;	CHAR_ERROR is called when any character device function generates
@@ -166,13 +171,14 @@ char_e10:
 	push	dx
 	push	si
 	push	di
-	push ss ! pop ds		; DS -> our data now
+	push 	ss
+	pop 	ds			; DS -> our data now
 	mov	word ptr error_dev+0,si	; save the device driver address
 	mov	word ptr error_dev+2,es	;  and then initialise the FUNC59
 	push	es			;  data areas
 	and	ax,007Fh		; Mask the Unused Bits
 	or	ah,80h+OK_RIF		; Retry/Ignore/Abort/Fail allowable
-	cmp	ss:RH_CMD,CMD_OUTPUT	; is this a read or write failure ?
+	cmp	ss:RH_CMD[bx],CMD_OUTPUT	; is this a read or write failure ?
 	 jne	char_e20
 	inc	ah			; 01 is a Write Failure
 char_e20:
@@ -197,7 +203,6 @@ char_e20:
 	pop	ds
 	ret
 
-eject
 ;
 ;	DISK_ERROR gains control after any DOS disk based function
 ;	has been executed which generates an error. First ERROR set the
@@ -255,9 +260,11 @@ disk_e20:					;  as appropriate
 	mov	bl,al				; Copy reponse into BL	
 
 	xor	ax,ax				; Assume Ignore Error
-	cmp bl,ERR_IGNORE ! jz disk_e50		; Ignore the Error
+	cmp bl,ERR_IGNORE
+	 jz disk_e50				; Ignore the Error
 
-	cmp bl,ERR_FAIL ! jz disk_e40		; If not FAIL then RETRY
+	cmp bl,ERR_FAIL
+	 jz disk_e40				; If not FAIL then RETRY
 	call	reload_registers		; get back entry registers
 	mov	FD_FUNC,ax			; save AX for a moment
 	mov	al,ah				; set up function number
@@ -289,7 +296,6 @@ disk_e50:
 	or	ax,ax			; NZ if error return required
 	ret
 
-eject
 ;
 ;	On Entry:-	AX	Internal Error Code
 ;			CL	Critical Error Locus
@@ -313,9 +319,9 @@ set_error:
 	mov	bx,ED_GENFAIL		; assume we want a critical error
 	cmp	FD_FUNC,MS_X_OPEN	; is it a shared open ?
 	 jnz	set_error_data
-	test	FD_MODE,0$111$0$000b	;  mode
+	test	FD_MODE,01110000b	;  mode
 	 jz	set_error_data
-	jmps	set_e30			; return a logical "access denied"
+	jmp	set_e30			; return a logical "access denied"
 
 set_e10:
 	cmp	ax,ED_LOCKFAIL		; have we a lockfail error ?
@@ -327,7 +333,7 @@ set_e10:
 	cmp	FD_FUNC,FD_LOCK		; was it a result of specific lock
 	 je	set_logical_error	;  call ? yes, it's a logical error
 	mov	bx,ED_GENFAIL		; no, generate a critical error
-	jmps	set_error_data
+	jmp	set_error_data
 
 set_e20:
 	test	valid_flg,NO_CRIT_ERRORS
@@ -335,7 +341,7 @@ set_e20:
 	mov	ax,ED_ACCESS		; extended error code is Access Denied
 set_e30:
 	mov	bx,ED_ACCESS		; return access denied to caller
-;	jmps	set_logical_error
+;	jmp	set_logical_error
 
 set_logical_error:
 	xor	di,di
@@ -346,7 +352,7 @@ set_logical_error:
 	cmp	ax,ED_NETACCESS		; if it's a networked access denied
 	 jne	set_error_data		;  turn it into ordinary one
 	mov	bx,ED_ACCESS		; return a logical "access denied"
-;	jmps	set_error_data
+;	jmp	set_error_data
 
 set_error_data:
 ; On Entry:
@@ -383,16 +389,16 @@ scan_error_table:
 	cmp	al,cs:ERR_TBL_CODE[di]
 	 je	scan_et20
 	add	di,ERR_TBL_LEN
-	jmps	scan_error_table
+	jmp	scan_error_table
 scan_et10:
 	stc
 scan_et20:
 	ret
 
+PCM_CODE	ends
 
-eject
-PCM_RODATA	CSEG	WORD
-logical_error	rb	0
+PCM_RODATA	segment public word 'CODE'
+logical_error	label byte
 ;
 ;	Internal Code	Error Class	Error Action	Error Locus
 ;	=============	===========	============	===========
@@ -427,7 +433,7 @@ logical_error	rb	0
    db   ED_NOLOCKS,	CLASS_RESOURCE,	ACT_ABORT,	LOC_MEMORY
    db   00,		CLASS_SYSTEM,	ACT_TERM,	LOC_UNKNOWN
 
-critical_error	rb	0
+critical_error	label byte
 ;
 ;	Internal Code	Error Class	Error Action	Error Locus
 ;	=============	===========	============	===========
@@ -447,10 +453,13 @@ critical_error	rb	0
    db   ED_LOCKFAIL,	CLASS_LOCKED,	ACT_DELAY,	LOC_BLOCK
    db   ED_NOFCBS,	CLASS_APPLIC,	ACT_ABORT,	LOC_UNKNOWN
 
-default_error	rb	0
+default_error	label byte
    db   00,		CLASS_SYSTEM,	ACT_TERM,	LOC_UNKNOWN
 
-PCMODE_DATA	DSEG	WORD
+PCM_RODATA	ends
+
+PCMODE_DATA	segment public word 'DATA'
+
 	extrn	indos_flag:byte
 	extrn	internal_flag:byte
 	extrn	int21regs_ptr:dword
@@ -466,4 +475,7 @@ PCMODE_DATA	DSEG	WORD
 	extrn	err_drv:byte
 	extrn	locus:byte
 	extrn	rwmode:byte
+
+PCMODE_DATA	ends
+
 end

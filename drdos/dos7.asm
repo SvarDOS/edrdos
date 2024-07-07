@@ -9,10 +9,12 @@ PCMCODE group PCM_CODE
 
 ASSUME DS:PCMDATA
 
+	.nolist
 	include	pcmodew.equ
 	include	fdos.equ
 	include	fdos.def
 	include	dos7.equ
+	.list
 
 PCM_CODE	segment public byte 'CODE'
 
