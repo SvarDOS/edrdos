@@ -445,7 +445,6 @@ func33:
 	cmp	al, 0FFh		; is it function 33FFh ?
 	 jne	f33_XX			; no, jump -->
 	call	f33_FF			; yes
-shortversion equ 0
 	include version.inc
 	db	0
 
