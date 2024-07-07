@@ -1,4 +1,4 @@
-;    File              : $HISTORY.A86$
+;    File              : $HISTORY.ASM$
 ;
 ;    Description       :
 ;
@@ -34,14 +34,20 @@
 ; 	DOSPLUS Command Line Editor Routines
 ;
 
-	include	pcmode.equ
-	include	i:msdos.equ
-	include i:char.def
-	include	i:cmdline.equ
+PCMCODE	GROUP	PCM_HISTORY
+PCMDATA	GROUP	PCMODE_DATA,FDOS_DSEG,GLOBAL_DATA
+
+ASSUME DS:PCMDATA
+
+	.nolist
+	include	pcmodew.equ
+	include	msdos.equ
+	include char.def
+	include	cmdlinew.equ
+	.list
 
 
-
-PCM_HISTORY	CSEG
+PCM_HISTORY	segment public word 'CODE'
 
 	public	init_history, save_history
 	public	del_history_buffers, del_cur_history_buffer
@@ -117,7 +123,8 @@ save_history10:
 save_history30:
 	push	ds
 	push	es
-	push ss ! pop ds
+	push 	ss
+	pop 	ds
 	lea	si,RL_HIST_SAVE		; point at history buffer variables
 	mov	es,RL_HIST_SEG
 	mov	di,RL_HIST_SIZE
@@ -141,7 +148,8 @@ save_current:
 	cmp	dx,RL_HIST_SIZE		; is history buffer big enough ?
 	 jae	save_current10		;  no, skip saving this line
 	call	find_free_hist		; Find the next bit of space
-	pop cx ! push cx		; CX = chars to save
+	pop 	cx
+	push 	cx			; CX = chars to save
 	 jcxz	save_current10		; none, forget about it
 	push	ds
 	push	es
@@ -257,7 +265,7 @@ prev_cmd10:
 	push	di
 	mov	di,RL_HIST_RECL		; point to the current entry
 	call	find_prev_hist		; DI -> previous entry
-	jmps	found_cmd		; now go and copy it to the user buffer
+	jmp	found_cmd		; now go and copy it to the user buffer
 
 next_cmd:
 ; Get the next command from the buffer
@@ -267,7 +275,7 @@ next_cmd:
 	push	di
 	mov	di,RL_HIST_RECL		; point to the current entry
 	call	find_next_hist		; DI -> next entry
-;	jmps	found_cmd		; now go and copy it to the user buffer
+;	jmp	found_cmd		; now go and copy it to the user buffer
 
 found_cmd:
 	call	copy_from_hist		; Copy from history to user buffer
@@ -276,7 +284,8 @@ found_cmd:
 ;	jmp	goto_eol		; Display new line.
 
 goto_eol:				; Move the cursor to the end of the
-	mov cx,dx ! sub cx,si		; displayed line
+	mov 	cx,dx
+	sub 	cx,si			; displayed line
 	 jcxz	goto_e10		; Already at the EOL
 	add	si,RL_BUFOFF		; Get the Offset in the buffer
 	call	put_string		; Output the sub_string
@@ -289,7 +298,9 @@ goto_e10:
 ;
 copy_from_hist:
 	or	RL_FLAGS,RLF_RECALLED	; remember we have recalled something
+	nop	; REMOVE AFTER JWASM CONVERSION
 	and	RL_FLAGS,not RLF_DIRTY	; this entry is already in buffers
+	nop	; REMOVE AFTER JWASM CONVERSION
 	mov	RL_HIST_RECL,di		; update pointer for next time
 	call	find_next_null		; how big is this entry ?
 	mov	cx,di
@@ -423,7 +434,7 @@ del_history_buffers:
 	call	zap_buffer
 	mov	ax,histbuf2		; Segment of 2nd history buffer
 	mov	cx,histsiz2		; End of 2nd history buffer
-	jmps	zap_buffer
+	jmp	zap_buffer
 	
 del_cur_history_buffer:
 ;----------------------
@@ -496,21 +507,26 @@ match_w30:
 	ret
 
 prev_word:
-	mov cx,si ! jcxz match_w30	; Initialize the count
-	push dx ! push si ! push di
+	mov 	cx,si
+	 jcxz 	match_w30		; Initialize the count
+	push 	dx
+	push 	si
+	push 	di
 	mov	si,RL_BUFOFF		; Scan from the begining of the buffer
 	mov	dx,si			; keeping the last match in DX
 prev_w10:
 	call	match_word		; Find the next word boundary
 	jcxz	prev_w15		; Stop when we get to the current offset
 	mov	dx,si			; Save current location
-	jmps	prev_w10		; and repeat
+	jmp	prev_w10		; and repeat
 prev_w15:
 	jmp	prev_w20
 
 del_bol:				; Delete to the begining of the line
-	or si,si ! jz del_bol10		; Ignore if at the begining
-	or dx,dx ! jz del_bol10		; Or the line is empty
+	or 	si,si
+	 jz 	del_bol10		; Ignore if at the begining
+	or 	dx,dx
+	 jz 	del_bol10		; Or the line is empty
 	push	di			; Save the current index
 	call	goto_bol		; Move to the start of the line
 	pop	cx			; Restore the current offset
@@ -529,13 +545,19 @@ deln_word:
 	pop	si
 	jmp	deln_w10
 
-PCMODE_DATA	DSEG	WORD
+PCM_HISTORY	ends
+
+PCMODE_DATA	segment public word 'DATA'
 
 	extrn	@hist_flg:byte		; To select between histbufs 1 or 2
 
-GLOBAL_DATA	dseg	word
+PCMODE_DATA	ends
+
+GLOBAL_DATA	segment public word 'DATA'
 
 	extrn	histbuf1:word, histsiz1:word, histbuf2:word, histsiz2:word
+
+GLOBAL_DATA	ends
 
 	end
 
