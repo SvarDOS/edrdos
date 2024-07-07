@@ -94,9 +94,8 @@ bin/process.obj: process.a86 pcmode.equ fdos.def psp.def mserror.equ vectors.def
 	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDOS5
 	$(FIXUPP) $^*.o86 $^@
 
-bin/network.obj: network.a86 pcmode.equ mserror.equ redir.equ doshndl.def
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)
-	$(FIXUPP) $^*.o86 $^@
+bin/network.obj: network.asm pcmodew.equ mserror.equ redir.equ doshndl.def
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/int2f.obj: int2f.asm pcmodew.equ msdos.equ mserror.equ driverw.equ pspw.def doshndl.def redir.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
