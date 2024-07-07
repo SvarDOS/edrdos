@@ -14,8 +14,8 @@ FREED_FREESEC	equ	dword ptr 14h	; number of physical sectors available on drive
 FREED_NSECS	equ	dword ptr 18h	; number of physical sectors on drive
 FREED_FREEPCL	equ	dword ptr 1ch	; available physical allocation units
 FREED_NPCLUS	equ	dword ptr 20h	; number of physical allocation units
-;FREED_RESERVED	equ	24h	; reserved bytes
-FREED_LEN	equ	24h	; length of data
+;FREED_RESERVED	equ	24h		; reserved bytes
+FREED_LEN	equ	24h		; length of data
 
 EDPB_DEVHEAD	equ	dword ptr 13h	; device driver header
 EDPB_DPBFLAGS	equ	byte ptr 18h	; DPB flags (undocumented)

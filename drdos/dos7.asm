@@ -4,12 +4,17 @@
 ; The DR-DOS/OpenDOS Enhancement Project - http://www.drdosprojects.de
 ; Copyright (c) 2002-2009 Udo Kuhnt
 
-	include	pcmode.equ
+PCMDATA group PCMODE_DATA,FDOS_DSEG
+PCMCODE group PCM_CODE
+
+ASSUME DS:PCMDATA
+
+	include	pcmodew.equ
 	include	fdos.equ
 	include	fdos.def
 	include	dos7.equ
 
-PCM_CODE	cseg	byte
+PCM_CODE	segment public byte 'CODE'
 
 	extrn	get_path_drive:near
 	extrn	fdos_diskinfo:near
@@ -97,7 +102,7 @@ f7302_25:
 	 jnz	f7302_30		; no, then build the remaining portion from scratch
 	add	di,DDSC_FREE
 	rep	movsb			; else copy remaining EDPB portion from DDSC
-	jmps	f7302_40
+	jmp	f7302_40
 f7302_30:
 	push	di
 	add	di,DDSC_FREE
@@ -192,7 +197,7 @@ f7303_30:
 	mov	word ptr FREED_NPCLUS[di],ax
 	mov	word ptr FREED_NCLUSTER+2[di],dx
 	mov	word ptr FREED_NPCLUS+2[di],dx
-	jmps	f7303_50
+	jmp	f7303_50
 f7303_40:
 	mov	ax,es:word ptr DDSC_BFREE[bx]	; free clusters on drive (32-bit)
 	mov	word ptr FREED_FREECL[di],ax
@@ -257,6 +262,7 @@ func7305:
 	mov	ax, -57h		; if not, return 57h, RBIL calls it
 					;  "(DOS 3.3+) invalid parameter"
 	jmp	f7305_exit		; no, then exit with error
+	nop	; REMOVE AFTER JWASM CONVERSION
 f7305_10:
 	push	es
 	les	bp,int21regs_ptr	; ES:BX -> disk address structure
@@ -279,7 +285,7 @@ f7305_10:
 	test	si,1			; test if read or write operation is requested
 	 jnz	f7305_20
 	mov	byte ptr FD_DDIO_DRV_OP+1,1
-	jmps	f7305_30
+	jmp	f7305_30
 f7305_20:
 	mov	byte ptr FD_DDIO_DRV_OP+1,2
 f7305_30:
@@ -293,6 +299,12 @@ f7305_exit:
 f7305_exit_NC:
 	jmp return_AX_CLC
 
-PCMODE_DATA	dseg	word
+PCM_CODE	ends
+
+PCMODE_DATA	segment public word 'DATA'
 
 	extrn	int21regs_ptr:dword
+
+PCMODE_DATA	ends
+
+		end

@@ -10,7 +10,7 @@
 
 !include ../platform.mak
 
-WASM_FLAGS += -DDELWATCH -DKANJI -DJOIN
+WASM_FLAGS += -DDELWATCH -DJOIN -DKANJI -DPASSWORD
 
 objs  = bin/buffers.obj bin/dirs.obj bin/fdos.obj bin/fcbs.obj bin/bdevio.obj
 objs += bin/cdevio.obj bin/fioctl.obj bin/redir.obj bin/header.obj
@@ -113,9 +113,8 @@ bin/history.obj: history.a86 pcmode.equ msdos.equ char.def cmdline.equ
 bin/cmdline.obj: cmdline.asm pcmodew.equ msdos.equ char.def cmdlinew.equ request.equ driverw.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/dos7.obj: dos7.asm pcmode.equ fdos.equ fdos.def dos7.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS)
-	$(FIXUPP) $^*.o86 $^@
+bin/dos7.obj: dos7.asm pcmodew.equ fdos.equ fdos.def dos7.equ
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/lfn.obj: lfn.asm bdos.equ fdos.equ pcmodew.equ doshndl.def lfn.equ fdos.def mserror.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
