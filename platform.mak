@@ -27,4 +27,3 @@ EXE2BIN = exe2bin
 
 COMPBIOS = $(LTOOLS)$(SEP)compbios
 COMPBDOS = $(LTOOLS)$(SEP)compbdos
-FIXUPP = $(LTOOLS)$(SEP)fixupp.exe
