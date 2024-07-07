@@ -77,9 +77,8 @@ bin/disk.obj: disk.asm pcmodew.equ fdos.def doshndl.def fdos.equ pspw.def msdos.
 bin/ioctl.obj: ioctl.asm pcmodew.equ fdos.def msdos.equ mserror.equ cmdlinew.equ driverw.equ request.equ pspw.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/misc.obj: misc.a86 version.inc pcmode.equ msdos.equ mserror.equ psp.def driver.equ char.def country.def doshndl.def redir.equ fdos.equ
-	$(RASM_SH) $(RASM) . .\$[. .\$^*.o86 $(RASM_FLAGS) /DDOS5
-	$(FIXUPP) $^*.o86 $^@
+bin/misc.obj: misc.asm version.inc pcmodew.equ msdos.equ mserror.equ pspw.def driverw.equ char.def country.def doshndl.def redir.equ fdos.equ
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/support.obj: support.asm pcmodew.equ fdos.def mserror.equ doshndl.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@

@@ -39,8 +39,8 @@ JAP_DATE	equ	2		; Japanese Date Format yy/mm/dd
 CLOCK_12	equ	0		; 12 Hour Clock Time Format
 CLOCK_24	equ	1		; 24 Hour Clock Time Format
 
-CI_CODE		equ	word ptr 0FFFCh		; Country Code
-CI_CODEPAGE	equ	word ptr 0FFFEh		; Code page
+CI_CODE		equ	word ptr -4		; Country Code
+CI_CODEPAGE	equ	word ptr -2		; Code page
 CI_DATEFMT	equ	word ptr 0		; Date Format
 CI_CURRENCY	equ	byte ptr 2		; Currency Symbols
 CI_THOUSANDS	equ	byte ptr 7		; Thousands Separator
