@@ -110,13 +110,20 @@ bin/lfn.obj: lfn.asm bdos.equ fdos.equ pcmodew.equ doshndl.def lfn.equ fdos.def 
 
 clean: .SYMBOLIC
 	rm -f bin/drdos.sys
+	rm -f bin/DRDOS.SYS
 	rm -f bin/drdos.exe
+	rm -f bin/DRDOS.EXE
 	rm -f bin/country.sys	
+	rm -f bin/COUNTRY.SYS	
 	rm -f bin/*.obj
-	rm -f bin/*.o86
+	rm -f bin/*.OBJ
 	rm -f bin/*.lst
+	rm -f bin/*.LST
 	rm -f bin/*.sym
+	rm -f bin/*.SYM
 	rm -f bin/*.tmp
+	rm -f bin/*.TMP
 	rm -f bin/*.map
+	rm -f bin/*.MAP
 	rm -f bin/*.inp
 	rm -f version.inc
