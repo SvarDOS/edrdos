@@ -1,5 +1,5 @@
 title 'FCB - DOS file system FCB support'
-;    File              : $FCBS.A86$
+;    File              : $FCBS.ASM$
 ;
 ;    Description       :
 ;
@@ -39,16 +39,19 @@ title 'FCB - DOS file system FCB support'
 PCMCODE	GROUP	BDOS_CODE
 PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
 
-	eject ! include i:fdos.equ
-	eject ! include i:msdos.equ
-	eject ! include i:mserror.equ
-	eject ! include i:doshndl.def	; DOS Handle Structures
-	eject
+ASSUME DS:PCMDATA
 
+	.nolist
+	include fdos.equ
+	include msdos.equ
+	include mserror.equ
+	include doshndl.def	; DOS Handle Structures
+	.list
 
-BDOS_DATA	dseg	word
+BDOS_DATA	segment public word 'DATA'
+BDOS_DATA	ends
 
-BDOS_CODE	cseg
+BDOS_CODE	segment public byte 'CODE'
 
 	extrn	ifn2dhndl:near
 	extrn	parse_one:near
@@ -56,7 +59,6 @@ BDOS_CODE	cseg
 
 	Public	fdos_exit
 
-eject
 ;	TERMINATE CHILD (EXIT)
 
 ;	+----+----+
@@ -76,7 +78,8 @@ eject
 fdos_exit:
 ;---------
 	push	ds
-	push ss ! pop ds		; DS -> PCM_DSEG
+	push 	ss
+	pop 	ds			; DS -> PCM_DSEG
 	sub	ax,ax			; start with first DHNDL_
 fdos_exit10:
 	call	ifn2dhndl		; get DHNDL_
@@ -115,7 +118,6 @@ fdos_exit40:
 
 	Public	fdos_fcb
 		
-eject
 ;	GENERIC FCB FUNCTION (FCB)
 
 ;	+----+----+----+----+----+----+----+----+
@@ -181,7 +183,7 @@ fcb_make:
 ;--------
 	call	fcb_path_prep		; build pathname
 	mov	ax,MS_X_CREAT
-	jmps	fcb_open_make_common
+	jmp	fcb_open_make_common
 
 fcb_open:
 ;--------
@@ -195,9 +197,11 @@ fcb_open_make_common:
 fcb_open10:
 	call	ifn2dhndl		; ES:BX -> DHNDL_ we have opened
 	push	ds
-	push es ! push bx		; save DHNDL_
+	push 	es
+	push 	bx			; save DHNDL_
 	call	fcb_point		; ES:BX = FCB
-	pop si ! pop ds			; DS:SI -> DHNDL_
+	pop 	si
+	pop 	ds			; DS:SI -> DHNDL_
 	mov	es:MSF_IFN[bx],al	; store IFN away
 	mov	es:MSF_BLOCK[bx],0	; current block number
 	mov	es:MSF_RECSIZE[bx],128	; current logical record size
@@ -261,7 +265,7 @@ fcb_close:
 	call	fcb_handle_vfy		; verify we have a sensible handle
 	mov	es:MSF_IFN[bx],al	; mark FCB as closed (it will be)
 	mov	ax,MS_X_CLOSE		; now close it
-;	jmps	fcb_fdos_common
+;	jmp	fcb_fdos_common
 
 fcb_fdos_common:
 ;---------------
@@ -279,20 +283,20 @@ fcb_rename:
 	call	fcb_path_prep
 	call	fcb_path2_prep
 	mov	ax,MS_X_RENAME		; it's a rename
-	jmps	fcb_fdos_common
+	jmp	fcb_fdos_common
 
 fcb_delete:
 ;----------
 	call	fcb_path_prep
 	mov	ax,MS_X_UNLINK		; it's a delete
-	jmps	fcb_fdos_common
+	jmp	fcb_fdos_common
 
 
 fcb_first:
 ;---------
 	call	fcb_path_prep		; prepare pathname
 	mov	ax,MS_X_FIRST		; we want to search 1st
-	jmps	fcb_search_common
+	jmp	fcb_search_common
 
 fcb_next:
 ;--------
@@ -324,7 +328,7 @@ fcb_setrecord:
 fcb_write:
 ;---------
 	mov	ax,MS_X_WRITE		; make it a write
-	jmps	fcb_seq_rw
+	jmp	fcb_seq_rw
 
 fcb_read:
 ;--------
@@ -367,9 +371,11 @@ fcb_rw:
 	push	es
 	mov	ax,fcb_pb+2		; get IFN
 	call	ifn2dhndl		; ES:BX -> DHNDL_ we have open
-	push es ! push bx		; save DHNDL_
+	push 	es
+	push 	bx			; save DHNDL_
 	call	fcb_point		; ES:BX = FCB
-	pop si ! pop ds			; DS:SI -> DHNDL_
+	pop 	si
+	pop 	ds			; DS:SI -> DHNDL_
 	call	fcb_update		; update file size/time-stamp
 	pop	es
 	pop	ds
@@ -424,7 +430,7 @@ fcb_rw40:
 fcb_writerand:
 ;-------------
 	mov	ax,MS_X_WRITE		; make it a write
-	jmps	fcb_random_rw
+	jmp	fcb_random_rw
 
 fcb_readrand:
 ;------------
@@ -448,7 +454,7 @@ fcb_random_rw10:
 fcb_writeblk:
 ;------------
 	mov	ax,MS_X_WRITE		; make it a write
-	jmps	fcb_block_rw
+	jmp	fcb_block_rw
 
 fcb_readblk:
 ;-----------
@@ -557,9 +563,11 @@ fcb_handle_vfy20:
 	call	fcb_point
 	push	es:MSF_RECSIZE[bx]	; save current record size
 	push	es:MSF_BLOCK[bx]	; save current block number
-	push es ! push bx
+	push 	es
+	push 	bx
 	call	fcb_open		; try to re-open the file
-	pop bx ! pop es			; point back at FCB
+	pop 	bx
+	pop 	es			; point back at FCB
 	pop	es:MSF_BLOCK[bx]	; restore current block number
 	pop	es:MSF_RECSIZE[bx]	; restore record size
 	 jc	fcb_handle_err
@@ -597,7 +605,7 @@ fcb_path2_prep:
 	mov	di,offset fcb_path2
 	mov	fcb_pb+6,di
 	mov	fcb_pb+8,ds		; point at buffer we want
-	jmps	fcb_path_prep_common
+	jmp	fcb_path_prep_common
 
 fcb_path_prep:
 ;-------------
@@ -626,20 +634,25 @@ fcb_path_prep_common:
 	mov	al,current_dsk		; use default drive
 fcb_path_prep20:
 	push	ds
-	push ds ! push es
-	pop ds ! pop es			; ES:DI -> name buffer
+	push 	ds
+	push 	es
+	pop 	ds
+	pop 	es			; ES:DI -> name buffer
 	add	al,'A'			; make drive ASCII
 	stosb
 	mov	al,':'
 	stosb				; now we have 'd:'
 	lea	si,MSF_NAME[bx]		; DS:SI -> source name
-	movsw ! movsw
-	movsw ! movsw			; copy the name leaving spaces intact
+	movsw
+	movsw
+	movsw
+	movsw				; copy the name leaving spaces intact
 	mov	al,'.'
 	stosb
-	movsw ! movsb			; copy the extention
+	movsw
+	movsb				; copy the extention
 	pop	ds
-;	jmps	fcb_point		; point ES:BX at FCB again
+;	jmp	fcb_point		; point ES:BX at FCB again
 
 
 fcb_point:
@@ -697,7 +710,7 @@ fcb_update_seq:
 	add	ax,cx
 	adc	dx,0			; DX:AX = record
 	mov	dh,dl			; DH:AX = record for common code
-	jmps	fcb_update_common
+	jmp	fcb_update_common
 
 
 fcb_update_rr:
@@ -752,7 +765,7 @@ fcb_seek_seq:
 	mul	es:MSF_RECSIZE[bx]	; DX:AX = byte offset in file/10000h
 	mov	cx,ax			; save the important word
 	pop	ax			; recover low word of record
-	jmps	fcb_seek_common
+	jmp	fcb_seek_common
 
 fcb_seek_rr:
 ;-----------
@@ -830,7 +843,8 @@ fcb_sss10:
 	mov	cx,11
 	rep	stosb			; all blanks now
 	pop	di
-	push ss ! pop ds		; DS:SI -> pathname
+	push 	ss
+	pop 	ds			; DS:SI -> pathname
 	mov	si,offset fcb_search_buf+1Eh
 
 	push	di			; unparse knowing name is good
@@ -841,7 +855,7 @@ fcb_sss20:
 	 jne	fcb_sss30		; no, continue as normal
 	stosb				; copy the '.'
 	loop	fcb_sss20		; go around for another '.'
-	jmps	fcb_sss40		; this name is rubbish!!
+	jmp	fcb_sss40		; this name is rubbish!!
 fcb_sss30:
 	dec	si			; forget the non '.'
 	call	parse_one		; parse just the name
@@ -868,7 +882,8 @@ fcb_sss50:
 	movsw				; copy date
 	mov	ax,word ptr srch_buf+21+DBLOCK1
 	stosw				; 1st block
-	movsw ! movsw			; copy filesize
+	movsw
+	movsw				; copy filesize
 	ret
 
 fcb_restore_search_state:
@@ -876,8 +891,10 @@ fcb_restore_search_state:
 ; On entry DS=PCMODE
 	push	ds
 	call	fcb_point		; ES:BX -> FCB_
-	push es ! push ds
-	pop es ! pop ds			; swap DS/ES
+	push 	es
+	push 	ds
+	pop 	es
+	pop 	ds			; swap DS/ES
 	mov	di,offset fcb_search_buf+1
 					; ES:DI -> internal state
 	lea	si,1[bx]		; DS:SI -> FCB+1
@@ -906,7 +923,7 @@ fcb_fdos:
 	call	fdos_entry		; call the FDOS
 	pop	bp
 	pop	ds
-	and	remote_call,not DHM_FCB	; FCB operation over
+	and	remote_call,(not DHM_FCB) and 0ffffh	; FCB operation over
 	cmp	ax,ED_LASTERROR
 	cmc				; CY set if an error occurred
 	ret
@@ -947,8 +964,9 @@ div1:
 	dec	cx			; CX = remainder = 0
 	ret
 
+BDOS_CODE	ends
 
-PCMODE_DATA	DSEG	WORD
+PCMODE_DATA	segment public word 'DATA'
 
 extrn	fcb_pb:word
 extrn	fcb_path:byte
@@ -962,5 +980,7 @@ extrn	dma_segment:word
 extrn	machine_id:word
 extrn	remote_call:word
 extrn	srch_buf:byte
+
+PCMODE_DATA	ends
 
 end
