@@ -1,4 +1,4 @@
-;    File              : $IOCTL.A86$
+;    File              : $IOCTL.ASM$
 ;
 ;    Description       :
 ;
@@ -73,16 +73,24 @@
 ;  3 jun 92 Add 4456/2+3 to examine history state, toggle history enable
 ; 30 jul 92 HILOAD now uses official memory strategy calls
 ;
-	include	pcmode.equ
-	include fdos.def
-	include	i:msdos.equ
-	include i:mserror.equ
-	include	i:cmdline.equ
-	include	i:driver.equ
-	include	i:reqhdr.equ
-	include	i:psp.def
 
-PCM_CODE	CSEG	BYTE
+PCMCODE	GROUP	PCM_CODE,PCM_RODATA
+PCMDATA	GROUP	PCMODE_DATA,FDOS_DSEG
+
+ASSUME DS:PCMDATA
+
+	.nolist
+	include	pcmodew.equ
+	include fdos.def
+	include	msdos.equ
+	include mserror.equ
+	include	cmdlinew.equ
+	include	driverw.equ
+	include	request.equ
+	include	pspw.def
+	.list
+
+PCM_CODE	segment public byte 'CODE'
 	extrn	os_version:word
 	extrn	patch_version:word
 
@@ -114,7 +122,7 @@ func69:
 	mov	cl,46h				; maybe it's a set
 	 je	func44common			; go ahead with set serial num
 ;	jmp	invalid_function		; ah well, it's an invalid one
-	jmps	f44_30
+	jmp	f44_30
 
 ;	*****************************
 ;	***    DOS Function 44    ***
@@ -214,7 +222,7 @@ f4409:
 	call	fdos_drive			; Execute the Function
 	mov	dx,ax				; Get the Return Information
     mov ax,0300h            
-	jmps	return_AX_and_DX
+	jmp	return_AX_and_DX
 
 ;	*****************************
 ;	***    Sub Function 0A    ***
@@ -301,7 +309,7 @@ fdos_error:
 fdos_OK:
 	mov	ax,FD_IOCTLSTAT		; get the return information
 	ret
-eject
+
 ;	*****************************
 ;	***    CCP/M Extension    ***
 ;	***    Sub Function 52    ***
@@ -309,22 +317,17 @@ eject
 ;	*****************************
 ;
 f4452:
-if DOS5
 	mov	es,current_psp		; version is kept in the PSP
-	cmp	PSP_VERSION,0FF00h	; sub-version of 255 ?
+	cmp	es:PSP_VERSION,0FF00h	; sub-version of 255 ?
 	 jae	f4452_10		; then say we ain't DRDOS
-endif
 	mov	ax,cs:os_version	; Get OS ver number
 	mov	dx,cs:patch_version
 	call	return_DX		; return in DX
 	jmp	return_AX_CLC		; return in AX
-
-if DOS5
 f4452_10:
     jmp invalid_function    
-endif
 
-if PASSWORD
+ifdef PASSWORD
 
 ;	*****************************
 ;	***    CCP/M Extension    ***
@@ -368,7 +371,7 @@ f4456:
 	cmp	dl,4			; toggle insert state ?
 	 jne	f4456_20		; no, return existing state
 	xor	al,RLF_INS		; toggle insert state
-	jmps	f4456_20		;  set and return prev state
+	jmp	f4456_20		;  set and return prev state
 
 f4456_05:
 	mov	cl,RLF_ENHANCED		; we are interested in enhancements
@@ -380,14 +383,16 @@ f4456_05:
 					; by COMMAND...)
 f4456_10:
 	or	al,RLF_INROOT		; assume we are in the root
-if IDLE_DETECT
+ifdef IDLE_DETECT
 	or	idle_flags,IDLE_COMMAND
+	nop	; REMOVE AFTER JWASM CONVERSION
 endif
 	test	dl,1			; Get new state and mask bit
 	 jnz	f4456_20
 	and	al,not RLF_INROOT	; we are in application buffer
-if IDLE_DETECT
+ifdef IDLE_DETECT
 	and	idle_flags,not IDLE_COMMAND
+	nop	; REMOVE AFTER JWASM CONVERSION
 endif
 f4456_20:
 	xchg	ax,cle_state		; set state, returning old state
@@ -409,10 +414,10 @@ f4458:
 	mov	ax,offset idle_data
 	jmp	return_AX_CLC
 
+PCM_CODE	ends
 
 
-
-PCM_RODATA	CSEG	WORD
+PCM_RODATA	segment public word 'CODE'
 ;
 ;		PCDOS Sub-Functions Only
 ;
@@ -440,7 +445,7 @@ dosf44_ftl	equ	(offset $ - offset func44_ft)/2
 ;
 		dw	f4452			; 4452 OS version no
 		dw	invalid_function	; 4453 Invalid Function
-if PASSWORD
+ifdef PASSWORD
 		dw	f4454			; 4454 set default password
 else
 		dw	invalid_function	; 4454 was set default password
@@ -452,11 +457,15 @@ endif
 
 ourf44_ftl	equ	(offset $ - offset func44_ft)/2
 
-PCMODE_DATA	DSEG	WORD
+PCM_RODATA	ends
+
+
+PCMODE_DATA	segment public word 'DATA'
+
 	extrn	net_delay:word, net_retry:word
 	extrn	@hist_flg:byte
 	extrn	@private_data:byte
-if IDLE_DETECT
+ifdef IDLE_DETECT
 	extrn	idle_data:word
 	extrn	idle_flags:word
 endif
@@ -464,5 +473,7 @@ endif
 	extrn	ioctlRH:byte
 	extrn	dos_version:word
 	extrn	current_psp:word
+
+PCMODE_DATA	ends
 
 	end
