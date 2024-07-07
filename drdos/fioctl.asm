@@ -1,5 +1,5 @@
 title 'FDOS IOCTL - DOS file system input/output control'
-;    File              : $FIOCTL.A86$
+;    File              : $FIOCTL.ASM$
 ;
 ;    Description       :
 ;
@@ -57,7 +57,7 @@ title 'FDOS IOCTL - DOS file system input/output control'
 ;    7 may 91  ioc2,ioc3,ioc6,ioc7,iocC destabilised for Lanstatic
 ;              by-product is ioc6 for disks returns read-ahead char
 ;              in AH
-;   28 feb 92  ioctl C checks bit 6 not bit 14 in DH_ATTRIB
+;   28 feb 92  ioctl C checks bit 6 not bit 14 in DEVHDR.ATTRIB
 ;    3 aug 92  ioctl C/D pass thru' SI/DI
 ;    5 aug 92  substatial ioctl rework saves a few bytes - ioctl
 ;              request header now built by PCMODE
@@ -65,30 +65,34 @@ title 'FDOS IOCTL - DOS file system input/output control'
 PCMCODE	GROUP	BDOS_CODE
 PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
 
-	eject ! include i:fdos.equ
-	eject ! include rh.equ
-	eject ! include i:msdos.equ
-	eject ! include i:mserror.equ
-	eject ! include i:doshndl.def	; DOS Handle Structures
-	eject ! include i:driver.equ
-	eject ! include i:f52data.def	; DRDOS Structures
-	eject
+ASSUME DS:PCMDATA
 
+	.nolist
+	include fdos.equ
+	include request.equ
+	include msdos.equ
+	include mserror.equ
+	include doshndl.def	; DOS Handle Structures
+	include driverw.equ
+	include f52dataw.def	; DRDOS Structures
+	.list
 
-PCMODE_DATA	dseg	BYTE
+PCMODE_DATA	segment public byte 'DATA'
 	extrn	ioctlRH:byte		; request header is build in PCMODE
 					;  data area
+PCMODE_DATA	ends
 
-BDOS_DATA	dseg	word
+BDOS_DATA	segment public word 'DATA'
 	extrn	fdos_pb:word
 	extrn	fdos_ret:word
 	extrn	last_drv:byte
 	extrn	req_hdr:byte
-if PASSWORD
+ifdef PASSWORD
 	extrn	global_password:word
 endif
+BDOS_DATA	ends
 
-BDOS_CODE	cseg
+BDOS_CODE	segment public byte 'CODE'
 
 	extrn	local_disk:near
 	extrn	device_driver:near
@@ -105,16 +109,15 @@ BDOS_CODE	cseg
 	extrn	vfy_dhndl_ptr:near
 	extrn	verify_handle:near
 	extrn	reload_registers:near
-if JOIN
+ifdef JOIN
 	extrn	get_ldt:near
 endif
-if PASSWORD
+ifdef PASSWORD
 	extrn	hash_pwd:near
 endif
 
 	public	fdos_ioctl
 
-eject
 ;	INPUT/OUTPUT CONTROL (IOCTL)
 
 ;	+----+----+----+----+----+----+----+----+----+----+
@@ -146,7 +149,7 @@ ioctl_tbl	dw	ioctl0		; 0-get handle status
 		dw	ioctl8		; 8-removable media check
 		dw	ioctl9		; 9-networked drive check
 		dw	ioctlA		; A-networked handle check
-if PASSWORD
+ifdef PASSWORD
 		dw	ioctl54		; B-set global password
 else
 		dw	device_ED_FUNCTION
@@ -211,7 +214,7 @@ ioctl1:		; set device status
 	 jnz	device_ED_FUNCTION	; skip if O.K.
 	or	al,DHAT_DEV		; make sure it stays a device
 	mov	es:DHNDL_ATTR[bx],al	; store ioctl state in doshndl
-	jmps	device_OK		; success
+	jmp	device_OK		; success
 
 
 ioctl2:		; receive control string (devicehandle)
@@ -228,7 +231,7 @@ ioctl10:	; query ioctl support (device handle)
 	 jnc	short_fdos_ED_FUNCTION	;  and is for a DEVICE
 	xor	cx,cx			; device relative unit # always zero
 	les	si,es:DHNDL_DEVPTR[bx]	; ES:SI -> device driver
-	jmps	ioc2345CDcommon		;  now use common code
+	jmp	ioc2345CDcommon		;  now use common code
 
 ioctl4:		; receive control string (drive)
 ;------
@@ -242,7 +245,7 @@ ioctl11:	; query ioctl support (drive)
 	call	get_pb2_ddsc		; get drives DDSC_
 	mov	cl,es:DDSC_RUNIT[bx]	; get relative unit #
 	les	si,es:DDSC_DEVHEAD[bx]	; ES:SI -> device header
-;	jmps	ioctl2345Common		;  now use common code
+;	jmp	ioctl2345Common		;  now use common code
 
 ioc2345CDcommon:
 ;---------------
@@ -255,11 +258,13 @@ ioc2345CDcommon:
 ;	IOCTL performed
 ;
 	mov	ax,fdos_pb+6		; device driver support required
-	test	es:DH_ATTRIB[si],ax	; does device driver support function ?
+	test	es:DEVHDR.ATTRIB[si],ax	; does device driver support function ?
 	 jz	short_fdos_ED_FUNCTION
 	push	ds
-	push es ! pop ds		; DS:SI -> device driver
-	push ss ! pop es
+	push 	es
+	pop 	ds			; DS:SI -> device driver
+	push 	ss
+	pop 	es
 	mov	bx,offset ioctlRH	; ES:BX -> request header
 	mov	es:RH_UNIT[bx],cl	; set relative unit for block devices
 	call	device_driver		; call the device driver
@@ -325,7 +330,7 @@ ioctl8:		; removable media check
 	call	get_pb2_ddsc		; get drives DDSC_
 	push	ds
 	lds	si,es:DDSC_DEVHEAD[bx]	; DS:SI -> device driver
-	test	ds:DH_ATTRIB[si],DA_REMOVE
+	test	ds:DEVHDR.ATTRIB[si],DA_REMOVE
 	pop	ds			; do we support the check ?
 	 jz	short_fdos_ED_FUNCTION	; if we don't then don't ask
 	mov	req_hdr,RH15_LEN
@@ -429,7 +434,7 @@ else
 	mov	ax,es:4[di]		; pick up garbage
 	or	ah,10h			; return drive as remote
 endif
-	jmps	ioctl930
+	jmp	ioctl930
 
 ioctl910:
 	test	ah,LFLG_PHYSICAL/256
@@ -467,7 +472,7 @@ ioctlE:
 ;------
 	call	local_disk
 	mov	al,CMD_GET_DEVICE	; get logical device
-	jmps	iocEFcommon		; common code for IOCTL(E)/IOCTL(F)
+	jmp	iocEFcommon		; common code for IOCTL(E)/IOCTL(F)
 
 ioctlF:
 ;------
@@ -482,7 +487,7 @@ iocEFcommon:
 	xor	ax,ax			; assume not supported
 	push	ds
 	lds	si,es:DDSC_DEVHEAD[bx]	; does device driver support function ?
-	test	ds:DH_ATTRIB[si],DA_GETSET
+	test	ds:DEVHDR.ATTRIB[si],DA_GETSET
 	pop	ds
 	 jz	iocF_single		; skip if not supported
 	call	block_device_driver	; call the device driver
@@ -493,7 +498,7 @@ iocF_single:				; AX = return value
 	mov	fdos_pb+6,ax		; return the drive
 	ret
 
-if PASSWORD
+ifdef PASSWORD
 
 ioctl54:	; set global password
 ;-------
@@ -506,5 +511,7 @@ ioctl54:	; set global password
 	ret
 
 endif
-	
+
+BDOS_CODE	ends
+
 end
