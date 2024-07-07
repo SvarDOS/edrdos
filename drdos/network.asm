@@ -1,4 +1,4 @@
-;    File              : $NETWORK.A86$
+;    File              : $NETWORK.ASM$
 ;
 ;    Description       :
 ;
@@ -33,12 +33,19 @@
 ;
 ;   DOS Network Function Calls
 
-	include	pcmode.equ
-	include	i:mserror.equ
-	include	i:redir.equ
-	include	i:doshndl.def
+PCMCODE	GROUP	PCM_CODE
+PCMDATA	GROUP	PCMODE_DATA,FDOS_DSEG
 
-PCM_CODE	CSEG	BYTE
+ASSUME DS:PCMDATA
+
+	.nolist
+	include	pcmodew.equ
+	include	mserror.equ
+	include	redir.equ
+	include	doshndl.def
+	.list
+
+PCM_CODE	segment public byte 'CODE'
 
 	extrn	reload_ES:near
 	extrn	return_AX_CLC:near
@@ -53,10 +60,12 @@ PCM_CODE	CSEG	BYTE
 ;
 	Public	func5E
 func5E:
-	cmp al,1 ! jb f5E00		; Get Machine Name Sub-Function
-		   je f5E01		; Set Machine Name Sub-Function
-	mov	ax,I2F_REDIR_5E	; magic int 2F number
+	cmp 	al,1
+	 jb 	f5E00			; Get Machine Name Sub-Function
+	 je 	f5E01			; Set Machine Name Sub-Function
+	mov	ax,I2F_REDIR_5E		; magic int 2F number
 	jmp	func5F_common		; use common routine
+	nop	; REMOVE AFTER JWASM CONVERSION
 ;
 ;	Get the current Machine Name
 ;
@@ -81,14 +90,17 @@ f5E01:
 ;	mov	netbios,cl		; and save in local variables
 	mov	word ptr netbios,cx
 	inc	net_set_count
-	push ds ! push es
-	pop ds ! pop es			; Copy the specified name
+	push 	ds
+	push 	es
+	pop 	ds
+	pop 	es			; Copy the specified name
 	mov	si,dx			; to internal save area
 	mov	di,offset net_name
 	mov	cx,15			; Copy 15 byte name leave
 	rep	movsb			; Terminating 00
-	push es ! pop ds
-	jmps	f5E_success
+	push 	es
+	pop 	ds
+	jmp	f5E_success
 
 
 ;	*****************************
@@ -110,10 +122,10 @@ func5F_10:
 	 jc	func5F_30
 	cmp	es:word ptr LDT_PDT[bx],1
 	 jb	func5F_30
-	or	es:byte ptr LDT_FLAGS+1[bx],LFLG_PHYSICAL/100h
+	or	es:byte ptr LDT_FLAGS+1[bx],(LFLG_PHYSICAL shr 8) and 0ffh
 	cmp	al,07h
 	 je	func5F_30
-	and	es:byte ptr LDT_FLAGS+1[bx],(not LFLG_PHYSICAL)/100h
+	and	es:byte ptr LDT_FLAGS+1[bx],((not LFLG_PHYSICAL) shr 8) and 0ffh
 func5F_30:
 	jnc	func5F_OK
 	mov	ax,ED_DRIVE
@@ -140,12 +152,16 @@ func5F_error:
 	neg	ax			; our error convention is negative..
 	jmp	error_exit		; Error for all sub functions
 
-PCMODE_DATA	DSEG	WORD
+PCM_CODE	ends
+
+PCMODE_DATA	segment public word 'DATA'
 
 	extrn	net_name:byte
 	extrn	net_set_count:byte
 	extrn	name_num:byte
 	extrn	netbios:byte
 	extrn	int21AX:word
+
+PCMODE_DATA	ends
 
 end
