@@ -158,6 +158,8 @@ RH13_LEN	equ	13
 
 RH14_LEN	equ	13
 
+RH15_LEN  equ 13
+
 ;	Request header for generic IOCTL
 
 RH19_CATEGORY	equ	word ptr 13	; BDOS: major/minor function number
