@@ -17,8 +17,11 @@ drdos/bin/*
 prepare.bat
 *.swp
 drbio/VERSION.INC
+drbio/version.inc
 drdos/VERSION.INC
+drdos/version.inc
 command/VERSION.INC
+command/version.inc
 doc/build.htm
 doc/build.txt
 doc/build.pdf
