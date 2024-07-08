@@ -48,9 +48,9 @@ PCMCODE group PCM_CODE
 ASSUME DS:PCMDATA
 
 	.nolist
- 	include	pcmodew.equ
+ 	include	pcmode.equ
 	include fdos.def
-	include	pspw.def
+	include	psp.def
 	include mserror.equ
 	include	vectors.def
 	include msdos.equ

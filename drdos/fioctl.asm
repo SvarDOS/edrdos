@@ -73,8 +73,8 @@ ASSUME DS:PCMDATA
 	include msdos.equ
 	include mserror.equ
 	include doshndl.def	; DOS Handle Structures
-	include driverw.equ
-	include f52dataw.def	; DRDOS Structures
+	include driver.equ
+	include f52data.def	; DRDOS Structures
 	.list
 
 PCMODE_DATA	segment public byte 'DATA'

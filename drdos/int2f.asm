@@ -58,11 +58,11 @@ PCMDATA	GROUP	PCMODE_DATA,FDOS_DSEG,GLOBAL_DATA
 ASSUME DS:PCMDATA
 
 	.nolist
-	include	pcmodew.equ
+	include	pcmode.equ
 	include msdos.equ
 	include	mserror.equ
-	include	driverw.equ
-	include	pspw.def
+	include	driver.equ
+	include	psp.def
 	include	doshndl.def
 	include	redir.equ
 	.list

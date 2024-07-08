@@ -79,63 +79,71 @@ ERR_RETRY	equ	1		; Retry the Operation
 ERR_ABORT	equ	2		; Terminate the Process
 ERR_FAIL	equ	3		; Fail Function
 ;
-OK_FAIL		equ	0000$1000b	; Fail is a Valid Response
-OK_RETRY	equ	0001$0000b	; Retry is a Valid Response
-OK_IGNORE	equ	0010$0000b	; Ignore is a valid Response
-OK_RIF		equ	0011$1000b	; All Responsese are Valid
-OK_RI		equ	0011$0000b	; Retry and Ignore are Valid
-OK_RF		equ	0001$1000b	; Retry and Fail are Valid
+OK_FAIL		equ	00001000b	; Fail is a Valid Response
+OK_RETRY	equ	00010000b	; Retry is a Valid Response
+OK_IGNORE	equ	00100000b	; Ignore is a valid Response
+OK_RIF		equ	00111000b	; All Responsese are Valid
+OK_RI		equ	00110000b	; Retry and Ignore are Valid
+OK_RF		equ	00011000b	; Retry and Fail are Valid
 ;
-NO_CRIT_ERRORS	equ	0100$0000b	; critical error shouldn't be generated
+NO_CRIT_ERRORS	equ	01000000b	; critical error shouldn't be generated
 					; warning - must match FDOS.A86
 ;
-eject
 ;	The following equates define the format in which the users registers
 ;	are saved on the stack. This format is also seen by an application
 ;	when a critical error occurs.
 ;
-CodeMacro	POP$DOS		; Pop User Registers a la MS-DOS
-	db 058h ! db 05Bh	; pop AX ! pop BX
-	db 059h ! db 05Ah	; pop CX ! pop DX
-	db 05Eh ! db 05Fh	; pop SI ! pop DI
-	db 05Dh			; pop BP
-	db 01Fh ! db 007h	; pop DS ! pop ES
-EndM
+POP_DOS macro			; Pop User Registers a la MS-DOS
+	pop	ax
+	pop	bx
+	pop	cx
+	pop	dx
+	pop	si
+	pop	di
+	pop	bp
+	pop	ds
+	pop	es
+endm
 
-CodeMacro   PUSH$DOS    ; Push User Registers
-	db 006h ! db 01Eh	; push ES ! push DS
-	db 055h			; push BP
-	db 057h ! db 056h	; push DI ! push SI
-	db 052h ! db 051h	; push DX ! push CX
-	db 053h ! db 050h	; push BX ! push AX
-EndM
+PUSH_DOS macro			; Push User Registers
+	push	es
+	push	ds
+	push	bp
+	push	di
+	push	si
+	push	dx
+	push	cx
+	push	bx
+	push	ax
+endm
 
-reg_AX		equ	word ptr .00
-reg_AL		equ	byte ptr .00
-reg_AH		equ	byte ptr .01
 
-reg_BX		equ	word ptr .02
-reg_BL		equ	byte ptr .02
-reg_BH		equ	byte ptr .03
+reg_AX		equ	word ptr 00
+reg_AL		equ	byte ptr 00
+reg_AH		equ	byte ptr 01
 
-reg_CX		equ	word ptr .04
-reg_CL		equ	byte ptr .04
-reg_CH		equ	byte ptr .05
+reg_BX		equ	word ptr 02
+reg_BL		equ	byte ptr 02
+reg_BH		equ	byte ptr 03
 
-reg_DX		equ	word ptr .06
-reg_DL		equ	byte ptr .06
-reg_DH		equ	byte ptr .07
+reg_CX		equ	word ptr 04
+reg_CL		equ	byte ptr 04
+reg_CH		equ	byte ptr 05
 
-reg_SI		equ	word ptr .08
-reg_DI		equ	word ptr .10
-reg_BP		equ	word ptr .12
+reg_DX		equ	word ptr 06
+reg_DL		equ	byte ptr 06
+reg_DH		equ	byte ptr 07
 
-reg_DS		equ	word ptr .14
-reg_ES		equ	word ptr .16
+reg_SI		equ	word ptr 08
+reg_DI		equ	word ptr 10
+reg_BP		equ	word ptr 12
 
-reg_IP		equ	word ptr .18
-reg_CS		equ	word ptr .20
-reg_FLAGS	equ	word ptr .22
+reg_DS		equ	word ptr 14
+reg_ES		equ	word ptr 16
+
+reg_IP		equ	word ptr 18
+reg_CS		equ	word ptr 20
+reg_FLAGS	equ	word ptr 22
 
 ; Processor Flags
 CARRY_FLAG	equ	0001h		; Carry Flag
@@ -145,35 +153,39 @@ INT_FLAG	equ	0200h		; Interrupt Flag
 DIR_FLAG	equ	0400h		; Direction Flag
 OFLW_FLAG	equ	0800h		; OverFlow Flag
 
-DMD_ID          equ     es:byte ptr .0	; id code ('M' or 'Z')
-DMD_PSP         equ     es:word ptr .1	; owner of memory block
-DMD_LEN         equ     es:word ptr .3	; length of memory block
-DMD_IDLE_FLAGS  equ es:word ptr .6  ; idle flags live here
-DMD_NAME	equ	es:byte ptr .8	; ASCIIZ name field
+DMD_ID          equ     byte ptr 0	; id code ('M' or 'Z')
+DMD_PSP         equ     word ptr 1	; owner of memory block
+DMD_LEN         equ     word ptr 3	; length of memory block
+DMD_IDLE_FLAGS  equ 	word ptr 6  	; idle flags live here
+DMD_NAME	equ	byte ptr 8	; ASCIIZ name field
 DMD_NAME_LEN	equ	8		;  8 Bytes long
 IDM             equ     'M'		; not last id code
 IDZ             equ     'Z'		; last id code
 
-PCMCODE		GROUP	PCM_HEADER, PCM_CODE, BDOS_CODE, PCM_RODATA
-PCMCODE		GROUP	PCM_HISTORY, PCM_ICODE, PCM_CODEND
+;PCMCODE		GROUP	PCM_HEADER, PCM_CODE, BDOS_CODE, PCM_RODATA
+;PCMCODE		GROUP	PCM_HISTORY, PCM_ICODE, PCM_CODEND
 
-PCM_HEADER	CSEG	PARA
-PCM_CODE	CSEG	BYTE
-PCM_RODATA	CSEG	WORD
-BDOS_CODE	CSEG	WORD
-PCM_HISTORY	CSEG	BYTE
-PCM_ICODE	CSEG	BYTE
-PCM_CODEND	CSEG	PARA
+;PCM_HEADER	CSEG	PARA
+;PCM_CODE	CSEG	BYTE
+;PCM_RODATA	CSEG	WORD
+;BDOS_CODE	CSEG	WORD
+;PCM_HISTORY	CSEG	BYTE
+;PCM_ICODE	CSEG	BYTE
+;PCM_CODEND	CSEG	PARA
 
 
-PCMDATA		GROUP	PCMODE_DATA, FDOS_DSEG, FIXED_DOS_DATA
-PCMDATA		GROUP	PCMODE_CODE, GLOBAL_DATA, BDOS_DATA, PCMODE_DSIZE
+;PCMDATA		GROUP	PCMODE_DATA, FDOS_DSEG, FIXED_DOS_DATA
+;PCMDATA		GROUP	PCMODE_CODE, GLOBAL_DATA, BDOS_DATA, PCMODE_DSIZE
 
-PCMODE_DATA	DSEG	WORD		; DOS Data
-FDOS_DSEG	DSEG	WORD COMMON	; FDOS Parameter Block	
-fdos_data	rw	7
-FIXED_DOS_DATA	CSEG	WORD	'DATA'	; Fixed DOS Data Area
-PCMODE_CODE	CSEG	WORD	'DATA'	; DATA relative CODE
-GLOBAL_DATA	DSEG	WORD		; GLOBAL DOS DATA (Process Independant)
-BDOS_DATA	DSEG	WORD		; BDOS Data Area
-PCMODE_DSIZE	DSEG	PARA		; End of DOS Data Area
+;PCMODE_DATA	DSEG	WORD		; DOS Data
+;FDOS_DSEG	DSEG	WORD COMMON	; FDOS Parameter Block	
+
+FDOS_DSEG	segment common word 'DATA'
+fdos_data	dw	7 dup (?)
+FDOS_DSEG	ends
+
+;FIXED_DOS_DATA	CSEG	WORD	'DATA'	; Fixed DOS Data Area
+;PCMODE_CODE	CSEG	WORD	'DATA'	; DATA relative CODE
+;GLOBAL_DATA	DSEG	WORD		; GLOBAL DOS DATA (Process Independant)
+;BDOS_DATA	DSEG	WORD		; BDOS Data Area
+;PCMODE_DSIZE	DSEG	PARA		; End of DOS Data Area

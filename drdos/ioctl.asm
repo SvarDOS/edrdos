@@ -80,14 +80,14 @@ PCMDATA	GROUP	PCMODE_DATA,FDOS_DSEG
 ASSUME DS:PCMDATA
 
 	.nolist
-	include	pcmodew.equ
+	include	pcmode.equ
 	include fdos.def
 	include	msdos.equ
 	include mserror.equ
-	include	cmdlinew.equ
-	include	driverw.equ
+	include	cmdline.equ
+	include	driver.equ
 	include	request.equ
-	include	pspw.def
+	include	psp.def
 	.list
 
 PCM_CODE	segment public byte 'CODE'

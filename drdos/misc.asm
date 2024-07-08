@@ -59,11 +59,11 @@ ASSUME DS:PCMDATA
 VALID_SIG	equ	0EDC1h
 
 	.nolist
-	include	pcmodew.equ
+	include	pcmode.equ
 	include	msdos.equ
 	include mserror.equ
-	include pspw.def
-	include	driverw.equ
+	include psp.def
+	include	driver.equ
 	include	char.def
 	include	country.def
 	include	doshndl.def

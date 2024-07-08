@@ -63,12 +63,12 @@ PCMDATA	GROUP	PCMODE_DATA,PCMODE_CODE
 ASSUME DS:PCMDATA
 
 	.nolist
-	include pspw.def
+	include psp.def
 	include fdos.equ
 	include msdos.equ
 	include mserror.equ
 	include doshndl.def	; DOS Handle Structures
-	include f52dataw.def	; DRDOS Structures
+	include f52data.def	; DRDOS Structures
 	include redir.equ
 	.list
 

@@ -37,12 +37,12 @@
 ;
 
 	.nolist
-	include	pcmodew.equ
+	include	pcmode.equ
 	include	msdos.equ
 	include char.def
-	include	cmdlinew.equ
+	include	cmdline.equ
 	include	request.equ
-	include	driverw.equ
+	include	driver.equ
 	.list
 
 PCMDATA group PCMODE_DATA,FDOS_DSEG

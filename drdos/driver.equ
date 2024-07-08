@@ -1,3 +1,4 @@
+;  INTERIM DRIVER.EQU FOR JWASM translation
 ;    File              : $DRIVER.EQU$
 ;
 ;    Description       :
@@ -29,18 +30,16 @@
 ;    *** End of Current Edit History ***
 ;
 ;    $Log$
-;
 ;    ENDLOG
 ; Device driver header offsets.
 
-
-DH_NEXT		equ	es:dword ptr 0		; Dword Pointer to Next DEV
-DH_NEXTOFF	equ	es:word ptr 0		; Offset of next device
-DH_NEXTSEG	equ	es:word ptr 2		; Segment of next device
-DH_ATTRIB	equ	es:word ptr 4		; device attribute bits
-DH_STRATEGY	equ	es:word ptr 6		; offset of strategy entry
-DH_INTERRUPT	equ	es:word ptr 8		; offset of interupt entry
-DH_NAME		equ	es:byte ptr 10		; 8-BYTE device name
+DEVHDR struc
+NEXT		dd ?
+ATTRIB		dw ?
+STRATEGY	dw ?
+INTERRUPT 	dw ?
+NAM 		db 8 dup (?)
+DEVHDR ends
 
 DA_CHARDEV	equ	8000h		; 1=character device, 0=block device
 DA_IOCTL	equ	4000h		; device supports IOCTL string I/O

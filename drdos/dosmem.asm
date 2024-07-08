@@ -43,7 +43,7 @@ PCMCODE group PCM_CODE
 ASSUME DS:PCMDATA
 
 	.nolist
-	include	pcmodew.equ
+	include	pcmode.equ
 	include msdos.equ
 	include mserror.equ
 	.list

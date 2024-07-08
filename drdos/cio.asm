@@ -88,12 +88,12 @@
 
 	.nolist
 	include compat.def
-	include	pcmodew.equ
-	include driverw.equ
+	include	pcmode.equ
+	include driver.equ
 	include	request.equ
 	include	msdos.equ
 	include	fdos.equ
-	include	pspw.def
+	include	psp.def
 	include	mserror.equ
 	include	char.def
 	include	redir.equ

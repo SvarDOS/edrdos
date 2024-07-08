@@ -160,15 +160,15 @@ PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
 ASSUME DS:PCMDATA
 
 	.nolist
-	include pspw.def
+	include psp.def
 	include modfunc.def
 	include fdos.equ
 	include request.equ
 	include msdos.equ
 	include mserror.equ
 	include doshndl.def	; DOS Handle Structures
-	include driverw.equ
-	include f52dataw.def	; DRDOS Structures
+	include driver.equ
+	include f52data.def	; DRDOS Structures
 	include bdos.equ
 	.list
 

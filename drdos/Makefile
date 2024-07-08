@@ -41,70 +41,70 @@ bin/buffers.obj: buffers.asm fdos.equ bdos.equ doshndl.def
 bin/dirs.obj: dirs.asm bdos.equ mserror.equ fdos.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/fdos.obj: fdos.asm version.inc pspw.def modfunc.def fdos.equ request.equ msdos.equ mserror.equ doshndl.def driverw.equ f52dataw.def  bdos.equ funcs.fdo utils.fdo
+bin/fdos.obj: fdos.asm version.inc psp.def modfunc.def fdos.equ request.equ msdos.equ mserror.equ doshndl.def driver.equ f52data.def  bdos.equ funcs.fdo utils.fdo
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/fcbs.obj: fcbs.asm fdos.equ msdos.equ mserror.equ doshndl.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/bdevio.obj: bdevio.asm driverw.equ fdos.equ mserror.equ doshndl.def bdos.equ request.equ
+bin/bdevio.obj: bdevio.asm driver.equ fdos.equ mserror.equ doshndl.def bdos.equ request.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/cdevio.obj: cdevio.asm pspw.def modfunc.def fdos.equ mserror.equ doshndl.def driverw.equ request.equ cmdlinew.equ
+bin/cdevio.obj: cdevio.asm psp.def modfunc.def fdos.equ mserror.equ doshndl.def driver.equ request.equ cmdline.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/fioctl.obj: fioctl.asm fdos.equ request.equ msdos.equ mserror.equ doshndl.def driverw.equ f52dataw.def
+bin/fioctl.obj: fioctl.asm fdos.equ request.equ msdos.equ mserror.equ doshndl.def driver.equ f52data.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 	
-bin/redir.obj: redir.asm pspw.def fdos.equ msdos.equ mserror.equ doshndl.def f52dataw.def redir.equ
+bin/redir.obj: redir.asm psp.def fdos.equ msdos.equ mserror.equ doshndl.def f52data.def redir.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 	
-bin/header.obj: header.asm pcmodew.equ vectors.def cmdlinew.equ doshndl.def driverw.equ exe.def f52dataw.def fdos.equ mserror.equ psp.def request.equ country.def
+bin/header.obj: header.asm pcmode.equ vectors.def cmdline.equ doshndl.def driver.equ exe.def f52data.def fdos.equ mserror.equ psp.def request.equ country.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/pcmif.obj: pcmif.asm pcmodew.equ fdos.def vectors.def msdos.equ mserror.equ pspw.def fdos.equ
+bin/pcmif.obj: pcmif.asm pcmode.equ fdos.def vectors.def msdos.equ mserror.equ psp.def fdos.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/cio.obj: cio.asm pcmodew.equ driverw.equ request.equ msdos.equ fdos.equ pspw.def mserror.equ char.def redir.equ doshndl.def
+bin/cio.obj: cio.asm pcmode.equ driver.equ request.equ msdos.equ fdos.equ psp.def mserror.equ char.def redir.equ doshndl.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/disk.obj: disk.asm pcmodew.equ fdos.def doshndl.def fdos.equ pspw.def msdos.equ mserror.equ redir.equ
+bin/disk.obj: disk.asm pcmode.equ fdos.def doshndl.def fdos.equ psp.def msdos.equ mserror.equ redir.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/ioctl.obj: ioctl.asm pcmodew.equ fdos.def msdos.equ mserror.equ cmdlinew.equ driverw.equ request.equ pspw.def
+bin/ioctl.obj: ioctl.asm pcmode.equ fdos.def msdos.equ mserror.equ cmdline.equ driver.equ request.equ psp.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/misc.obj: misc.asm version.inc pcmodew.equ msdos.equ mserror.equ pspw.def driverw.equ char.def country.def doshndl.def redir.equ fdos.equ
+bin/misc.obj: misc.asm version.inc pcmode.equ msdos.equ mserror.equ psp.def driver.equ char.def country.def doshndl.def redir.equ fdos.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/support.obj: support.asm pcmodew.equ fdos.def mserror.equ doshndl.def
+bin/support.obj: support.asm pcmode.equ fdos.def mserror.equ doshndl.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/dosmem.obj: dosmem.asm pcmodew.equ msdos.equ mserror.equ
+bin/dosmem.obj: dosmem.asm pcmode.equ msdos.equ mserror.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/error.obj: error.asm pcmodew.equ fdos.def msdos.equ mserror.equ pspw.def char.def request.equ
+bin/error.obj: error.asm pcmode.equ fdos.def msdos.equ mserror.equ psp.def char.def request.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/process.obj: process.asm pcmodew.equ fdos.def pspw.def mserror.equ vectors.def msdos.equ exe.def char.def redir.equ doshndl.def
+bin/process.obj: process.asm pcmode.equ fdos.def psp.def mserror.equ vectors.def msdos.equ exe.def char.def redir.equ doshndl.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/network.obj: network.asm pcmodew.equ mserror.equ redir.equ doshndl.def
+bin/network.obj: network.asm pcmode.equ mserror.equ redir.equ doshndl.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/int2f.obj: int2f.asm pcmodew.equ msdos.equ mserror.equ driverw.equ pspw.def doshndl.def redir.equ
+bin/int2f.obj: int2f.asm pcmode.equ msdos.equ mserror.equ driver.equ psp.def doshndl.def redir.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/history.obj: history.asm pcmodew.equ msdos.equ char.def cmdlinew.equ
+bin/history.obj: history.asm pcmode.equ msdos.equ char.def cmdline.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/cmdline.obj: cmdline.asm pcmodew.equ msdos.equ char.def cmdlinew.equ request.equ driverw.equ
+bin/cmdline.obj: cmdline.asm pcmode.equ msdos.equ char.def cmdline.equ request.equ driver.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/dos7.obj: dos7.asm pcmodew.equ fdos.equ fdos.def dos7.equ
+bin/dos7.obj: dos7.asm pcmode.equ fdos.equ fdos.def dos7.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
-bin/lfn.obj: lfn.asm bdos.equ fdos.equ pcmodew.equ doshndl.def lfn.equ fdos.def mserror.equ
+bin/lfn.obj: lfn.asm bdos.equ fdos.equ pcmode.equ doshndl.def lfn.equ fdos.def mserror.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 

@@ -72,17 +72,17 @@ PCMDATA group BDOS_DATA,PCMODE_DSIZE
 
 PCMCODE group PCM_HEADER,PCM_HISTORY,PCM_ICODE,PCM_CODEND
 
-	include pcmodew.equ
+	include pcmode.equ
 	include	vectors.def
 
-	include	cmdlinew.equ
+	include	cmdline.equ
 	include	doshndl.def
-	include	driverw.equ
+	include	driver.equ
 	include exe.def
-	include	f52dataw.def
+	include	f52data.def
 	include fdos.equ
 	include	mserror.equ
-	include	pspw.def
+	include	psp.def
 	include	request.equ
 	include	country.def
 

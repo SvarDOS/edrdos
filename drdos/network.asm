@@ -39,7 +39,7 @@ PCMDATA	GROUP	PCMODE_DATA,FDOS_DSEG
 ASSUME DS:PCMDATA
 
 	.nolist
-	include	pcmodew.equ
+	include	pcmode.equ
 	include	mserror.equ
 	include	redir.equ
 	include	doshndl.def

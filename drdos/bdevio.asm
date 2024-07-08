@@ -67,7 +67,7 @@ ASSUME CS:PCMCODE,DS:PCMDATA
 	.nolist
 	include mserror.equ	; F_DOS errors
 	include fdos.equ
-	include driverw.equ
+	include driver.equ
 	include doshndl.def
 	include bdos.equ
 	include request.equ

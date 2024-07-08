@@ -49,14 +49,14 @@ PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA
 ASSUME DS:PCMDATA
 
 	.nolist
-	include pspw.def
+	include psp.def
 	include modfunc.def
 	include fdos.equ
 	include mserror.equ
 	include doshndl.def
-	include driverw.equ
+	include driver.equ
 	include request.equ
-	include cmdlinew.equ
+	include cmdline.equ
 	.list
 
 PCMODE_DATA	segment public word 'DATA'

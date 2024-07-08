@@ -10,7 +10,7 @@ PCMCODE group PCM_CODE
 ASSUME DS:PCMDATA
 
 	.nolist
-	include	pcmodew.equ
+	include	pcmode.equ
 	include	fdos.equ
 	include	fdos.def
 	include	dos7.equ

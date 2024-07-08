@@ -126,12 +126,12 @@ PCMDATA group PCMODE_DATA,FDOS_DSEG
 PCMCODE group PCM_CODE,PCM_RODATA
 
 	.nolist
-	include	pcmodew.equ
+	include	pcmode.equ
 	include	fdos.def
 	include	vectors.def
 	include	msdos.equ
 	include	mserror.equ
-	include	pspw.def
+	include	psp.def
 	include	fdos.equ
 	.list
 

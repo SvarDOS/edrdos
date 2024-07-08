@@ -40,10 +40,10 @@ PCMDATA	GROUP	PCMODE_DATA,FDOS_DSEG,GLOBAL_DATA
 ASSUME DS:PCMDATA
 
 	.nolist
-	include	pcmodew.equ
+	include	pcmode.equ
 	include	msdos.equ
 	include char.def
-	include	cmdlinew.equ
+	include	cmdline.equ
 	.list
 
 
