@@ -7,13 +7,10 @@
 
 .ERASE
 
-WCC = wcc
-CFLAGS = -q -os -s -dFINAL -dPASSWORD -dWATCOMC -i=.
-WASM = jwasm
-WASM_FLAGS = -q -c -Zm -Zg -DWATCOMC -DPASCAL -DFINAL -I./
-WLINK = wlink
-EXE2BIN = exe2bin
+!include ../platform.mak
 
+CFLAGS = -q -os -s -dFINAL -dPASSWORD -dWATCOMC -i=.
+WASM_FLAGS = -q -c -Zm -Zg -DWATCOMC -DPASCAL -DFINAL -I./
 
 asm_objs  = bin/message.obj bin/cstart.obj bin/csup.obj bin/dosif.obj
 asm_objs += bin/crit.obj bin/resident.obj bin/txhelp.obj bin/helpstub.obj
@@ -23,14 +20,18 @@ objs += bin/batch.obj bin/global.obj bin/config.obj bin/comcpy.obj
 objs += bin/cmdlist.obj
 
 bin/command.com: bin/command.exe bin/txhelp.bin
-	copy /b bin\command.exe+bin\txhelp.bin bin\command.com
+!ifdef __UNIX__
+	$(CP) bin$(SEP)command.exe bin$(SEP)txhelp.bin >bin$(SEP)command.com
+!else
+	$(CP) /b bin$(SEP)command.exe+bin$(SEP)txhelp.bin bin$(SEP)command.com
+!endif
 
 bin/command.exe: $(asm_objs) $(objs)
 	$(WLINK) @command.lnk
 
 bin/txhelp.bin: bin/helpstub.obj bin/txhelp.obj
-	wlink @txhelp.lnk
-	exe2bin bin/txhelp.exe bin/txhelp.bin
+	$(WLINK) @txhelp.lnk
+	$(EXE2BIN) -q bin$(SEP)txhelp.exe bin$(SEP)txhelp.bin
 .c: ..
 .c.obj: .AUTODEPEND
 	$(WCC) $(CFLAGS) -Fo$^@ $[@
@@ -42,13 +43,20 @@ bin/txhelp.bin: bin/helpstub.obj bin/txhelp.obj
 bin/message.obj: version.inc
 
 version.inc: ../version.inc
-	copy ..\version.inc .
+	$(CP) ..$(SEP)version.inc .
 
 clean: .SYMBOLIC
 	rm -f bin/*.bin
+	rm -f bin/*.BIN	
 	rm -f bin/*.com
+	rm -f bin/*.COM
 	rm -f bin/*.exe
+	rm -f bin/*.EXE	
 	rm -f bin/*.obj
+	rm -f bin/*.OBJ
 	rm -f bin/*.lst
+	rm -f bin/*.LST
 	rm -f bin/*.map
+	rm -f bin/*.MAP
 	rm -f version.inc
+	rm -f VERSION.INC

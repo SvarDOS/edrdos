@@ -25,5 +25,7 @@ WASM_FLAGS = -q
 WLINK = wlink
 EXE2BIN = exe2bin
 
+WCC = wcc
+
 COMPBIOS = $(LTOOLS)$(SEP)compbios
 COMPBDOS = $(LTOOLS)$(SEP)compbdos

@@ -10,7 +10,7 @@ file bin/csup.obj
 file bin/dosif.obj
 file bin/comint.obj
 file bin/support.obj
-file bin/cmdlist
+file bin/cmdlist.obj
 file bin/printf.obj
 file bin/message.obj
 file bin/batch.obj
