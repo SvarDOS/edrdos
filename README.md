@@ -1,11 +1,16 @@
-# Enhanced DR-DOS Kernel fork
+# Enhanced DR-DOS Kernel ported to JWasm
 
 ## Build instructions
 Building the kernel is currently supported with the following tools:
 
 - [OpenWatcom](https://github.com/open-watcom/open-watcom-v2), v1.9 or newer
   (WMAKE, WLINK and EXE2BIN)
-- [JWasm assembler](https://github.com/Baron-von-Riedesel/JWasm), v2.17 or newer
+- [JWasm assembler](https://github.com/Baron-von-Riedesel/JWasm), v2.17 or
+  newer
+- Binary versions of the tools inside the `ltools` directory matching your
+  operating system. DOS and Windows binaries are provided. Under a
+  UNIX-like operating system you have to build them by yourself by invoking
+  make inside the `ltools/unix` directory.
 
 I was able to successfully build the kernel and command interpreter under
 DOS, Win32 and MacOS. It should also build under Linux.
