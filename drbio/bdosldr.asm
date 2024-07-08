@@ -259,8 +259,8 @@ device_request:		; general device driver interface
 	push	ds
 	pop	es
 	mov	ds,strat_seg
-	call	[cs:strat_ptr]
-	call	[cs:intrpt_ptr]
+	call	dword ptr cs:strat_ptr
+	call	dword ptr cs:intrpt_ptr
 	pop	es
 	pop	ds
 	test	[bx+RH_STATUS],RHS_ERROR
