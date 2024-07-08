@@ -42,7 +42,7 @@ bin/dirs.obj: dirs.asm bdos.equ mserror.equ fdos.equ
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/fdos.obj: fdos.asm version.inc pspw.def modfunc.def fdos.equ request.equ msdos.equ mserror.equ doshndl.def driverw.equ f52dataw.def  bdos.equ funcs.fdo utils.fdo
-	$(WASM) $(WASM_FLAGS) -Dshortversion -Fo$^@ -Fl$^*.lst $[@
+	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 bin/fcbs.obj: fcbs.asm fdos.equ msdos.equ mserror.equ doshndl.def
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
@@ -109,10 +109,8 @@ bin/lfn.obj: lfn.asm bdos.equ fdos.equ pcmodew.equ doshndl.def lfn.equ fdos.def 
 
 
 clean: .SYMBOLIC
-	rm -f bin/drdos.sys
-	rm -f bin/DRDOS.SYS
-	rm -f bin/drdos.exe
-	rm -f bin/DRDOS.EXE
+	rm -f bin/drdos.*
+	rm -f bin/DRDOS.*	
 	rm -f bin/country.sys	
 	rm -f bin/COUNTRY.SYS	
 	rm -f bin/*.obj
@@ -127,3 +125,4 @@ clean: .SYMBOLIC
 	rm -f bin/*.MAP
 	rm -f bin/*.inp
 	rm -f version.inc
+	rm -f VERSION.INC

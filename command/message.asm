@@ -18,7 +18,6 @@ _msg_ver111	db	NUL , NUL
 	public	msg_version
 msg_version	label	byte
 _msg_version	db	LF
-shortversion equ 0
 		include version.inc
 		db LF, NUL
 	public	_msg_lbl

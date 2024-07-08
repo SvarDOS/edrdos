@@ -57,12 +57,10 @@ version.inc: ../version.inc
 	$(CP) ..$(SEP)version.inc .
 
 clean: .SYMBOLIC
-	rm -f bin/drbio.sys
-	rm -f bin/DRBIO.SYS
-	rm -f bin/bios.exe
-	rm -f bin/BIOS.EXE
-	rm -f bin/bios.bin
-	rm -f bin/BIOS.BIN
+	rm -f bin/drbio.*
+	rm -f bin/DRBIO.*
+	rm -f bin/bios.*
+	rm -f bin/BIOS.*
 	rm -f bin/*.obj
 	rm -f bin/*.OBJ
 	rm -f bin/*.lst
