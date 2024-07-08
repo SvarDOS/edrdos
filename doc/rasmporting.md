@@ -36,6 +36,17 @@ for example differs in encoding between RASM and JWasm. One may force JWasm to u
 	mov ax,word ptr 1
 
 
+# Forward-referenced jumps
+RASM is not able to optimize forward jumps. It instead provides a way to manually encode short jumps via the _jmps_ mnemonic. This mnemonic is unknown to JWasm, which provides _jmp short_, but also optimizes forward jumps by default. _jmp short_ therefore only has to be used if one wants to make sure that the generated jump is indeed a two-byte short jump.
+
+It shall be noted that JWasm does not provide a means to explicitly encode a near jump. There is no _jmp near_ to make sure a three-byte jump is encoded. But a near jump can either be encoded directly as data or implemented as a macro:
+
+	jmpnear macro address
+	db 0e9h
+	dw (address-$)-2
+	endm
+
+
 ## String operations
 The string operations like _lods_ may be given a memory operand for the purpose of specifying a segment override. RASM allows the following:
 
@@ -44,6 +55,44 @@ The string operations like _lods_ may be given a memory operand for the purpose 
 For JWasm, es:al is no valid memory reference. You may use the following instead:
 
 	lodsb es:0
+
+
+## Address displacements
+RASM allows negative displacements to be specified like
+
+	mov al,-2[di]
+
+To make this work on JWasm, move the negative displacement into the square brackets:
+
+	mov al,[di-2]
+
+
+## Variable creation operator
+RASM has an explicit variable creation operator `.`, yielding a variable assigned to the current segment and from the numeric offset given to the right. So the following will not move the immediate value 2CH into ax, but the memory contents at DS:2CH:
+
+	mov ax,word ptr .002ch
+
+The variabler creation operator has to be combined with the _PTR_ operator to specify the type of the variable.
+
+JWasm does not have the variable creation operator. Instead, one may for example explicitly give a segment override to make JWasm treat the following as a variable reference:
+
+	mov ax,ds:2ch
+
+
+## Value range checking
+The following assembles under RASM, but not under JWasm:
+
+	TRUE equ 0FFFFH
+	mov al,TRUE
+
+This is because JWasm detects that the number is too large to be stored in AL register. The high bits can be masked to make this work, or you may use the PTR operator:
+
+	mov al,TRUE and 0FFH
+	mov al,byte ptr TRUE
+
+
+## Segment definitions
+The RASM segment definitions do not have to be closed and can not be nested. JWasm segment definitions must be closed and may be nested.
 
 
 ## Manual segment overrides
@@ -75,35 +124,7 @@ JWasm follows the Microsoft way by making use of the _ASSUME_ directive to find 
 	CODE ENDS
 
 
-## Segment definitions
-The segment definitions for RASM do not have to be closed and can not be nested. JWasm segment definitions must be closed and may be nested.
-
-
-## Variable creation operator
-RASM has an explicit variable creation operator `.`, yielding a variable assigned to the current segment and from the numeric offset given to the right. So the following will not move the immediate value 2CH into ax, but the memory contents at DS:2CH:
-
-	mov ax,word ptr .002ch
-
-The variabler creation operator has to be combined with the _PTR_ operator to specify the type of the variable.
-
-JWasm does not have the variable creation operator. Instead, one may for example explicitly give a segment override to make JWasm treat the following as a variable reference:
-
-	mov ax,ds:2ch
-
-
-## Value range checking
-The following assembles under RASM, but not under JWasm:
-
-	TRUE equ 0FFFFH
-	mov al,TRUE
-
-This is because JWasm detects that the number is too large to be stored in AL register. The high bits can be masked to make this work, or you may use the PTR operator:
-
-	mov al,TRUE and 0FFH
-	mov al,byte ptr TRUE
-
-
-## Relocation entries
+## Relocations
 If not explicitly told otherwise, RASM always generates relocations relative to a segment, even if the segment is part of a group. In the following example, the offset stored in SI is the offset relative to the segment _data_, not gelative to the _dgroup_ that _data_ is part of.
 
 	dgroup group data
