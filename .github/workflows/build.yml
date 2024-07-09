@@ -9,6 +9,9 @@ jobs:
     - uses: actions/checkout@v4
     - name: Build with JWasm and OpenWatcom
       run: |
+        cd ltools/unix
+        make
+        cd ../..
         wmake -h
     - name: Generate floppy image
       run: |
