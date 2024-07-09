@@ -26,6 +26,7 @@ WLINK = wlink
 EXE2BIN = exe2bin
 
 WCC = wcc
+WMAKE = wmake -h
 
 COMPBIOS = $(LTOOLS)$(SEP)compbios
 COMPBDOS = $(LTOOLS)$(SEP)compbdos
