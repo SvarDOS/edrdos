@@ -11,7 +11,7 @@ jobs:
       run: |
         cd ltools/unix
         make
-        cd ../drbio
+        cd ../../drbio
         wmake
         cd ../drdos
         wmake
