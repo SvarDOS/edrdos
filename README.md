@@ -13,12 +13,12 @@ I was able to successfully build the kernel and command interpreter under
 DOS, Win32, Linux and MacOS.
 
 ### Requirements
-The makefiles expect the following tools to be executable:
- - `jwasm`, for DOS it is `jwasmr`
- - `wmake`
- - `wlink`
- - `exe2bin`
- - `wcl` if building command.com.
+The makefiles expect the following executables to be present:
+ - _jwasm_, for DOS it is _jwasmr_
+ - _wmake_
+ - _wlink_
+ - _exe2bin_
+ - and _wcl_ if building command.com.
 
 Further, if you build under a UNIX-like operating system, make sure to build
 the tools under the `ltools/unix` directory first by invoking `make` inside
@@ -27,11 +27,11 @@ the directory.
 ### Running make
 You may build DRBIO.SYS, DRDOS.SYS and COMMAND.COM by calling the OpenWatcom
 make utility `wmake` from the project root directory. The generated binaries
-will be placed under the `dist` directory.
+will be placed under the _dist_ directory.
 
 You may instead build the individual components by invoking `wmake` under the
-directory of the components. The built binaries are then placed into the `bin`
-subdirectory for the components, like `drbio/bin/drbio.sys`.
+directory of the components. The built binaries are then placed into the _bin_
+subdirectory for the components, like _drbio/bin/drbio.sys_.
 
 
 ## Installation
@@ -41,22 +41,20 @@ DRDOS.SYS, COMMAND.COM and SYS.COM.
 
 ### Using SYS under DOS
 Under DOS, you may use the provided SYS command to make a bootable disk.
-
-If you want to make a bootable floppy disk, insert a freshly formatted
+To make a bootable floppy disk, insert a freshly formatted
 floppy disk into drive A: (you may substitute the drive letter).
 
-Then invoke
+Then invoke:
 
-  SYS A:
+    SYS A:
 
 *from within* the directory containing the files mentioned above. The
 SYS command then copies DRBIO.SYS, DRDOS.SYS and COMMAND.COM onto the
 floppy and installs a boot loader to make the floppy bootable.
 
 The provided SYS command is part of the FreeDOS kernel repository
-The binary was built from this specific commit:
-
-https://github.com/FDOS/kernel/commit/c0127001908405d30d90f1755ad10c1b59ea8c90
+The binary was built from this specific
+[commit](https://github.com/FDOS/kernel/commit/c0127001908405d30d90f1755ad10c1b59ea8c90).
 
 FreeDOS SYS is distributed under the
 [GNU public license](https://github.com/FDOS/kernel/blob/master/COPYING).
