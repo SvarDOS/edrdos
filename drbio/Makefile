@@ -28,27 +28,27 @@ bin/bios.exe : $(wasm_objs) $(rasm_objs) bios.lnk
 
 bin/biosmsgs.obj: biosmsgs.asm version.inc
 
-bin/init.obj: init.asm drmacros.equ ibmros.equ msdos.equ request.equ bpb.equ udsc.equ driverw.equ keys.equ biosmsgs.def
+bin/init.obj: init.asm drmacros.equ ibmros.equ msdos.equ request.equ bpb.equ udsc.equ driver.equ keys.equ biosmsgs.def
 
-bin/clock.obj: clock.asm drmacros.equ ibmros.equ request.equ driverw.equ
+bin/clock.obj: clock.asm drmacros.equ ibmros.equ request.equ driver.equ
 
-bin/console.obj: console.asm drmacros.equ ibmros.equ request.equ driverw.equ
+bin/console.obj: console.asm drmacros.equ ibmros.equ request.equ driver.equ
 
-bin/disk.obj: disk.asm biosgrps.asm drmacros.equ ibmros.equ request.equ bpb.equ udsc.equ driverw.equ keys.equ biosmsgs.def
+bin/disk.obj: disk.asm biosgrps.asm drmacros.equ ibmros.equ request.equ bpb.equ udsc.equ driver.equ keys.equ biosmsgs.def
 
-bin/serpar.obj: serpar.asm drmacros.equ ibmros.equ request.equ driverw.equ
+bin/serpar.obj: serpar.asm drmacros.equ ibmros.equ request.equ driver.equ
 
 bin/biosgrps.obj: biosgrps.asm
 
-bin/biosinit.obj: biosinit.asm msdos.equ pspw.def f52dataw.def doshndl.def configw.equ fdos.equ modfunc.def initmsgs.def
+bin/biosinit.obj: biosinit.asm msdos.equ psp.def f52data.def doshndl.def config.equ fdos.equ modfunc.def initmsgs.def
 
-bin/config.obj: config.asm configw.equ msdos.equ char.def request.equ driverw.equ fdos.equ f52dataw.def doshndl.def country.def initmsgs.def biosmsgs.def
+bin/config.obj: config.asm config.equ msdos.equ char.def request.equ driver.equ fdos.equ f52data.def doshndl.def country.def initmsgs.def biosmsgs.def
 
-bin/bdosldr.obj: bdosldr.asm request.equ driverw.equ configw.equ initmsgs.def
+bin/bdosldr.obj: bdosldr.asm request.equ driver.equ config.equ initmsgs.def
 
-bin/genercfg.obj: genercfg.asm configw.equ msdos.equ char.def request.equ driverw.equ fdos.equ f52dataw.def doshndl.def country.def
+bin/genercfg.obj: genercfg.asm config.equ msdos.equ char.def request.equ driver.equ fdos.equ f52data.def doshndl.def country.def
 
-bin/nlsfunc.obj: nlsfunc.asm configw.equ msdos.equ mserror.equ
+bin/nlsfunc.obj: nlsfunc.asm config.equ msdos.equ mserror.equ
 
 .asm.obj:
 	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@

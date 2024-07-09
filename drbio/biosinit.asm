@@ -58,10 +58,10 @@
 ;    ENDLOG
 
 	include	msdos.equ		; DOS Function Equates
-	include	pspw.def		; PSP Definition
-	include f52dataw.def		; Internal DOS data area
+	include	psp.def			; PSP Definition
+	include f52data.def		; Internal DOS data area
 	include	doshndl.def		; Dummy DOS structures
-	include	configw.equ
+	include	config.equ
 	include	fdos.equ
 	include	modfunc.def
 

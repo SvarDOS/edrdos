@@ -99,7 +99,7 @@
 	include	request.equ		; request header equates
 	include	bpb.equ			; BIOS parameter block equates
 	include	udsc.equ		; unit descriptor equates
-	include	driverw.equ		; device driver equates
+	include	driver.equ		; device driver equates
 	include keys.equ		; common key definitions
 
 

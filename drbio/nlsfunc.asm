@@ -53,7 +53,7 @@ DA_IOCTL	equ	4000h		; device supports IOCTL string I/O
 DA_GETSET	equ	0040h		; supports 3.2 level functionality
 
 	include compat.def
-	include	configw.equ
+	include	config.equ
 	include	msdos.equ
 	include	mserror.equ
 	

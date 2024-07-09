@@ -31,7 +31,7 @@
 ;    $Log$
 ;
 ;    ENDLOG
-
+;
 ;			 Program Segment Prefix
 ;			 ----------------------
 ;	This structure holds vital information for DOS programs
@@ -64,43 +64,43 @@
 ;*	   58	| ********* | ********* |       PSP fcb 1       |
 ;*		+-----+-----+-----+-----+-----+-----+-----+-----+
 
-PSP_INT20	equ	es:word ptr .0000h
-PSP_MEMORY	equ	es:word ptr .0002h
-;PSP_???	equ	es:byte ptr .0004h
-PSP_LONGCALL	equ	es:byte ptr .0005h
-PSP_LONGOFF	equ	es:word ptr .0006h
-PSP_LONGSEG	equ	es:word ptr .0008h
-PSP_TERM_IP	equ	es:word ptr .000Ah
-PSP_TERM_CS	equ	es:word ptr .000Ch
-PSP_BREAK_IP	equ	es:word ptr .000Eh
-PSP_BREAK_CS	equ	es:word ptr .0010h
-PSP_ERROR_IP	equ	es:word ptr .0012h
-PSP_ERROR_CS	equ	es:word ptr .0014h
-PSP_PARENT	equ	es:word ptr .0016h
-PSP_XFT		equ	es:byte ptr .0018h
+PSP_INT20	equ	word ptr 0000h
+PSP_MEMORY	equ	word ptr 0002h
+;PSP_???	equ	byte ptr 0004h
+PSP_LONGCALL	equ	byte ptr 0005h
+PSP_LONGOFF	equ	word ptr 0006h
+PSP_LONGSEG	equ	word ptr 0008h
+PSP_TERM_IP	equ	word ptr 000Ah
+PSP_TERM_CS	equ	word ptr 000Ch
+PSP_BREAK_IP	equ	word ptr 000Eh
+PSP_BREAK_CS	equ	word ptr 0010h
+PSP_ERROR_IP	equ	word ptr 0012h
+PSP_ERROR_CS	equ	word ptr 0014h
+PSP_PARENT	equ	word ptr 0016h
+PSP_XFT		equ	byte ptr 0018h
 ;
 ;	The Default Handle Table is HERE !!
 ;
-PSP_ENVIRON	equ	es:word ptr .002ch
-PSP_USERSP	equ	es:word ptr .002eh
-PSP_USERSS	equ	es:word ptr .0030h
-PSP_XFNMAX	equ	es:word ptr .0032h
-PSP_XFTPTR	equ	es:dword ptr .0034h
-PSP_XFTOFF	equ	es:word ptr .0034h
-PSP_XFTSEG	equ	es:word ptr .0036h
-PSP_RES1	equ	es:word ptr .0038h	; DOS Reserved 0FFFFh
-PSP_RES2	equ	es:word ptr .003Ah	; DOS Reserved 0FFFFh
-PSP_RIC		equ	es:byte ptr .003Ch	; Return Interim Character flag
-PSP_VERSION	equ	es:word ptr .0040h	; DOS version number
+PSP_ENVIRON	equ	word ptr 002ch
+PSP_USERSP	equ	word ptr 002eh
+PSP_USERSS	equ	word ptr 0030h
+PSP_XFNMAX	equ	word ptr 0032h
+PSP_XFTPTR	equ	dword ptr 0034h
+PSP_XFTOFF	equ	word ptr 0034h
+PSP_XFTSEG	equ	word ptr 0036h
+PSP_RES1	equ	word ptr 0038h	; DOS Reserved 0FFFFh
+PSP_RES2	equ	word ptr 003Ah	; DOS Reserved 0FFFFh
+PSP_RIC		equ	byte ptr 003Ch	; Return Interim Character flag
+PSP_VERSION	equ	word ptr 0040h	; DOS version number
 
 
-PSP_DOSCALL	equ	es:word ptr .0050h
-PSP_DOSRETF	equ	es:byte ptr .0052h
+PSP_DOSCALL	equ	word ptr 0050h
+PSP_DOSRETF	equ	byte ptr 0052h
 
-PSP_FCB1	equ	es:byte ptr .005Ch
-PSP_FCB2	equ	es:byte ptr .006Ch
-PSP_COMLEN	equ	es:byte ptr .0080h
-PSP_COMLINE	equ	es:byte ptr .0081h
+PSP_FCB1	equ	byte ptr 005Ch
+PSP_FCB2	equ	byte ptr 006Ch
+PSP_COMLEN	equ	byte ptr 0080h
+PSP_COMLINE	equ	byte ptr 0081h
 
 XFNMAX		equ	20
 

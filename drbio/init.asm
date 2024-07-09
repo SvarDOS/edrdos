@@ -46,7 +46,7 @@
 	include	request.equ		; request header equates
 	include	bpb.equ
 	include	udsc.equ
-	include	driverw.equ
+	include	driver.equ
 	include keys.equ		; common key definitions
 
 
