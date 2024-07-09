@@ -1,31 +1,74 @@
-# Enhanced DR-DOS Kernel ported to JWasm
+# Enhanced DR-DOS kernel and command interpreter
+
+This project maintains the sources of _DRBIO.SYS_, _DRDOS.SYS_ and
+_COMMAND.COM_ ported to
+
+ - the [JWasm](https://github.com/Baron-von-Riedesel/JWasm) assembler,
+   version 2.17 or later, and
+ - the [OpenWatcom](https://github.com/open-watcom/open-watcom-v2) toolchain,
+   version 1.9 or later.
 
 ## Build instructions
-Building the kernel is currently supported with the following tools:
-
-- [OpenWatcom](https://github.com/open-watcom/open-watcom-v2), v1.9 or newer
-  (WMAKE, WLINK and EXE2BIN)
-- [JWasm assembler](https://github.com/Baron-von-Riedesel/JWasm), v2.17 or
-  newer
-- Binary versions of the tools inside the `ltools` directory matching your
-  operating system. DOS and Windows binaries are provided. Under a
-  UNIX-like operating system you have to build them by yourself by invoking
-  make inside the `ltools/unix` directory.
-
 I was able to successfully build the kernel and command interpreter under
-DOS, Win32 and MacOS. It should also build under Linux.
+DOS, Win32, Linux and MacOS.
 
-To build `DRBIO.SYS`, `DRDOS.SYS` and `COMMAND.COM`, invoke
-`wmake` from within their sub-directories. The output files
-are written to the `BIN` directory of the component,
-like `DRBIO\BIN\DRBIO.SYS`.
+### Requirements
+The makefiles expect the following tools to be executable:
+ - `jwasm`, for DOS it is `jwasmr`
+ - `wmake`
+ - `wlink`
+ - `exe2bin`
+ - `wcl` if building command.com.
 
-You may consider using [FreeCOM](https://github.com/FDOS/freecom) or another
-command interpreter like 4DOS or SvarCOM instead of `COMMAND.COM`.
+Further, if you build under a UNIX-like operating system, make sure to build
+the tools under the `ltools/unix` directory first by invoking `make` inside
+the directory.
 
-## Kernel installation
-To install the kernel you may use a recent build of the FreeDOS SYS
-command, which is part of the
-[FreeDOS Kernel](https://github.com/FDOS/kernel) repository. A pre-built
-binary is provided under the name `DRSYS.COM` with the binary releases on
-this site, along with more detailed installation instructions.
+### Running make
+You may build DRBIO.SYS, DRDOS.SYS and COMMAND.COM by calling the OpenWatcom
+make utility `wmake` from the project root directory. The generated binaries
+will be placed under the `dist` directory.
+
+You may instead build the individual components by invoking `wmake` under the
+directory of the components. The built binaries are then placed into the `bin`
+subdirectory for the components, like `drbio/bin/drbio.sys`.
+
+
+## Installation
+
+After building, make sure that the _dist_ directory contains DRBIO.SYS,
+DRDOS.SYS, COMMAND.COM and SYS.COM.
+
+### Using SYS under DOS
+Under DOS, you may use the provided SYS command to make a bootable disk.
+
+If you want to make a bootable floppy disk, insert a freshly formatted
+floppy disk into drive A: (you may substitute the drive letter).
+
+Then invoke
+
+  SYS A:
+
+*from within* the directory containing the files mentioned above. The
+SYS command then copies DRBIO.SYS, DRDOS.SYS and COMMAND.COM onto the
+floppy and installs a boot loader to make the floppy bootable.
+
+The provided SYS command is part of the FreeDOS kernel repository
+The binary was built from this specific commit:
+
+https://github.com/FDOS/kernel/commit/c0127001908405d30d90f1755ad10c1b59ea8c90
+
+FreeDOS SYS is distributed under the
+[GNU public license](https://github.com/FDOS/kernel/blob/master/COPYING).
+
+
+### Using mkimage.sh under UNIX-like operating systems
+Under Linux and MacOS, you may invoke `sh mkimage.sh` under the _image_
+directory. This generates a 1.44M floppy image `edrdos.img`. Make sure
+to build the binaries prior to running this script.
+
+The script depends on [Mtools](https://www.gnu.org/software/mtools/) and _dd_
+to be installed.
+
+The [code for the installed bootsector](https://github.com/FDOS/kernel/blob/c0127001908405d30d90f1755ad10c1b59ea8c90/boot/boot.asm)
+comes from FreeDOS.
