@@ -1,5 +1,5 @@
 TITLE 'National Data'
-;    File              : $COUNTRY.A86$
+;    File              : $COUNTRY.ASM$
 ;
 ;    Description       :
 ;

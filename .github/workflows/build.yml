@@ -12,9 +12,9 @@ jobs:
         cd ltools/unix
         make
         cd ../../drbio
-        wmake
+        wmake -h
         cd ../drdos
-        wmake
+        wmake -h
         cd ../command
-        wmake
+        wmake -h
         cd ..
