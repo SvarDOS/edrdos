@@ -27,7 +27,7 @@ bin/drdos.exe: version.inc $(objs) drdos.lnk
 	$(WLINK) @drdos.lnk
 
 bin/country.sys: country.asm country.def
-	$(WASM) $(WASM) -bin -Fo=$^@ $[@
+	$(WASM) $(WASM_FLAGS) -bin -Fo=$^@ $[@
 
 version.inc: ../version.inc
 	$(CP) ..$(SEP)version.inc .
