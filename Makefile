@@ -1,6 +1,6 @@
 
-# Enhanced DR-DOS master makefile
-# for building DRBIO.SYS, DRDOS.SYS and COMMAND.COM
+# Enhanced DR-DOS master Makefile for OpenWatcom WMAKE
+# to build DRBIO.SYS, DRDOS.SYS and COMMAND.COM
 #
 # (c)opyright 2024 Bernd Boeckmann
 #
@@ -51,5 +51,5 @@ clean: .SYMBOLIC
 	rm -f dist/DRDOS.SYS
 	rm -f dist/command.com
 	rm -f dist/COMMAND.COM
-
+	rm -f image/edrdos.img
 

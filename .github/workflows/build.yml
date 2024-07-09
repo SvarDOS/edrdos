@@ -1,4 +1,4 @@
-name: "Build main (OpenWatcom v2, Linux)"
+name: "Build (Linux, OpenWatcom v2)"
 on:
   push:
     branches: [ "main" ]
@@ -21,12 +21,12 @@ jobs:
     - name: Upload binaries
       uses: actions/upload-artifact@v4
       with:
-        name: Binaries
+        name: EDR-DOS binaries
         path: |
           dist/*
     - name: Upload image
       uses: actions/upload-artifact@v4
       with:
-        name: 1.44M floppy image
+        name: EDR-DOS 1.44M floppy image
         path: |
           image/edrdos.img

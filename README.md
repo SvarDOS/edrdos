@@ -10,9 +10,9 @@ _COMMAND.COM_ ported to
 
 ## Binary snapshots
 Binaries and a 1.44M floppy image are built automatically through Github
-actions. To download them, go to the actions page, and then click the last
-successful workflow build job. The files are provided under the artifacts
-section.
+actions. To download them, go to the [actions page](https://github.com/SvarDOS/edrdos/actions),
+and then click the last successful workflow build job. The files are provided
+under the artifacts section.
 
 ## Build instructions
 I was able to successfully build the kernel and command interpreter under
@@ -47,8 +47,8 @@ DRDOS.SYS, COMMAND.COM and SYS.COM.
 
 ### Using SYS under DOS
 Under DOS, you may use the provided SYS command to make a bootable disk.
-To make a bootable floppy disk, insert a freshly formatted
-floppy disk into drive A: (you may substitute the drive letter).
+To make a bootable floppy, insert a freshly formatted disk into
+drive A: (you may have to substitute the drive letter).
 
 Then invoke:
 
