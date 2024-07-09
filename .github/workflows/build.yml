@@ -1,0 +1,19 @@
+on:
+  push:
+    branches: [ "main" ]
+jobs:
+  build-watcom:
+    runs-on: [self-hosted]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build with JWasm and OpenWatcom
+      run: |
+        cd ltools/unix
+        make
+        cd ../drbio
+        wmake
+        cd ../drdos
+        wmake
+        cd ../command
+        wmake
+        cd ..
