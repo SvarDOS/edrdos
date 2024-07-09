@@ -21,7 +21,7 @@ The makefiles expect the following executables to be present:
  - and _wcl_ if building command.com.
 
 Further, if you build under a UNIX-like operating system, make sure to build
-the tools under the `ltools/unix` directory first by invoking `make` inside
+the tools under the _ltools/unix_ directory first by invoking `make` inside
 the directory.
 
 ### Running make
@@ -66,7 +66,7 @@ directory. This generates a 1.44M floppy image `edrdos.img`. Make sure
 to build the binaries prior to running this script.
 
 The script depends on [Mtools](https://www.gnu.org/software/mtools/) and _dd_
-to be installed.
+being installed.
 
 The [code for the installed bootsector](https://github.com/FDOS/kernel/blob/c0127001908405d30d90f1755ad10c1b59ea8c90/boot/boot.asm)
 comes from FreeDOS.

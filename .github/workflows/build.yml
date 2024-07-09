@@ -9,21 +9,21 @@ jobs:
     - uses: actions/checkout@v4
     - name: Build with JWasm and OpenWatcom
       run: |
-        cd ltools/unix
-        make
-        cd ../../drbio
         wmake -h
-        cd ../drdos
-        wmake -h
-        cd ../command
-        wmake -h
+    - name: Generate floppy image
+      run: |
+        cd image
+        sh mkimage.sh
         cd ..
     - name: Upload binaries
       uses: actions/upload-artifact@v4
       with:
-        name: binaries
+        name: Binaries
         path: |
-          **/drbio.sys
-          **/drdos.sys
-          **/command.com
-  
+          dist/*
+    - name: Upload image
+      uses: actions/upload-artifact@v4
+      with:
+        name: 1.44M floppy image
+        path: |
+          image/edrdos.img
