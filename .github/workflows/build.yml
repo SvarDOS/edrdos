@@ -18,3 +18,12 @@ jobs:
         cd ../command
         wmake -h
         cd ..
+    - name: Upload binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: binaries
+        path: |
+          **/drbio.sys
+          **/drdos.sys
+          **/command.com
+  
