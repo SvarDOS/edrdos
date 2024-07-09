@@ -8,6 +8,12 @@ _COMMAND.COM_ ported to
  - the [OpenWatcom](https://github.com/open-watcom/open-watcom-v2) toolchain,
    version 1.9 or later.
 
+## Binary snapshots
+Binaries and a 1.44M floppy image are built automatically through Github
+actions. To download them, go to the actions page, and then click the last
+successful workflow build job. The files are provided under the artifacts
+section.
+
 ## Build instructions
 I was able to successfully build the kernel and command interpreter under
 DOS, Win32, Linux and MacOS.
