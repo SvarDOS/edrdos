@@ -1,3 +1,4 @@
+name: "Build main (OpenWatcom v2, Linux)"
 on:
   push:
     branches: [ "main" ]
