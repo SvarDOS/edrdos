@@ -42,6 +42,7 @@ extern char near msg_batnest[];
 extern char near msg_batterm[];
 extern char near msg_binrd[];
 extern char near msg_break[];
+extern char near msg_bytes[];
 extern char near msg_cpnf[];
 extern char near msg_cpyright[];
 extern char near msg_cpyself[];

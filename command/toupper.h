@@ -170,6 +170,7 @@ EXTERN	BYTE * cdecl dls_msg1(UWORD);
 #define MSG_DEVFAIL	msg_devfail
 #define	MSG_SYNTAX	msg_syntax	
 #define	MSG_BADCMD	msg_badcmd	
+#define	MSG_BYTES	msg_bytes
 #define	MSG_PATHDRV	msg_pathdrv	
 #define MSG_OPTLINE	msg_optline
 #define MSG_OPTLINE2	msg_optline2

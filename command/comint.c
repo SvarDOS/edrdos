@@ -82,7 +82,6 @@ EXTERN VOID docmd( BYTE *, BOOLEAN );          /* COM.C		*/
 
 MLOCAL WORD linesleft; /* Remaining lines on Screen	*/
 MLOCAL WORD ret;       /* general BDOS return code	*/
-MLOCAL char n[12];
 
 #if !defined( EXT_SUBST )
 
@@ -520,32 +519,39 @@ GLOBAL VOID CDECL cmd_date( BYTE *s )
    }
 }
 
-MLOCAL char *thousands( ULONG v )
+/* formats a number with locale specific thousands separators.
+   conditionally appends a space if no quantity suffix is given
+   and space argument is not zero. */
+MLOCAL const char * format_number( LONGLONG v, int space )
 {
-   char s[15];
-   int i1, i2, i3, sl, sp;
-   ultoa( v, s, 10 );
-   i1 = sl = strlen( s );
-   i2 = ( i1 % 3 );
-   if ( i2 == 0 ) {
-      i2 = 3;
+   static char buf[16];
+   int digits = 0;
+   char *bp = buf + sizeof(buf);
+   *(--bp) = '\0';
+
+   if ( v >= 1024ll * 1024ll * 1000ll ) {
+      v /= 1024ll * 1024ll;
+      *(--bp) = 'M';
    }
-   sp = 0;
-   while ( i1 > 0 ) {
-      for ( i3 = 0; i3 < i2; i3++ ) {
-         n[sp + i3] = s[sl - i1 + i3];
-      }
-      sp += i2;
-      n[sp] = 0;
-      i1 = i1 - i2;
-      i2 = 3;
-      if ( i1 > 0 ) {
-         n[sp] = *country.d1000;
-         sp++;
-         n[sp] = 0;
-      }
+   else if ( v >= 1024ll * 1000ll ) {
+      v /= 1024ll;
+      *(--bp) = 'K';
    }
-   return n;
+   else if ( space ) {
+      *(--bp) = ' ';
+   }
+
+   do {
+      *(--bp) = '0' + (char)(v % 10);
+      v = v / 10;
+      digits++;
+      if ( digits == 3 && v > 0 ) {
+         *(--bp) = *country.d1000;
+         digits = 0;
+      }
+   } while ( v > 0 );
+
+   return bp;
 }
 
 MLOCAL BYTE *date_format( UWORD fmt )
@@ -687,7 +693,9 @@ MLOCAL UWORD dir_flags( REG UWORD flags )
 GLOBAL VOID CDECL cmd_dir( REG BYTE *cmd )
 {
    WORD nfiles, system, others, i;
-   ULONG nfree = 0UL;
+   LONGLONG nfree = 0;
+   LONGLONG fsize = 0;
+   LONGLONG total_size = 0;
    DTA search;
    /*	BYTE	 path[MAX_FILELEN];
 	BYTE	 s[MAX_PATHLEN], temp[3];*/
@@ -698,10 +706,10 @@ GLOBAL VOID CDECL cmd_dir( REG BYTE *cmd )
    UWORD flags;
    FREED freespace;
    BYTE *dpath = "A:\\";
-   BYTE sbase = 0;
    FINDD finddata;
    BOOLEAN lfnsearch;
    UWORD shandle;
+
 
    if ( f_check( cmd, "dsawlprcn2b", &flags, NO ) ) { /* if any bad flags */
       return;                                         /*    don't do it   */
@@ -994,6 +1002,10 @@ GLOBAL VOID CDECL cmd_dir( REG BYTE *cmd )
          printf( "%c:%c%-9s%-3s", ( nfiles % 5 ) ? ' ' : ddrive + 'A',
                  ( finddata.fattr & ATTR_DIR ) ? *pathchar : ' ',
                  finddata.sname, ext );
+
+         if ( !(finddata.fattr & ATTR_DIR) ) {
+            total_size += finddata.fsize + finddata.fsizeh * 0x100000000LL;
+         }
       }
       else {
          if ( OPT( DIR_2COLS ) ) {
@@ -1011,33 +1023,23 @@ GLOBAL VOID CDECL cmd_dir( REG BYTE *cmd )
                printf( " <DIR>     " );
             }
             else {
-               printf( " <DIR>         " );
+               printf( " <DIR>     " );
             }
          }
          else {
-            ret = conv64( &finddata.fsize, &finddata.fsizeh );
+            fsize = finddata.fsize + finddata.fsizeh * 0x100000000ll;
+            total_size += fsize;
             if ( OPT( DIR_2COLS ) ) {
                /*		    printf ("%9lu", search.fsize);*/
-               printf( "%11lu", finddata.fsize );
+               printf( "%11s", format_number( fsize, 1 ) );
             }
             else {
-               printf( "%14s", thousands( finddata.fsize ) );
-            }
-            switch ( ret ) {
-            case 1:
-               printf( "K" );
-               break;
-            default:
-               printf( " " );
-               break;
+               printf( "%11s", format_number( fsize, 1 ) );
             }
          }
 
          if ( finddata.fdate ) { /* if timestamp exists */
             /*		    printf (" "); disp_filedate (finddata.fdate);*/
-            if ( !OPT( DIR_2COLS ) ) {
-               printf( " " );
-            }
             disp_filedate( finddata.fdate );
             printf( " " );
             disp_filetime( finddata.ftime );
@@ -1045,7 +1047,7 @@ GLOBAL VOID CDECL cmd_dir( REG BYTE *cmd )
                printf( " %s", finddata.lname );
             }
             if ( ( OPT( DIR_2COLS ) ) && ( nfiles % 2 == 0 ) ) {
-               printf( " " );
+               printf( " : " );
             }
          }
          else {
@@ -1090,19 +1092,8 @@ GLOBAL VOID CDECL cmd_dir( REG BYTE *cmd )
    freespace.ver = 0;
    ret = ms_edrv_space( dpath, (BYTE *)&freespace, sizeof( freespace ) );
    if ( ret == 0 ) {
-      nfree = freespace.freecl * freespace.secpclus;
-      if ( ULONG_MAX / freespace.bytepsec >= nfree ) {
-         nfree *= freespace.bytepsec;
-      }
-      else {
-         sbase = 1;
-         if ( freespace.bytepsec < 1024 ) {
-            nfree /= ( 1024UL / freespace.bytepsec );
-         }
-         else {
-            nfree *= ( freespace.bytepsec / 1024UL );
-         }
-      }
+      nfree = (long long)freespace.freecl * freespace.secpclus;
+      nfree *= freespace.bytepsec;
    }
    else {
       if ( ddrive != -1 && ( ret = ms_drv_space( ddrive + 1, &free, &secsiz,
@@ -1120,16 +1111,15 @@ GLOBAL VOID CDECL cmd_dir( REG BYTE *cmd )
       if ( ddrive != -1 ) {
          /*	      printf ("%9d %s%10ld %s", nfiles, MSG_FILES, nfree, MSG_FREE);*/
          /*	      printf ("%9s %s%15ls %s", thousands(nfiles), MSG_FILES, thousands(nfree), MSG_FREE);*/
-         printf( "%9s %s", thousands( nfiles ), MSG_FILES );
-         printf( "%15ls ", thousands( nfree ) );
-         if ( sbase == 1 ) {
-            printf( "K" );
-         }
+         printf( "%9s %s", format_number( nfiles, 0 ), MSG_FILES );
+         printf( "%15ls %s", format_number( total_size, 0 ), MSG_BYTES );
+         show_crlf( OPT( DIR_PAGE ) );
+         printf( "%32ls ", format_number( nfree, 0 ) );
          printf( "%s", MSG_FREE );
       }
       else {
          /*	      printf ("%9d %s", nfiles, MSG_FILES);*/
-         printf( "%9s %s", thousands( nfiles ), MSG_FILES );
+         printf( "%9s %s", format_number( nfiles, 0 ), MSG_FILES );
       }
       show_crlf( OPT( DIR_PAGE ) );
 

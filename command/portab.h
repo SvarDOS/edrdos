@@ -64,6 +64,7 @@
 #else
 #define ULONG unsigned long /* Unsigned long	   */
 #endif
+#define LONGLONG long long
 
 #define REG     register /* register variable	   */
 #define LOCAL   auto     /* Local var on 68000	   */

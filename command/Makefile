@@ -40,7 +40,7 @@ bin/txhelp.bin: bin/helpstub.obj bin/txhelp.obj
 .asm.obj:
 	$(WASM) $(WASM_FLAGS) -Fo$^@ $[@
 
-bin/message.obj: version.inc
+bin/message.obj: message.asm version.inc
 
 version.inc: ../version.inc
 	$(CP) ..$(SEP)version.inc .

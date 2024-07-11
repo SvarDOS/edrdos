@@ -36,6 +36,10 @@ _msg_nolbl	db	"does not have a label", NUL
 	public	msg_files
 msg_files	label	byte
 _msg_files	db	"File(s)", NUL
+	public	_msg_bytes
+	public	msg_bytes
+msg_bytes	label	byte
+_msg_bytes	db	"bytes", NUL
 	public	_msg_free
 	public	msg_free
 msg_free	label	byte

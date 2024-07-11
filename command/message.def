@@ -86,6 +86,8 @@
 	extrn	msg_binrd	: byte
 	extrn	_msg_break	: byte
 	extrn	msg_break	: byte
+	extrn	_msg_bytes	: byte
+	extrn	msg_bytes	: byte
 	extrn	_msg_cpnf	: byte
 	extrn	msg_cpnf	: byte
 	extrn	_msg_cpyright	: byte
