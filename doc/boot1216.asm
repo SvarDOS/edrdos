@@ -23,6 +23,12 @@
 ; to allow JWasm to encode 8-bit displacements. Otherwise it would
 ; generate 16-bit displacements + fixupp entries if outputting OMF.
 
+; Potential bugs:
+;   - Floppy controller is reset before the FD parameters are patched,
+;     not after.
+;   - original INT1E vector not handed over to BIO, may case trouble on
+;     INT19, if INT1E is restored to 0:7C00.
+
 bseg segment public byte
 assume cs:bseg, ds:bseg, ss:bseg
 
@@ -91,8 +97,10 @@ set_fd_parameters:
 	xchg	ax,cx		; ax = 0
 	mov	ds,ax		; ds = 0
 	mov	bp,sp		; bp = 7C00
+	; the following sets the FD parameters sectors per track to a
+	; maximum of 36 to support 2.88M floppy disks
+	mov	byte ptr [bp+4], 24h
 
-	mov	byte ptr [bp+4], 24h 		; ??? what's this for ???
 	mov	al,[bp+bpb_secs_per_clst-bseg]
 	mov	[bp+secs_per_clst-bseg],ax
 	mov	al,[bp+bpb_fat_count-bseg]
@@ -246,6 +254,7 @@ got_next_entry:					; we have next cluster in bx
 ;		bx = should be 0ff8-0fffh or 0fff8-0ffffh depending on FAT
 ;		dl = physical drive number
 ;		es = segment of BIO image
+;		0:7C00-7C11 contain floppy drive parameters, INT1E -> 0:7C00
 
 	jmp	dword ptr [bp+kernel_vector-bseg]
 
