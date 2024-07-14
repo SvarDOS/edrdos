@@ -20,17 +20,17 @@ dist/drdos.sys: drdos/bin/drdos.sys
 dist/command.com: command/bin/command.com
 	$(CP) command$(SEP)bin$(SEP)command.com dist$(SEP)command.com
 
-drbio/bin/drbio.sys:
+drbio/bin/drbio.sys: .ALWAYS
 	cd drbio
 	$(WMAKE)
 	cd ..
 
-drdos/bin/drdos.sys:
+drdos/bin/drdos.sys: .ALWAYS
 	cd drdos
 	$(WMAKE)
 	cd ..
 
-command/bin/command.com:
+command/bin/command.com: .ALWAYS
 	cd command
 	$(WMAKE)
 	cd ..
