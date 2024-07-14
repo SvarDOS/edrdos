@@ -7,9 +7,9 @@
 ; MEMORY LAYOUT:
 ;   boot sector lives at 0:7C00 and stays there
 ;   stack is right below 0:7C00
-;   FAT is loaded as a whole to 0800:0000 (single-sector reads)
+;   FAT is loaded as a whole to 0800:0000
 ;     needing >128K of RAM in worst case (255 FAT sectors)
-;   BIO file gets loaded to 0070:0000 (cluster-sized reads)
+;   BIO file gets loaded to 0070:0000
 
 ; WARNING!
 ;   7C00 - 0700 = 29952 bytes for maximum BIO size
@@ -26,7 +26,7 @@
 ; Potential bugs:
 ;   - Floppy controller is reset before the FD parameters are patched,
 ;     not after.
-;   - original INT1E vector not handed over to BIO, may case trouble on
+;   - original INT1E vector not handed over to BIO, may cause trouble on
 ;     INT19, if INT1E is restored to 0:7C00.
 
 bseg segment public byte
@@ -68,35 +68,40 @@ kernel_seg		dw	0070h		; 0042
 fat_mask		dw	0ffffh		; 0044
 filename		db	"IBMBIO  COM"	; 0046
 			db	0, 50h, 0	; 0051  ??? what are these for
-sec_buf_seg		dw	0800h
-sec_bug_seg_plus_64k	dw	1800h
+sec_buf_seg		dw	0800h		; 0054
+sec_bug_seg_plus_64k	dw	1800h		; 0056
+
+	; offsets into FAT directory entry
+dirent_start_clst	equ 1ah
+dirent_file_size	equ 1ch
+
 
 org	58h
 
 start:
 	cld
 	xor	ax,ax
-	mov	es,ax		; es = 0000
+	mov	es,ax			; es = 0000
 	cli
 
-	mov	ss,ax		; ss = 0000
-	mov	sp,7c00h	; stack right below boot sector
+	mov	ss,ax			; ss = 0000
+	mov	sp,7c00h		; stack right below boot sector
 	sti
 
-	xor	dx,dx		; reset floppy controller
+	xor	dx,dx			; reset floppy controller
 	int	13h
 
 set_fd_parameters:
-	mov	bp,78h		; ss:bp = 0000:0078 is INT1E vector
-	mov	di,sp		; di = 7C00
-	lds	si,[bp+0]	; ds:si -> BIOS FD parameters
-	mov	[bp+0],di	; set INT1E to new FD parameter	
-	mov	[bp+2],es	; ..location 0:7C00
-	mov	cx,11		; copy BIOS FD parameters to 0:7C00
-	rep	movsb		; ..overwrite start of bootsect
-	xchg	ax,cx		; ax = 0
-	mov	ds,ax		; ds = 0
-	mov	bp,sp		; bp = 7C00
+	mov	bp,78h			; ss:bp = 0000:0078 is INT1E vector
+	mov	di,sp			; di = 7C00
+	lds	si,[bp+0]		; ds:si -> BIOS FD parameters
+	mov	[bp+0],di		; set INT1E to new FD parameter	
+	mov	[bp+2],es		; ..location 0:7C00
+	mov	cx,11			; copy BIOS FD parameters to 0:7C00
+	rep	movsb			; ..overwrite start of bootsect
+	xchg	ax,cx			; ax = 0
+	mov	ds,ax			; ds = 0
+	mov	bp,sp			; bp = 7C00
 	; the following sets the FD parameters sectors per track to a
 	; maximum of 36 to support 2.88M floppy disks
 	mov	byte ptr [bp+4], 24h
@@ -112,16 +117,16 @@ set_fd_parameters:
 	; if BPB bytes per sectors is greater than 512, all sector
 	; quantities will be scaled
 scale_sector_numbers:
-	cmp	cx,200h			; test if sector size is 512 byte
+	cmp	cx,200h				; test if sector size is 512 byte
 	jz	sector_size_good
-	jc	error			; ..error if less than 512 byte
+	jc	error				; ..error if less than 512 byte
 
-	shr	cx,1			; divide current sector size by two
+	shr	cx,1				; divide current sector size by two
 
 	; NOTE: the following seems to contain a bug, because dx is not
 	; multiplied by two, but only the ax part of dx:ax.
 
-	add	ax,ax		; multiply dx:ax by two
+	add	ax,ax				; multiply dx:ax by two
 	adc	dx,0
 
 	shl	word ptr [bp+secs_per_clst-bseg],1
@@ -140,14 +145,19 @@ is_fat16:
 	; likely never triggered
 	add	ax,[bp+bpb_hidden_lo-bseg]	; add hidden sectors to dx:ax
 	adc	dx,[bp+bpb_hidden_hi-bseg]
-	push	ax			; dx:ax contains first root dir sector
+	push	ax				; dx:ax contains first root dir sector
 	push	dx
 
+
+	; Read the root directory and search for the BIO file entry.
+	; Determine the sector count to be read from the number of
+	; root directory entries.
+	; If entry not found, print error, wait for key and reboot
 read_root_dir:
 	mov	bx,[bp+bpb_root_entries-bseg]
-	push	bx			; push root dir entries
-	add	bx,0fh			; calculate number of rootdir sectors
-	mov	cl,4			; ..16 entries per sector, round up
+	push	bx				; push root dir entries
+	add	bx,0fh				; calculate number of rootdir sectors
+	mov	cl,4				; ..16 entries per sector, round up
 	shr	bx,cl
 	mov	[bp+secs_to_read],bl
 	mov	es,[bp+sec_buf_seg-bseg]	; read into sec_buf_seg
@@ -158,36 +168,42 @@ read_root_dir:
 	mov	[bp+first_data_sec_hi],dx	; data area after rootdir read
 	pop	cx				; pops number of dir entries
 	sub	di,di
-next_entry:
+@next_entry:
 	push	cx
 	push	di
 	lea	si,[bp+filename-bseg]
 	mov	cx,0bh
-	repe	cmpsb			; compare dir entry with bio file name
+	repe	cmpsb				; compare dir entry with bio file name
 	pop	di
 	pop	cx
-	jz	read_fat		; we found it!
+	jz	read_fat			; we found it!
 	add	di,20h
-	loop	next_entry
+	loop	@next_entry
 
 error:
 	; fallthrough: no BIO file found!
 	mov	si,(errormsg-bseg) + 7c00h
 	call	print_string
-	cbw				; ax = 0
-	int	16h			; wait for key pressed
-;	jmp	0ffff00000h		; reboot on error
+	cbw					; ax = 0
+	int	16h				; wait for key pressed
+;	jmp	0ffff00000h			; reboot on error
 	db	0eah,0,0,0ffh,0ffh
 
-dirent_start_clst	equ 1ah
-dirent_file_size	equ 1ch
 
-read_fat:
+	; BIO file directory entry found.
+	; We now calculate its size in sectors
+calculate_bio_sectors:
 	mov	cx,[es:di+dirent_start_clst]
 	mov	ax,[es:di+dirent_file_size]	; file size may not be larger than 65536-511 bytes
 	add	ax,1ffh				; add 511 to round up to next sector
 	shr	ax,1
 	mov	[bp+bio_secs_remaining],ah	; ah = file size in sectors
+
+
+	; Read whole FAT into memory.
+	; First calculate FAT start sector by subtracting its size from the
+	; first root dir sector number.
+read_fat:
 	pop	dx
 	pop	ax				; dx:ax = first root dir sector
 	push	cx
@@ -195,13 +211,17 @@ read_fat:
 	sub	ax,cx				; subtract fat size from root dir start
 	sbb	dx,0				; to get first fat sector
 	mov	es,[bp+sec_buf_seg-bseg]	; es:di = 0800:0 (di = 0)
-read_fat_sector:
+@read_fat_sector:
 	push	cx
 	mov	byte ptr [bp+secs_to_read],1
 	call	read_sectors			; read FAT, sector by sector
 	pop	cx
-	loop	read_fat_sector
+	loop	@read_fat_sector
 
+
+	; We have the FAT in memory and we have the starting cluster
+	; of the BIO file. Now proceed with loading the BIO into
+	; memory.
 read_bio:
 	pop	bx				; bx = first BIO cluster
 	mov	es,[bp+kernel_seg-bseg]		; where to load BIO? (di = 0)
@@ -250,31 +270,39 @@ got_next_entry:					; we have next cluster in bx
 	ja	read_bio_next
 	mov	dl,[bp+bpb_phys_drive-bseg]
 
-; 	Handoff to BIO:
-;		bx = should be 0ff8-0fffh or 0fff8-0ffffh depending on FAT
-;		dl = physical drive number
-;		es = segment of BIO image
-;		0:7C00-7C11 contain floppy drive parameters, INT1E -> 0:7C00
 
+	; Handoff to BIO:
+	;   bx    = should be 0ff8-0fffh or 0fff8-0ffffh depending on FAT
+	;   dl    = physical drive number
+	;   ds:bp = 0:7C00 -> boot sector (BIO makes use of BPB hidden sectors)
+	;   es    = segment of BIO image
+	;
+	;   0:7C00-7C11 contain floppy drive parameters, INT1E -> 0:7C00
+kernel_handoff:
 	jmp	dword ptr [bp+kernel_vector-bseg]
 
+
+	; reads sectors via INT13,02 (CHS read)
+	; in:  dx:ax = starting sector
+	;      [bp+secs_to_read] = number of sectors to read
+	; out: dx:ax = sector following read
+	; destroys: bx, cx, es
 read_sectors:
 	xor	bx,bx
 	push	ax
 	push	dx
-	call	read_sector
+	call	@read_sector
 	mov	ax,es
-	add	ax,word ptr 20h	; add 20 paras = 512 byte to es
+	add	ax,word ptr 20h			; add 20 paras = 512 byte to es
 	mov	es,ax
 	pop	dx
 	pop	ax
-	add	ax,word ptr 1	; increas 32-bit sector number
+	add	ax,word ptr 1			; increas 32-bit sector number
 	adc	dx,0
 	dec	byte ptr [bp+secs_to_read]
 	jnz	read_sectors
-ret_instr:
-	ret
-read_sector:
+@ret:	ret
+@read_sector:
 	div	word ptr [bp+bpb_secs_per_track-bseg]
 	inc	dx
 	mov	cl,dl
@@ -287,12 +315,12 @@ read_sector:
 	or	cl,ah
 	mov	ch,al
 	mov	dl,[bp+bpb_phys_drive-bseg]
-tryread:
+@tryread:
 	mov	ax,0201h			; read single sector
 	int	13h
-	jnc	ret_instr
-	dec	byte ptr [bp+bpb_boot_sig-bseg] 	; boot signature = 29h mis-used
-	jnz	tryread				; for retry counter
+	jnc	@ret
+	dec	byte ptr [bp+bpb_boot_sig-bseg] ; boot signature = 29h mis-used
+	jnz	@tryread			; for retry counter
 	jmp	error
 
 
