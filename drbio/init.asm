@@ -706,8 +706,8 @@ init0	proc	near
 	sti
 	cld
 
-	; the following expects ds:bp point to the boot sector, in
-	; particular the BPB, to push the hidden sectors to stack
+	; the following expects ds:bp to point to the boot sector, in
+	; particular the BPB, to push its hidden sectors field to stack
 	push	ds:1eh[bp]		; push BPB hidden sectors
 	push	ds:1ch[bp]		; ..popped at biosinit to part_off
 
@@ -857,7 +857,7 @@ SaveVectors:
 	loop	SaveVectors		; go and do another
 
 	clc
-	int 3
+	int 	3
 	jc debugger_detected
 
 	mov	i0off,offset Int0Trap

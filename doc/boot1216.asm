@@ -194,7 +194,7 @@ error:
 	; We now calculate its size in sectors
 calculate_bio_sectors:
 	mov	cx,[es:di+dirent_start_clst]
-	mov	ax,[es:di+dirent_file_size]	; file size may not be larger than 65536-511 bytes
+	mov	ax,[es:di+dirent_file_size]	; file size may not be larger than 65535-511 bytes
 	add	ax,1ffh				; add 511 to round up to next sector
 	shr	ax,1
 	mov	[bp+bio_secs_remaining],ah	; ah = file size in sectors
@@ -202,7 +202,7 @@ calculate_bio_sectors:
 
 	; Read whole FAT into memory.
 	; First calculate FAT start sector by subtracting its size from the
-	; first root dir sector number.
+	; first root dir sector number. Always reads last FAT copy.
 read_fat:
 	pop	dx
 	pop	ax				; dx:ax = first root dir sector
