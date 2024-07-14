@@ -29,12 +29,13 @@ In RASM the _length_ operator gives the length of the whole initializer list in 
 ## Instruction encoding
 JWasm prefers sign-extended instruction encodings, even if this does not result in smaller code.
 
-	mov ax,1
+	add ax,1
 
 for example differs in encoding between RASM and JWasm. One may force JWasm to use the non sign-extended encoding by using the type cast operator:
 
-	mov ax,word ptr 1
+	add ax,word ptr 1
 
+The latter is encoded as `05 01 00` while the former is encoded as `83 C0 01`.
 
 # Forward-referenced jumps
 RASM is not able to optimize forward jumps. It instead provides a way to manually encode short jumps via the _jmps_ mnemonic. This mnemonic is unknown to JWasm, which provides _jmp short_, but also optimizes forward jumps by default. _jmp short_ therefore only has to be used if one wants to make sure that the generated jump is indeed a two-byte short jump.
