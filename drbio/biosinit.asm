@@ -160,7 +160,7 @@ biosinit:
 	cli
 	mov	ax,cs			; Initialise our stack and Data Segment
 	mov	ds,ax
-	pop	ds:part_off
+	pop	ds:part_off		; pushed at init from BPB hidden sectors
 	pop	ds:part_off+2
 	mov	ss,ax
 	mov	sp,offset stack

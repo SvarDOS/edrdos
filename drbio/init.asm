@@ -195,24 +195,14 @@ A20Enable proc near
 A20Enable endp
 
 init	proc	near			; this is at BIOSCODE:0000h
-ifndef COPYPROT
 	jmp	init0			; jump to reusable init space
-else
-	extrn	protect:near		; Jump to Copy protection code
-	jmp	protect			; which will return control to
-endif					; INIT0 on completion
 init	endp
 
-compflg	label	word
-ifdef COPYPROT
-	dw	'  '			; stops any compression working
-else
-	dw	offset CGROUP:INITDATA	; compresses from INITDATA onwards
-endif					; this word set to 0 when compressed
+compflg	dw	offset CGROUP:INITDATA	; compresses from INITDATA onwards
 
 	org	06h
-    db  'COMPAQCompatible'  
 
+	db	'COMPAQCompatible'  
 	dw	offset CGROUP:RCODE	; lets find offset of RCODE
 MemFixup dw	0			;  and its relocated segment	
 
@@ -697,11 +687,15 @@ bpbs		dw	offset bpb360	; 0: 320/360 Kb 5.25" floppy
 		dw	offset bpb2880	; 9: 2.88 Mb 3.5" floppy
 
 init0	proc	near
+
+; 	DRBIO initialization code. This is executed right after the jump
+; 	at the beginning of the CODE segment.
+
 ;
 ; We now uncompress to > (7C00h (ie. boot stack) - 700h (ie. base of code)
 ; This means our stack collides with our code, very bad news.
 ; To avoid this we switch stacks into a safer area ie. 0C000h
-; The floppy parameters also live at 7C00, so we have to relocate these
+; The floppy parameters also MAY live at 7C00, so we have to relocate these
 ; before we expand.
 
 	mov	cs:byte ptr A20Enable,0C3h
@@ -712,8 +706,11 @@ init0	proc	near
 	sti
 	cld
 
-	push	ds:1eh[bp]
-	push	ds:1ch[bp]
+	; the following expects ds:bp point to the boot sector, in
+	; particular the BPB, to push the hidden sectors to stack
+	push	ds:1eh[bp]		; push BPB hidden sectors
+	push	ds:1ch[bp]		; ..popped at biosinit to part_off
+
 	push	cx			; save entry registers
 	push	di			; (important in ROM systems)
 
@@ -722,6 +719,11 @@ init0	proc	near
 	mov	es,si
 
 	Assume	DS:IVECT, ES:IVECT
+
+; 	Copy diskette parameters (11 bytes) from the location stored
+; 	at INT1E over to 0000:0522. This MAY previously be located at 7C00
+; 	or another (non-)BIOS location depending on the boot sector code.
+; 	After copying, set INT1E to point to the new location.
 
 	mov	di,522h			; ES:DI -> save area for parameters
 	lds	si,i1Eptr		; DS:SI -> FD parameters for ROS
