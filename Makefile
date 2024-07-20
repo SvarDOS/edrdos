@@ -9,13 +9,16 @@
 
 !include platform.mak
 
-all: dist/drbio.sys dist/drdos.sys dist/command.com .SYMBOLIC
+all: dist/drbio.sys dist/drdos.sys dist/country.sys dist/command.com .SYMBOLIC
 
 dist/drbio.sys: drbio/bin/drbio.sys
 	$(CP) drbio$(SEP)bin$(SEP)drbio.sys dist$(SEP)drbio.sys
 
 dist/drdos.sys: drdos/bin/drdos.sys
 	$(CP) drdos$(SEP)bin$(SEP)drdos.sys dist$(SEP)drdos.sys
+
+dist/country.sys: drdos/bin/country.sys
+	$(CP) drdos$(SEP)bin$(SEP)country.sys dist$(SEP)country.sys
 
 dist/command.com: command/bin/command.com
 	$(CP) command$(SEP)bin$(SEP)command.com dist$(SEP)command.com
@@ -49,6 +52,8 @@ clean: .SYMBOLIC
 	rm -f dist/DRBIO.SYS
 	rm -f dist/drdos.sys
 	rm -f dist/DRDOS.SYS
+	rm -f dist/country.sys
+	rm -f dist/COUNTRY.SYS
 	rm -f dist/command.com
 	rm -f dist/COMMAND.COM
 	rm -f image/edrdos.img
