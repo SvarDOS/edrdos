@@ -15,4 +15,4 @@ mcopy -i $IMAGE ../dist/command.com ::/
 mcopy -i $IMAGE ../dist/country.sys ::/
 mcopy -i $IMAGE ../dist/sys.com ::/
 mcopy -i $IMAGE ../dist/gpl.txt ::/license/gpl.txt
-mcopy -i $IMAGE ../license.htm ::/license/edrdos.htm
+mcopy -i $IMAGE ../license.htm ::/license/license.htm

@@ -16,7 +16,7 @@ dist/drbio.sys
 dist/drdos.sys
 dist/country.sys
 dist/command.com
-dist/license/edrdos.htm
+dist/license/license.htm
 drbio/bin/*
 drdos/bin/*
 prepare.bat

@@ -9,7 +9,7 @@
 
 !include platform.mak
 
-all: dist/drbio.sys dist/drdos.sys dist/country.sys dist/command.com dist/license/edrdos.htm .SYMBOLIC
+all: dist/drbio.sys dist/drdos.sys dist/country.sys dist/command.com dist/license/license.htm .SYMBOLIC
 
 dist/drbio.sys: drbio/bin/drbio.sys
 	$(CP) drbio$(SEP)bin$(SEP)drbio.sys dist$(SEP)drbio.sys
@@ -26,8 +26,8 @@ dist/command.com: command/bin/command.com
 dist/license:
 	mkdir dist/license
 
-dist/license/edrdos.htm: dist/license
-	$(CP) license.htm dist/license/edrdos.htm
+dist/license/license.htm: dist/license license.htm
+	$(CP) license.htm dist/license/license.htm
 
 drbio/bin/drbio.sys: .ALWAYS
 	cd drbio
@@ -62,5 +62,6 @@ clean: .SYMBOLIC
 	rm -f dist/COUNTRY.SYS
 	rm -f dist/command.com
 	rm -f dist/COMMAND.COM
+	rm -f dist/license/license.htm
 	rm -f image/edrdos.img
 
