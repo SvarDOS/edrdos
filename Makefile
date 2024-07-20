@@ -9,7 +9,7 @@
 
 !include platform.mak
 
-all: dist/drbio.sys dist/drdos.sys dist/country.sys dist/command.com .SYMBOLIC
+all: dist/drbio.sys dist/drdos.sys dist/country.sys dist/command.com dist/license/edrdos.htm .SYMBOLIC
 
 dist/drbio.sys: drbio/bin/drbio.sys
 	$(CP) drbio$(SEP)bin$(SEP)drbio.sys dist$(SEP)drbio.sys
@@ -22,6 +22,12 @@ dist/country.sys: drdos/bin/country.sys
 
 dist/command.com: command/bin/command.com
 	$(CP) command$(SEP)bin$(SEP)command.com dist$(SEP)command.com
+
+dist/license:
+	mkdir dist/license
+
+dist/license/edrdos.htm: dist/license
+	$(CP) license.htm dist/license/edrdos.htm
 
 drbio/bin/drbio.sys: .ALWAYS
 	cd drbio
