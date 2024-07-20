@@ -14,5 +14,7 @@ mcopy -i $IMAGE ../dist/drdos.sys ::/
 mcopy -i $IMAGE ../dist/command.com ::/
 mcopy -i $IMAGE ../dist/country.sys ::/
 mcopy -i $IMAGE ../dist/sys.com ::/
-mcopy -i $IMAGE ../dist/gpl.txt ::/license/gpl.txt
-mcopy -i $IMAGE ../license.htm ::/license/license.htm
+mcopy -i $IMAGE ../dist/license/gpl.txt ::/license/
+mcopy -i $IMAGE ../license.htm ::/license/
+mcopy -i $IMAGE dconfig.sys ::/
+mcopy -i $IMAGE dauto.bat ::/
