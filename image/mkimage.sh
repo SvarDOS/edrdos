@@ -18,3 +18,8 @@ mcopy -i $IMAGE ../dist/license/gpl.txt ::/license/
 mcopy -i $IMAGE ../license.htm ::/license/
 mcopy -i $IMAGE dconfig.sys ::/
 mcopy -i $IMAGE dauto.bat ::/
+
+# copy additional files from the files subdirectory
+if [ -d files ]; then
+	mcopy -i $IMAGE -s -o files/* ::/
+fi
