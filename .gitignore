@@ -12,6 +12,11 @@ command/COMMAND.MAP
 command/TXHELP.MAP
 command/support.err
 command/bin/*
+dist/drbio.sys
+dist/drdos.sys
+dist/country.sys
+dist/command.com
+dist/license/edrdos.htm
 drbio/bin/*
 drdos/bin/*
 prepare.bat
@@ -26,6 +31,7 @@ doc/build.htm
 doc/build.txt
 doc/build.pdf
 doc/screvid.but
+image/edrdos.img
 ltools/unix/compbios
 ltools/unix/compbdos
 ltools/unix/fixupp
