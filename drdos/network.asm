@@ -65,7 +65,6 @@ func5E:
 	 je 	f5E01			; Set Machine Name Sub-Function
 	mov	ax,I2F_REDIR_5E		; magic int 2F number
 	jmp	func5F_common		; use common routine
-	nop	; REMOVE AFTER JWASM CONVERSION
 ;
 ;	Get the current Machine Name
 ;

@@ -143,7 +143,6 @@ dbcs_loop:
 
 	cmp	al, al			; return with Z flag set
 	jmp	dbcs_exit
-	nop	; REMOVE AFTER JWASM CONVERSION
 dbcs_no:
 	cmp	al, 1			; return with Z flag reset
 

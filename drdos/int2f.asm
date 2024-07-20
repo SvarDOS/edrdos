@@ -782,7 +782,6 @@ i2f_1222_10:
 	 jz	i2f_1222_20
 	lodsw				; skip this one
 	jmp	i2f_1222_10		; and try the next
-	nop	; REMOVE AFTER JWASM CONVERSION
 i2f_1222_20:
 	cmp	ah,0ffh			; valid error class ?
 	 je	i2f_1222_30

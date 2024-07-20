@@ -828,7 +828,6 @@ fdw_e05:
 	test	dx,dx
 	 jnz	fdw_e06			; if no starting block do the lot
 	 jmp	fdw_e30
-	 nop	; REMOVE AFTER JWASM CONVERSION
 fdw_e06:
 ;	dec	cx			;  else count # extra blocks required
 	sub	fdw_extend_cl,1		;  else count # extra blocks required
@@ -1998,7 +1997,6 @@ div64_loop:
 	 jb	div64_2
 div64_1:
 	or	word ptr 2+4[bp],1	; divisor fits one time
-	nop	; REMOVE AFTER JWASM CONVERSION
 	sub	ax,2+8[bp]		; subtract divisor
 	sbb	dx,2+10[bp]
 	sbb	si,0
@@ -2056,7 +2054,6 @@ div32_loop:
 	 jb	div32_2
 div32_1:
 	or	word ptr 2+4[bp],1	; divisor fits one time
-	nop	; REMOVE AFTER JWASM CONVERSION
 	sub	ax,2+8[bp]		; subtract divisor
 	sbb	dx,2+10[bp]
 div32_2:
@@ -2310,7 +2307,6 @@ output_hex10:
 	jg	output_hex20
 	add	al,30h
 	jmp	output_hex30
-	nop	; REMOVE AFTER JWASM CONVERSION
 output_hex20:
 	add	al,37h
 output_hex30:

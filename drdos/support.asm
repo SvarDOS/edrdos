@@ -117,7 +117,6 @@ set_retry:
 	push	bx
 	lds	bx,int21regs_ptr	; point to users registers
 	and	reg_FLAGS[bx],not CARRY_FLAG
-	nop	; REMOVE AFTER JWASM CONVERSION
 	mov	al,reg_AL[bx]		; clear CY assuming we will succeed
 	pop	bx			;  and reload AL with entry value
 	pop	ds
@@ -156,7 +155,6 @@ return_AX_CLC:
 	lds	di,ss:int21regs_ptr
 	mov	reg_AX[di],ax		; return AX to caller
 	and	reg_FLAGS[di],not CARRY_FLAG
-	nop	; REMOVE AFTER JWASM CONVERSION
 	pop 	di
 	pop 	ds
 	ret

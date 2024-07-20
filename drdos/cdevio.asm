@@ -406,7 +406,6 @@ read_con:	; handle read from cooked console
 	test	ah,DHAT_READY		; now see if we have
 	 jnz	con_dev_not_eof
 	jmp	con_dev_exit		; yes, just return zero chars read
-	nop	; REMOVE AFTER JWASM CONVERSION
 con_dev_not_eof:
 	push	es
 	push	bx			; save DHNDL_

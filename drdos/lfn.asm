@@ -473,7 +473,6 @@ f714e_oom_j:
 lfn_free_handle:
 	mov ax, bx
 	and word ptr [di], 0		; clear the handle table
-	nop	; REMOVE AFTER JWASM CONVERSION
 	push ds
 	pop es
 	mov di, ax			; -> to overwrite
@@ -735,7 +734,6 @@ f71a701_60:
 f71a701_70:
 	mov	dx,[bp-2]		; restore date
 	and	dx,1fh			; bits 0-4 contain the days
-	nop	; REMOVE AFTER JWASM CONVERSION
 	add	ax,dx			; AX = days in year
 	dec	ax			; minus one for the first day in 1601
 	add	es:[di],ax		; date converted to days
@@ -831,7 +829,6 @@ f71_error:
 	les	bp,int21regs_ptr
 	mov	es:reg_AX[bp],ax	; return error code
 	or	es:reg_FLAGS[bp],CARRY_FLAG ; set carry flag
-	nop	; REMOVE AFTER JWASM CONVERSION
 	stc
 	ret
 PCM_CODE	ends

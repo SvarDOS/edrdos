@@ -298,9 +298,7 @@ goto_e10:
 ;
 copy_from_hist:
 	or	RL_FLAGS,RLF_RECALLED	; remember we have recalled something
-	nop	; REMOVE AFTER JWASM CONVERSION
 	and	RL_FLAGS,not RLF_DIRTY	; this entry is already in buffers
-	nop	; REMOVE AFTER JWASM CONVERSION
 	mov	RL_HIST_RECL,di		; update pointer for next time
 	call	find_next_null		; how big is this entry ?
 	mov	cx,di

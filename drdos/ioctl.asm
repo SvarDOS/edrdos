@@ -385,14 +385,12 @@ f4456_10:
 	or	al,RLF_INROOT		; assume we are in the root
 ifdef IDLE_DETECT
 	or	idle_flags,IDLE_COMMAND
-	nop	; REMOVE AFTER JWASM CONVERSION
 endif
 	test	dl,1			; Get new state and mask bit
 	 jnz	f4456_20
 	and	al,not RLF_INROOT	; we are in application buffer
 ifdef IDLE_DETECT
 	and	idle_flags,not IDLE_COMMAND
-	nop	; REMOVE AFTER JWASM CONVERSION
 endif
 f4456_20:
 	xchg	ax,cle_state		; set state, returning old state

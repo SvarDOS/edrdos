@@ -273,7 +273,6 @@ free_all_loop:
 	jnz	free_all_next		;   then check next
 
 	and	es:DMD_PSP,0		; Free this partition
-	nop	; REMOVE AFTER JWASM CONVERSION
 free_all_next:
 	push	es
 	call	next_dmd		; es -> next block up

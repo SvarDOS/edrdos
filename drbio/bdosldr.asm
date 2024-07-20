@@ -32,7 +32,6 @@
 ;
 ;    ENDLOG
 
-	include compat.def
 	include request.equ
 	include driver.equ
 	include	config.equ

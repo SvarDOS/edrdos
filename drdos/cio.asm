@@ -87,7 +87,6 @@
 ; 17 jun 91 ij	fix to cooked_out to avoid status checks if STDOUT redirected
 
 	.nolist
-	include compat.def
 	include	pcmode.equ
 	include driver.equ
 	include	request.equ

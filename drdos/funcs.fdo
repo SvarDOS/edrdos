@@ -299,7 +299,6 @@ mkdir_err:
 	call	update_dir		; release this entry
 mkdir_access:
 	jmp	fdos_ED_ACCESS		; return "access denied" error
-	nop	; REMOVE AFTER JWASM CONVERSION
 
 chk_no_dot:				; reject "." and ".." names
 	cmp	info_fcb+1,'.'
@@ -517,7 +516,6 @@ chdir75:
 	rep	movsb			; copy directory into user buffer
 	pop	es			; ES = local segment again
 	jmp	chdir60			; try again til root
-	nop	; REMOVE AFTER JWASM CONVERSION
 
 chdir80:				; arrive here when root reached
 	mov	ax,orig_drive		; get logical drive
@@ -2558,9 +2556,7 @@ move80:
 	mov	ax,saved_dcnt		; restore dcnt for remote call
 	mov	dcnt,ax			; to function properly
 	and	chdblk,0
-	nop	; REMOVE AFTER JWASM CONVERSION
 	and	chdblk+2,0
-	nop	; REMOVE AFTER JWASM CONVERSION
 
 	call	finddfcb		; try to locate another directory entry
 	 jz	move90			; no, return now
@@ -2590,9 +2586,7 @@ move_seek:				; re-seek the old directory entry
 	dec	ax			; move back one for GETDIR
 	mov	dcnt,ax			; set search offset
 	and	chdblk,0		; follow the chains, not sequential
-	nop	; REMOVE AFTER JWASM CONVERSION
 	and	chdblk+2,0
-	nop	; REMOVE AFTER JWASM CONVERSION
 	mov	cl,0			; return next entry
 	jmp	getdir			; in current directory
 

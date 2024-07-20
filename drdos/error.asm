@@ -122,7 +122,6 @@ error_ret:
 error_r10:					; otherwise negate
 	les	di,int21regs_ptr
 	or	es:reg_FLAGS[di],CARRY_FLAG	; set the "users" carry Flag
-	nop	; REMOVE AFTER JWASM CONVERSION
 	stc					; also set real one
 if offset reg_AX EQ 0
 	stosw					; save return code

@@ -144,7 +144,6 @@ read_line:
 	jmp	read_line20
 read_line10:
 	and	RL_FLAGS,not RLF_INS	; clear insert mode
-	nop	; REMOVE AFTER JWASM CONVERSION
 read_line20:
 	mov	di,dx			; di -> buffer
 	xor	bx,bx
@@ -196,7 +195,6 @@ read_line40:
 ;
 read_line_loop:
 	and	RL_FLAGS,not RLF_KANJI	; initial flags
-	nop	; REMOVE AFTER JWASM CONVERSION
 	call	get_char		; read the first character (AH Esc Flg)
 
 	mov	cx,edit_size		; now scan the control table looking
@@ -221,7 +219,6 @@ read_ll10:
 
 	call	save_char		; not an command so save the character
 	or	RL_FLAGS,RLF_DIRTY	;  and remember we have something new
-	nop	; REMOVE AFTER JWASM CONVERSION
 
 ; Are we in search mode ?
 
@@ -333,10 +330,8 @@ save_c30:
 	cmp	dx,si
 	 jz	simple_save
 	or	RL_FLAGS,RLF_INS
-	nop	; REMOVE AFTER JWASM CONVERSION
 	call	save_c50
 	and	RL_FLAGS,not RLF_INS
-	nop	; REMOVE AFTER JWASM CONVERSION
 	ret
 
 bell_char:
@@ -408,14 +403,12 @@ save_c60:
 ;
 save_kanji:
 	and	RL_FLAGS,not RLF_KANJI
-	nop	; REMOVE AFTER JWASM CONVERSION
 	mov	RL_KANJI,ax		; Save the Character
 	call	char_type		; Is this the first byte of a 
 	test	ah,CHAR_KANJI		; two byte Kanji character
 	mov	cx,1			; Character size in bytes
 	 jz	save_k10		; No
 	or	RL_FLAGS,RLF_KANJI	; Set internal Flag
-	nop	; REMOVE AFTER JWASM CONVERSION
 	call	get_char		; Get the high byte and save
 	mov	byte ptr RL_KANJI+1,al	; in the local variable
 	mov	ax,RL_KANJI		; Get the complete character
@@ -429,14 +422,11 @@ save_k10:
 ;
 toggle_ins:
 	xor	RL_FLAGS,RLF_INS	; Toggle the OverWrite/Insert
-	nop	; REMOVE AFTER JWASM CONVERSION
 	ret				; Flag
 
 toggle_search:
 	and	RL_FLAGS,not RLF_MATCH	; clear match bit
-	nop	; REMOVE AFTER JWASM CONVERSION
 	xor	RL_FLAGS,RLF_SEARCH	; Toggle the Search on/off flag
-	nop	; REMOVE AFTER JWASM CONVERSION
 	ret
 
 ;
@@ -690,7 +680,6 @@ copy_char:
 	jz	copy_c5
 	call	next_char	; Otherwise just move by 1
 	jmp	copy_c10
-	nop	; REMOVE AFTER JWASM CONVERSION
 
 copy_c5:
 	call	skip_one_char		; Calculate Bytes to copy
@@ -727,17 +716,14 @@ copy_a10:
 
 	push	RL_FLAGS		; Save State flags and prevent
 	or	RL_FLAGS,RLF_INS	; SAVPOS being modified
-	nop	; REMOVE AFTER JWASM CONVERSION
 copy_a20:
 	push	cx
 	and	RL_FLAGS,not RLF_KANJI
-	nop	; REMOVE AFTER JWASM CONVERSION
 	call	skip_one_char		; Return the next character and its 
 	cmp 	cx,1 
 	jz 	copy_a25		; size in bytes
 	mov	RL_KANJI,ax		; Save the Kanji Character and
 	or	RL_FLAGS,RLF_KANJI	; set the control flag
-	nop	; REMOVE AFTER JWASM CONVERSION
 	pop 	bx
 	dec 	bx
 	push 	bx			; Decrement the Loop Count

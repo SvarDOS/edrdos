@@ -592,11 +592,9 @@ match4:
 ;	 jnz	gtd_next		; no, try for another
 	 jz	match5
 	 jmp	gtd_next		; no, try for another
-	 nop	; REMOVE AFTER JWASM CONVERSION
 match5:
 	mov	bx,dirp			; Return (BX)
 	jmp	gtd2
-	nop	; REMOVE AFTER JWASM CONVERSION
 
 
 

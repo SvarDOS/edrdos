@@ -264,7 +264,6 @@ func7305:
 	mov	ax, -57h		; if not, return 57h, RBIL calls it
 					;  "(DOS 3.3+) invalid parameter"
 	jmp	f7305_exit		; no, then exit with error
-	nop	; REMOVE AFTER JWASM CONVERSION
 f7305_10:
 	push	es
 	les	bp,int21regs_ptr	; ES:BX -> disk address structure

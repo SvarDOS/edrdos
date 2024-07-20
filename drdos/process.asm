@@ -333,7 +333,6 @@ ES_OVERLAY	equ	0002h
 	les	bp,int21regs_ptr	; point to user stack
 	mov	es:reg_AX[bp],0		; return successful
 	and	es:reg_FLAGS[bp],not CARRY_FLAG
-	nop	; REMOVE AFTER JWASM CONVERSION
 	mov	ax,prev_int21regs_off
 	mov	int21regs_off,ax
 	mov	ax,prev_int21regs_seg
@@ -397,7 +396,6 @@ f4B_05:
 	jmp	return_AX_CLC		; All done
 f4b_10:
 	jmp	f4B_error
-	nop	; REMOVE AFTER JWASM CONVERSION
 
 
 ;
@@ -437,7 +435,6 @@ f4B_g15:
 	add	EXE_CS[si],dx		; bias the code segment
 	add	EXE_SS[si],dx		;   and the stack segment too
 	jmp	start_child		; goodbye!
-	nop	; REMOVE AFTER JWASM CONVERSION
 ;
 f4B_go_com:				; Go for it .COM
 ;	mov	dx,load_psp		; based at PSP seg
@@ -450,7 +447,6 @@ f4B_go_com:				; Go for it .COM
 	mov	EXE_SP[si],bx		; save as stack ptr
 	mov	es:word ptr[bx],0	; put one zero on the stack
 	jmp	start_child		; goodbye!
-	nop	; REMOVE ATFER JWASM CONVERSION
 ;
 ;	Function 4B Error Handler. This exit routine will free all
 ;	resources allocated to a process during the EXEC function and
@@ -1068,9 +1064,7 @@ readfile:
 	rol	dx,cl			; file before reading any data
 	mov	cl,dl
 	and 	cx,0Fh
-	nop	; REMOVE AFTER JWASM CONVERSION
 	and 	dx,not 0Fh
-	nop	; REMOVE AFTER JWASM CONVERSION
 	mov	ax,(MS_X_LSEEK*256)+0
 	call	dos_entry		; Execute LSEEK Function
 	jc	rf_error

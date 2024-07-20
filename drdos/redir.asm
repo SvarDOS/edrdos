@@ -665,7 +665,6 @@ redir_creat:
 	mov	int2f_cmd,I2F_XCREATE
 redir_creat10:
 	jmp	redir_open_create_common
-	nop	; REMOVE AFTER JWASM CONVERSION
 
 ;	OPEN FILE (OPEN)
 
@@ -879,7 +878,6 @@ redir_rw10:
 	mov	cl,4
 	mov	di,dx			; save dma offset
 	and	dx,15			; make offset within para
-	nop	; REMOVE AFTER JWASM CONVERSION
 	shr	di,cl			; convert offset to para offset
 	mov	si,ds			; add to segment
 	add	di,si			; DI:DX -> DMA address
@@ -1421,7 +1419,6 @@ redir_dattim10:
 	mov	es:DHNDL_TIME[bx],ax
 	or	es:DHNDL_WATTR[bx],DHAT_TIMEOK
 	and	es:DHNDL_WATTR[bx],not DHAT_CLEAN
-	nop	; REMOVE AFTER JWASM CONVERSION
 redir_dattim20:
 	xor	bx,bx			;  all went OK
 	jmp	redir_dattim40
