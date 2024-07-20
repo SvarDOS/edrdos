@@ -529,6 +529,10 @@ MLOCAL const char * format_number( LONGLONG v, int space )
    char *bp = buf + sizeof(buf);
    *(--bp) = '\0';
 
+   if ( v >= 1024ll * 1024ll * 1024ll * 1000ll ) {
+      v /= 1024ll * 1024ll * 1024ll;
+      *(--bp) = 'G';
+   }
    if ( v >= 1024ll * 1024ll * 1000ll ) {
       v /= 1024ll * 1024ll;
       *(--bp) = 'M';
@@ -1031,10 +1035,10 @@ GLOBAL VOID CDECL cmd_dir( REG BYTE *cmd )
             total_size += fsize;
             if ( OPT( DIR_2COLS ) ) {
                /*		    printf ("%9lu", search.fsize);*/
-               printf( "%11s", format_number( fsize, 1 ) );
+               printf( "%10s ", format_number( fsize, 1 ) );
             }
             else {
-               printf( "%11s", format_number( fsize, 1 ) );
+               printf( "%10s ", format_number( fsize, 1 ) );
             }
          }
 
