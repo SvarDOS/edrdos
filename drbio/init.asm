@@ -198,8 +198,10 @@ init	proc	near			; this is at BIOSCODE:0000h
 	jmp	init0			; jump to reusable init space
 init	endp
 
-compflg	dw	offset CGROUP:INITDATA	; compresses from INITDATA onwards
-
+; start offset of zero-compressed file area
+compstart	dw	offset CGROUP:COMPRESSION_START	
+compflg		db	0		; set to 1 by compressor to indicate
+					; compression
 	org	06h
 
 	db	'COMPAQCompatible'  
@@ -591,8 +593,120 @@ daycount	dw	0
 
 	public	local_buffer,local_id,local_pt
 
-	even
-local_buffer	db	512 dup (?)	; local deblocking buffer
+
+		even
+; DRBIO initialization code stage one. This is executed right after the jump
+; at the beginning of the CODE segment.
+
+; We now uncompress to > (7C00h (ie. boot stack) - 700h (ie. base of code)
+; This means our stack collides with our code, very bad news.
+; To avoid this we switch stacks into a safer area ie. 0C000h
+; The floppy parameters also MAY live at 7C00, so we have to relocate these
+; before we expand.
+
+; First stage initialization and uncompression shares area with
+; 512 byte deblocking buffer.
+
+init0	proc near
+
+local_buffer 	label 	byte
+
+	mov	cs:byte ptr A20Enable,0C3h
+					; fixup the RET
+	mov	sp, 0C000h		; switch to magic stack
+
+	sti
+	cld
+
+	; the following expects ds:bp to point to the boot sector, in
+	; particular the BPB, to push its hidden sectors field to stack
+	push	ds:1eh[bp]		; push BPB hidden sectors
+	push	ds:1ch[bp]		; ..popped at biosinit to part_off
+
+	push	cx			; save entry registers
+	push	di			; (important in ROM systems)
+
+	xor	si,si
+	mov	ds,si
+	mov	es,si
+
+	Assume	DS:IVECT, ES:IVECT
+
+; 	Copy diskette parameters (11 bytes) from the location stored
+; 	at INT1E over to 0000:0522. This MAY previously be located at 7C00
+; 	or another (non-)BIOS location depending on the boot sector code.
+; 	After copying, set INT1E to point to the new location.
+
+	mov	di,522h			; ES:DI -> save area for parameters
+	lds	si,i1Eptr		; DS:SI -> FD parameters for ROS
+
+	Assume	DS:Nothing
+
+	mov	i1Eoff,di
+	mov	i1Eseg,es		; setup new location
+	mov	cx,11
+	rep	movsb
+	mov	es:byte ptr [di-7],36	; enable read/writing of 36 sectors/track
+
+	pop	di
+	pop	cx
+
+uncompress_start:
+	push	ax			; bdos_seg
+	mov	si, cs			; preserve entry registers
+	mov	ds, si			; other than si, ds and es
+	mov	es, si
+	xor	si, si
+	mov	al, compflg		; Get Compresed BIOS Flag
+	or	al, al			; Set to Zero if the BIOS has
+	jz	not_compressed		; been compressed
+	mov	si, compstart
+	push	di			; bios_seg
+	push	bx			; initial drives
+	push	cx			; memory size
+	push	dx			; initial flags
+	lea	cx, biosinit_end
+	sub	cx, si
+	inc	cx			; length of compressed part plus one
+	mov	di, cx
+	neg	di			; furthest offset we can use
+	and	di, 0fff0h		; on the next para below
+	push	di
+	push	si
+	shr	cx, 1
+	rep movsw			; take a copy
+	pop	di			; di is now -> compressed dest
+	pop	si			; this is now -> compressed source
+bios_r20:
+	lodsw				; get control word
+	mov	cx,ax			; as a count
+	jcxz	bios_r40		; all done
+	test	cx,8000h		; negative ?
+	jnz	bios_r30		; yes do zeros
+	rep	movsb			; else move in data bytes
+	jmp short bios_r20		; and to the next
+
+bios_r30:
+	and	cx,7fffh		; remove sign
+	jcxz	bios_r20		; none to do
+	xor	ax,ax
+	rep	stosb			; fill with zeros
+	jmp short bios_r20
+bios_r40:
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	di
+not_compressed:
+	pop	ax
+	jmp	init1			; next initialization stage is
+					; part of discardable ICODE segment
+init0	endp
+
+COMPRESSION_START:
+; grow deblocking buffer to 512 byte
+		db	512 - ($ - init0) dup (?)
+
 SECSIZE		equ	512
 IDOFF		equ	SECSIZE-2	; last word in boot sector is ID
 PTOFF		equ	IDOFF-40h	; 4*16 bytes for partition def's
@@ -686,108 +800,8 @@ bpbs		dw	offset bpb360	; 0: 320/360 Kb 5.25" floppy
 		dw	offset bpb1440	; 8: Other
 		dw	offset bpb2880	; 9: 2.88 Mb 3.5" floppy
 
-init0	proc	near
+init1	proc	near
 
-; 	DRBIO initialization code. This is executed right after the jump
-; 	at the beginning of the CODE segment.
-
-;
-; We now uncompress to > (7C00h (ie. boot stack) - 700h (ie. base of code)
-; This means our stack collides with our code, very bad news.
-; To avoid this we switch stacks into a safer area ie. 0C000h
-; The floppy parameters also MAY live at 7C00, so we have to relocate these
-; before we expand.
-
-	mov	cs:byte ptr A20Enable,0C3h
-					; fixup the RET
-
-	mov	sp, 0C000h		; switch to magic stack
-
-	sti
-	cld
-
-	; the following expects ds:bp to point to the boot sector, in
-	; particular the BPB, to push its hidden sectors field to stack
-	push	ds:1eh[bp]		; push BPB hidden sectors
-	push	ds:1ch[bp]		; ..popped at biosinit to part_off
-
-	push	cx			; save entry registers
-	push	di			; (important in ROM systems)
-
-	xor	si,si
-	mov	ds,si
-	mov	es,si
-
-	Assume	DS:IVECT, ES:IVECT
-
-; 	Copy diskette parameters (11 bytes) from the location stored
-; 	at INT1E over to 0000:0522. This MAY previously be located at 7C00
-; 	or another (non-)BIOS location depending on the boot sector code.
-; 	After copying, set INT1E to point to the new location.
-
-	mov	di,522h			; ES:DI -> save area for parameters
-	lds	si,i1Eptr		; DS:SI -> FD parameters for ROS
-
-	Assume	DS:Nothing
-
-	mov	i1Eoff,di
-	mov	i1Eseg,es		; setup new location
-	mov	cx,11
-	rep	movsb
-	mov	es:byte ptr [di-7],36	; enable read/writing of 36 sectors/track
-
-	pop	di
-	pop	cx
-
-if COMPRESSED
-	mov	si, cs			; preserve entry registers
-	mov	ds, si			; other than si, ds and es
-	mov	es, si
-	xor	si, si
-	mov	si, compflg		; Get Compresed BIOS Flag
-	or	si, si			; Set to Zero if the BIOS has
-	jnz	not_compressed		; been compressed
-	mov	si, offset CGROUP:INITDATA
-	push	di			; bios_seg
-	push	ax			; bdos_seg
-	push	bx			; initial drives
-	push	cx			; memory size
-	push	dx			; initial flags
-	lea	cx, biosinit_end
-	sub	cx, si
-	inc	cx			; length of compressed part plus one
-	mov	di, cx
-	neg	di			; furthest offset we can use
-	and	di, 0fff0h		; on the next para below
-	push	di
-	push	si
-	shr	cx, 1
-	rep movsw			; take a copy
-	pop	di			; di is now -> compressed dest
-	pop	si			; this is now -> compressed source
-bios_r20:
-	lodsw				; get control word
-	mov	cx,ax			; as a count
-	jcxz	bios_r40		; all done
-	test	cx,8000h		; negative ?
-	jnz	bios_r30		; yes do zeros
-	rep	movsb			; else move in data bytes
-	jmp short bios_r20		; and to the next
-
-bios_r30:
-	and	cx,7fffh		; remove sign
-	jcxz	bios_r20		; none to do
-	xor	ax,ax
-	rep	stosb			; fill with zeros
-	jmp short bios_r20
-bios_r40:
-	pop	dx
-	pop	cx
-	pop	bx
-	pop	ax
-	pop	di
-not_compressed:
-endif
 	mov	si,cs
 	mov	ds,si			; DS -> local data segment
 	cmp	dl,0ffh			; booting from ROM?
@@ -951,16 +965,16 @@ resume_exit:
 	mov	word ptr device_root+0,bx
 	mov	word ptr device_root+2,ds
 
-init1:
+@@next_fixup:
 	cmp	word ptr [bx],0FFFFh	; last driver in BIOS?
-	 je	init3
+	 je	@@fixup_done
 	mov	2[bx],ds		; fix up segments in driver chain
 	mov	bx,[bx]
-	jmps	init1
-init3:
+	jmp	short @@next_fixup
+@@fixup_done:
 	jmp	biosinit		; jump to BIOS code
 
-init0	endp
+init1	endp
 
 	public	output_msg
 output_msg:

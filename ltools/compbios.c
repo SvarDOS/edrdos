@@ -62,6 +62,8 @@ The DRBIO.SYS decompression is implemented in init0 in DRBIO\INIT.ASM
 
 #define ZEROCOMP_ADDR_WORD 3  /* location in input file holding the start
                            offset (WORD) of zero-compressed data */
+#define ZEROCOMP_FLAG_BYTE 5  /* location in input file holding the 
+                           flag if file is zero-compressed */
 
 
 int main( int argc, char *argv[] )
@@ -70,6 +72,7 @@ int main( int argc, char *argv[] )
    char *out_data, *out_ptr;
    size_t in_size, out_size;
    uint16_t comp_start;
+   uint8_t comp_flag;
 
    if ( argc != 3 ) {
       puts( "Usage: COMPBIOS.EXE in-file out-file" );
@@ -84,9 +87,10 @@ int main( int argc, char *argv[] )
 
    /* get start offset of data to be compressed */
    comp_start = *(farkeyword uint16_t*)(in_data + ZEROCOMP_ADDR_WORD);
-   in_data[ZEROCOMP_ADDR_WORD] = in_data[ZEROCOMP_ADDR_WORD+1] = 0;
+   comp_flag = *(farkeyword uint8_t*)(in_data + ZEROCOMP_FLAG_BYTE);
+   in_data[ZEROCOMP_FLAG_BYTE] = 1;
 
-   if ( !comp_start ) {
+   if ( comp_flag ) {
       puts( "BIOS already compressed" );
       farfree( in_data );
       return 0;
