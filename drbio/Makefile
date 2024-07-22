@@ -17,10 +17,10 @@ wasm_objs += bin/stacks.obj
 rasm_objs  = bin/biosinit.obj bin/config.obj bin/bdosldr.obj bin/genercfg.obj
 rasm_objs += bin/nlsfunc.obj
 
-bin/drbio.sys : bin/drbio.tmp
+bin/drbio.sys : bin/drbio.bin
 	$(COMPBIOS) $< $@
 
-bin/drbio.tmp : bin/bios.exe
+bin/drbio.bin : bin/bios.exe
 	$(EXE2BIN) -q $< $@
 		
 bin/bios.exe : $(wasm_objs) $(rasm_objs) bios.lnk
