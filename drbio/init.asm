@@ -732,7 +732,12 @@ not_compressed:
 init0	endp
 
 COMPRESSION_START:
-; grow deblocking buffer to 512 byte
+
+
+if ($ - init0) gt 512
+	error "too much code in deblocking buffer"
+endif
+		; grow deblocking buffer to 512 byte
 		db	512 - ($ - init0) dup (?)
 
 SECSIZE		equ	512
