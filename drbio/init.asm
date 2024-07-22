@@ -50,6 +50,11 @@
 	include keys.equ		; common key definitions
 
 
+COMPRESSED_SEG	equ 1800h	; segment compressed kernel image is copied
+				; to before zero-uncompression, should be
+				; sufficient for uncompressed DRBIO+DRDOS
+				; sizes of up to ~94K
+
 ENDCODE		segment public byte 'ENDCODE'
 ENDCODE		ends
 
@@ -614,6 +619,11 @@ local_buffer 	label 	byte
 	mov	cs:byte ptr A20Enable,0C3h
 					; fixup the RET
 	mov	sp, 0C000h		; switch to magic stack
+	
+					; DANGER! will probably be
+					; thrashed if single-file
+					; kernel gets uncompressed.
+					; find or reserve other location!!!
 
 	sti
 	cld
@@ -652,13 +662,12 @@ local_buffer 	label 	byte
 	pop	cx
 
 uncompress_start:
-	push	ax			; bdos_seg
-	mov	si, cs			; preserve entry registers
-	mov	ds, si			; other than si, ds and es
-	mov	es, si
+	push	ax			; bdos_seg if loaded from ROM
+	mov	ax, cs			; preserve entry registers
+	mov	ds, ax			; other than si, ds and es
 	xor	si, si
 	mov	al, compflg		; Get Compresed BIOS Flag
-	or	al, al			; Set to Zero if the BIOS has
+	or	al, al			; Set to One if the BIOS has
 	jz	not_compressed		; been compressed
 	mov	si, compstart
 	push	di			; bios_seg
@@ -668,16 +677,33 @@ uncompress_start:
 	lea	cx, biosinit_end
 	sub	cx, si
 	inc	cx			; length of compressed part plus one
-	mov	di, cx
-	neg	di			; furthest offset we can use
-	and	di, 0fff0h		; on the next para below
+	shr	cx, 1
+	xor	di,di
+	mov	ax, COMPRESSED_SEG
+	mov	es, ax
 	push	di
 	push	si
-	shr	cx, 1
 	rep movsw			; take a copy
-	pop	di			; di is now -> compressed dest
+	push	ds
+	push	es
+	pop	ds			; switch source and dest segment
+	pop	es
+	pop	di			; di is now -> uncompressed dest
 	pop	si			; this is now -> compressed source
 bios_r20:
+	mov	cl,4
+	mov	bx,ds			; canonicalize ds:si
+	mov	ax,si			; to support kernel images >64K
+	shr	ax,cl			; and make sure we do not wrap around
+	add	ax,bx			; at segment boundary while
+	mov	ds,ax			; uncompressing
+	and	si,0fh
+	mov	bx,es			; canonicalize es:di
+	mov	ax,di			; to support kernel images >64K
+	shr	ax,cl			; and make sure we do not wrap around
+	add	ax,bx			; at segment boundary while
+	mov	es,ax			; uncompressing
+	and	di,0fh
 	lodsw				; get control word
 	mov	cx,ax			; as a count
 	jcxz	bios_r40		; all done
@@ -693,6 +719,8 @@ bios_r30:
 	rep	stosb			; fill with zeros
 	jmp short bios_r20
 bios_r40:
+	push	cs
+	pop	ds			; restore ds
 	pop	dx
 	pop	cx
 	pop	bx
