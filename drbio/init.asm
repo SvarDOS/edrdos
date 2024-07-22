@@ -619,7 +619,7 @@ local_buffer 	label 	byte
 	mov	cs:byte ptr A20Enable,0C3h
 					; fixup the RET
 	mov	sp, 0C000h		; switch to magic stack
-	
+
 					; DANGER! will probably be
 					; thrashed if single-file
 					; kernel gets uncompressed.
@@ -688,7 +688,7 @@ uncompress_start:
 	push	es
 	pop	ds			; switch source and dest segment
 	pop	es
-	pop	di			; di is now -> uncompressed dest
+	pop	di			; di is now -> uncompression dest
 	pop	si			; this is now -> compressed source
 bios_r20:
 	mov	cl,4
