@@ -200,7 +200,7 @@ A20Enable proc near
 A20Enable endp
 
 init	proc	near			; this is at BIOSCODE:0000h
-	jmp	init0			; jump to reusable init space
+	jmp	init0			; jump to zero-decompression stage
 init	endp
 
 ; start offset of zero-compressed file area
@@ -661,7 +661,7 @@ local_buffer 	label 	byte
 	pop	di
 	pop	cx
 
-uncompress_start:
+uncompress_kernel:
 	push	ax			; bdos_seg if loaded from ROM
 	mov	ax, cs			; preserve entry registers
 	mov	ds, ax			; other than si, ds and es
@@ -690,7 +690,7 @@ uncompress_start:
 	pop	es
 	pop	di			; di is now -> uncompression dest
 	pop	si			; this is now -> compressed source
-bios_r20:
+@@uncompress_block:
 	mov	cl,4
 	mov	bx,ds			; canonicalize ds:si
 	mov	ax,si			; to support kernel images >64K
@@ -706,19 +706,18 @@ bios_r20:
 	and	di,0fh
 	lodsw				; get control word
 	mov	cx,ax			; as a count
-	jcxz	bios_r40		; all done
+	jcxz	@@uncompress_fini	; all done
 	test	cx,8000h		; negative ?
-	jnz	bios_r30		; yes do zeros
+	jnz	@@uncompress_zeros	; yes do zeros
 	rep	movsb			; else move in data bytes
-	jmp short bios_r20		; and to the next
-
-bios_r30:
+	jmp 	@@uncompress_block	; and to the next
+@@uncompress_zeros:
 	and	cx,7fffh		; remove sign
-	jcxz	bios_r20		; none to do
+	jcxz	@@uncompress_block	; none to do
 	xor	ax,ax
 	rep	stosb			; fill with zeros
-	jmp short bios_r20
-bios_r40:
+	jmp 	@@uncompress_block
+@@uncompress_fini:
 	push	cs
 	pop	ds			; restore ds
 	pop	dx
