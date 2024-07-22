@@ -50,10 +50,10 @@
 	include keys.equ		; common key definitions
 
 
-COMPRESSED_SEG	equ 1800h	; segment compressed kernel image is copied
+COMPRESSED_SEG	equ 2000h	; segment compressed kernel image is copied
 				; to before zero-uncompression, should be
 				; sufficient for uncompressed DRBIO+DRDOS
-				; sizes of up to ~94K
+				; sizes of up to ~128K
 
 ENDCODE		segment public byte 'ENDCODE'
 ENDCODE		ends
