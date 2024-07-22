@@ -1,9 +1,10 @@
 #ifndef ZEROCOMP_H
 #define ZEROCOMP_H
 
-void zerocomp( farkeyword char *data, size_t data_len, char *out, size_t *out_len );
+void zerocomp( farkeyword char *data, size_t data_len, char *out, size_t *out_len, int terminate );
 farkeyword char * read_file( const char *fn, size_t *size );
 int write_file( const char *fn, const char *data, size_t size );
+int write_file_multiple( const char *fn, const char **data, size_t *size, int num );
 
 #define ZERO_THRESHOLD 5
 
@@ -61,7 +62,7 @@ static void zerocomp_block( farkeyword char **in, farkeyword char *eof, char **o
 }
 
 
-void zerocomp( farkeyword char *data, size_t data_len, char *out, size_t *out_len )
+void zerocomp( farkeyword char *data, size_t data_len, char *out, size_t *out_len, int terminate )
 {
    farkeyword char *eof = data + data_len;
    farkeyword char *end = eof;
@@ -84,8 +85,10 @@ void zerocomp( farkeyword char *data, size_t data_len, char *out, size_t *out_le
    zerocomp_block( &end, eof, &outp );
 
    /* terminate with 0x0000 to indicate no further data */
-   *outp++ = 0;
-   *outp++ = 0;
+   if ( terminate ) {
+      *outp++ = 0;
+      *outp++ = 0;
+   }
 
    *out_len = outp - out;
 }
@@ -162,5 +165,28 @@ int write_file( const char *fn, const char *data, size_t size )
    return 1;
 }
 
+
+/* writes multiple buffers given by **data and *size to output file */
+int write_file_multiple( const char *fn, const char **data, size_t *size, int num )
+{
+   FILE *f;
+
+   f = fopen( fn, "wb" );
+   if ( !f ) {
+      return 0;
+   }
+
+   while ( num-- ) {
+      if ( fwrite( *data, 1, *size, f ) != *size ) {
+         fclose( f );
+         return 0;
+      }
+      data++;
+      size++;
+   }
+
+   fclose( f );
+   return 1;
+}
 
 #endif /* ZEROCOMP_H */

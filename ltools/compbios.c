@@ -110,7 +110,7 @@ int main( int argc, char *argv[] )
    /* zero-compress file... */
    in_ptr = in_data + comp_start;
    out_ptr = out_data + comp_start;
-   zerocomp( in_ptr, in_size - comp_start, out_ptr, &out_size );
+   zerocomp( in_ptr, in_size - comp_start, out_ptr, &out_size, 1 );
    /*printf( "in-size: %zu, out-size: %zu\n ", in_size - comp_start, out_size );*/
    
    /* ...and write everything to output file */
