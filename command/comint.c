@@ -1056,7 +1056,7 @@ GLOBAL VOID CDECL cmd_dir( REG BYTE *cmd )
          }
          else {
             if ( ( OPT( DIR_2COLS ) ) && ( nfiles % 2 == 0 ) ) {
-               printf( "\t\t\t" );
+               printf( "                : " );
             }
          }
       }
