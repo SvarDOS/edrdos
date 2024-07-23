@@ -39,6 +39,10 @@ You may instead build the individual components by invoking `wmake` under the
 directory of the components. The built binaries are then placed into the _bin_
 subdirectory for the components, like _drbio/bin/drbio.sys_.
 
+You may generate uncompressed DRBIO.SYS and DRDOS.SYS binaries by invoking
+`wmake UNCOMPRESSED=1` from the main directory or the directories of the
+components.
+
 
 ## Installation
 
