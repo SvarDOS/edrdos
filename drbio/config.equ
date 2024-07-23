@@ -32,6 +32,8 @@
 ;
 ;    ENDLOG
 
+KERNFLG_COMP 	equ 	1
+KERNFLG_COMBINED equ 	80h
 
 MOVE_DOWN	equ	1800h		; start relocated code 96K down
 

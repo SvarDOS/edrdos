@@ -40,6 +40,7 @@
 ;    ENDLOG
 
 
+	include config.equ
 	include	drmacros.equ
 	include	ibmros.equ
 	include msdos.equ
@@ -153,6 +154,7 @@ CODE	segment public word 'CODE'
 	Assume	CS:CGROUP, DS:Nothing, ES:Nothing, SS:Nothing
 
 	public	strat
+	public	kernflg
 
 	extrn	ConsoleTable:word
 	extrn	ClockTable:word
@@ -203,8 +205,8 @@ init	endp
 
 ; start offset of zero-compressed file area
 compstart	dw	offset CGROUP:COMPRESSION_START	
-compflg		db	0		; set to 1 by compressor to indicate
-					; compression
+kernflg		db	0		; bit 1 set => file compressed
+					; bit 7 set => combined BIO/BDOS file
 	org	06h
 
 	db	'COMPAQCompatible'  
@@ -664,8 +666,8 @@ uncompress_kernel:
 	mov	ax, cs			; preserve entry registers
 	mov	ds, ax			; other than si, ds and es
 	xor	si, si
-	mov	al, compflg		; Get Compresed BIOS Flag
-	or	al, al			; Set to One if the BIOS has
+	mov	al, kernflg		; Get Compresed BIOS Flag
+	and	al, KERNFLG_COMP	; Set to One if the BIOS has
 	jz	not_compressed		; been compressed
 	mov	si, compstart
 	push	di			; bios_seg
