@@ -34,7 +34,9 @@ information if the DOS is compressed and the size of the code area etc..
 First job of COMPBDOS is to strip the padding area. It then copies the code
 area uncompressed, after determine its size from the header.
 
-After copying the uncompressed code area, the data area is zero-compressed.
+After copying the uncompressed code area, either the data area is
+zero-compressed, or the remaining code is copied unaltered if user does
+not want zero-compression by specifying "uncompressed" at the command line.
 
 The original COMPBDOS appends copyright info to the DRDOS.SYS. This
 re-implementation does not do this.
@@ -84,9 +86,11 @@ int main( int argc, char *argv[] )
    size_t in_size, out_size;
    uint16_t padding;
    uint16_t comp_start;
+   int result;
 
-   if ( argc != 3 ) {
-      puts( "Usage: COMPBDOS.EXE in-file out-file" );
+   if ( ( argc < 3 ) || ( argc > 4 ) || 
+        ( argc == 4 && strcmp( argv[3], "uncompressed") ) ) {
+      puts( "Usage: COMPBDOS.EXE in-file out-file [uncompressed]" );
       return 1;
    }
 
@@ -114,17 +118,28 @@ int main( int argc, char *argv[] )
       return 1;
    }
 
-   /* copy uncompressed part of file */
-   farmemcpy( out_ptr, in_ptr, comp_start );
+   if ( !argv[3] ) {
+      /* generate zero-compressed DRDOS.SYS */
 
-   /* zero-compress file... */
-   in_ptr += comp_start;
-   out_ptr += comp_start;
-   zerocomp( in_ptr, in_size - comp_start, out_ptr, &out_size, 1 );
-   /*printf( "in-size: %zu, out-size: %zu\n ", in_size - comp_start, out_size );*/
+      /* copy uncompressed part of file */
+      farmemcpy( out_ptr, in_ptr, comp_start );
    
+      /* zero-compress file... */
+      in_ptr += comp_start;
+      out_ptr += comp_start;
+      zerocomp( in_ptr, in_size - comp_start, out_ptr, &out_size, 1 );
+      /*printf( "in-size: %zu, out-size: %zu\n ", in_size - comp_start, out_size );*/
+      result = write_file( argv[2], out_data, comp_start + out_size );
+   }
+   else {
+      /* generate uncompressed DRDOS.SYS, with only the initial padding
+         stripped */
+      farmemcpy( out_ptr, in_ptr, in_size );
+      result = write_file( argv[2], out_data, in_size );
+   }
+
    /* ...and write everything to output file */
-   if ( !write_file( argv[2], out_data, comp_start + out_size ) ) {
+   if ( !result ) {
       puts( "error: could not write output file" );
       free( out_data );
       farfree( in_data );
