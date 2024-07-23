@@ -9,6 +9,10 @@
 
 !include platform.mak
 
+!ifdef UNCOMPRESSED
+WMAKE_FLAGS += UNCOMPRESSED=1
+!endif
+
 all: dist/drbio.sys dist/drdos.sys dist/country.sys dist/command.com dist/license/license.htm .SYMBOLIC
 
 dist/drbio.sys: drbio/bin/drbio.sys
@@ -31,12 +35,12 @@ dist/license/license.htm: dist/license license.htm
 
 drbio/bin/drbio.sys: .ALWAYS
 	cd drbio
-	$(WMAKE)
+	$(WMAKE) $(WMAKE_FLAGS)
 	cd ..
 
 drdos/bin/drdos.sys: .ALWAYS
 	cd drdos
-	$(WMAKE)
+	$(WMAKE) $(WMAKE_FLAGS)
 	cd ..
 
 command/bin/command.com: .ALWAYS
