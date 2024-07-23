@@ -57,6 +57,7 @@
 ;    hide preload drives from func_device
 ;    ENDLOG
 
+	include config.equ
 	include	msdos.equ		; DOS Function Equates
 	include	psp.def			; PSP Definition
 	include f52data.def		; Internal DOS data area
@@ -109,6 +110,7 @@ JMPF_OPCODE	equ	0EAh			; 8086 JMPF instruction
 SWITCH_F	equ	01h
 SWITCH_N	equ	02h
 
+	extrn	kernflg:byte
 	extrn	oldxbda:word
 	extrn	newxbda:word
 	extrn	xbdalen:word
@@ -251,6 +253,30 @@ biosinit20:
 biosinit30:
 	mov	dos_cseg,ax		; a relocated DOS image will live here
 
+	; test if we have a combined BIO/BDOS file. If we have, move BDOS
+	; to dos_cseg segment.
+	test	kernflg,KERNFLG_COMBINED	; combined BIO / BDOS?
+	jz	biosinit_40			; no, skip BDOS move
+	push	ds
+	mov	current_dos,ax		; prevent relocated_init from
+	mov	es,ax			; trying to load BDOS file
+	xor	di,di
+	mov	ax,offset CGROUP:DATAEND	; calculate paragraphs
+	mov	cl,4			; of BDOS into the kernel file...
+	shr	ax,cl
+	mov	dx,ds:DOS_CODE
+	push	cs
+	pop	si
+	add	ax,si			; ... and add kernel load segment to
+	mov	ds,ax			; get absolute BDOS segment
+	xor	si,si
+	mov	cx,ds:DOS_CODE		; get code and data size from BDOS
+	add	cx,ds:DOS_DATA		; header
+	rep	movsb			; move it
+	pop	ds
+
+
+biosinit_40:
 	mov	ax,offset biosinit_end+32
 	mov	cl,4			; Leave the Last Paragraph Free for
     	shr 	ax,cl           	;  himem DMD 
