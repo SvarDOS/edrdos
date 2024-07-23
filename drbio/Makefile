@@ -10,12 +10,11 @@
 
 WASM_FLAGS += -DSVARDOS
 
-wasm_objs  = bin/initmsgs.obj bin/biosmsgs.obj bin/init.obj bin/clock.obj
-wasm_objs += bin/console.obj bin/disk.obj bin/serpar.obj bin/biosgrps.obj
-wasm_objs += bin/stacks.obj
-
-rasm_objs  = bin/biosinit.obj bin/config.obj bin/bdosldr.obj bin/genercfg.obj
-rasm_objs += bin/nlsfunc.obj
+objs  = bin/initmsgs.obj bin/biosmsgs.obj bin/init.obj bin/clock.obj
+objs += bin/console.obj bin/disk.obj bin/serpar.obj bin/biosgrps.obj
+objs += bin/stacks.obj
+objs += bin/biosinit.obj bin/config.obj bin/bdosldr.obj bin/genercfg.obj
+objs += bin/nlsfunc.obj
 
 bin/drbio.sys : bin/drbio.bin
 !ifdef UNCOMPRESSED
@@ -25,11 +24,11 @@ bin/drbio.sys : bin/drbio.bin
 	$(COMPBIOS) $< $@
 !endif
 
-bin/drbio.bin : bin/bios.exe
+bin/drbio.bin : bin/drbio.exe
 	$(EXE2BIN) -q $< $@
 		
-bin/bios.exe : $(wasm_objs) $(rasm_objs) bios.lnk
-	$(WLINK) @bios.lnk
+bin/drbio.exe : $(objs) drbio.lnk
+	$(WLINK) @drbio.lnk
 
 bin/biosmsgs.obj: biosmsgs.asm version.inc
 

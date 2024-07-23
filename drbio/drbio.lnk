@@ -1,12 +1,12 @@
-# Watcom linker file for BIOS.EXE (is further processed to DRBIOS.SYS)
+# Watcom linker file for DRBIO.EXE (is further processed to DRBIOS.SYS)
 
 system dos
 option quiet
 option nocaseexact
-option map=bin/bios.map
+option map=bin/drbio.map
 disable 1014
 
-name bin/bios
+name bin/drbio
 file bin/biosgrps.obj
 file bin/init.obj
 file bin/clock.obj
