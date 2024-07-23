@@ -1,4 +1,11 @@
 # DRDOS.SYS Makefile for Open Watcom
+#
+# to make a compressed DRDOS.SYS file, run:
+#   wmake
+#
+# To make an uncompressed DRDOS.SYS, run:
+#   wmake UNCOMPRESSED=1
+#
 # Tools needed to build:
 #   - JWASM assembler
 #   - Open Watcom 1.9+: WLINK, EXE2BIN
@@ -7,6 +14,13 @@
 .ERASE
 
 !include ../platform.mak
+
+!ifdef UNCOMPRESSED
+COMPBDOS_FLAGS=uncompressed
+WASM_FLAGS += -DUNCOMPRESSED
+!else
+COMPBDOS_FLAGS=
+!endif
 
 WASM_FLAGS += -DDELWATCH -DJOIN -DKANJI -DPASSWORD -DUNDELETE
 
@@ -21,7 +35,7 @@ all: bin/drdos.sys bin/country.sys .SYMBOLIC
 
 bin/drdos.sys : bin/drdos.exe
 	$(EXE2BIN) -q $< bin$(SEP)drdos.bin
-	$(COMPBDOS) bin$(SEP)drdos.bin $@
+	$(COMPBDOS) bin$(SEP)drdos.bin $@ $(COMPBDOS_FLAGS)
 
 bin/drdos.exe: version.inc $(objs) drdos.lnk
 	$(WLINK) @drdos.lnk
