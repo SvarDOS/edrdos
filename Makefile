@@ -28,10 +28,10 @@ dist/command.com: command/bin/command.com
 	$(CP) command$(SEP)bin$(SEP)command.com dist$(SEP)command.com
 
 dist/license:
-	mkdir dist/license
+	mkdir dist$(SEP)license
 
 dist/license/license.htm: dist/license license.htm
-	$(CP) license.htm dist/license/license.htm
+	$(CP) license.htm dist$(SEP)license$(SEP)license.htm
 
 drbio/bin/drbio.sys: .ALWAYS
 	cd drbio
