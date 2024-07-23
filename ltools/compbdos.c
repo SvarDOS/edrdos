@@ -109,9 +109,6 @@ int main( int argc, char *argv[] )
    comp_start = *(farkeyword uint16_t*)(in_ptr + CODE_SIZE_OFFSET);
    /*printf( "start compressing at %04x\n", comp_start );*/
 
-   /* mark file as compressed */
-   in_ptr[COMP_FLAG_OFFSET] = 1; 
-
    out_data = out_ptr = malloc( in_size );
    if ( !out_data ) {
       puts( "allocation error" );
@@ -120,6 +117,9 @@ int main( int argc, char *argv[] )
 
    if ( !argv[3] ) {
       /* generate zero-compressed DRDOS.SYS */
+
+      /* mark file as compressed */
+      in_ptr[COMP_FLAG_OFFSET] = 1; 
 
       /* copy uncompressed part of file */
       farmemcpy( out_ptr, in_ptr, comp_start );
