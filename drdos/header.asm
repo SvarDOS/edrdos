@@ -72,6 +72,7 @@ PCMDATA group BDOS_DATA,PCMODE_DSIZE
 
 PCMCODE group PCM_HEADER,PCM_HISTORY,PCM_ICODE,PCM_CODEND
 
+	.nolist
 	include pcmode.equ
 	include	vectors.def
 
@@ -85,6 +86,7 @@ PCMCODE group PCM_HEADER,PCM_HISTORY,PCM_ICODE,PCM_CODEND
 	include	psp.def
 	include	request.equ
 	include	country.def
+	.list
 
 PADDING		equ	14*1024		; offset code start by this much
 
