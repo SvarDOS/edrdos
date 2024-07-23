@@ -271,7 +271,9 @@ biosinit30:
 	xor	di,di
 	mov	cx,ds:DOS_CODE		; get code and data size from BDOS
 	add	cx,ds:DOS_DATA		; header
-	rep	movsb			; move it
+	inc	cx
+	shr	cx,1
+	rep	movsw			; move it
 	pop	ds
 
 
