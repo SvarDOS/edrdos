@@ -97,7 +97,6 @@ INIT_CODE	equ	word ptr  000Eh	; Start of initialisation code
 DOS_FLAG	equ	word ptr  001Ch	; Compressed Data Flag
 DOS_CODE	equ	word ptr  001Eh	; DOS Code Length (Bytes)
 DOS_DATA	equ	word ptr  0020h	; DOS Data Length (Bytes)
-UPX_POS		equ	word ptr  0024h	; position of UPX signature
 NO_YES_CHARS	equ	word ptr  0028h	; DOS Data No/Yes characters
 
 INT31_SEGMENT	equ	word ptr 00C6h		; DOS Data Segment pointer
@@ -321,25 +320,6 @@ dos_reloc:
 	mov	dos_cseg,ax		; Update the DOS Code Segment
 	mov	ds,ax
 
-	mov	ax,ds:UPX_POS		; test for UPX compression
-	cmp	ax,cs:word ptr UPX_SIGN
-	 jne	dos_noupx		; not UPX-compressed
-	mov	ax,ds:UPX_POS+2
-	cmp	ax,cs:word ptr UPX_SIGN+2
-	 jne	dos_noupx
-	push	ds
-	push	cs			; return address after decompression
-	mov	ax,offset dos_upx
-	push	ax
-	mov	ax,ds			; entry point of decompression stub
-	sub	ax,10h
-	push	ax
-	mov	ax,100h
-	push	ax
-	retf				; unpack DRDOS.SYS
-dos_upx:
-	pop	ds
-dos_noupx:
 	mov	cl,4
 
 	mov	ax,ds:DOS_CODE		; get size of DOS code
@@ -2231,7 +2211,6 @@ res_dev_count	db	0
 dosdata_len	dw	0
 int_stubs_seg	dw	0
 
-UPX_SIGN	db	'UPX!'
 INITDATA ends
 
 INITPSP		segment public para 'INITDATA'
