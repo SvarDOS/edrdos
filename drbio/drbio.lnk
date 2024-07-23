@@ -1,4 +1,4 @@
-# Watcom linker file for DRBIO.EXE (is further processed to DRBIOS.SYS)
+# Watcom linker file for DRBIO.EXE (is further processed to DRBIO.SYS)
 
 system dos
 option quiet
