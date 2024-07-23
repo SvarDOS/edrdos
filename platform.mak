@@ -30,3 +30,4 @@ WMAKE = wmake -h
 
 COMPBIOS = $(LTOOLS)$(SEP)compbios
 COMPBDOS = $(LTOOLS)$(SEP)compbdos
+ROUND = $(LTOOLS)$(SEP)round

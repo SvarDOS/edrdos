@@ -25,7 +25,11 @@ bin/drbio.sys : bin/drbio.bin
 !endif
 
 bin/drbio.bin : bin/drbio.exe
-	$(EXE2BIN) -q $< $@
+	$(EXE2BIN) -q $< bin$(SEP)drbio.tmp
+	# WLINK quirk: does not align last segment if empty, so we align
+	# manually to paragraph boundary
+	$(ROUND) bin$(SEP)drbio.tmp $@ 16
+	rm -f bin$(SEP)drbio.tmp
 		
 bin/drbio.exe : $(objs) drbio.lnk
 	$(WLINK) @drbio.lnk
