@@ -73,8 +73,6 @@ DATAEND		ends
 
 ; IBM AT Hardware equates
 
-COMPRESSED	equ	TRUE		; enables compressed changes.
-
 ; a little macro to help locate things
 ; it warns us when the ORG get trampled on
 orgabs	MACRO	address, name
