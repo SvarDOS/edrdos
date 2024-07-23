@@ -18,7 +18,12 @@ rasm_objs  = bin/biosinit.obj bin/config.obj bin/bdosldr.obj bin/genercfg.obj
 rasm_objs += bin/nlsfunc.obj
 
 bin/drbio.sys : bin/drbio.bin
+!ifdef UNCOMPRESSED
+	rm -f $@
+	$(CP) $< $@
+!else
 	$(COMPBIOS) $< $@
+!endif
 
 bin/drbio.bin : bin/bios.exe
 	$(EXE2BIN) -q $< $@
