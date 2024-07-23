@@ -260,16 +260,15 @@ biosinit30:
 	push	ds
 	mov	current_dos,ax		; prevent relocated_init from
 	mov	es,ax			; trying to load BDOS file
-	xor	di,di
 	mov	ax,offset CGROUP:DATAEND	; calculate paragraphs
 	mov	cl,4			; of BDOS into the kernel file...
 	shr	ax,cl
-	mov	dx,ds:DOS_CODE
 	push	cs
 	pop	si
 	add	ax,si			; ... and add kernel load segment to
 	mov	ds,ax			; get absolute BDOS segment
 	xor	si,si
+	xor	di,di
 	mov	cx,ds:DOS_CODE		; get code and data size from BDOS
 	add	cx,ds:DOS_DATA		; header
 	rep	movsb			; move it
