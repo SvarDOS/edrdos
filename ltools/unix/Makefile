@@ -2,7 +2,7 @@
 
 CFLAGS=-Wall -pedantic
 
-all: compkern compbios compbdos fixupp
+all: compkern compbios compbdos fixupp round
 
 .PHONY: all clean
 
@@ -16,6 +16,9 @@ compbdos: ../compbdos.c ../zerocomp.h Makefile
 	$(CC) $(CFLAGS) $< -o $@
 
 fixupp: ../fixupp.c Makefile
+	$(CC) $(CFLAGS) $< -o $@
+
+round: ../round.c Makefile
 	$(CC) $(CFLAGS) $< -o $@
 
 
