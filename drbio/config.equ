@@ -32,8 +32,8 @@
 ;
 ;    ENDLOG
 
-KERNFLG_COMP 	equ 	1
-KERNFLG_COMBINED equ 	80h
+KERNFLG_COMP 	equ 	1		; bit set if file is compressed
+KERNFLG_COMBINED equ 	80h		; set if combined BIO/BDOS file
 
 MOVE_DOWN	equ	1800h		; start relocated code 96K down
 
