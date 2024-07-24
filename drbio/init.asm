@@ -618,7 +618,10 @@ local_buffer 	label 	byte
 
 	mov	cs:byte ptr A20Enable,0C3h
 					; fixup the RET
-	mov	sp, 0C000h		; switch to magic stack
+	mov	si,COMPRESSED_SEG - 200
+	mov	ss,si
+	mov	sp,1024
+;	mov	sp, 0C000h		; switch to magic stack
 
 					; DANGER! will probably be
 					; thrashed if single-file
