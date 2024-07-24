@@ -36,5 +36,8 @@ image/_files
 image/files
 ltools/unix/compbios
 ltools/unix/compbdos
+ltools/unix/compkern
 ltools/unix/fixupp
+ltools/unix/round
+
 tmp
