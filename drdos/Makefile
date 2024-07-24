@@ -33,9 +33,11 @@ objs += bin/dos7.obj bin/lfn.obj bin/dosgrps.obj
 
 all: bin/drdos.sys bin/country.sys .SYMBOLIC
 
-bin/drdos.sys : bin/drdos.exe
-	$(EXE2BIN) -q $< bin$(SEP)drdos.bin
+bin/drdos.sys : bin/drdos.bin
 	$(COMPBDOS) bin$(SEP)drdos.bin $@ $(COMPBDOS_FLAGS)
+
+bin/drdos.bin : bin/drdos.exe
+	$(EXE2BIN) -q $< bin$(SEP)drdos.bin
 
 bin/drdos.exe: version.inc $(objs) drdos.lnk
 	$(WLINK) @drdos.lnk
@@ -123,20 +125,20 @@ bin/lfn.obj: lfn.asm bdos.equ fdos.equ pcmode.equ doshndl.def lfn.equ fdos.def m
 
 
 clean: .SYMBOLIC
-	rm -f bin/drdos.*
-	rm -f bin/DRDOS.*	
-	rm -f bin/country.sys	
-	rm -f bin/COUNTRY.SYS	
-	rm -f bin/*.obj
-	rm -f bin/*.OBJ
-	rm -f bin/*.lst
-	rm -f bin/*.LST
-	rm -f bin/*.sym
-	rm -f bin/*.SYM
-	rm -f bin/*.tmp
-	rm -f bin/*.TMP
-	rm -f bin/*.map
-	rm -f bin/*.MAP
-	rm -f bin/*.inp
-	rm -f version.inc
-	rm -f VERSION.INC
+	@rm -f bin/drdos.*
+	@rm -f bin/DRDOS.*	
+	@rm -f bin/country.sys	
+	@rm -f bin/COUNTRY.SYS	
+	@rm -f bin/*.obj
+	@rm -f bin/*.OBJ
+	@rm -f bin/*.lst
+	@rm -f bin/*.LST
+	@rm -f bin/*.sym
+	@rm -f bin/*.SYM
+	@rm -f bin/*.tmp
+	@rm -f bin/*.TMP
+	@rm -f bin/*.map
+	@rm -f bin/*.MAP
+	@rm -f bin/*.inp
+	@rm -f version.inc
+	@rm -f VERSION.INC

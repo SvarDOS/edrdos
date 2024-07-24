@@ -46,17 +46,17 @@ version.inc: ../version.inc
 	$(CP) ..$(SEP)version.inc .
 
 clean: .SYMBOLIC
-	rm -f bin/*.bin
-	rm -f bin/*.BIN	
-	rm -f bin/*.com
-	rm -f bin/*.COM
-	rm -f bin/*.exe
-	rm -f bin/*.EXE	
-	rm -f bin/*.obj
-	rm -f bin/*.OBJ
-	rm -f bin/*.lst
-	rm -f bin/*.LST
-	rm -f bin/*.map
-	rm -f bin/*.MAP
-	rm -f version.inc
-	rm -f VERSION.INC
+	@rm -f bin/*.bin
+	@rm -f bin/*.BIN	
+	@rm -f bin/*.com
+	@rm -f bin/*.COM
+	@rm -f bin/*.exe
+	@rm -f bin/*.EXE	
+	@rm -f bin/*.obj
+	@rm -f bin/*.OBJ
+	@rm -f bin/*.lst
+	@rm -f bin/*.LST
+	@rm -f bin/*.map
+	@rm -f bin/*.MAP
+	@rm -f version.inc
+	@rm -f VERSION.INC

@@ -9,11 +9,31 @@
 
 !include platform.mak
 
-!ifdef UNCOMPRESSED
-WMAKE_FLAGS += UNCOMPRESSED=1
+!ifdef SINGLEFILE
+WMAKE_FLAGS += SINGLEFILE=1
 !endif
 
-all: dist/drbio.sys dist/drdos.sys dist/country.sys dist/command.com dist/license/license.htm .SYMBOLIC
+!ifdef UNCOMPRESSED
+WMAKE_FLAGS += UNCOMPRESSED=1
+COMPKERN_FLAGS += uncompressed
+!endif
+
+FILES += dist/country.sys dist/command.com
+
+!ifdef SINGLEFILE
+all: dist/drkernel.sys $(FILES) .SYMBOLIC
+!else
+all: dist/drbio.sys dist/drdos.sys $(FILES) .SYMBOLIC
+!endif
+
+
+image: all .SYMBOLIC
+	cd image
+	sh mkimage.sh
+	cd ..
+
+dist/drkernel.sys: drbio/bin/drbio.bin drdos/bin/drdos.bin
+	$(COMPKERN) drbio$(SEP)bin$(SEP)drbio.bin drdos$(SEP)bin$(SEP)drdos.bin dist$(SEP)drkernel.sys $(COMPKERN_FLAGS)
 
 dist/drbio.sys: drbio/bin/drbio.sys
 	$(CP) drbio$(SEP)bin$(SEP)drbio.sys dist$(SEP)drbio.sys
@@ -33,39 +53,56 @@ dist/license:
 dist/license/license.htm: dist/license license.htm
 	$(CP) license.htm dist$(SEP)license$(SEP)license.htm
 
-drbio/bin/drbio.sys: .ALWAYS
+drbio/bin/drbio.sys: .ALWAYS .RECHECK
 	cd drbio
 	$(WMAKE) $(WMAKE_FLAGS)
 	cd ..
 
-drdos/bin/drdos.sys: .ALWAYS
+drdos/bin/drdos.sys: .ALWAYS .RECHECK
 	cd drdos
 	$(WMAKE) $(WMAKE_FLAGS)
 	cd ..
 
-command/bin/command.com: .ALWAYS
+drdos/bin/country.sys: .ALWAYS .RECHECK
+	cd drdos
+	@$(WMAKE) $(WMAKE_FLAGS) bin/country.sys
+	cd ..
+
+drbio/bin/drbio.bin: .ALWAYS .RECHECK
+	cd drbio
+	$(WMAKE) $(WMAKE_FLAGS) bin/drbio.bin
+	cd ..
+
+drdos/bin/drdos.bin: .ALWAYS .RECHECK
+	cd drdos
+	$(WMAKE) $(WMAKE_FLAGS) bin/drdos.bin
+	cd ..
+
+command/bin/command.com: .ALWAYS .RECHECK
 	cd command
 	$(WMAKE)
 	cd ..
 
 clean: .SYMBOLIC
-	cd drbio
-	$(WMAKE) clean
-	cd ..
-	cd drdos
-	$(WMAKE) clean
-	cd ..
-	cd command
-	$(WMAKE) clean
-	cd ..
-	rm -f dist/drbio.sys
-	rm -f dist/DRBIO.SYS
-	rm -f dist/drdos.sys
-	rm -f dist/DRDOS.SYS
-	rm -f dist/country.sys
-	rm -f dist/COUNTRY.SYS
-	rm -f dist/command.com
-	rm -f dist/COMMAND.COM
-	rm -f dist/license/license.htm
-	rm -f image/edrdos.img
+	@cd drbio
+	@$(WMAKE) clean
+	@cd ..
+	@cd drdos
+	@$(WMAKE) clean
+	@cd ..
+	@cd command
+	@$(WMAKE) clean
+	@cd ..
+	@rm -f dist/drbio.sys
+	@rm -f dist/DRBIO.SYS
+	@rm -f dist/drdos.sys
+	@rm -f dist/DRDOS.SYS
+	@rm -f dist/drkernel.sys
+	@rm -f dist/DRKERNEL.SYS
+	@rm -f dist/country.sys
+	@rm -f dist/COUNTRY.SYS
+	@rm -f dist/command.com
+	@rm -f dist/COMMAND.COM
+	@rm -f dist/license/license.htm
+	@rm -f image/edrdos.img
 

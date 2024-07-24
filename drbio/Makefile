@@ -8,6 +8,13 @@
 
 !include ../platform.mak
 
+!ifdef SINGLEFILE
+WASM_FLAGS += -DSINGLEFILE
+!endif
+!ifdef UNCOMPRESSED
+WASM_FLAGS += -DUNCOMPRESSED
+!endif
+
 WASM_FLAGS += -DSVARDOS
 
 objs  = bin/initmsgs.obj bin/biosmsgs.obj bin/init.obj bin/clock.obj
@@ -65,15 +72,15 @@ version.inc: ../version.inc
 	$(CP) ..$(SEP)version.inc .
 
 clean: .SYMBOLIC
-	rm -f bin/drbio.*
-	rm -f bin/DRBIO.*
-	rm -f bin/bios.*
-	rm -f bin/BIOS.*
-	rm -f bin/*.obj
-	rm -f bin/*.OBJ
-	rm -f bin/*.lst
-	rm -f bin/*.LST
-	rm -f bin/*.map
-	rm -f bin/*.MAP
-	rm -f version.inc
-	rm -f VERSION.INC
+	@rm -f bin/drbio.*
+	@rm -f bin/DRBIO.*
+	@rm -f bin/bios.*
+	@rm -f bin/BIOS.*
+	@rm -f bin/*.obj
+	@rm -f bin/*.OBJ
+	@rm -f bin/*.lst
+	@rm -f bin/*.LST
+	@rm -f bin/*.map
+	@rm -f bin/*.MAP
+	@rm -f version.inc
+	@rm -f VERSION.INC

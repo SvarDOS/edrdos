@@ -9,13 +9,13 @@ CP = copy
 !endif
 
 !ifdef __MSDOS__
-LTOOLS = ..$(SEP)ltools$(SEP)dos
+LTOOLS = ltools$(SEP)dos
 WASM = jwasmr
 !else ifdef __NT__
-LTOOLS = ..$(SEP)ltools$(SEP)win32
+LTOOLS = ltools$(SEP)win32
 WASM = jwasm
 !else ifdef __UNIX__
-LTOOLS = ..$(SEP)ltools$(SEP)unix
+LTOOLS = ltools$(SEP)unix
 WASM = jwasm
 !else
 !error Unsupported host operating system.
@@ -28,6 +28,7 @@ EXE2BIN = exe2bin
 WCC = wcc
 WMAKE = wmake -h
 
-COMPBIOS = $(LTOOLS)$(SEP)compbios
-COMPBDOS = $(LTOOLS)$(SEP)compbdos
-ROUND = $(LTOOLS)$(SEP)round
+COMPKERN = $(LTOOLS)$(SEP)compkern
+COMPBIOS = ..$(SEP)$(LTOOLS)$(SEP)compbios
+COMPBDOS = ..$(SEP)$(LTOOLS)$(SEP)compbdos
+ROUND = ..$(SEP)$(LTOOLS)$(SEP)round
