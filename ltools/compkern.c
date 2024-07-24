@@ -32,7 +32,7 @@ EDRKERN.SYS.
   
 DRBIO gets compressed starting from the the offset given in the word
 at offset 3 of the DRBIO file, with the bytes before are copied unaltered.
-The DRDOS file is compressed as a whole.
+The DRDOS file is compressed without the padding area.
 
 COMPKERN encodes regions of zero as a 16-bit count with the highest bit set
 to one. So, if 16 zeroes are encoded this becomes 0x8010. Data regions that
@@ -78,9 +78,11 @@ int main( int argc, char *argv[] )
    size_t bio_size, bdos_size, bio_comp_size, bdos_comp_size, out_size[2];
    uint16_t bio_comp_start;
    uint8_t bio_comp_flag;
+   uint16_t bdos_padding;
+   int result;
 
-   if ( argc != 4 ) {
-      puts( "Usage: COMPBIOS.EXE DRBIO-file DRDOS-file out-file" );
+   if ( argc < 4 ) {
+      puts( "Usage: COMPBIOS.EXE DRBIO-file DRDOS-file out-file [uncompressed]" );
       return 1;
    }
 
@@ -93,7 +95,6 @@ int main( int argc, char *argv[] )
    /* get start offset of data to be compressed */
    bio_comp_start = *(farkeyword uint16_t*)(bio_data + ZEROCOMP_ADDR_WORD);
    bio_comp_flag = *(farkeyword uint8_t*)(bio_data + ZEROCOMP_FLAG_BYTE);
-   bio_data[ZEROCOMP_FLAG_BYTE] = 1;
 
    if ( bio_comp_flag ) {
       puts( "BIOS already compressed" );
@@ -108,47 +109,73 @@ int main( int argc, char *argv[] )
       return 1;
    }
 
+   /* number of padding bytes to be skipped */
+   bdos_padding = *(farkeyword uint16_t*)bdos_data;
 
-   out_data[0] = farmalloc( bio_size );
-   if ( !out_data[0] ) {
-      puts( "allocation error" );
-      farfree( bdos_data );
-      farfree( bio_data );
-      return 1;
+
+   if ( argv[4] && !strcmp( argv[4], "uncompressed" ) ) {
+      printf( "Creating uncompressed kernel file\n" );
+
+      bio_data[ZEROCOMP_FLAG_BYTE] = 0x80;   /* combined 0x80 + uncompressed 0x00*/
+      out_data[0] = bio_data;
+      out_size[0] = bio_size;
+      out_data[1] = bdos_data + bdos_padding;
+      out_size[1] = bdos_size - bdos_padding;
+
+      result = write_file_multiple( argv[3], (const char **)out_data, out_size, 2 );
+
    }
+   else {
+      printf( "Creating compressed kernel file\n" );
 
-   out_data[1] = farmalloc( bdos_size );
-   if ( !out_data[1] ) {
-      puts( "allocation error" );
-      farfree( out_data[0] );
-      farfree( bdos_data );
-      farfree( bio_data );
-      return 1;
-   }
+      bio_data[ZEROCOMP_FLAG_BYTE] = 0x81;   /* combined 0x80 + compressed 0x01 */
 
-   /* copy uncompressed part of DRBIO file */
-   farmemcpy( out_data[0], bio_data, bio_comp_start );
+      out_data[0] = farmalloc( bio_size );
+      if ( !out_data[0] ) {
+         puts( "allocation error" );
+         farfree( bdos_data );
+         farfree( bio_data );
+         return 1;
+      }
+   
+      out_data[1] = farmalloc( bdos_size );
+      if ( !out_data[1] ) {
+         puts( "allocation error" );
+         farfree( out_data[0] );
+         farfree( bdos_data );
+         farfree( bio_data );
+         return 1;
+      }
+   
+      /* copy uncompressed part of DRBIO file */
+      farmemcpy( out_data[0], bio_data, bio_comp_start );
+   
+      /* zero-compress files... */
+      zerocomp( bio_data + bio_comp_start, bio_size - bio_comp_start,
+                out_data[0] + bio_comp_start, &bio_comp_size, 0 );
+      zerocomp( bdos_data + bdos_padding, bdos_size - bdos_padding,
+                out_data[1], &bdos_comp_size, 1 );
+   
+      out_size[0] = bio_comp_start + bio_comp_size;
+      out_size[1] = bdos_comp_size;
+      
+      /* ...and write everything to output file */
 
-   /* zero-compress files... */
-   zerocomp( bio_data + bio_comp_start, bio_size - bio_comp_start,
-             out_data[0] + bio_comp_start, &bio_comp_size, 0 );
-   zerocomp( bdos_data, bdos_size, out_data[1], &bdos_comp_size, 1 );
+      result = write_file_multiple( argv[3], (const char **)out_data, out_size, 2 );
 
-   out_size[0] = bio_comp_start + bio_comp_size;
-   out_size[1] = bdos_comp_size;
-   /* ...and write everything to output file */
-   if ( !write_file_multiple( argv[3], (const char **)out_data, out_size, 2 ) ) {
-      puts( "error: could not write output file" );
       farfree( out_data[1] );
       farfree( out_data[0] );
-      farfree( bdos_data );
-      farfree( bio_data );
-      return 1;
    }
 
-   farfree( out_data[1] );
-   farfree( out_data[0] );
    farfree( bdos_data );
    farfree( bio_data );
-   return 0;
+
+   if ( !result ) {
+      puts( "error: cannot write kernel file" );
+   }
+   else {
+      printf( "BIO size: %zu(%zu), BDOS size: %zu(%zu)\n", out_size[0], bio_size, out_size[1], bdos_size );      
+   }
+
+   return !result;
 }
