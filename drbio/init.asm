@@ -679,7 +679,7 @@ uncompress_kernel:
 	push	cx			; memory size
 	push	dx			; initial flags
 ifdef SINGLEFILE
-	mov	cx, 0ffffh		; max possible size for combined file
+	mov	cx, 0fffeh		; max possible size for combined file
 else
 	lea	cx, biosinit_end
 endif
