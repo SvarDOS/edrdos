@@ -43,11 +43,17 @@ You may generate uncompressed DRBIO.SYS and DRDOS.SYS binaries by invoking
 `wmake UNCOMPRESSED=1` from the main directory or the directories of the
 components.
 
+## Building single-file kernel
+You may build a single file version of the kernel by calling the master
+makefile via `wmake SINGLEFILE=1`. The kernel file is named DRKERNEL.SYS.
 
 ## Installation
 
-After building, make sure that the _dist_ directory contains DRBIO.SYS,
-DRDOS.SYS, COMMAND.COM and SYS.COM.
+After building, make sure that the _dist_ directory contains
+
+ - DRBIO.SYS and DRDOS.SYS, or DRKERNEL.SYS
+ - COMMAND.COM
+ - SYS.COM
 
 ### Using SYS under DOS
 Under DOS, you may use the provided SYS command to make a bootable disk.
@@ -62,6 +68,16 @@ Then invoke:
 SYS command then copies DRBIO.SYS, DRDOS.SYS and COMMAND.COM onto the
 floppy and installs a boot loader to make the floppy bootable.
 
+Note that the included SYS command is currently not adapted to
+installing DRKERNEL.SYS. You may, however, manually copy DRKERNEL.SYS
+over to the drive to be booted from and name it DRBIO.SYS. Like so:
+
+    SYS A: /BOOTONLY
+    COPY DRKERNEL.SYS A:\DRBIO.SYS
+    COPY COMMAND.COM A:\COMMAND.COM
+
+This is an interim solution and will be changed soon.
+
 The provided SYS command is part of the FreeDOS kernel repository
 The binary was built from this specific
 [commit](https://github.com/FDOS/kernel/commit/c0127001908405d30d90f1755ad10c1b59ea8c90).
@@ -74,6 +90,8 @@ FreeDOS SYS is distributed under the
 Under Linux and MacOS, you may invoke `sh mkimage.sh` under the _image_
 directory. This generates a 1.44M floppy image `edrdos.img`. Make sure
 to build the binaries prior to running this script.
+
+To build a single-file image, invoke `sh mkimage.sh singlefile`.
 
 The script depends on [Mtools](https://www.gnu.org/software/mtools/) and _dd_
 being installed.
