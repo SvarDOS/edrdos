@@ -35,6 +35,13 @@
 KERNFLG_COMP 	equ 	1		; bit set if file is compressed
 KERNFLG_COMBINED equ 	80h		; set if combined BIO/BDOS file
 
+ifdef SINGLEFILE
+BIO_SEGMENT 	equ 	60h
+else
+BIO_SEGMENT 	equ 	70h
+endif
+
+
 MOVE_DOWN	equ	1800h		; start relocated code 96K down
 
 NUM_BUFFS	equ	4
