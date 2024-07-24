@@ -32,6 +32,9 @@
 ;
 ;    ENDLOG
 
+
+ifndef SINGLEFILE
+
 	include request.equ
 	include driver.equ
 	include	config.equ
@@ -837,6 +840,7 @@ INITDATA	segment public word 'INITDATA'
 		extrn	boot_drv:byte		; boot drive
 		extrn	init_drv:byte		; init drive
 		extrn	dos_name:byte		; name of BDOS file
+		extrn	part_off:word		; 4-byte boot partition offset
 
 strat_ptr	label	dword
 strat_off	dw	?
@@ -857,9 +861,6 @@ dosfile_size	dw	?
 current_fatsec	dw	-1,-1			; no FAT sector read yet
 fattype		dw	0			; defaults to 12 bit FAT
 nfatsecs	dw	0,0			; number of FAT sectors (32-bit)
-
-	Public	part_off
-part_off	dw	0,0			; offset of boot partition
 
 ;	single error message if BDOS can't be loaded:
 
@@ -921,5 +922,7 @@ BPB_HIDDEN		equ	17
 
 	extrn	sector_buffer:byte
 INITDATA	ends
+
+endif ; SINGLEFILE
 
 	end

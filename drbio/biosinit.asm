@@ -123,10 +123,12 @@ INITCODE	segment public byte 'INITCODE'
 	extrn	config:near			; CONFIG.SYS Processor
 	extrn	crlf:near			; Output CR/LF to screen
 	extrn	resident_device_init:near	; Device Driver Init
+ifndef SINGLEFILE
 	extrn	read_dos:near			; load DOS file
+	extrn	dos_version_check:near
+endif
 	extrn	setup_ldt:near
 	extrn	setup_stacks:near
-	extrn	dos_version_check:near
 	extrn	preload_done:near
 
 		db	'Copyright (c) 1983,1996 '
@@ -334,7 +336,9 @@ dont_align:
 	 jnz	dos_reloc		;   the DOS file from disk?
 	mov	ax,dos_cseg
 	mov	current_dos,ax		; the file is held on the INIT_DRV with
+ifndef SINGLEFILE
 	call	read_dos		;   the name specified in DOS_NAME
+endif
 
 ;
 ;	The following code will relocate the DOS code.
@@ -622,8 +626,9 @@ config_start:
 	mov	ax,3306h
 	int	21h			; get true version
 	mov	dosVersion,bx		; and plant in initial PSP
+ifndef SINGLEFILE
 	call	dos_version_check	; make sure we are on correct DOS
-
+endif
 	mov	ax,4458h
 	int	DOS_INT			; we need to access local data
 	mov	drdos_off,bx		; so save a pointer to it
@@ -2049,7 +2054,6 @@ include	initmsgs.def				; Include TFT Header File
 	extrn	dev_count:byte
 	extrn	lastdrvIn:byte
 	extrn	configPass:byte
-	extrn	part_off:word
 	extrn	cfg_head:word
 	extrn	cfg_tail:word
 	extrn	cfg_seeklo:word
@@ -2237,6 +2241,9 @@ stack		label word
 res_dev_count	db	0
 dosdata_len	dw	0
 int_stubs_seg	dw	0
+
+	Public	part_off
+part_off	dw	0,0			; offset of boot partition
 
 INITDATA ends
 
