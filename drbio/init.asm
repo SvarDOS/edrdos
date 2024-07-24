@@ -155,6 +155,7 @@ CODE	segment public word 'CODE'
 
 	public	strat
 	public	kernflg
+	public COMPRESS_FROM_HERE
 
 	extrn	ConsoleTable:word
 	extrn	ClockTable:word
@@ -204,7 +205,7 @@ init	proc	near			; this is at BIOSCODE:0000h
 init	endp
 
 ; start offset of zero-compressed file area
-compstart	dw	offset CGROUP:COMPRESSION_START	
+compstart	dw	offset CGROUP:COMPRESS_FROM_HERE	
 kernflg		db	0		; bit 1 set => file compressed
 					; bit 7 set => combined BIO/BDOS file
 	org	06h
@@ -670,14 +671,18 @@ uncompress_kernel:
 	mov	ds, ax			; other than si, ds and es
 	xor	si, si
 	mov	al, kernflg		; Get Compresed BIOS Flag
-	and	al, KERNFLG_COMP	; Set to One if the BIOS has
+	test	al, KERNFLG_COMP	; Set to one if the BIOS has
 	jz	not_compressed		; been compressed
 	mov	si, compstart
 	push	di			; bios_seg
 	push	bx			; initial drives
 	push	cx			; memory size
 	push	dx			; initial flags
+ifdef SINGLEFILE
+	mov	cx, 0ffffh		; max possible size for combined file
+else
 	lea	cx, biosinit_end
+endif
 	sub	cx, si
 	inc	cx			; length of compressed part plus one
 	shr	cx, 1
@@ -687,12 +692,12 @@ uncompress_kernel:
 	push	di
 	push	si
 	rep movsw			; take a copy
+	pop	di			; di is now -> uncompression dest
+	pop	si			; this is now -> compressed source
 	push	ds
 	push	es
 	pop	ds			; switch source and dest segment
 	pop	es
-	pop	di			; di is now -> uncompression dest
-	pop	si			; this is now -> compressed source
 @@uncompress_block:
 	mov	cl,4
 	mov	bx,ds			; canonicalize ds:si
@@ -733,8 +738,7 @@ not_compressed:
 					; part of discardable ICODE segment
 init0	endp
 
-COMPRESSION_START:
-
+COMPRESS_FROM_HERE:
 
 if ($ - init0) gt 512
 	error "too much code in deblocking buffer"
