@@ -21,7 +21,7 @@ static void zerocomp_block( farkeyword char **in, farkeyword char *eof, char **o
 
    if ( data >= eof ) return;
 
-   while ( data < eof && count <= 0x7fff ) {
+   while ( data < eof && count < 0x7fff ) {
       if ( *data ) {
          if ( zero_count >= ZERO_THRESHOLD ) {
             break;
