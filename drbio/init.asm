@@ -1115,7 +1115,11 @@ rcode_header	dw	0
 
 	Public	DataSegment
 
-DataSegment	dw	0070h		; segment address of low data/code
+ifdef SINGLEFILE
+	DataSegment	dw	0060h		; segment address of low data/code
+else
+	DataSegment	dw	0070h		; segment address of low data/code
+endif
 
 ; Called to vector to appropriate sub-function in device driver
 ; The Function table address immediately follows the near call, so we can index
