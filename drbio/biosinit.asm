@@ -255,10 +255,8 @@ biosinit20:
 biosinit30:
 	mov	dos_cseg,ax		; a relocated DOS image will live here
 
-	; test if we have a combined BIO/BDOS file. If we have, move BDOS
-	; to dos_cseg segment.
-	test	kernflg,KERNFLG_COMBINED	; combined BIO / BDOS?
-	jz	biosinit_40			; no, skip BDOS move
+	; Move BDOS to dos_cseg segment if we have combined BIO/BDIOS file
+ifdef SINGLEFILE
 	push	ds
 	mov	current_dos,ax		; prevent relocated_init from
 	mov	es,ax			; trying to load BDOS file
@@ -277,9 +275,8 @@ biosinit30:
 	shr	cx,1
 	rep	movsw			; move it
 	pop	ds
+endif
 
-
-biosinit_40:
 	mov	ax,offset biosinit_end+32
 	mov	cl,4			; Leave the Last Paragraph Free for
     	shr 	ax,cl           	;  himem DMD 
