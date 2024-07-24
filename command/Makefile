@@ -23,7 +23,7 @@ bin/command.com: bin/command.exe bin/txhelp.bin
 !ifdef __UNIX__
 	cat bin$(SEP)command.exe bin$(SEP)txhelp.bin >bin$(SEP)command.com
 !else
-	$(CP) /b bin$(SEP)command.exe+bin$(SEP)txhelp.bin bin$(SEP)command.com
+	!$(CP) /b bin$(SEP)command.exe+bin$(SEP)txhelp.bin bin$(SEP)command.com
 !endif
 
 bin/command.exe: $(asm_objs) $(objs)
