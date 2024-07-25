@@ -11,14 +11,14 @@ mformat -i $IMAGE -v $LABEL
 if [ "$1" = "singlefile" ]; then
 	echo "Making single-file KERNEL.SYS image."
 	dd if=bootfdos.144 of=$IMAGE bs=512 count=1 conv=notrunc
-	mcopy -i $IMAGE ../dist/drkernel.sys ::/kernel.sys
+	mcopy -i $IMAGE ../dist/kernel.sys ::/kernel.sys
 elif [ "$1" = "singlefile-drbio" ]; then
 	echo "Making single-file DRBIO.SYS image."
-	dd if=bootsect.144 of=$IMAGE bs=512 count=1 conv=notrunc
-	mcopy -i $IMAGE ../dist/drkernel.sys ::/drbio.sys
+	dd if=bootedr.144 of=$IMAGE bs=512 count=1 conv=notrunc
+	mcopy -i $IMAGE ../dist/kernel.sys ::/drbio.sys
 else
 	echo "Making dual-file kernel image."
-	dd if=bootsect.144 of=$IMAGE bs=512 count=1 conv=notrunc
+	dd if=bootedr.144 of=$IMAGE bs=512 count=1 conv=notrunc
 	mcopy -i $IMAGE ../dist/drbio.sys ::/
 	mcopy -i $IMAGE ../dist/drdos.sys ::/
 fi
