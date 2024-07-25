@@ -17,10 +17,10 @@ under the artifacts section.
 ## Kernel flavors
 The EDR-DOS kernel may be built in different flavors. The historic one
 consists of two files, DRBIO.SYS and DRDOS.SYS. The new one consists of
-a single file DRKERNEL.SYS. The historic one is what gets built by default.
+a single file KERNEL.SYS. The historic one is what gets built by default.
 
-DRKERNEL.SYS is compatible with the FreeDOS load protocol. It can be used
-as a drop in for the FreeDOS KERNEL.SYS by copying DRKERNEL.SYS over it.
+KERNEL.SYS is compatible with the FreeDOS load protocol. It can be used
+as a drop in for the FreeDOS KERNEL.SYS by replacing it with the EDR KERNEL.SYS.
 Notice that the kernels are not 100% compatible, especially regarding
 the drive letter ordering and the expected format of the config.sys files.
 
@@ -56,7 +56,7 @@ components.
 
 ## Building single-file kernel
 You may build a single file version of the kernel by calling the master
-makefile via `wmake SINGLEFILE=1`. The kernel file is named DRKERNEL.SYS.
+makefile via `wmake SINGLEFILE=1`. The kernel file is named KERNEL.SYS.
 The single-file kernel can also be built uncompressed, but then it lacks
 the ability to be used as a replacement for FreeDOS KERNEL.SYS. The reason
 is that the EDR-DOS kernel lives at segment 70h, while the FreeDOS loader
@@ -68,7 +68,7 @@ lacks this ability.
 
 After building, make sure that the _dist_ directory contains
 
- - DRBIO.SYS and DRDOS.SYS, or DRKERNEL.SYS
+ - DRBIO.SYS and DRDOS.SYS, or KERNEL.SYS
  - COMMAND.COM
  - SYS.COM
 
@@ -83,22 +83,19 @@ Then invoke:
 
 *from within* the directory containing the files mentioned above. The
 SYS command then copies DRBIO.SYS, DRDOS.SYS and COMMAND.COM onto the
-floppy and installs a boot loader to make the floppy bootable.
+floppy and installs a boot loader to make the floppy bootable, or
+KERNEL.SYS and COMMAND.COM if the single-file kernel was built.
 
-Note that the included SYS command is currently not adapted to
-installing DRKERNEL.SYS. You may, however, rename the single-file
-kernel to KERNEL.SYS to indicate SYS to use the kernel as a FreeDOS
-replacement kernel. It should then install via `SYS A:`.
-
-You may also manually copy DRKERNEL.SYS over to the drive to be booted
+You may also manually copy KERNEL.SYS over to the drive to be booted
 from and name it DRBIO.SYS. Like so:
 
-    SYS A: /BOOTONLY
-    COPY DRKERNEL.SYS A:\DRBIO.SYS
+    SYS A: /BOOTONLY /OEM:EDR
+    COPY KERNEL.SYS A:\DRBIO.SYS
     COPY COMMAND.COM A:\COMMAND.COM
 
 The kernel than utilizes the ordinary EDR-DOS boot protocol, but with
-DRBIO.SYS being a combined DRBIO / DRDOS file.
+DRBIO.SYS being a combined DRBIO / DRDOS file. This also works with
+an uncompressed KERNEL.SYS.
 
 The provided SYS command is part of the FreeDOS kernel repository
 The binary was built from this specific
