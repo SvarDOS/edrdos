@@ -665,7 +665,7 @@ local_buffer 	label 	byte
 	pop	di
 	pop	cx
 
-uncompress_kernel:
+uncompress_and_relocate_kernel:
 	push	ax			; bdos_seg if loaded from ROM
 	mov	ax, cs			; preserve entry registers
 	mov	ds, ax			; other than si, ds and es
@@ -685,7 +685,7 @@ uncompress_kernel:
 ifdef SINGLEFILE
 	; if combined BIO/BDOS: we get the size of the zero-compressed area
 	; which is stored as paragraphs in the first word of the compressed
-	; area. The word following it is the size in paras after
+	; area. The word following is the size in paras after
 	; uncompression (currently not used)
 	mov	si,COMPRESS_FROM_HERE	; get start of compressed area
 	lodsw				; load para size of compressed area
@@ -699,7 +699,7 @@ ifdef SINGLEFILE
 	mov	compstart,si		; compstart increased by 4
 					; to skip the two para-size words
 else
-	; we know the size of the BIO only file on assembly time
+	; we know the size of the BIO already on assembly time
 	lea	cx,biosinit_end
 	inc	cx			; length of compressed part plus one
 	shr	cx,1			; and convert to words
@@ -713,14 +713,36 @@ endif
 	mov	es,ax
 	rep movsw			; take a copy
 	push	es
-	pop	ds
+	pop	ds			; ds = compressed temp seg
 	mov	ax,BIO_SEGMENT
 	mov	es,ax
-	mov	si,compstart
-	mov	di,COMPRESS_FROM_HERE
+
+@@relocate_uncompressed:
+	push	cs			; test if we already live in the right
+	pop	ax			; segment, if yes, skip uncompressed
+	cmp	ax,BIO_SEGMENT		; relocation
+	je	@@farjmp_bio_seg	
+	; FAR JMP to temp copy and then move uncompressed part
+	; of BIO to the destination segment BIO_SEGMENT. Then
+	; FAR JMP to that location
+	db	0eah
+	dw	@@farjmp_tmp_seg, COMPRESSED_SEG	
+  @@farjmp_tmp_seg:
+	xor	si,si
+	xor	di,di
+	mov	cx,COMPRESS_FROM_HERE
+	rep movsb
+	db	0eah
+	dw	@@farjmp_bio_seg, BIO_SEGMENT	
+	; from here on, uncompressed part of kernel lives in correct
+	; segment
+  @@farjmp_bio_seg:
+
 	; we now zero-uncompress. es:di holds the destination and
 	; ds:si points to the compressed parts copied to the temporary
 	; location
+	mov	si,compstart
+	mov	di,COMPRESS_FROM_HERE
 @@uncompress_block:
 	mov	cl,4
 	mov	bx,ds			; canonicalize ds:si
