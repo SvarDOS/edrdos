@@ -661,6 +661,13 @@ local_buffer 	label 	byte
 	mov	ds, ax			; other than si, ds and es
 	xor	si, si
 
+	; determine which register holds the boot drive unit
+	; EDR load protocol: CS=70h, DL=unit
+	; FreeDOS load protocol: CS=60h, BL=unit
+	; standardize to DL holding drive unit
+	cmp	ax,60h			; are we loaded at segment 60h?
+	jne	uncompress_and_relocate_kernel
+	mov	dl,bl			; then copy unit fron BL to DL
 uncompress_and_relocate_kernel:
 	mov	al, kernflg		; get compressed flag
 	test	al, KERNFLG_COMP	; bit 0 set if the BIO is compressed
