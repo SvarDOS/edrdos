@@ -175,8 +175,8 @@ int main( int argc, char *argv[] )
          result = 0;
          goto error;
       }
-      comp_paras = (bio_comp_size + bdos_comp_size + 15) >> 4;
-      decomp_paras = ((bio_size - bio_comp_start) + (bdos_size - bdos_padding) + 15) >> 4;
+      comp_paras = (uint16_t)((uint32_t)bio_comp_size + bdos_comp_size + 15) >> 4;
+      decomp_paras = (uint16_t)(((uint32_t)(bio_size - bio_comp_start) + (bdos_size - bdos_padding) + 15) >> 4);
 
       /* prepend compressed and uncompressed size in paras to compressed area */
       *(uint16_t*)(out_data[0] + bio_comp_start) = comp_paras;
