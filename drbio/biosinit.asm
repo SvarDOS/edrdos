@@ -329,11 +329,11 @@ relocated_init:
 	mov	ax,0100h		;  the multi tasker (386 or above)
 dont_align:
 	mov	free_seg,ax		;  and save as first Free Segment
+ifndef SINGLEFILE
 	cmp	current_dos,0		; does the OEM want us to read
 	 jnz	dos_reloc		;   the DOS file from disk?
 	mov	ax,dos_cseg
 	mov	current_dos,ax		; the file is held on the INIT_DRV with
-ifndef SINGLEFILE
 	call	read_dos		;   the name specified in DOS_NAME
 endif
 
