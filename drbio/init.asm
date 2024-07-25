@@ -673,31 +673,50 @@ uncompress_kernel:
 	mov	al, kernflg		; Get Compresed BIOS Flag
 	test	al, KERNFLG_COMP	; Set to one if the BIOS has
 	jz	not_compressed		; been compressed
-	mov	si, compstart
 	push	di			; bios_seg
 	push	bx			; initial drives
 	push	cx			; memory size
 	push	dx			; initial flags
+	mov	si, compstart		; get start of compressed area
+@@determine_compressed_size:
 ifdef SINGLEFILE
-	mov	cx, 0fffeh		; max possible size for combined file
+	; if combined BIO/BDOS: we get the size of the zero-compressed area
+	; which is stored as paragraphs in the first word of the compressed
+	; area. The word following it is the size in paras after
+	; uncompression (currently not used)
+	push	si			; --> becomes di when uncompressing
+	lodsw				; load para size of compressed area
+	shl	ax,1			; convert from paras to words
+	shl	ax,1
+	shl	ax,1
+	mov	cx,ax			; cx = words we have to temp-copy
+	lodsw				; skip uncompressed size word
 else
-	lea	cx, biosinit_end
-endif
-	sub	cx, si
+	; dual-file version has no size info stored for the size of the
+	; compressed area of the BIO, but we can calculate this easily
+	push	si			; --> becomes di when uncompressing
+	lea	cx,biosinit_end
+	sub	cx,si
 	inc	cx			; length of compressed part plus one
-	shr	cx, 1
+	shr	cx,1			; and convert to words
+endif
+@@move_to_temp:
+	; now we move the compressed area to a temporary location before
+	; uncompressing it
 	xor	di,di
-	mov	ax, COMPRESSED_SEG
-	mov	es, ax
+	mov	ax,COMPRESSED_SEG
+	mov	es,ax
 	push	di
-	push	si
-	rep movsw			; take a copy
-	pop	di			; di is now -> uncompression dest
-	pop	si			; this is now -> compressed source
 	push	ds
 	push	es
+	rep movsw			; take a copy
 	pop	ds			; switch source and dest segment
 	pop	es
+	pop	si			; this is now -> compressed source
+	pop	di			; <-- was si before move
+	; we now zero-uncompress. es:di holds the destination and
+	; ds:si points to the compressed parts copied to the temporary
+	; location
 @@uncompress_block:
 	mov	cl,4
 	mov	bx,ds			; canonicalize ds:si
