@@ -7,26 +7,48 @@ jobs:
     runs-on: [self-hosted]
     steps:
     - uses: actions/checkout@v4
-    - name: Build with JWasm and OpenWatcom
+    - name: Build dual-file binaries
       run: |
         cd ltools/unix
         make
         cd ../..
         wmake -h
-    - name: Generate floppy image
+    - name: Generate dual-file floppy image
       run: |
         cd image
         sh mkimage.sh
         cd ..
-    - name: Upload binaries
+    - name: Upload dual-file binaries
       uses: actions/upload-artifact@v4
       with:
-        name: EDR-DOS binaries
+        name: EDR-DOS binaries (DRBIO.SYS, DRDOS.SYS flavor)
         path: |
           dist/*
-    - name: Upload image
+    - name: Upload dual-file image
       uses: actions/upload-artifact@v4
       with:
-        name: EDR-DOS 1.44M floppy image
+        name: EDR-DOS 1.44M image (DRBIO.SYS, DRDOS.SYS flavor)
         path: |
           image/edrdos.img
+    - name: Build single-file binaries
+      run: |
+        wmake -h clean
+        wmake -h SINGLEFILE=1
+    - name: Generate single-file floppy image
+      run: |
+        cd image
+        sh mkimage.sh singlefile
+        cd ..
+    - name: Upload single-file binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: EDR-DOS binaries (KERNEL.SYS flavor)
+        path: |
+          dist/*
+    - name: Upload dual-file image
+      uses: actions/upload-artifact@v4
+      with:
+        name: EDR-DOS 1.44M image (KERNEL.SYS flavor)
+        path: |
+          image/edrdos.img
+
