@@ -21,7 +21,7 @@ COMPKERN_FLAGS += uncompressed
 FILES += dist/country.sys dist/command.com
 
 !ifdef SINGLEFILE
-all: dist/drkernel.sys $(FILES) .SYMBOLIC
+all: dist/kernel.sys $(FILES) .SYMBOLIC
 !else
 all: dist/drbio.sys dist/drdos.sys $(FILES) .SYMBOLIC
 !endif
@@ -32,8 +32,8 @@ image: all .SYMBOLIC
 	sh mkimage.sh
 	cd ..
 
-dist/drkernel.sys: drbio/bin/drbio.bin drdos/bin/drdos.bin
-	$(COMPKERN) drbio$(SEP)bin$(SEP)drbio.bin drdos$(SEP)bin$(SEP)drdos.bin dist$(SEP)drkernel.sys $(COMPKERN_FLAGS)
+dist/kernel.sys: drbio/bin/drbio.bin drdos/bin/drdos.bin
+	$(COMPKERN) drbio$(SEP)bin$(SEP)drbio.bin drdos$(SEP)bin$(SEP)drdos.bin dist$(SEP)kernel.sys $(COMPKERN_FLAGS)
 
 dist/drbio.sys: drbio/bin/drbio.sys
 	$(CP) drbio$(SEP)bin$(SEP)drbio.sys dist$(SEP)drbio.sys
