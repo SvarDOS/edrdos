@@ -601,17 +601,13 @@ daycount	dw	0
 
 
 		even
-; DRBIO initialization code stage one. This is executed right after the jump
-; at the beginning of the CODE segment.
 
-; We now uncompress to > (7C00h (ie. boot stack) - 700h (ie. base of code)
-; This means our stack collides with our code, very bad news.
-; To avoid this we switch stacks into a safer area ie. 0C000h
-; The floppy parameters also MAY live at 7C00, so we have to relocate these
-; before we expand.
-
-; First stage initialization and uncompression shares area with
-; 512 byte deblocking buffer.
+; DRBIO/DRKERNEL uncompression stage. This is executed right after the jump at
+; the beginning of the CODE segment. This area is shared with the 512 byte
+; deblocking buffer and gets eventually overwritten.
+;
+; If the kernel is not loaded to segment 70h it is relocated to that segment
+; while uncompressing.
 
 init0	proc near
 
@@ -622,18 +618,13 @@ local_buffer 	label 	byte
 	mov	si,COMPRESSED_SEG - 200
 	mov	ss,si
 	mov	sp,1024
-;	mov	sp, 0C000h		; switch to magic stack
-
-					; DANGER! will probably be
-					; thrashed if single-file
-					; kernel gets uncompressed.
-					; find or reserve other location!!!
 
 	sti
 	cld
 
 	; the following expects ds:bp to point to the boot sector, in
 	; particular the BPB, to push its hidden sectors field to stack
+	; NOTE: part_off currently not used anymore
 	push	ds:1eh[bp]		; push BPB hidden sectors
 	push	ds:1ch[bp]		; ..popped at biosinit to part_off
 
@@ -646,10 +637,10 @@ local_buffer 	label 	byte
 
 	Assume	DS:IVECT, ES:IVECT
 
-; 	Copy diskette parameters (11 bytes) from the location stored
-; 	at INT1E over to 0000:0522. This MAY previously be located at 7C00
-; 	or another (non-)BIOS location depending on the boot sector code.
-; 	After copying, set INT1E to point to the new location.
+	; Copy diskette parameters (11 bytes) from the location stored
+	; at INT1E over to 0000:0522. This MAY previously be located at 7C00
+	; or another (non-)BIOS location depending on the boot sector code.
+	; After copying, set INT1E to point to the new location.
 
 	mov	di,522h			; ES:DI -> save area for parameters
 	lds	si,i1Eptr		; DS:SI -> FD parameters for ROS
@@ -665,20 +656,22 @@ local_buffer 	label 	byte
 	pop	di
 	pop	cx
 
-uncompress_and_relocate_kernel:
 	push	ax			; bdos_seg if loaded from ROM
 	mov	ax, cs			; preserve entry registers
 	mov	ds, ax			; other than si, ds and es
 	xor	si, si
-	mov	al, kernflg		; Get Compresed BIOS Flag
-	test	al, KERNFLG_COMP	; Set to one if the BIOS has
-	jz	not_compressed		; been compressed
+
+uncompress_and_relocate_kernel:
+	mov	al, kernflg		; get compressed flag
+	test	al, KERNFLG_COMP	; bit 0 set if the BIO is compressed
+	jz	not_compressed
+
 	push	di			; bios_seg
 	push	bx			; initial drives
 	push	cx			; memory size
 	push	dx			; initial flags
 
-	; first copy kernel to temp location COMPRESSED_SEG for
+	; first copy BIO / KERNEL to temp location COMPRESSED_SEG for
 	; uncompression and potential relocation (kernel may be loaded
 	; to a different segment than 70)
 @@determine_compressed_size:
@@ -699,7 +692,7 @@ ifdef SINGLEFILE
 	mov	compstart,si		; compstart increased by 4
 					; to skip the two para-size words
 else
-	; we know the size of the BIO already on assembly time
+	; we know the size of the BIO already at assembly time
 	lea	cx,biosinit_end
 	inc	cx			; length of compressed part plus one
 	shr	cx,1			; and convert to words
