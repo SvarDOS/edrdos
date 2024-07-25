@@ -75,10 +75,15 @@ int main( int argc, char *argv[] )
 {
    farkeyword char *bio_data, *bdos_data;
    char *out_data[2];
-   size_t bio_size, bdos_size, bio_comp_size, bdos_comp_size, out_size[2];
+   size_t bio_size, bio_comp_size;
+   size_t bdos_size, bdos_comp_size;
+   size_t out_size[2];
    uint16_t bio_comp_start;
    uint8_t bio_comp_flag;
-   uint16_t bdos_padding;
+   uint16_t comp_paras;    /* size of compressed parts */
+   uint16_t decomp_paras;  /* size of compressed parts after decompression */
+   
+   uint16_t bdos_padding;  /* size of BDOS padding area that will be stripped */
    int result;
 
    if ( argc < 4 ) {
@@ -123,7 +128,16 @@ int main( int argc, char *argv[] )
       out_size[1] = bdos_size - bdos_padding;
 
       result = write_file_multiple( argv[3], (const char **)out_data, out_size, 2 );
+      if ( !result ) {
+         puts( "error: cannot write kernel file" );
+      }
 
+      printf( "BIO size: %zu(%zu), BDOS size: %zu(%zu)\n", out_size[0], bio_size, out_size[1], bdos_size );
+
+      farfree( bdos_data );
+      farfree( bio_data );
+
+      return !result;
    }
    else {
       printf( "Creating compressed kernel file\n" );
@@ -152,30 +166,47 @@ int main( int argc, char *argv[] )
    
       /* zero-compress files... */
       zerocomp( bio_data + bio_comp_start, bio_size - bio_comp_start,
-                out_data[0] + bio_comp_start, &bio_comp_size, 0 );
+                out_data[0] + bio_comp_start + 4, &bio_comp_size, 0 );
       zerocomp( bdos_data + bdos_padding, bdos_size - bdos_padding,
                 out_data[1], &bdos_comp_size, 1 );
    
-      out_size[0] = bio_comp_start + bio_comp_size;
+      if ( (uint32_t)bio_comp_size + bdos_comp_size > 0xffff ) {
+         puts( "error: compressed kernel larger than 64K" );
+         result = 0;
+         goto error;
+      }
+      comp_paras = (bio_comp_size + bdos_comp_size + 15) >> 4;
+      decomp_paras = ((bio_size - bio_comp_start) + (bdos_size - bdos_padding) + 15) >> 4;
+
+      /* prepend compressed and uncompressed size in paras to compressed area */
+      *(uint16_t*)(out_data[0] + bio_comp_start) = comp_paras;
+      *(uint16_t*)(out_data[0] + bio_comp_start + 2) = decomp_paras;
+
+      out_size[0] = 4 + bio_comp_start + bio_comp_size;
       out_size[1] = bdos_comp_size;
       
       /* ...and write everything to output file */
 
       result = write_file_multiple( argv[3], (const char **)out_data, out_size, 2 );
+      if ( !result ) {
+         puts( "error: cannot write kernel file" );
+         goto error;
+      }
 
+      printf( "kernel compression starts at offset %04xh\n", bio_comp_start );
+      printf( "size of compressed area: %04xh paras, uncompressed: %04xh paras\n", comp_paras, decomp_paras );  
+      printf( "BIO size: %zu(%zu), BDOS size: %zu(%zu)\n", out_size[0], bio_size, out_size[1], bdos_size );
+error:
       farfree( out_data[1] );
       farfree( out_data[0] );
+      farfree( bdos_data );
+      farfree( bio_data );
+
+      return !result;
    }
 
    farfree( bdos_data );
    farfree( bio_data );
-
-   if ( !result ) {
-      puts( "error: cannot write kernel file" );
-   }
-   else {
-      printf( "BIO size: %zu(%zu), BDOS size: %zu(%zu)\n", out_size[0], bio_size, out_size[1], bdos_size );      
-   }
 
    return !result;
 }
