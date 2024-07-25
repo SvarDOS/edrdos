@@ -14,6 +14,17 @@ actions. To download them, go to the [actions page](https://github.com/SvarDOS/e
 and then click the last successful workflow build job. The files are provided
 under the artifacts section.
 
+## Kernel flavors
+The EDR-DOS kernel may be built in different flavors. The historic one
+consists of two files, DRBIO.SYS and DRDOS.SYS. The new one consists of
+a single file DRKERNEL.SYS. The historic one is what gets built by default.
+
+DRKERNEL.SYS is compatible with the FreeDOS load protocol. It can be used
+as a drop in for the FreeDOS KERNEL.SYS by copying DRKERNEL.SYS over it.
+Notice that the kernels are not 100% compatible, especially regarding
+the drive letter ordering and the expected format of the config.sys files.
+
+
 ## Build instructions
 I was able to successfully build the kernel and command interpreter under
 DOS, Win32, Linux and MacOS.
@@ -46,6 +57,12 @@ components.
 ## Building single-file kernel
 You may build a single file version of the kernel by calling the master
 makefile via `wmake SINGLEFILE=1`. The kernel file is named DRKERNEL.SYS.
+The single-file kernel can also be built uncompressed, but then it lacks
+the ability to be used as a replacement for FreeDOS KERNEL.SYS. The reason
+is that the EDR-DOS kernel lives at segment 70h, while the FreeDOS loader
+loads the kernel to 60h. The compressed kernel relocates itself to the
+correct segment at the uncompression stage, so the uncompressed kernel
+lacks this ability.
 
 ## Installation
 
@@ -69,14 +86,19 @@ SYS command then copies DRBIO.SYS, DRDOS.SYS and COMMAND.COM onto the
 floppy and installs a boot loader to make the floppy bootable.
 
 Note that the included SYS command is currently not adapted to
-installing DRKERNEL.SYS. You may, however, manually copy DRKERNEL.SYS
-over to the drive to be booted from and name it DRBIO.SYS. Like so:
+installing DRKERNEL.SYS. You may, however, rename the single-file
+kernel to KERNEL.SYS to indicate SYS to use the kernel as a FreeDOS
+replacement kernel. It should then install via `SYS A:`.
+
+You may also manually copy DRKERNEL.SYS over to the drive to be booted
+from and name it DRBIO.SYS. Like so:
 
     SYS A: /BOOTONLY
     COPY DRKERNEL.SYS A:\DRBIO.SYS
     COPY COMMAND.COM A:\COMMAND.COM
 
-This is an interim solution and will be changed soon.
+The kernel than utilizes the ordinary EDR-DOS boot protocol, but with
+DRBIO.SYS being a combined DRBIO / DRDOS file.
 
 The provided SYS command is part of the FreeDOS kernel repository
 The binary was built from this specific
