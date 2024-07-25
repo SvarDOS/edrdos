@@ -677,43 +677,47 @@ uncompress_kernel:
 	push	bx			; initial drives
 	push	cx			; memory size
 	push	dx			; initial flags
-	mov	si, compstart		; get start of compressed area
+
+	; first copy kernel to temp location COMPRESSED_SEG for
+	; uncompression and potential relocation (kernel may be loaded
+	; to a different segment than 70)
 @@determine_compressed_size:
 ifdef SINGLEFILE
 	; if combined BIO/BDOS: we get the size of the zero-compressed area
 	; which is stored as paragraphs in the first word of the compressed
 	; area. The word following it is the size in paras after
 	; uncompression (currently not used)
-	push	si			; --> becomes di when uncompressing
+	mov	si,COMPRESS_FROM_HERE	; get start of compressed area
 	lodsw				; load para size of compressed area
-	shl	ax,1			; convert from paras to words
-	shl	ax,1
-	shl	ax,1
+	mov	cl,4			; convert from paras to bytes
+	shl	ax,cl
+	add	ax,COMPRESS_FROM_HERE
+	inc	ax
+	shr	ax,1
 	mov	cx,ax			; cx = words we have to temp-copy
 	lodsw				; skip uncompressed size word
+	mov	compstart,si		; compstart increased by 4
+					; to skip the two para-size words
 else
-	; dual-file version has no size info stored for the size of the
-	; compressed area of the BIO, but we can calculate this easily
-	push	si			; --> becomes di when uncompressing
+	; we know the size of the BIO only file on assembly time
 	lea	cx,biosinit_end
-	sub	cx,si
 	inc	cx			; length of compressed part plus one
 	shr	cx,1			; and convert to words
 endif
 @@move_to_temp:
-	; now we move the compressed area to a temporary location before
+	; now we move the kernel to a temporary location before
 	; uncompressing it
 	xor	di,di
+	xor	si,si
 	mov	ax,COMPRESSED_SEG
 	mov	es,ax
-	push	di
-	push	ds
-	push	es
 	rep movsw			; take a copy
-	pop	ds			; switch source and dest segment
-	pop	es
-	pop	si			; this is now -> compressed source
-	pop	di			; <-- was si before move
+	push	es
+	pop	ds
+	mov	ax,BIO_SEGMENT
+	mov	es,ax
+	mov	si,compstart
+	mov	di,COMPRESS_FROM_HERE
 	; we now zero-uncompress. es:di holds the destination and
 	; ds:si points to the compressed parts copied to the temporary
 	; location
