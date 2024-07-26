@@ -2648,7 +2648,7 @@ log_h1:
 log_h1b:
 	push	si
 	lea	si,diskaddrpack		; pointer to disk address packet
-	mov	ax,word ptr ptstart	; partition table offset
+	mov	ax,word ptr ptstart	; partition table sector
 	mov	word ptr [si+8],ax
 	mov	ax,word ptr ptstart+2
 	mov	word ptr [si+10],ax

@@ -684,7 +684,7 @@ uncompress_and_relocate_kernel:
 @@determine_compressed_size:
 ifdef SINGLEFILE
 	; if combined BIO/BDOS: we get the size of the zero-compressed area
-	; which is stored as paragraphs in the first word of the compressed
+	; which is stored as paragraphs from the first word of the compressed
 	; area. The word following is the size in paras after
 	; uncompression (currently not used)
 	mov	si,COMPRESS_FROM_HERE	; get start of compressed area
