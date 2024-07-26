@@ -1188,7 +1188,6 @@ GLOBAL VOID CDECL cmd_exit( BYTE *cmd )
       restore_term_addr();  /* restore the PSP terminate address*/
       ms_x_exit( err_ret ); /* If we return from the EXIT call  */
       execed = NO;          /* then this must be the root	    */
-      printf( "Hello\n" );
    } /* process. Invoked without '/P'    */
 }
 
