@@ -44,7 +44,7 @@ the directory.
 ### Running make
 You may build DRBIO.SYS, DRDOS.SYS and COMMAND.COM by calling the OpenWatcom
 make utility `wmake` from the project root directory. The generated binaries
-will be placed under the _dist_ directory.
+will be placed under the _bin_ directory.
 
 You may instead build the individual components by invoking `wmake` under the
 directory of the components. The built binaries are then placed into the _bin_
@@ -66,7 +66,7 @@ lacks this ability.
 
 ## Installation
 
-After building, make sure that the _dist_ directory contains
+After building, make sure that the _bin_ directory contains
 
  - DRBIO.SYS and DRDOS.SYS, or KERNEL.SYS
  - COMMAND.COM

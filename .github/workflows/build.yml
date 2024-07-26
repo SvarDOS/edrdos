@@ -23,7 +23,7 @@ jobs:
       with:
         name: EDR-DOS binaries (DRBIO.SYS, DRDOS.SYS flavor)
         path: |
-          dist/*
+          bin/*
     - name: Upload dual-file image
       uses: actions/upload-artifact@v4
       with:
@@ -44,7 +44,7 @@ jobs:
       with:
         name: EDR-DOS binaries (KERNEL.SYS flavor)
         path: |
-          dist/*
+          bin/*
     - name: Upload dual-file image
       uses: actions/upload-artifact@v4
       with:

@@ -11,22 +11,22 @@ mformat -i $IMAGE -v $LABEL
 if [ "$1" = "singlefile" ]; then
 	echo "Making single-file KERNEL.SYS image."
 	dd if=bootfdos.144 of=$IMAGE bs=512 count=1 conv=notrunc
-	mcopy -i $IMAGE ../dist/kernel.sys ::/kernel.sys
+	mcopy -i $IMAGE ../bin/kernel.sys ::/kernel.sys
 elif [ "$1" = "singlefile-drbio" ]; then
 	echo "Making single-file DRBIO.SYS image."
 	dd if=bootedr.144 of=$IMAGE bs=512 count=1 conv=notrunc
-	mcopy -i $IMAGE ../dist/kernel.sys ::/drbio.sys
+	mcopy -i $IMAGE ../bin/kernel.sys ::/drbio.sys
 else
 	echo "Making dual-file kernel image."
 	dd if=bootedr.144 of=$IMAGE bs=512 count=1 conv=notrunc
-	mcopy -i $IMAGE ../dist/drbio.sys ::/
-	mcopy -i $IMAGE ../dist/drdos.sys ::/
+	mcopy -i $IMAGE ../bin/drbio.sys ::/
+	mcopy -i $IMAGE ../bin/drdos.sys ::/
 fi
 mmd -i $IMAGE ::/license
-mcopy -i $IMAGE ../dist/command.com ::/
-mcopy -i $IMAGE ../dist/country.sys ::/
-mcopy -i $IMAGE ../dist/sys.com ::/
-mcopy -i $IMAGE ../dist/license/gpl.txt ::/license/
+mcopy -i $IMAGE ../bin/command.com ::/
+mcopy -i $IMAGE ../bin/country.sys ::/
+mcopy -i $IMAGE ../bin/sys.com ::/
+mcopy -i $IMAGE ../license/gpl.txt ::/license/
 mcopy -i $IMAGE ../license.htm ::/license/
 mcopy -i $IMAGE dconfig.sys ::/
 mcopy -i $IMAGE dauto.bat ::/
