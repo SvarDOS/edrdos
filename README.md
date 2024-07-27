@@ -51,7 +51,7 @@ directory of the components. The built binaries are then placed into the _bin_
 subdirectory for the components, like _drbio/bin/drbio.sys_.
 
 You may generate uncompressed DRBIO.SYS and DRDOS.SYS binaries by invoking
-`wmake UNCOMPRESSED=1` from the main directory or the directories of the
+`wmake COMPRESSED=0` from the main directory or the directories of the
 components.
 
 ## Building single-file kernel

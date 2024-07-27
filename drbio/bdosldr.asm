@@ -33,7 +33,7 @@
 ;    ENDLOG
 
 
-ifndef SINGLEFILE
+if SINGLEFILE eq 0
 
 	include request.equ
 	include driver.equ

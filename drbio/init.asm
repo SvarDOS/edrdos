@@ -682,7 +682,7 @@ uncompress_and_relocate_kernel:
 	; uncompression and potential relocation (kernel may be loaded
 	; to a different segment than 70)
 @@determine_compressed_size:
-ifdef SINGLEFILE
+if SINGLEFILE eq 1
 	; if combined BIO/BDOS: we get the size of the zero-compressed area
 	; which is stored as paragraphs from the first word of the compressed
 	; area. The word following is the size in paras after
@@ -773,6 +773,7 @@ endif
 @@uncompress_fini:
 	push	cs
 	pop	ds			; restore ds
+
 	pop	dx
 	pop	cx
 	pop	bx

@@ -123,7 +123,7 @@ INITCODE	segment public byte 'INITCODE'
 	extrn	config:near			; CONFIG.SYS Processor
 	extrn	crlf:near			; Output CR/LF to screen
 	extrn	resident_device_init:near	; Device Driver Init
-ifndef SINGLEFILE
+if SINGLEFILE eq 0
 	extrn	read_dos:near			; load DOS file
 	extrn	dos_version_check:near
 endif
@@ -256,7 +256,7 @@ biosinit30:
 	mov	dos_cseg,ax		; a relocated DOS image will live here
 
 	; Move BDOS to dos_cseg segment if we have combined BIO/BDIOS file
-ifdef SINGLEFILE
+if SINGLEFILE eq 1
 	push	ds
 	mov	current_dos,ax		; prevent relocated_init from
 	mov	es,ax			; trying to load BDOS file
@@ -329,7 +329,7 @@ relocated_init:
 	mov	ax,0100h		;  the multi tasker (386 or above)
 dont_align:
 	mov	free_seg,ax		;  and save as first Free Segment
-ifndef SINGLEFILE
+if SINGLEFILE eq 0
 	cmp	current_dos,0		; does the OEM want us to read
 	 jnz	dos_reloc		;   the DOS file from disk?
 	mov	ax,dos_cseg
@@ -623,7 +623,7 @@ config_start:
 	mov	ax,3306h
 	int	21h			; get true version
 	mov	dosVersion,bx		; and plant in initial PSP
-ifndef SINGLEFILE
+if SINGLEFILE eq 0
 	call	dos_version_check	; make sure we are on correct DOS
 endif
 	mov	ax,4458h

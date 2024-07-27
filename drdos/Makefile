@@ -15,9 +15,8 @@
 
 !include ../platform.mak
 
-!ifdef UNCOMPRESSED
+!ifeq COMPRESSED 0
 COMPBDOS_FLAGS=uncompressed
-WASM_FLAGS += -DUNCOMPRESSED
 !else
 COMPBDOS_FLAGS=
 !endif

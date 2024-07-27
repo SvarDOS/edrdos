@@ -8,11 +8,16 @@
 
 !include ../platform.mak
 
-!ifdef SINGLEFILE
-WASM_FLAGS += -DSINGLEFILE
+!ifeq SINGLEFILE 1
+WASM_FLAGS += -DSINGLEFILE=1
+!else
+WASM_FLAGS += -DSINGLEFILE=0
 !endif
-!ifdef UNCOMPRESSED
-WASM_FLAGS += -DUNCOMPRESSED
+
+!ifeq COMPRESSED 0
+WASM_FLAGS += -DCOMPRESSED=0
+!else
+WASM_FLAGS += -DCOMPRESSED=1
 !endif
 
 WASM_FLAGS += -DSVARDOS
@@ -24,7 +29,7 @@ objs += bin/biosinit.obj bin/config.obj bin/bdosldr.obj bin/genercfg.obj
 objs += bin/nlsfunc.obj
 
 bin/drbio.sys : bin/drbio.bin
-!ifdef UNCOMPRESSED
+!ifeq COMPRESSED 0
 	rm -f $@
 	$(CP) $< $@
 !else

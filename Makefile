@@ -9,12 +9,12 @@
 
 !include platform.mak
 
-!ifdef SINGLEFILE
+!ifeq SINGLEFILE 1
 WMAKE_FLAGS += SINGLEFILE=1
 !endif
 
-!ifdef UNCOMPRESSED
-WMAKE_FLAGS += UNCOMPRESSED=1
+!ifeq COMPRESSED 0
+WMAKE_FLAGS += COMPRESSED=0
 COMPKERN_FLAGS += uncompressed
 !endif
 
