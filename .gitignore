@@ -40,5 +40,8 @@ ltools/unix/compbdos
 ltools/unix/compkern
 ltools/unix/fixupp
 ltools/unix/round
-
 tmp
+
+# Mac shit
+.DS_Store
+
