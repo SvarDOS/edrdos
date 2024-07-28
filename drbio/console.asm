@@ -239,7 +239,7 @@ output1:
 	pushf				; stack as per Int 29
 	db	09Ah			; CALLF to our fastconsole entry
 	dw	offset FastConsole
-	dw	BIO_SEGMENT
+	dw	BIO_SEG
 	loop	output1			; repeat for all characters
 	pop	es
 output9:

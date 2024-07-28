@@ -34,6 +34,8 @@ DRBIO gets compressed starting from the the offset given in the word
 at offset 3 of the DRBIO file, with the bytes before are copied unaltered.
 The DRDOS file is compressed without the padding area.
 
+DO NOT COMPRESS A KERNEL NOT ASSEMBLED FOR COMPRESSION!
+
 COMPKERN encodes regions of zero as a 16-bit count with the highest bit set
 to one. So, if 16 zeroes are encoded this becomes 0x8010. Data regions that
 are to be copied literally are preceeded by the 16-bit byte count, with
@@ -70,6 +72,9 @@ The kernel decompression is implemented in init0 in DRBIO\INIT.ASM
 #define ZEROCOMP_FLAG_BYTE 5  /* location in input file holding the 
                            flag if file is zero-compressed */
 
+#define KERNFLAG_COMPRESSED 0x01
+#define KERNFLAG_SINGLEFILE 0x02
+#define KERNFLAG_PROCESSED  0x80
 
 int main( int argc, char *argv[] )
 {
@@ -79,9 +84,7 @@ int main( int argc, char *argv[] )
    size_t bdos_size, bdos_comp_size;
    size_t out_size[2];
    uint16_t bio_comp_start;
-   uint8_t bio_comp_flag;
-   uint16_t comp_paras;    /* size of compressed parts */
-   uint16_t decomp_paras;  /* size of compressed parts after decompression */
+   uint16_t kernel_words;  /* size of kernel file in words */
    
    uint16_t bdos_padding;  /* size of BDOS padding area that will be stripped */
    int result;
@@ -99,13 +102,6 @@ int main( int argc, char *argv[] )
 
    /* get start offset of data to be compressed */
    bio_comp_start = *(farkeyword uint16_t*)(bio_data + ZEROCOMP_ADDR_WORD);
-   bio_comp_flag = *(farkeyword uint8_t*)(bio_data + ZEROCOMP_FLAG_BYTE);
-
-   if ( bio_comp_flag ) {
-      puts( "BIOS already compressed" );
-      farfree( bio_data );
-      return 0;
-   }
 
    bdos_data = read_file( argv[2], &bdos_size );
    if ( !bdos_data ) {
@@ -121,11 +117,24 @@ int main( int argc, char *argv[] )
    if ( argv[4] && !strcmp( argv[4], "uncompressed" ) ) {
       printf( "Creating uncompressed kernel file\n" );
 
-      bio_data[ZEROCOMP_FLAG_BYTE] = 0x80;   /* combined 0x80 + uncompressed 0x00*/
+      if ( ( bio_data[ZEROCOMP_FLAG_BYTE] & 0x83 ) != KERNFLAG_SINGLEFILE ) {
+         puts( "error: incompatible DRBIO build or already compressed" );
+         farfree( bdos_data );
+         farfree( bio_data );
+         return 1;
+      }
+
+      bio_data[ZEROCOMP_FLAG_BYTE] |= KERNFLAG_PROCESSED;   /* mark as processed */
+
       out_data[0] = bio_data;
       out_size[0] = bio_size;
       out_data[1] = bdos_data + bdos_padding;
       out_size[1] = bdos_size - bdos_padding;
+
+      /* prepend kernel size in words before (non)compressed area */
+      kernel_words = (uint16_t)(((uint32_t)bio_size + 
+                     (uint32_t)bdos_size - (uint32_t)bdos_padding + 1) >> 1);
+      *(uint16_t*)(out_data[0] + bio_comp_start - 2) = kernel_words;
 
       result = write_file_multiple( argv[3], (const char **)out_data, out_size, 2 );
       if ( !result ) {
@@ -142,7 +151,14 @@ int main( int argc, char *argv[] )
    else {
       printf( "Creating compressed kernel file\n" );
 
-      bio_data[ZEROCOMP_FLAG_BYTE] = 0x81;   /* combined 0x80 + compressed 0x01 */
+      if ( ( bio_data[ZEROCOMP_FLAG_BYTE] & 0x83 ) != ( KERNFLAG_COMPRESSED | KERNFLAG_SINGLEFILE ) ) {
+         puts( "error: incompatible DRBIO build or already compressed" );
+         farfree( bdos_data );
+         farfree( bio_data );
+         return 1;
+      }
+
+      bio_data[ZEROCOMP_FLAG_BYTE] |= KERNFLAG_PROCESSED;   /* mark as processed */
 
       out_data[0] = farmalloc( bio_size );
       if ( !out_data[0] ) {
@@ -166,7 +182,7 @@ int main( int argc, char *argv[] )
    
       /* zero-compress files... */
       zerocomp( bio_data + bio_comp_start, bio_size - bio_comp_start,
-                out_data[0] + bio_comp_start + 4, &bio_comp_size, 0 );
+                out_data[0] + bio_comp_start, &bio_comp_size, 0 );
       zerocomp( bdos_data + bdos_padding, bdos_size - bdos_padding,
                 out_data[1], &bdos_comp_size, 1 );
    
@@ -175,14 +191,13 @@ int main( int argc, char *argv[] )
          result = 0;
          goto error;
       }
-      comp_paras = (uint16_t)((uint32_t)bio_comp_size + bdos_comp_size + 15) >> 4;
-      decomp_paras = (uint16_t)(((uint32_t)(bio_size - bio_comp_start) + (bdos_size - bdos_padding) + 15) >> 4);
 
-      /* prepend compressed and uncompressed size in paras to compressed area */
-      *(uint16_t*)(out_data[0] + bio_comp_start) = comp_paras;
-      *(uint16_t*)(out_data[0] + bio_comp_start + 2) = decomp_paras;
+      /* prepend kernel size in words before (non)compressed area */
+      kernel_words = (uint16_t)(((uint32_t)bio_comp_start + 
+                     (uint32_t)bio_comp_size + (uint32_t)bdos_comp_size + 1) >> 1);
+      *(uint16_t*)(out_data[0] + bio_comp_start - 2) = kernel_words;
 
-      out_size[0] = 4 + bio_comp_start + bio_comp_size;
+      out_size[0] = bio_comp_start + bio_comp_size;
       out_size[1] = bdos_comp_size;
       
       /* ...and write everything to output file */
@@ -194,7 +209,6 @@ int main( int argc, char *argv[] )
       }
 
       printf( "kernel compression starts at offset %04xh\n", bio_comp_start );
-      printf( "size of compressed area: %04xh paras, uncompressed: %04xh paras\n", comp_paras, decomp_paras );  
       printf( "BIO size: %zu(%zu), BDOS size: %zu(%zu)\n", out_size[0], bio_size, out_size[1], bdos_size );
 error:
       farfree( out_data[1] );

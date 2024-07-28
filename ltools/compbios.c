@@ -65,6 +65,10 @@ The DRBIO.SYS decompression is implemented in init0 in DRBIO\INIT.ASM
 #define ZEROCOMP_FLAG_BYTE 5  /* location in input file holding the 
                            flag if file is zero-compressed */
 
+#define KERNFLAG_COMPRESSED 0x01
+#define KERNFLAG_SINGLEFILE 0x02
+#define KERNFLAG_PROCESSED  0x80
+
 
 int main( int argc, char *argv[] )
 {
@@ -73,6 +77,7 @@ int main( int argc, char *argv[] )
    size_t in_size, out_size;
    uint16_t comp_start;
    uint8_t comp_flag;
+   uint16_t kernel_words;
 
    if ( argc != 3 ) {
       puts( "Usage: COMPBIOS.EXE in-file out-file" );
@@ -88,10 +93,10 @@ int main( int argc, char *argv[] )
    /* get start offset of data to be compressed */
    comp_start = *(farkeyword uint16_t*)(in_data + ZEROCOMP_ADDR_WORD);
    comp_flag = *(farkeyword uint8_t*)(in_data + ZEROCOMP_FLAG_BYTE);
-   in_data[ZEROCOMP_FLAG_BYTE] = 1;
+   in_data[ZEROCOMP_FLAG_BYTE] |= KERNFLAG_PROCESSED;
 
-   if ( comp_flag ) {
-      puts( "BIOS already compressed" );
+   if ( ( comp_flag & 0x83 ) != KERNFLAG_COMPRESSED ) {
+      puts( "error: incompatible DRBIO build or already compressed" );
       farfree( in_data );
       return 0;
    }
@@ -113,6 +118,9 @@ int main( int argc, char *argv[] )
    zerocomp( in_ptr, in_size - comp_start, out_ptr, &out_size, 1 );
    /*printf( "in-size: %zu, out-size: %zu\n ", in_size - comp_start, out_size );*/
    
+   kernel_words = (uint16_t)(((uint32_t)comp_start + (uint32_t)out_size + 1) >> 1);
+   *(uint16_t*)(out_data + comp_start - 2) = kernel_words;
+
    /* ...and write everything to output file */
    if ( !write_file( argv[2], out_data, comp_start + out_size ) ) {
       puts( "error: could not write output file" );

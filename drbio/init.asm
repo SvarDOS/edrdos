@@ -51,11 +51,6 @@
 	include keys.equ		; common key definitions
 
 
-COMPRESSED_SEG	equ 2000h	; segment compressed kernel image is copied
-				; to before zero-uncompression, should be
-				; sufficient for uncompressed DRBIO+DRDOS
-				; sizes of up to ~128K
-
 ENDCODE		segment public byte 'ENDCODE'
 ENDCODE		ends
 
@@ -206,8 +201,13 @@ init	endp
 
 ; start offset of zero-compressed file area
 compstart	dw	offset CGROUP:COMPRESS_FROM_HERE	
-kernflg		db	0		; bit 1 set => file compressed
-					; bit 7 set => combined BIO/BDOS file
+
+; kernel flags:
+;   bit 0: set if assembled for compression
+;   bit 1: set if assembled for single-file kernel
+;   bit 7: set after kernel was processed by COMPBIOS and COMPKERN 
+kernflg		db	(SINGLEFILE shl 1) + COMPRESSED
+
 	org	06h
 
 	db	'COMPAQCompatible'  
@@ -602,12 +602,11 @@ daycount	dw	0
 
 		even
 
-; DRBIO/DRKERNEL uncompression stage. This is executed right after the jump at
-; the beginning of the CODE segment. This area is shared with the 512 byte
-; deblocking buffer and gets eventually overwritten.
+; DRBIO/DRKERNEL uncompression and relocation stage. This is executed right
+; after the jump at the beginning of the CODE segment. This area is shared
+; with the 512 byte deblocking buffer and gets eventually overwritten.
 ;
-; If the kernel is not loaded to segment 70h it is relocated to that segment
-; while uncompressing.
+; If the kernel is not loaded to segment 70h it is relocated to it.
 
 init0	proc near
 
@@ -615,7 +614,7 @@ local_buffer 	label 	byte
 
 	mov	cs:byte ptr A20Enable,0C3h
 					; fixup the RET
-	mov	si,COMPRESSED_SEG - 200
+	mov	si,TEMP_RELOC_SEG - 200
 	mov	ss,si
 	mov	sp,1024
 
@@ -668,81 +667,70 @@ local_buffer 	label 	byte
 	cmp	ax,60h			; are we loaded at segment 60h?
 	jne	uncompress_and_relocate_kernel
 	mov	dl,bl			; then copy unit fron BL to DL
-uncompress_and_relocate_kernel:
-	mov	al, kernflg		; get compressed flag
-	test	al, KERNFLG_COMP	; bit 0 set if the BIO is compressed
-	jz	not_compressed
 
+uncompress_and_relocate_kernel:
+if COMPRESSED eq 0
+	; if kernel is uncompressed and we live at the correct segment, then
+	; skip whole uncompression and relocation
+	push	cs
+	pop	ax
+	cmp	ax,BIO_SEG
+	jne	@F
+	jmp	not_compressed
+@@:
+endif
 	push	di			; bios_seg
 	push	bx			; initial drives
 	push	cx			; memory size
 	push	dx			; initial flags
 
-	; first copy BIO / KERNEL to temp location COMPRESSED_SEG for
-	; uncompression and potential relocation (kernel may be loaded
-	; to a different segment than 70)
-@@determine_compressed_size:
-if SINGLEFILE eq 1
-	; if combined BIO/BDOS: we get the size of the zero-compressed area
-	; which is stored as paragraphs from the first word of the compressed
-	; area. The word following is the size in paras after
-	; uncompression (currently not used)
-	mov	si,COMPRESS_FROM_HERE	; get start of compressed area
-	lodsw				; load para size of compressed area
-	mov	cl,4			; convert from paras to bytes
-	shl	ax,cl
-	add	ax,COMPRESS_FROM_HERE
-	inc	ax
-	shr	ax,1
-	mov	cx,ax			; cx = words we have to temp-copy
-	lodsw				; skip uncompressed size word
-	mov	compstart,si		; compstart increased by 4
-					; to skip the two para-size words
+	mov	ax,TEMP_RELOC_SEG
+	mov	es,ax
+if (SINGLEFILE eq 1) or (COMPRESSED eq 1)
+	; determine kernel file size in words
+	; this is set by COMPBIOS and COMPKERN tools
+	mov	ax,kernel_size
 else
-	; we know the size of the BIO already at assembly time
-	lea	cx,biosinit_end
-	inc	cx			; length of compressed part plus one
-	shr	cx,1			; and convert to words
+	 ; for an uncompressed DRBIO.SYS we must determine kernel_size, as
+	 ; neither COMPBIO or COMPKERN are run on this (kernel_size=0)
+	mov	ax,offset CGROUP:DATAEND
+	shr	ax,1
+	mov	kernel_size,ax
 endif
-@@move_to_temp:
-	; now we move the kernel to a temporary location before
-	; uncompressing it
-	xor	di,di
-	xor	si,si
-	mov	ax,COMPRESSED_SEG
-	mov	es,ax
-	rep movsw			; take a copy
-	push	es
-	pop	ds			; ds = compressed temp seg
-	mov	ax,BIO_SEGMENT
-	mov	es,ax
+	; we now copy up to 128K to TEMP_RELOC_SEG for relocation
+	; and / or uncompression
+	call	copywords
 
-@@relocate_uncompressed:
-	push	cs			; test if we already live in the right
-	pop	ax			; segment, if yes, skip uncompressed
-	cmp	ax,BIO_SEGMENT		; relocation
-	je	@@farjmp_bio_seg	
-	; FAR JMP to temp copy and then move uncompressed part
-	; of BIO to the destination segment BIO_SEGMENT. Then
-	; FAR JMP to that location
+	; we now far jmp to our kernel copy at TEMP_RELOC_SEG
 	db	0eah
-	dw	@@farjmp_tmp_seg, COMPRESSED_SEG	
-  @@farjmp_tmp_seg:
-	xor	si,si
-	xor	di,di
-	mov	cx,COMPRESS_FROM_HERE
-	rep movsb
-	db	0eah
-	dw	@@farjmp_bio_seg, BIO_SEGMENT	
-	; from here on, uncompressed part of kernel lives in correct
-	; segment
-  @@farjmp_bio_seg:
+	dw	@@farjmp_tmp_seg,TEMP_RELOC_SEG	
+ @@farjmp_tmp_seg:
 
-	; we now zero-uncompress. es:di holds the destination and
-	; ds:si points to the compressed parts copied to the temporary
-	; location
-	mov	si,compstart
-	mov	di,COMPRESS_FROM_HERE
+  	mov	ax,TEMP_RELOC_SEG
+  	mov	ds,ax
+  	mov	ax,BIO_SEG
+  	mov	es,ax
+
+if COMPRESSED eq 1
+  	; copy uncompressed part of compressed DRBIO / KERNEL to BIO_SEG
+  	mov	ax,COMPRESS_FROM_HERE
+  	inc	ax
+  	shr	ax,1
+else
+  	; copy whole kernel if uncompressed
+  	mov	ax,kernel_size
+endif
+	call	copywords
+
+	; we now far jmp to ourself at BIO_SEG
+	db	0eah
+	dw	@@farjmp_bio_seg,BIO_SEG	
+@@farjmp_bio_seg:
+
+if COMPRESSED eq 1
+	; now decompress the compressed part of DRBIO/KERNEL
+	mov	si,COMPRESS_FROM_HERE
+	mov	di,si
 @@uncompress_block:
 	mov	cl,4
 	mov	bx,ds			; canonicalize ds:si
@@ -771,19 +759,50 @@ endif
 	rep	stosb			; fill with zeros
 	jmp 	@@uncompress_block
 @@uncompress_fini:
-	push	cs
-	pop	ds			; restore ds
-
+endif
+  	push	cs
+  	pop	ds			; ds = BIO segment
 	pop	dx
 	pop	cx
 	pop	bx
 	pop	di
 not_compressed:
+
 	pop	ax
 	jmp	init1			; next initialization stage is
 					; part of discardable ICODE segment
 init0	endp
 
+copywords proc
+	; copies up to 0ffffh words
+	; ax = count
+	; ds:0 = source segment
+	; es:0 = destination segment
+	; destroyed: si, di
+	xor	si,si
+	xor	di,di
+ 	test	ax,ax
+ 	js	@F		; more than 64K, take long route
+	mov	cx,ax
+	rep	movsw
+	ret
+@@:	mov	cx,8000h
+	rep	movsw		; copy first 64K
+	sub	ax,8000h	; CX now contains how much left
+	mov	cx,ax
+	mov	ax,ds
+	add	ax,1000h
+	mov	ds,ax		; increase DS by 1000h (64K)
+	mov	ax,es
+	add	ax,1000h
+	mov	es,ax		; increase ES by 1000h (64K)
+	rep	movsw		; copy what is left
+	ret
+
+copywords endp
+
+kernel_size	dw	0		; kernel file size in words
+					; patched by compbios and compkern
 COMPRESS_FROM_HERE:
 
 if ($ - init0) gt 512
@@ -1161,7 +1180,7 @@ rcode_header	dw	0
 
 	Public	DataSegment
 
-DataSegment	dw	BIO_SEGMENT	; segment address of low data/code
+DataSegment	dw	BIO_SEG		; segment address of low data/code
 
 ; Called to vector to appropriate sub-function in device driver
 ; The Function table address immediately follows the near call, so we can index
