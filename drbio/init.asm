@@ -788,8 +788,8 @@ copywords proc
 	ret
 @@:	mov	cx,8000h
 	rep	movsw		; copy first 64K
-	sub	ax,8000h	; CX now contains how much left
-	mov	cx,ax
+	sub	ax,8000h	
+	mov	cx,ax		; CX now contains how much left
 	mov	ax,ds
 	add	ax,1000h
 	mov	ds,ax		; increase DS by 1000h (64K)

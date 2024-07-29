@@ -34,8 +34,6 @@ DRBIO gets compressed starting from the the offset given in the word
 at offset 3 of the DRBIO file, with the bytes before are copied unaltered.
 The DRDOS file is compressed without the padding area.
 
-DO NOT COMPRESS A KERNEL NOT ASSEMBLED FOR COMPRESSION!
-
 COMPKERN encodes regions of zero as a 16-bit count with the highest bit set
 to one. So, if 16 zeroes are encoded this becomes 0x8010. Data regions that
 are to be copied literally are preceeded by the 16-bit byte count, with
