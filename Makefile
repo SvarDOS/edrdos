@@ -85,7 +85,7 @@ command/bin/command.com: .ALWAYS .RECHECK
 	cd ..
 
 # SvarDOS .svp package
-kernel.svp: pkg/kernel.sys pkg/bin/country.sys pkg/doc/license.html pkg/appinfo/kernledr.lsm
+kernledr.svp: pkg/kernel.sys pkg/bin/country.sys pkg/doc/license.htm pkg/appinfo/kernledr.lsm
 	cd pkg
 	zip -rX9 ..$(SEP)$@ *
 	cd ..
@@ -106,14 +106,15 @@ pkg/appinfo: pkg
 	mkdir $@
 
 pkg/appinfo/kernledr.lsm: pkg/appinfo .ALWAYS
-	%create $@ version: $(VERSION)
+	%create $@
+	%append $@ version: $(VERSION)
 	%append $@ description: Enhanced DR-DOS kernel
 	%append $@ warn: EDR kernel installed. Please reboot to activate it.
 
 pkg/doc:
 	mkdir $@
 
-pkg/doc/license.html: pkg/doc license.htm
+pkg/doc/license.htm: pkg/doc license.htm
 	$(CP) $]@ $@
 
 

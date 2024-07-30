@@ -16,7 +16,7 @@ endif
 VERSIONSTR  catstr <">, VERSION, <">
 
 KERNELNAME  textequ <"SvarDOS Enhanced DR-DOS Kernel">
-KERNELMSG   textequ <13, 10, 13, 10, KERNELNAME, "                https://github.com/SvarDOS/edrdos", 13, 10, \
+KERNELMSG   textequ <13, 10, KERNELNAME, "                https://github.com/SvarDOS/edrdos", 13, 10, \
 		    "ver ", VERSIONSTR, " / rev ", COMMIT, " / built ", BUILDDATE , 13, 10>
 
 COPYRIGHT   textequ <"based on Caldera OpenDOS 7.01 sources, patches (c)opyright 2002-2011 Udo Kuhnt", 13, 10, \
