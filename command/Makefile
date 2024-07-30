@@ -12,6 +12,8 @@
 CFLAGS = -q -os -s -dFINAL -dPASSWORD -dWATCOMC -i=.
 WASM_FLAGS = -q -c -Zm -Zg -DWATCOMC -DPASCAL -DFINAL -I./
 
+WASM_FLAGS += -DGIT_REV=$(GIT_REV) -DVERSION=$(VERSION)
+
 asm_objs  = bin/message.obj bin/cstart.obj bin/csup.obj bin/dosif.obj
 asm_objs += bin/crit.obj bin/resident.obj bin/txhelp.obj bin/helpstub.obj
 

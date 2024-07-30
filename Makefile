@@ -26,10 +26,11 @@ all: bin/kernel.sys $(FILES) .SYMBOLIC
 all: bin/drbio.sys bin/drdos.sys $(FILES) .SYMBOLIC
 !endif
 
+WMAKE_FLAGS += VERSION=$(VERSION) GIT_REV=$(GIT_REV)
 
 image: all .SYMBOLIC
 	cd image
-	sh mkimage.sh
+	sh mkimage.sh singlefile
 	cd ..
 
 bin/kernel.sys: drbio/bin/drbio.bin drdos/bin/drdos.bin
@@ -55,7 +56,7 @@ bin/license/license.htm: bin/license license.htm
 
 drbio/bin/drbio.sys: .ALWAYS .RECHECK
 	cd drbio
-	$(WMAKE) $(WMAKE_FLAGS)
+	$(WMAKE) $(WMAKE_FLAGS) $(BIO_FLAGS)
 	cd ..
 
 drdos/bin/drdos.sys: .ALWAYS .RECHECK
@@ -70,7 +71,7 @@ drdos/bin/country.sys: .ALWAYS .RECHECK
 
 drbio/bin/drbio.bin: .ALWAYS .RECHECK
 	cd drbio
-	$(WMAKE) $(WMAKE_FLAGS) bin/drbio.bin
+	$(WMAKE) $(WMAKE_FLAGS) $(BIO_FLAGS) bin/drbio.bin
 	cd ..
 
 drdos/bin/drdos.bin: .ALWAYS .RECHECK
@@ -82,6 +83,40 @@ command/bin/command.com: .ALWAYS .RECHECK
 	cd command
 	$(WMAKE)
 	cd ..
+
+# SvarDOS .svp package
+kernel.svp: pkg/kernel.sys pkg/bin/country.sys pkg/doc/license.html pkg/appinfo/kernledr.lsm
+	cd pkg
+	zip -rX9 ..$(SEP)$@ *
+	cd ..
+
+pkg/kernel.sys: pkg bin/kernel.sys
+	$(CP) $]@ $@
+
+pkg:
+	mkdir $@
+
+pkg/bin: pkg
+	mkdir $@
+
+pkg/bin/country.sys: pkg/bin bin/country.sys
+	$(CP) $]@ $@
+
+pkg/appinfo: pkg
+	mkdir $@
+
+pkg/appinfo/kernledr.lsm: pkg/appinfo .ALWAYS
+	%create $@ version: $(VERSION)
+	%append $@ description: Enhanced DR-DOS kernel
+	%append $@ warn: EDR kernel installed. Please reboot to activate it.
+
+pkg/doc:
+	mkdir $@
+
+pkg/doc/license.html: pkg/doc license.htm
+	$(CP) $]@ $@
+
+
 
 clean: .SYMBOLIC
 	@cd drbio
@@ -105,4 +140,5 @@ clean: .SYMBOLIC
 	@rm -f bin/COMMAND.COM
 	@rm -f bin/license/license.htm
 	@rm -f image/edrdos.img
+	@rm -f kernel.svp
 

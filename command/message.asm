@@ -1,3 +1,5 @@
+include version.inc
+
 NUL	equ	0
 BS	equ	8
 TAB	equ	9
@@ -18,7 +20,7 @@ _msg_ver111	db	NUL , NUL
 	public	msg_version
 msg_version	label	byte
 _msg_version	db	LF
-		include version.inc
+		db longsysname
 		db LF, NUL
 	public	_msg_lbl
 	public	msg_lbl

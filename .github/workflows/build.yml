@@ -7,12 +7,14 @@ jobs:
     runs-on: [self-hosted]
     steps:
     - uses: actions/checkout@v4
-    - name: Build dual-file binaries
+    - name: Make build tools
       run: |
         cd ltools/unix
         make
         cd ../..
-        wmake -h
+    - name: Build dual-file binaries
+      run: |
+        ./build.sh
     - name: Generate dual-file floppy image
       run: |
         cd image
@@ -32,8 +34,7 @@ jobs:
           image/edrdos.img
     - name: Build single-file binaries
       run: |
-        wmake -h clean
-        wmake -h SINGLEFILE=1
+        ./build.sh singlefile
     - name: Generate single-file floppy image
       run: |
         cd image
@@ -51,4 +52,15 @@ jobs:
         name: EDR-DOS 1.44M image (KERNEL.SYS flavor)
         path: |
           image/edrdos.img
+    - name: Generate SvarDOS package
+      run: |
+        ./mkpkg.sh
+    - name: Upload SvarDOS package
+      uses: actions/upload-artifact@v4
+      with:
+        name: SvarDOS package
+        path: |
+          kernel.svp
+
+
 

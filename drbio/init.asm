@@ -995,7 +995,7 @@ debugger_detected:
 
 	Assume	DS:CGROUP, ES:CGROUP
 
-	mov	si,offset drdosprojects_msg
+	mov	si,offset kernel_msg
 	call	output_msg
 	mov	si,offset starting_dos_msg
 	call	output_msg

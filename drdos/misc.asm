@@ -69,6 +69,7 @@ VALID_SIG	equ	0EDC1h
 	include	doshndl.def
 	include	redir.equ
 	include	fdos.equ
+	include version.inc
 	.list
 
 NLSFUNC	equ	TRUE
@@ -445,7 +446,7 @@ func33:
 	cmp	al, 0FFh		; is it function 33FFh ?
 	 jne	f33_XX			; no, jump -->
 	call	f33_FF			; yes
-	include version.inc
+	db	longsysname
 	db	0
 
 f33_FF:	pop	reg_AX[bp]		; dx:ax - hidden DOS string

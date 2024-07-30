@@ -20,7 +20,7 @@ WASM_FLAGS += -DCOMPRESSED=0
 WASM_FLAGS += -DCOMPRESSED=1
 !endif
 
-WASM_FLAGS += -DSVARDOS
+WASM_FLAGS += -DGIT_REV=$(GIT_REV) -DVERSION=$(VERSION)
 
 objs  = bin/initmsgs.obj bin/biosmsgs.obj bin/init.obj bin/clock.obj
 objs += bin/console.obj bin/disk.obj bin/serpar.obj bin/biosgrps.obj
