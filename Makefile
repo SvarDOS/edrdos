@@ -141,5 +141,10 @@ clean: .SYMBOLIC
 	@rm -f bin/COMMAND.COM
 	@rm -f bin/license/license.htm
 	@rm -f image/edrdos.img
-	@rm -f kernel.svp
+	# SvarDOS package
+	@rm -f pkg/kernel.sys
+	@rm -f pkg/bin/country.sys
+	@rm -f pkg/doc/license.htm
+	@rm -f pkg/appinfo/kernledr.lsm
+	@rm -f kernledr.svp
 
