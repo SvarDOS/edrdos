@@ -6,7 +6,7 @@ EDR-DOS spawns the first process with an empty environment. The environment segm
 
 However, when processing `config.sys`, the kernel does this under a _config environment_. This config environment is passed to every process spawned while processing `config.sys`. Environment variables may be set via the `SET` command from within `CONFIG.SYS`. The environment is appended `1AH` character, followed by a boot key scan code. This records a F5 or F8 key pressed while booting.
 
-When the root process is launched, despite given an empty environment, it may query the config environment by getting a pointer to the kernel private data and inspecting offset 12h to get the segment of the environment. To query the private data segment, use `INT 21,4458`. `ES:BX` contains a pointer to the private data.
+When the root process is launched, despite given an empty environment, it may query the config environment by getting a pointer to the kernel private data and inspecting offset 12h to get the segment of the environment. To query the private data segment, use `INT 21,4458`. On return, `ES:BX` contains a pointer to the private data.
 
 The root process may build a new environment from the config environment by copying data from it. EDR COMMAND.COM copies all environment variables from the config environment to its newly created environment.
 
@@ -54,12 +54,12 @@ The root process may build a new environment from the config environment by copy
     GOSUB=label
     RETURN (from GOSUB)
     Clear Screen
-    Set Cursor Position
-    Set Fore-/Background/Border Colour
-    set ? TIMEOUT
+    CPOS=row,col            Set Cursor Position
+    COLOUR=[fg][,[bg][,bc]] Set Fore-/Background/Border Colour
+    TIMEOUT=n               set ? 	TIMEOUT
     SWITCH=n
-    ONERROR='n' optional command
-    ?optional command
+    ONERROR='n'             optional command
+    ?                       optional command
     ECHO=string
     EXIT
     ERROR='n'
