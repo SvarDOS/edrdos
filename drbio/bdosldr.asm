@@ -33,8 +33,6 @@
 ;    ENDLOG
 
 
-if SINGLEFILE eq 0
-
 	include request.equ
 	include driver.equ
 	include	config.equ
@@ -60,10 +58,137 @@ ASSUME CS:CGROUP,DS:CGROUP
 
 VER_MUSTBE	equ	1072h
 
+
+	Public	detect_boot_drv
+if SINGLEFILE eq 0
 	Public	dos_version_check
-
 	Public	read_dos		; read BDOS from disk
+endif
 
+	; Tries to detect to logical boot drive by the given phys boot drv
+	; and a partition offset
+detect_boot_drv proc
+	les	di,boot_device		; get device driver address
+	mov	dl,boot_drv		; get the boot drive sub unit
+	xor	dh,dh
+	dec	dh			; dh=255
+	mov	ax,es
+	or	ax,di			; make sure boot device is initialised
+	 jnz	@@get_device_procs
+if SINGLEFILE eq 0
+	jmp	dev_fail		; panic, cannot determine boot drv
+else
+	ret				; single-file kernel, user may resolve
+endif
+@@get_device_procs:
+	mov	ax,es:6[di]		; get strategy offset
+	mov	strat_off,ax
+	mov	strat_seg,es		; get strategy segment
+	mov	ax,es:8[di]		; get interrupt offset
+	mov	intrpt_off,ax
+	mov	intrpt_seg,es		; get interrupt segment
+@@test_drv:
+	mov	bx,offset req_hdr
+	mov	[bx+RH_UNIT],dl		; save logical unit to use
+	mov	[bx+RH_CMD],CMD_BUILD_BPB
+	call	device_request		; tell it to build a BPB
+	 jnc	@@bpb_ok		; BPB successfully built
+	jmp	@@next_drv		; if not, try next drive
+@@bpb_ok:
+	cmp	dl,boot_drv
+	 jne	@@compare_part_off
+	mov	dh,dl			; dh=boot_drv 
+@@compare_part_off:
+	les	di,[bx+RH2_BPB]
+	mov	ax,part_off
+	cmp	es:word ptr BPB_HIDDEN[di],ax
+	 jne	@@next_drv
+	mov	ax,part_off+2
+	cmp	es:word ptr BPB_HIDDEN+2[di],ax
+	 jne	@@next_drv
+	mov	dh,dl
+	jmp	@@done
+@@next_drv:
+	inc	dl			; increase log drv num
+	 jz	@@done
+	jmp	@@test_drv
+@@done:
+	cmp	dh,255
+	 jne	@@store_boot_drv	; boot drv found?
+	jmp	dev_fail
+@@store_boot_drv:
+	mov	dl,dh
+	mov	boot_drv,dl
+	mov	init_drv,dl
+	ret
+detect_boot_drv endp
+
+
+dev_fail:	; any error has occurred loading the BDOS
+;--------
+; Print '$' terminated message at offset DX to console without using the BDOS
+;
+	mov	dx,offset dos_msg
+	les	di,resdev_chain		; get first device driver address
+fail_scan:
+	test	es:[di+DEVHDR.ATTRIB],DA_CHARDEV
+	 jz	fail_next		; skip if not a character device
+	test	es:[di+DEVHDR.ATTRIB],DA_ISCOT
+	 jnz	fail_found		; skip if console device found
+fail_next:
+	les	di,es:[di]		; get next device
+	jmp	fail_scan
+fail_found:
+	mov	ax,es:6[di]		; get strategy offset
+	mov	strat_off,ax
+	mov	strat_seg,es		; get strategy segment
+	mov	ax,es:8[di]		; get interrupt offset
+	mov	intrpt_off,ax
+	mov	intrpt_seg,es		; get interrupt segment
+
+	mov	bx,offset req_hdr
+	mov	[bx+RH_CMD],CMD_OUTPUT	; write to console
+	mov	[bx+RH_LEN],RH4_LEN	; set request header length
+	mov	[bx+RH4_BUFOFF],dx	; set address of string
+	mov	[bx+RH4_BUFSEG],ds
+	mov	[bx+RH4_COUNT],-1
+	mov	si,dx			; now find the end of the string
+fail_count_chars:
+	inc	[bx+RH4_COUNT]		; print another char
+	lodsb				; examine the next one
+	cmp	al,'$'			; terminating char ?
+	 jnz	fail_count_chars
+	call	device_request		; call the console driver
+
+	sti
+wait_forever:
+	jmp	wait_forever			; wait for reboot
+
+
+device_request:		; general device driver interface
+;--------------
+;	entry:	BX -> request header
+;	exit:	CY = 1 if error
+
+	push	ds
+	push	es
+	push	ds
+	pop	es
+	mov	ds,strat_seg
+	call	dword ptr cs:strat_ptr
+	call	dword ptr cs:intrpt_ptr
+	pop	es
+	pop	ds
+	test	[bx+RH_STATUS],RHS_ERROR
+	 jnz	devreq_err
+	clc
+	ret
+devreq_err:
+	stc
+;	jmp	dev_fail		; print error message
+	ret
+
+if SINGLEFILE eq 0
 ;--------
 read_dos:	; read in the BDOS
 ;--------
@@ -77,54 +202,6 @@ login_drive:
 ;-----------
 	les	di,boot_device		; get device driver address
 	mov	dl,boot_drv		; get the boot drive sub unit
-	xor	dh,dh
-	dec	dh
-	mov	ax,es
-	or	ax,di			; make sure boot device is initialised
-	 jnz	login_drive10
-	jmp	dev_fail
-login_drive10:
-	mov	ax,es:6[di]		; get strategy offset
-	mov	strat_off,ax
-	mov	strat_seg,es		; get strategy segment
-	mov	ax,es:8[di]		; get interrupt offset
-	mov	intrpt_off,ax
-	mov	intrpt_seg,es		; get interrupt segment
-
-login_drive12:
-	mov	bx,offset req_hdr
-	mov	[bx+RH_UNIT],dl		; save logical unit to use
-	mov	[bx+RH_CMD],CMD_BUILD_BPB
-	call	device_request		; tell it to build a BPB
-;	 jc	dev_fail		; return if can't determine BPB
-	 jnc	login_drive15
-	jmp	login_drive17		; return if can't determine BPB
-login_drive15:
-	cmp	dl,boot_drv
-	 jne	login_drive16
-	mov	dh,dl
-login_drive16:
-	les	di,[bx+RH2_BPB]
-	mov	ax,part_off
-	cmp	es:word ptr BPB_HIDDEN[di],ax
-	 jne	login_drive17
-	mov	ax,part_off+2
-	cmp	es:word ptr BPB_HIDDEN+2[di],ax
-	 jne	login_drive17
-	mov	dh,dl
-	jmp	login_drive18
-login_drive17:
-	inc	dl
-	 jz	login_drive18
-	jmp	login_drive12
-login_drive18:
-	cmp	dh,255
-	 jne	login_drive19
-	jmp	dev_fail
-login_drive19:
-	mov	dl,dh
-	mov	boot_drv,dl
-	mov	init_drv,dl
 	mov	bx,offset req_hdr
 	mov	[bx+RH_UNIT],dl		; save logical unit to use
 	mov	[bx+RH_CMD],CMD_BUILD_BPB
@@ -210,71 +287,6 @@ dos_version_check:
 	 jne	dev_fail		;  reject all but the one we want
 	ret				; return now I'm happy
 
-dev_fail:	; any error has occurred loading the BDOS
-;--------
-; Print '$' terminated message at offset DX to console without using the BDOS
-;
-	mov	dx,offset dos_msg
-	les	di,resdev_chain		; get first device driver address
-fail_scan:
-	test	es:[di+DEVHDR.ATTRIB],DA_CHARDEV
-	 jz	fail_next		; skip if not a character device
-	test	es:[di+DEVHDR.ATTRIB],DA_ISCOT
-	 jnz	fail_found		; skip if console device found
-fail_next:
-	les	di,es:[di]		; get next device
-	jmp	fail_scan
-fail_found:
-	mov	ax,es:6[di]		; get strategy offset
-	mov	strat_off,ax
-	mov	strat_seg,es		; get strategy segment
-	mov	ax,es:8[di]		; get interrupt offset
-	mov	intrpt_off,ax
-	mov	intrpt_seg,es		; get interrupt segment
-
-	mov	bx,offset req_hdr
-	mov	[bx+RH_CMD],CMD_OUTPUT	; write to console
-	mov	[bx+RH_LEN],RH4_LEN	; set request header length
-	mov	[bx+RH4_BUFOFF],dx	; set address of string
-	mov	[bx+RH4_BUFSEG],ds
-	mov	[bx+RH4_COUNT],-1
-	mov	si,dx			; now find the end of the string
-fail_count_chars:
-	inc	[bx+RH4_COUNT]		; print another char
-	lodsb				; examine the next one
-	cmp	al,'$'			; terminating char ?
-	 jnz	fail_count_chars
-	call	device_request		; call the console driver
-
-	sti
-wait_forever:
-	jmp	wait_forever			; wait for reboot
-
-
-device_request:		; general device driver interface
-;--------------
-;	entry:	BX -> request header
-;	exit:	CY = 1 if error
-
-	push	ds
-	push	es
-	push	ds
-	pop	es
-	mov	ds,strat_seg
-	call	dword ptr cs:strat_ptr
-	call	dword ptr cs:intrpt_ptr
-	pop	es
-	pop	ds
-	test	[bx+RH_STATUS],RHS_ERROR
-	 jnz	devreq_err
-	clc
-	ret
-devreq_err:
-	stc
-;	jmp	dev_fail		; print error message
-
-
-	ret
 	
 open_file:	; open BDOS system file
 ;---------
@@ -825,6 +837,9 @@ div32_2:
 	mov	[bp],ax			; save remainder onto stack
 	mov	2[bp],dx
 	ret
+
+endif	; SINGLEFILE=0
+
 INITCODE	ends
 
 
@@ -850,6 +865,8 @@ intrpt_ptr	label	dword
 intrpt_off	dw	?
 intrpt_seg	dw	?
 
+if SINGLEFILE eq 0
+
 dta_ptr		label	dword
 dta_off		dw	?
 dta_seg		dw	?
@@ -862,13 +879,9 @@ current_fatsec	dw	-1,-1			; no FAT sector read yet
 fattype		dw	0			; defaults to 12 bit FAT
 nfatsecs	dw	0,0			; number of FAT sectors (32-bit)
 
-;	single error message if BDOS can't be loaded:
+endif
 
-
-include	initmsgs.def				; Include TFT Header File
-
-
-;dos_msg	db	CR,LF,'Can''t load DOS file.$'
+include	initmsgs.def				; for dos_msg error msg
 
 
 ;	static request header for DOS device driver I/O
@@ -922,7 +935,5 @@ BPB_HIDDEN		equ	17
 
 	extrn	sector_buffer:byte
 INITDATA	ends
-
-endif ; SINGLEFILE
 
 	end

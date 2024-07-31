@@ -655,7 +655,7 @@ local_buffer 	label 	byte
 	pop	di
 	pop	cx
 
-	push	ax			; bdos_seg if loaded from ROM
+	push	ax			; ROM boot: BDOS seg
 	mov	ax, cs			; preserve entry registers
 	mov	ds, ax			; other than si, ds and es
 	xor	si, si
@@ -666,7 +666,7 @@ local_buffer 	label 	byte
 	; standardize to DL holding drive unit
 	cmp	ax,60h			; are we loaded at segment 60h?
 	jne	uncompress_and_relocate_kernel
-	mov	dl,bl			; then copy unit fron BL to DL
+	mov	dl,bl			; copy phys boot drive fron BL to DL
 
 uncompress_and_relocate_kernel:
 if COMPRESSED eq 0
@@ -679,10 +679,10 @@ if COMPRESSED eq 0
 	jmp	not_compressed
 @@:
 endif
-	push	di			; bios_seg
-	push	bx			; initial drives
-	push	cx			; memory size
-	push	dx			; initial flags
+	push	di			; ROM boot: DL=0ffh, Disk boot: DL=phys boot drv
+	push	bx			; ROM boot: memory size, Disk boot: unused
+	push	cx			; ROM boot: initial drives, Disk boot: unused
+	push	dx			; ROM boot: BIO seg, Disk boot: unused
 
 	mov	ax,TEMP_RELOC_SEG
 	mov	es,ax
@@ -760,15 +760,13 @@ if COMPRESSED eq 1
 	jmp 	@@uncompress_block
 @@uncompress_fini:
 endif
-  	push	cs
-  	pop	ds			; ds = BIO segment
-	pop	dx
-	pop	cx
-	pop	bx
-	pop	di
+	pop	dx			; ROM boot: DL=0ffh, Disk boot: DL=phys boot drv
+	pop	cx			; ROM boot: memory size, Disk boot: unused
+	pop	bx			; ROM boot: initial drives, Disk boot: unused
+	pop	di			; ROM boot: BIO seg, Disk boot: unused
 not_compressed:
 
-	pop	ax
+	pop	ax			; ROM boot: BDOS seg
 	jmp	init1			; next initialization stage is
 					; part of discardable ICODE segment
 init0	endp

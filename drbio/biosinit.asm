@@ -123,6 +123,7 @@ INITCODE	segment public byte 'INITCODE'
 	extrn	config:near			; CONFIG.SYS Processor
 	extrn	crlf:near			; Output CR/LF to screen
 	extrn	resident_device_init:near	; Device Driver Init
+	extrn	detect_boot_drv:near
 if SINGLEFILE eq 0
 	extrn	read_dos:near			; load DOS file
 	extrn	dos_version_check:near
@@ -329,6 +330,10 @@ relocated_init:
 	mov	ax,0100h		;  the multi tasker (386 or above)
 dont_align:
 	mov	free_seg,ax		;  and save as first Free Segment
+	test	init_flags,INIT_ROMCODE ; ROM boot: no boot drv detection
+	 jnz	skip_boot_drv_detection
+	call	detect_boot_drv
+skip_boot_drv_detection:
 if SINGLEFILE eq 0
 	cmp	current_dos,0		; does the OEM want us to read
 	 jnz	dos_reloc		;   the DOS file from disk?
