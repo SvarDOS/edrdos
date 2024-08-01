@@ -907,6 +907,9 @@ init1	proc	near
 
 	mov	si,cs
 	mov	ds,si			; DS -> local data segment
+	pop	ds:part_off		; pushed at init0 from BPB hidden sectors
+	pop	ds:part_off+2
+
 	cmp	dl,0ffh			; booting from ROM?
 	 jz	rom_boot
 	cmp	si,1000h		; test if debugging
@@ -1141,7 +1144,9 @@ output_hex40	db	20h,NUL		; end of string
 
 ICODE	ends
 
-INITDATA	segment public byte 'INITDATA'
+INITDATA	segment public word 'INITDATA'
+
+	extrn	part_off:word
 
 ; This is a zero terminated list of locations to be fixed up with the
 ; segment of the relocated BIOS RCODE
