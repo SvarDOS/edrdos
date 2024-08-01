@@ -7,4 +7,4 @@ if [ $1 = "singlefile" ]; then
 	FLAGS="SINGLEFILE=1"
 fi
 
-wmake -h clean all $FLAGS GIT_REV=$(git rev-parse --short HEAD)
+wmake -h clean all $FLAGS VERSION=$(date +%Y%m%d) GIT_REV=$(git rev-parse --short HEAD)
