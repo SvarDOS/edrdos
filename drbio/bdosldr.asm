@@ -35,6 +35,7 @@
 
 	include request.equ
 	include driver.equ
+	include udsc.equ
 	include	config.equ
 
 ;	MISC constants
@@ -100,6 +101,10 @@ endif
 	mov	dh,dl			; dh=boot_drv 
 @@compare_part_off:
 	les	di,[bx+RH2_BPB]
+	mov al, [init_int13_unit]
+		; magic: poke into the UPB structure around the BPB
+	cmp es:byte ptr - UDSC.BPB + UDSC.RUNIT[di], al
+	 jne @@next_drv
 	mov	ax,part_off
 	cmp	es:word ptr BPB_HIDDEN[di],ax
 	 jne	@@next_drv
@@ -854,6 +859,7 @@ INITDATA	segment public word 'INITDATA'
 		extrn	boot_device:dword	; device driver we boot from
 		extrn	boot_drv:byte		; boot drive
 		extrn	init_drv:byte		; init drive
+		extrn	init_int13_unit:byte
 		extrn	dos_name:byte		; name of BDOS file
 		extrn	part_off:word		; 4-byte boot partition offset
 

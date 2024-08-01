@@ -176,6 +176,7 @@ CODE	segment public word 'CODE'
 	extrn	ext_mem_size:word
 	extrn	init_buf:byte
 	extrn	init_drv:byte
+	extrn	init_int13_unit:byte
 	extrn	init_runit:byte
 	extrn	comspec_drv:byte
 	extrn	init_flags:word
@@ -943,6 +944,7 @@ disk_boot:
 	mov	current_dos,ax		; current BDOS location to disk load
 	xchg	ax,dx			; AL = boot drive
 	mov	init_runit,al		; save the ROS unit
+	mov	init_int13_unit,al	; save the ROS unit
 	test	al,al			; test the boot drive
 	 jz	floppy_boot		; skip if floppy boot
 	mov	al,2			; it's drive C:

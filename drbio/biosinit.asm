@@ -2114,12 +2114,13 @@ commandHMA	dw	0		; offset of area in HMA reserved
 device_root	dd	0		; Root of Resident Device driver Chain
 
 	Public	mem_size, ext_mem_size, comspec_drv
-	Public	init_flags, init_drv
+	Public	init_flags, init_drv, init_int13_unit
 
 mem_size	dw	0		; Total Memory Size (in Paragraphs)
 ext_mem_size	dw	0		; Total Extended Memory Size (in KB.)
 init_flags	dw	0		; BIOS INIT Flags
 init_drv	db	0		; Boot Drive (A is 0 .....)
+init_int13_unit	db	0
 comspec_drv	db	0		; Default COMSPEC Drive
 
 	Public	num_stacks, stack_size
