@@ -36,11 +36,11 @@ bin/txhelp.bin: bin/helpstub.obj bin/txhelp.obj
 	$(EXE2BIN) -q bin$(SEP)txhelp.exe bin$(SEP)txhelp.bin
 .c: ..
 .c.obj: .AUTODEPEND
-	$(WCC) $(CFLAGS) -Fo$^@ $[@
+	*$(WCC) $(CFLAGS) -Fo$^@ $[@
 
 .asm: ..
 .asm.obj:
-	$(WASM) $(WASM_FLAGS) -Fo$^@ $[@
+	*$(WASM) $(WASM_FLAGS) -Fo$^@ $[@
 
 bin/message.obj: message.asm version.inc
 

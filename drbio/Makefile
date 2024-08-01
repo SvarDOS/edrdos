@@ -71,7 +71,7 @@ bin/genercfg.obj: genercfg.asm config.equ msdos.equ char.def request.equ driver.
 bin/nlsfunc.obj: nlsfunc.asm config.equ msdos.equ mserror.equ
 
 .asm.obj:
-	$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
+	*$(WASM) $(WASM_FLAGS) -Fo$^@ -Fl$^*.lst $[@
 
 version.inc: ../version.inc
 	$(CP) ..$(SEP)version.inc .
