@@ -446,7 +446,7 @@ func33:
 	cmp	al, 0FFh		; is it function 33FFh ?
 	 jne	f33_XX			; no, jump -->
 	call	f33_FF			; yes
-	db	longsysname
+	db	KERNEL_VER_STR
 	db	0
 
 f33_FF:	pop	reg_AX[bp]		; dx:ax - hidden DOS string

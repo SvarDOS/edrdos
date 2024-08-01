@@ -2,22 +2,19 @@ ifidn VERSION, <>
 VERSION	    textequ <?>
 endif
 
-SYSNAME     textequ <"SvarDOS">
-LONGSYSNAME textequ <"SvarDOS Enhanced DR-DOS based on Caldera OpenDOS 7.01">
-
-BUILDDATE   catstr <">, @date, < >, @time , <">
-
 ifidn GIT_REV, <>
-COMMIT   textequ <"?">
+COMMIT   textequ <?>
 else
-COMMIT   catstr <">, GIT_REV, <"> 
+COMMIT   textequ GIT_REV
 endif
 
-VERSIONSTR  catstr <">, VERSION, <">
+KERNEL_VER_STR	textequ <13, 10, "Enhanced DR-DOS kernel >, VERSION, < (git rev >, COMMIT, <) [built >, @date, < >, @time , <]", 13, 10>
+REPOSITORY_STR	textequ <"source and licensing conditions available at https://github.com/SvarDOS/edrdos", 13, 10>
 
-KERNELNAME  textequ <"SvarDOS Enhanced DR-DOS Kernel">
-KERNELMSG   textequ <13, 10, KERNELNAME, "                https://github.com/SvarDOS/edrdos", 13, 10, \
-		    "ver ", VERSIONSTR, " / rev ", COMMIT, " / built ", BUILDDATE , 13, 10>
+; used by command.com
+SYSNAME_STR textequ <'Enhanced DR-DOS based on Caldera OpenDOS 7.01'>
 
-COPYRIGHT   textequ <"based on Caldera OpenDOS 7.01 sources, patches (c)opyright 2002-2011 Udo Kuhnt", 13, 10, \
-		    "distributed and used under license agreement by DRDOS, Inc. on 2022-07-07", 13, 10>
+; embedded in DRBIO.SYS
+COPYRIGHT_STR   textequ <"Copyright (c) 1983,1996 Caldera, Inc. All Rights Reserved>, \
+< Patches to original OpenDOS source code Copyright (c) 2002-2011 Udo Kuhnt>, \
+< distributed and used under license agreement by DRDOS, Inc. on 2022-07-07">

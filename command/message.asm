@@ -20,7 +20,7 @@ _msg_ver111	db	NUL , NUL
 	public	msg_version
 msg_version	label	byte
 _msg_version	db	LF
-		db longsysname
+		db SYSNAME_STR
 		db LF, NUL
 	public	_msg_lbl
 	public	msg_lbl

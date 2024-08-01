@@ -993,10 +993,11 @@ debugger_detected:
 
 	Assume	DS:CGROUP, ES:CGROUP
 
-	mov	si,offset kernel_msg
+	mov	si,offset kernel_ver_msg
 	call	output_msg
-	mov	si,offset starting_dos_msg
+	mov	si,offset repository_msg
 	call	output_msg
+
 ;	call	get_boot_options	; look for user keypress
 ;	mov	boot_options,ax		;  return any options
 

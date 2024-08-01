@@ -170,7 +170,6 @@ ASSUME DS:PCMDATA
 	include driver.equ
 	include f52data.def	; DRDOS Structures
 	include bdos.equ
-	include version.inc
 	.list
 
 FD_EXPAND equ 55h
@@ -441,11 +440,6 @@ include	funcs.fdo
 include	utils.fdo
 
 BDOS_DATA	segment public word 'DATA'
-shortversion equ 1
-		db	longsysname
-		db	' Patches to original OpenDOS source code '
-		db	'Copyright (c) 2002-2011 Udo Kuhnt'
-		db	0
 
 BDOS_DATA	ends
 

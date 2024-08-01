@@ -132,13 +132,9 @@ endif
 	extrn	setup_stacks:near
 	extrn	preload_done:near
 
-		db	'Copyright (c) 1983,1996 '
-		db	'Caldera, Inc. All Rights Reserved '
-		db	'XXXX-0000-987654321X '
-
-		db	'Patches to original OpenDOS source code '
-		db	'Copyright (c) 2002-2011 Udo Kuhnt'
-
+copyright:
+	include version.inc
+	db COPYRIGHT_STR, 0
 
 	Public	biosinit
 ;========
