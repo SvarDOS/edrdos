@@ -622,11 +622,12 @@ local_buffer 	label 	byte
 	sti
 	cld
 
-	; the following expects ds:bp to point to the boot sector, in
-	; particular the BPB, to push its hidden sectors field to stack
-	; NOTE: part_off currently not used anymore
+	; The following expects ds:bp to point to the boot sector, in
+	; particular the BPB, to push its hidden sectors field to stack.
+	; It is used to determine the boot drive by matching the
+	; partition offset.
 	push	ds:1eh[bp]		; push BPB hidden sectors
-	push	ds:1ch[bp]		; ..popped at biosinit to part_off
+	push	ds:1ch[bp]		; ..popped at init0 end
 
 	push	cx			; save entry registers
 	push	di			; (important in ROM systems)
@@ -766,8 +767,9 @@ endif
 	pop	bx			; ROM boot: initial drives, Disk boot: unused
 	pop	di			; ROM boot: BIO seg, Disk boot: unused
 not_compressed:
-
 	pop	ax			; ROM boot: BDOS seg
+	pop	cs:part_off		; pushed at init0 start from BPB hidden sectors
+	pop	cs:part_off+2
 	jmp	init1			; next initialization stage is
 					; part of discardable ICODE segment
 init0	endp
@@ -907,9 +909,6 @@ init1	proc	near
 
 	mov	si,cs
 	mov	ds,si			; DS -> local data segment
-	pop	ds:part_off		; pushed at init0 from BPB hidden sectors
-	pop	ds:part_off+2
-
 	cmp	dl,0ffh			; booting from ROM?
 	 jz	rom_boot
 	cmp	si,1000h		; test if debugging
