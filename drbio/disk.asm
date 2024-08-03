@@ -609,7 +609,7 @@ add_unit:	; add a new unit to the list
 	push	ds
 	mov	es:word ptr UDSC.NEXT[di],0FFFFh
 					; make sure it's terminated
-	and	es:UDSC.FLAGS[di],UDF_LBA+UDF_HARD+UDF_CHGLINE
+	and	es:UDSC.FLAGS[di],UDF_LBA+UDF_HARD+UDF_CHGLINE+UDF_NOACCESS
 	lea	si,udsc_root		; DS:SI -> [first UDSC_]
 add_unit10:
 	cmp	ds:word ptr UDSC.NEXT[si],0FFFFh
@@ -621,7 +621,7 @@ add_unit10:
 	mov	ax,ds:UDSC.FLAGS[si]	; inherit some flags
 	push	ax
 	and	ax,UDF_LBA+UDF_HARD+UDF_CHGLINE
-	mov	es:UDSC.FLAGS[di],ax	; hard disk/changeline inherited
+	or	es:UDSC.FLAGS[di],ax	; hard disk/changeline inherited
 	pop	ax
 	test	ax,UDF_HARD
 	 jnz	add_unit10		; skip owner stuff on hard drive
@@ -1053,6 +1053,12 @@ dd_input:	; 4-input
 
 io_common:				; common code for the above three
 	call	point_unit		; get unit descriptor
+	test	es:UDSC.FLAGS[di],UDF_NOACCESS
+	 jz	io_granted
+	 mov	ax,RHS_ERROR+7		; bad media type
+	 stc
+	 ret
+io_granted:
 	call	ask_for_disk		; make sure we've got correct floppy
 	call	setup_rw		; setup for read/write operation
 	 jc	io_ret			; return if bad parameters
@@ -2379,6 +2385,7 @@ equip_loop:
 
 	call	new_unit		; ES:DI -> UDSC
 	mov	es:UDSC.RUNIT[di],dl	; set physical drive (ROS code)
+	xor	es:UDSC.FLAGS[di],UDF_NOACCESS	; floppy access enabled by default
 
 	call	floppy_type		; determine type, build default BPB
 
@@ -2994,6 +3001,7 @@ log_p1:					; any of the above:  BPB invalid
 	jmp	log_p9
 
 log_p2:					; valid BPB for partition, AX/DX = size
+	xor 	es:UDSC.FLAGS[di],UDF_NOACCESS ; mark drive as accessible
 	cmp word ptr BPB.TOTSEC[si], 0	; BPB says small size ?
 	jne log_p2a			; no -->
 	test dx, dx			; partition table says larger ?
@@ -3300,6 +3308,7 @@ new_unit:
 	xor	bx,bx
 	mov	bl,nunits		; BX = unit we are working on
 	mov	es:UDSC.DRIVE[di],bl	; make that our logical unit
+	or	es:UDSC.FLAGS[di],UDF_NOACCESS	; no access until valid BPB
 	shl	bx,1			; make it a BPB index
 	lea	ax,es:UDSC.DEVBPB[di]	; get storage area for device BPB
 	mov	bpbtbl[bx],ax		; update entry in BPB table
