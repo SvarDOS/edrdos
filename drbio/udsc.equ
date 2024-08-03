@@ -63,6 +63,6 @@ UDF_UNSURE	equ	0004h		; drive has just been formatted
 UDF_VFLOPPY	equ	0010h		; drive shares physical drive
 UDF_OWNER	equ	0020h		; logical drive "owns" physical drive
 UDF_MEDIA	equ	0100h		; media id is from bootsec, not default
-UDF_ACCESS	equ	0200h		; set if access to drive is disabled
+UDF_NOACCESS	equ	0200h		; set if access to drive is disabled
 UDF_LBA		equ	0400h		; drive accessed by LBA
 MAXPART		equ	26		; support up 26 drives

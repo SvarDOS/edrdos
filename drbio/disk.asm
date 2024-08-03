@@ -1546,6 +1546,10 @@ genioctlTable	label	byte
 	dw	offset ioctl_getmedia
 	db	RQ19_SETMEDIA		; set media id
 	dw	offset ioctl_setmedia
+	db	RQ19_SETACCESS		; set access flag
+	dw	offset ioctl_setaccess
+	db	RQ19_GETACCESS		; get access flag
+	dw	offset ioctl_getaccess	
 	db	RQ19_LOCKLOG
 	dw	offset ioctl_locklogical
 	db	RQ19_LOCKPHYS
@@ -2047,6 +2051,34 @@ ioctl_setmedia:
 	jmp	rw_media		; write the boot sector
 setmedia10:
 	ret
+
+ioctl_setaccess proc
+	push	ds
+	call	point_ioctl_packet	; DS:BX -> ioctl packet
+	mov	ax,es:UDSC.FLAGS[di]	; get flags
+	xor	ax,UDF_NOACCESS		; mask NOACCES flag: accessible
+	cmp	ds:1[bx],byte ptr 0	; zero means request sets no access flg
+	jne	@@done			; if not zero, skip setting NOACCESS
+	or	ax,UDF_NOACCESS		; set NOACCESS flag
+@@done:	mov	es:UDSC.FLAGS[di],ax	; write back access flag
+	xor	ax,ax			; return success
+	pop	ds
+	ret
+ioctl_setaccess endp
+
+ioctl_getaccess proc
+	push	ds
+	call	point_ioctl_packet	; DS:BX -> ioctl packet
+	mov	ax,es:UDSC.FLAGS[di]	; get flags
+	mov	ds:1[bx],byte ptr 1	; default to access granted
+	and	ax,UDF_NOACCESS		; perhaps not?
+	 jz	@@done			; it is granted!
+	mov	ds:1[bx],byte ptr 0	; otherwise indicate not accessible
+	xor	ax,ax			; return success
+@@done: pop	ds
+	ret
+ioctl_getaccess endp
+
 
 ioctl_locklogical:
 ioctl_lockphysical:
