@@ -2062,8 +2062,8 @@ ioctl_setaccess proc
 	push	ds
 	call	point_ioctl_packet	; DS:BX -> ioctl packet
 	mov	ax,es:UDSC.FLAGS[di]	; get flags
-	xor	ax,UDF_NOACCESS		; mask NOACCES flag: accessible
-	cmp	ds:1[bx],byte ptr 0	; zero means request sets no access flg
+	and	ax,not UDF_NOACCESS	; clear NOACCES flag
+	cmp	byte ptr ds:1[bx],0	; zero means request sets no access flg
 	jne	@@done			; if not zero, skip setting NOACCESS
 	or	ax,UDF_NOACCESS		; set NOACCESS flag
 @@done:	mov	es:UDSC.FLAGS[di],ax	; write back access flag
@@ -2076,10 +2076,10 @@ ioctl_getaccess proc
 	push	ds
 	call	point_ioctl_packet	; DS:BX -> ioctl packet
 	mov	ax,es:UDSC.FLAGS[di]	; get flags
-	mov	ds:1[bx],byte ptr 1	; default to access granted
+	mov	byte ptr ds:1[bx],1	; default to access granted
 	and	ax,UDF_NOACCESS		; perhaps not?
 	 jz	@@done			; it is granted!
-	mov	ds:1[bx],byte ptr 0	; otherwise indicate not accessible
+	mov	byte ptr ds:1[bx],0	; otherwise indicate not accessible
 	xor	ax,ax			; return success
 @@done: pop	ds
 	ret
