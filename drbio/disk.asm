@@ -2385,7 +2385,7 @@ equip_loop:
 
 	call	new_unit		; ES:DI -> UDSC
 	mov	es:UDSC.RUNIT[di],dl	; set physical drive (ROS code)
-	xor	es:UDSC.FLAGS[di],UDF_NOACCESS	; floppy access enabled by default
+	and	es:UDSC.FLAGS[di],not UDF_NOACCESS	; floppy access enabled by default
 
 	call	floppy_type		; determine type, build default BPB
 
@@ -3001,7 +3001,7 @@ log_p1:					; any of the above:  BPB invalid
 	jmp	log_p9
 
 log_p2:					; valid BPB for partition, AX/DX = size
-	xor 	es:UDSC.FLAGS[di],UDF_NOACCESS ; mark drive as accessible
+	and 	es:UDSC.FLAGS[di], not UDF_NOACCESS ; mark drive as accessible
 	cmp word ptr BPB.TOTSEC[si], 0	; BPB says small size ?
 	jne log_p2a			; no -->
 	test dx, dx			; partition table says larger ?
