@@ -10,7 +10,7 @@ CP = copy
 
 !ifdef __MSDOS__
 LTOOLS = ltools$(SEP)dos
-WASM = jwasmr
+WASM = jwasmd
 !else ifdef __NT__
 LTOOLS = ltools$(SEP)win32
 WASM = jwasm
