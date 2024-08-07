@@ -23,7 +23,7 @@ COMPBDOS_FLAGS=
 
 WASM_FLAGS += -DDELWATCH -DJOIN -DKANJI -DPASSWORD -DUNDELETE
 
-WASM_FLAGS += -DGIT_REV=$(GIT_REV) -DVERSION=$(VERSION)
+WASM_FLAGS += -DGIT_REV="$(GIT_REV)" -DVERSION="$(VERSION)"
 
 objs  = bin/buffers.obj bin/dirs.obj bin/fdos.obj bin/fcbs.obj bin/bdevio.obj
 objs += bin/cdevio.obj bin/fioctl.obj bin/redir.obj bin/header.obj
