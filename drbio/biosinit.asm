@@ -515,6 +515,7 @@ dos_r70:
 	pop 	es
 load_e10:
 	call	add_comspec_to_env	; append / update COMSPEC in config env
+	call	copy_config_env_to_seg60
 	mov	ax,(MS_X_EXEC * 256)+0	; Exec the Command Processor
 	mov	bx,offset exec_env	; Get the Parameter Block Address
 	mov	dx,offset shell		; and the Command Processor
@@ -2085,6 +2086,19 @@ add_comspec_to_env proc
 	ret
 add_comspec_to_env endp
 
+copy_config_env_to_seg60 proc
+	push	es
+	mov	ax,60h
+	mov	es,ax
+	mov	si,offset envstart
+	xor	di,di
+	mov	cx,80h
+	rep	movsw
+	les	bx,drdos_ptr
+	mov	es:DRDOS_ENVSEG[bx],ax	; tell COMMAND.COM where we are
+	pop	es
+	ret
+copy_config_env_to_seg60 endp
 
 INITCODE ends
 
