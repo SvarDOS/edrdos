@@ -515,7 +515,10 @@ dos_r70:
 	pop 	es
 load_e10:
 	call	add_comspec_to_env	; append / update COMSPEC in config env
+if BIO_SEG ge 70h
+	; relocate config environment to segment 60 if kernel is not in the way
 	call	copy_config_env_to_seg60
+endif
 	mov	ax,(MS_X_EXEC * 256)+0	; Exec the Command Processor
 	mov	bx,offset exec_env	; Get the Parameter Block Address
 	mov	dx,offset shell		; and the Command Processor
