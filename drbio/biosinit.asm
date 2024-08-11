@@ -474,6 +474,7 @@ dos_r50:
 	call	config_start		; get free memory
 	call	config			; read and process CONFIG.SYS
 	call	config_end		; relocate DOS code and free memory
+	call	add_comspec_to_env	; append COMSPEC to config environment
 
 	mov	ax,(MS_X_OPEN*256)+2	; Open for Write
 	mov	dx,offset idle_dev	; Get the IDLE Device Name#
@@ -2037,6 +2038,58 @@ Verify386fail:
 	stc				; it's not a 386
 	ret
 
+; append COMSPEC to config environment
+add_comspec_to_env proc
+	push	es
+	push	bx
+	push	ds
+	pop	es
+	cmp	comspec_env_offset,-1	; COMSPEC= already present in env?
+	 je	@@search		; if not, search env end
+	mov	di,comspec_env_offset
+	add	di,8			; skip COMSPEC=
+	jmp	@@copy_shell		; COMSPEC= already there, update only filename
+@@search:				
+	mov	di,offset envstart	; search end of environment
+	dec	di
+@@search_next:
+	inc	di
+	cmp	word ptr [di],0
+	 jne	@@search_next
+	inc	di			; DI points to free part of env
+	mov	comspec_env_offset,di	; remember comspec offset
+@@copy_comspec:
+	mov	si,offset comspec
+	cmp	di,offset envend - 8
+	jae	@@err			; not much room enough to copy COMSPEC=
+	lodsw				; CO
+	stosw
+	lodsw				; MS
+	stosw
+	lodsw				; PE
+	stosw
+	lodsw				; C=
+	stosw
+@@copy_shell:
+	mov	si,offset shell
+@@copy_next:
+	cmp	di,offset envend
+	 jae	@@err			; environment full!!!
+	lodsb				; copy single filename char
+	stosb
+	test	al,al
+	 jnz	@@copy_next
+	stosb				; append second zero
+	jmp	@@ret
+@@err:	mov	di,comspec_env_offset	; revert appending of comspec
+	mov	word ptr [di],0		; terminate env with double zero
+	mov	comspec_env_offset,-1	; set comspec not appended
+@@ret:	pop	bx
+	pop	es
+	ret
+add_comspec_to_env endp
+
+
 INITCODE ends
 
 INITDATA	segment public word 'INITDATA'
@@ -2056,6 +2109,8 @@ include	initmsgs.def				; Include TFT Header File
 	extrn	cfg_seekhi:word
 	extrn	boot_options:word
 	extrn	boot_switches:byte
+	extrn	envstart:near
+	extrn	envend:near
 
 ;
 ;	PUBLIC Variables which are initialised by the BIOS before the
@@ -2278,6 +2333,9 @@ shell_end	db	0			; end of the line
 	Public	shell
 shell		db	'A:\COMMAND.COM', 0	
 		db	(80-lengthof shell) dup (0)
+comspec		db	'COMSPEC='
+comspec_env_offset	dw -1			; comspec offset of environment
+
 INITENV ends
 
 DATAEND	segment public para 'INITDATA'
