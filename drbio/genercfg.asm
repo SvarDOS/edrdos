@@ -3889,6 +3889,7 @@ cfg_table	label word
 if not ADDDRV
 	dw	cmd_country,	func_country,	1	; COUNTRY=nnn,nnn,country
 	dw	cmd_shell,	func_shell,	1	; SHELL=filename
+	dw	cmd_highshell,	func_shell,	1	; HIGHSHELL=filename (SHELL alias FreeDOS compatibility)
 	dw	cmd_lastdrive,	func_lastdrive,	1	; LASTDRIVE=d:
 	dw	cmd_hilastdrive,func_hilastdrive,1	; HILASTDRIVE=d:
 	dw	cmd_break,	func_break,	1	; BREAK=ON/OFF
@@ -3946,6 +3947,7 @@ endif
 
 if not ADDDRV
 cmd_country	db	'COUNTRY',0
+cmd_highshell	db	'HIGH'
 cmd_shell	db	'SHELL',0
 cmd_hilastdrive db      'HI'            ;'HILASTDRIVE',0
 cmd_lastdrive	db	'LASTDRIVE',0
