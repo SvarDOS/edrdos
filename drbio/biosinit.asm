@@ -2059,17 +2059,13 @@ add_comspec_to_env proc
 	inc	di			; DI points to free part of env
 	mov	comspec_env_offset,di	; remember comspec offset
 @@copy_comspec:
-	mov	si,offset comspec
 	cmp	di,offset envend - 8
 	jae	@@err			; not much room enough to copy COMSPEC=
-	lodsw				; CO
-	stosw
-	lodsw				; MS
-	stosw
-	lodsw				; PE
-	stosw
-	lodsw				; C=
-	stosw
+	mov	si,offset comspec
+	movsw
+	movsw
+	movsw
+	movsw
 @@copy_shell:
 	mov	si,offset shell
 @@copy_next:
