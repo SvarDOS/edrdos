@@ -4040,7 +4040,8 @@ INITDATA ends
 
 INITENV		segment public para 'INITDATA'
 Public envstart
-envstart	db	253 dup (0)	; initial env buffer
+envstart	db	251 dup (0)	; initial env buffer
+Public envend
 envend		dw	0		; make it double null terminated
 		db	1Ah		; EOF marker env buffer
 	Public	boot_options, boot_switches
