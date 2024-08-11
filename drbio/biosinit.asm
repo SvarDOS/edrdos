@@ -474,7 +474,6 @@ dos_r50:
 	call	config_start		; get free memory
 	call	config			; read and process CONFIG.SYS
 	call	config_end		; relocate DOS code and free memory
-	call	add_comspec_to_env	; append COMSPEC to config environment
 
 	mov	ax,(MS_X_OPEN*256)+2	; Open for Write
 	mov	dx,offset idle_dev	; Get the IDLE Device Name#
@@ -515,6 +514,7 @@ dos_r70:
 	push 	cs
 	pop 	es
 load_e10:
+	call	add_comspec_to_env	; append / update COMSPEC in config env
 	mov	ax,(MS_X_EXEC * 256)+0	; Exec the Command Processor
 	mov	bx,offset exec_env	; Get the Parameter Block Address
 	mov	dx,offset shell		; and the Command Processor
