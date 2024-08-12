@@ -4040,7 +4040,7 @@ INITDATA ends
 
 INITENV		segment public para 'INITDATA'
 Public envstart
-envstart	db	251 dup (0)	; <<< initial env buffer, copied to seg 60
+envstart	db	250 dup (0)	; <<< initial env buffer, copied to seg 60
 Public envend				; 
 envend		dw	0		; make it double null terminated
 		db	1Ah		; EOF marker env buffer
