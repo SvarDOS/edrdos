@@ -243,8 +243,8 @@ Int13_Keep_CF:
 	ret
 
 
-ros_errors	db	03h, 80h, 08h, 10h, 40h, 04h, 06h, 00h
-dos_errors	db	00h, 02h, 04h, 04h, 06h, 08h, 0Fh, 0Ch
+ros_errors	db	03h, 80h, 08h, 10h, 40h, 04h, 06h, 00h, 07h
+dos_errors	db	00h, 02h, 04h, 04h, 06h, 08h, 0Fh, 0Ch, 07h
 NUMROSERR	equ	dos_errors - ros_errors
 
 ;	The following  code  is required  in order  to cope  with
@@ -764,6 +764,7 @@ login_media:		; determine BPB for new floppy disk
 	push	ds
 	mov	cx,1			; read track 0, sector 1 (boot)
 	call	login_read		; to determine media type
+	mov	ah,0			; AH=0 is general failure code on carry
 	 jc	login_media_err		; abort if physical error
 	cmp	local_buffer+BPB_SECTOR_OFFSET+BPB.FATID,0F0h
 	 jb	login_media10		; fail unless FATID sensible
@@ -782,8 +783,10 @@ login_media:		; determine BPB for new floppy disk
 login_media10:
 	mov	cx,2			; read track 0, sector 2 (FAT)
 	call	login_read		; try to read the sector
+	mov	ah,0			; AH=0 is general failure code on carry
 	 jc	login_media_err		; abort if physical error
 	cmp	word ptr 1[si],-1	; bytes 1, 2 must be 0FFh, 0FFh
+	mov	ah,7			; bad media type error
 	 jne	login_media_err		; error if bad fat
 	lodsb				; else get FAT ID byte
 	mov	si,offset bpb160		; look through builtin BPB table
@@ -794,23 +797,21 @@ login_media20:
 	add	si,BPB_LENGTH		; else move to next BPB
 	loop	login_media20		; repeat for all BPBs
 login_media_err:			; can't read BPB
+	or	es:UDSC.FLAGS[di],UDF_UNSURE	; mark as UNSURE
+	lea	si,UDSC.DEVBPB[di]		; copy DEVBPB into BPB
 	lea	di,UDSC.BPB[di]
-	mov	BPB.FATID[di],0		; make sure FAT ID is invalidated
-	stc
+	push	es
 	pop	ds
-	ret
+	call	copy_bpb		; copy DEVBPB into BPB
+	stc				; mark as error
+	pop	ds
+	ret				; error code in AH
 login_media40:
 	push	di
 	lea	di,UDSC.BPB[di]		; ES:DI -> unit descriptor (UDSC)
-	mov	cx,OLD_UDSC_BPB_LENGTH	; size of a BPB (less reserved stuff)
-	cmp	word ptr BPB.DIRMAX[si],0 ; test for FAT32
-	 jne	login_media41
-	mov	cx,UDSC_BPB_LENGTH	; size of FAT32 BPB
-login_media41:
-	rep	movsb			; copy into unit descriptor
+	call	copy_bpb
 	pop	di
 	mov	es:[di+UDSC.BPB+BPB.SECSIZ],SECSIZE
-;	mov	cx,0
 	mov	es:word ptr (UDSC.BPB+BPB.HIDDEN)[di],cx
 	mov	es:word ptr (UDSC.BPB+BPB.HIDDEN+2)[di],cx
 	cmp	si,offset local_buffer+OLD_UDSC_BPB_LENGTH+BPB_SECTOR_OFFSET
@@ -836,6 +837,19 @@ login_media60:
 dummyMediaID	dd	0	; serial number 0
 		db	'NO NAME    '
 		db	'FAT12   '
+
+; copy BPB
+;   IN:  DS:SI -> source BPB ; ES:DI -> target BPB
+;   OUT: CX = 0 ; SI and DI advanced by BPB size
+copy_bpb proc
+	mov	cx,OLD_UDSC_BPB_LENGTH
+	cmp	word ptr BPB.DIRMAX[si],0 ; test for FAT32
+	 jne	@@no_fat32
+	mov	cx,UDSC_BPB_LENGTH	; size of FAT32 BPB
+@@no_fat32:
+	rep	movsb
+	ret
+copy_bpb endp
 
 UpdateMediaID:
 ;-------------
