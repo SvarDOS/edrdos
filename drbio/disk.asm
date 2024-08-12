@@ -795,7 +795,7 @@ login_media20:
 	loop	login_media20		; repeat for all BPBs
 login_media_err:			; can't read BPB
 	lea	di,UDSC.BPB[di]
-	mov	BPB.FATID[si],0		; make sure FAT ID is invalidated
+	mov	BPB.FATID[di],0		; make sure FAT ID is invalidated
 	stc
 	pop	ds
 	ret
