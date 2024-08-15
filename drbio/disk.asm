@@ -2665,12 +2665,22 @@ login_hdisk:	; find all partitions on a hard disk
 	push	log_flag		; save state for next drive
 
 	mov	p_unit,dl		; save physical drive
+
+	; get drive parameters
 	push	dx
 	push	es
 	mov	ah,ROS_PARAM		; get drive parameters
 	int_____DISK_INT
+	inc	dh			; DH = number of heads
+	mov	nhead,dh		; set # of heads on drive
+	dec	dh
+	mov	al,cl
+	and	al,3Fh			; isolate sector count
+	mov	nsect,al		; set sectors per track
 	pop	es
 	pop	ax
+
+	; CX, DX still valid from above INT call
 	mov	dl,al
 	lea	si,diskaddrpack		; pointer to disk address packet
 	call	login_CHS2LBA		; convert CHS values to LBA
@@ -2711,19 +2721,6 @@ log_h1b:
 	 jnc	log_h1a
 	jmp	log_h9			; give up if disk error
 log_h1a:
-	push	cx
-	push	dx
-
-	mov	ah,ROS_PARAM
-	int_____DISK_INT		; return disk drive parameters
-	inc	dh			; DH = number of heads
-	mov	nhead,dh		; set # of heads on drive
-	and	cl,3Fh			; isolate sector count
-	mov	nsect,cl		; set sectors per track
-
-	pop	dx
-	pop	cx
-
 ;;	cmp	local_id,0AA55h
 ;;	 jne	log_h9			; give up if not initialized
 
