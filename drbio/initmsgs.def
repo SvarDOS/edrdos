@@ -24,10 +24,12 @@
 	extrn	bad_lastdrive	: byte
 	extrn	_bad_shell	: byte
 	extrn	bad_shell	: byte
+	extrn	_bootpart_not_found_msg : byte
+	extrn	bootpart_not_found_msg : byte
 	extrn	_dos_msg	: byte
-	extrn	dos_msg	: byte
+	extrn	dos_msg		: byte
 	extrn	_no_char	: byte
-	extrn	no_char	: byte
+	extrn	no_char		: byte
 	extrn	_yes_char	: byte
 	extrn	yes_char	: byte
 	extrn	_run_char	: byte

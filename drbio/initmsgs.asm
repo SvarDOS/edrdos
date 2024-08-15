@@ -74,10 +74,14 @@ _bad_country	db	"Invalid country code and / or code page$", NUL
 	public	bad_exec
 bad_exec	label	byte
 _bad_exec	db	"Bad or missing command interpreter.", CR, LF, "Please enter a valid filename.", CR, LF, "$", NUL
+	public	_bootpart_not_found_msg
+	public	bootpart_not_found_msg
+bootpart_not_found_msg	label	byte
+_bootpart_not_found_msg	db	CR, LF, "panic: can't find boot partition.$", NUL
 	public	_dos_msg
 	public	dos_msg
 dos_msg	label	byte
-_dos_msg	db	CR, LF, "Can't load DOS file.$", NUL
+_dos_msg	db	CR, LF, "panic: can't load DOS file.$", NUL
 	public	_f5key_msg
 	public	f5key_msg
 f5key_msg	label	byte

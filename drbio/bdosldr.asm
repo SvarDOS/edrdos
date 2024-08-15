@@ -37,6 +37,7 @@
 	include driver.equ
 	include udsc.equ
 	include	config.equ
+	include	initmsgs.def				; for dos_msg error msg
 
 ;	MISC constants
 CR		equ	0dh			;the usual
@@ -77,6 +78,7 @@ detect_boot_drv proc
 	or	ax,di			; make sure boot device is initialised
 	 jnz	@@get_device_procs
 if SINGLEFILE eq 0
+	mov	dx,offset bootpart_not_found_msg
 	jmp	dev_fail		; panic, cannot determine boot drv
 else
 	ret				; single-file kernel, user may resolve
@@ -120,6 +122,7 @@ endif
 @@done:
 	cmp	dh,255
 	 jne	@@store_boot_drv	; boot drv found?
+	mov	dx,offset bootpart_not_found_msg
 	jmp	dev_fail
 @@store_boot_drv:
 	mov	dl,dh
@@ -133,7 +136,6 @@ dev_fail:	; any error has occurred loading the BDOS
 ;--------
 ; Print '$' terminated message at offset DX to console without using the BDOS
 ;
-	mov	dx,offset dos_msg
 	les	di,resdev_chain		; get first device driver address
 fail_scan:
 	test	es:[di+DEVHDR.ATTRIB],DA_CHARDEV
@@ -282,15 +284,18 @@ dev_12bit:
 	ret
 
 
-dos_version_check:
+dos_version_check proc
 ;-----------------
 	mov	ax,4452h
 	int	21h			; try and get DRDOS version number
-	 jc	dev_fail		;  it's not DRDOS !
+	 jc	@@fail			;  it's not DRDOS !
 	and	ax,0fffeh		; don't be so picky
 	cmp	ax,VER_MUSTBE		; version check the DRDOS BDOS
-	 jne	dev_fail		;  reject all but the one we want
+	 jne	@@fail			;  reject all but the one we want
 	ret				; return now I'm happy
+@@fail:	mov	dx,offset dos_msg
+	jmp	dev_fail
+dos_version_check endp
 
 	
 open_file:	; open BDOS system file
@@ -383,6 +388,7 @@ open_f4:
 	jmp	open_file15
 
 open_fail:				; file not found
+	mov	dx,offset dos_msg
 	jmp	dev_fail
 
 open_foundit:				; found the open file handle
@@ -886,9 +892,6 @@ fattype		dw	0			; defaults to 12 bit FAT
 nfatsecs	dw	0,0			; number of FAT sectors (32-bit)
 
 endif
-
-include	initmsgs.def				; for dos_msg error msg
-
 
 ;	static request header for DOS device driver I/O
 
