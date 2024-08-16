@@ -87,7 +87,7 @@ command/bin/command.com: .ALWAYS .RECHECK
 # SvarDOS .svp package
 kernledr.svp: pkg/kernel.sys pkg/bin/country.sys pkg/doc/license.htm pkg/appinfo/kernledr.lsm
 	cd pkg
-	zip -rX9 ..$(SEP)$@ *
+	zip -9rkDX ..$(SEP)$@ *
 	cd ..
 
 pkg/kernel.sys: pkg bin/kernel.sys
