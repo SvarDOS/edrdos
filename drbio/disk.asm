@@ -2885,7 +2885,7 @@ login_primary:
 login_p0:
 	pushx	<bx,cx,dx>
 	lea	si,diskaddrpack		; pointer to disk address packet
-	mov	ax,word ptr partend	; copy last partition sector
+	mov	ax,word ptr partend	; copy last partition sector number
 	mov	word ptr [si+8],ax	; to test-read
 	mov	ax,word ptr partend+2
 	mov	word ptr [si+10],ax
@@ -2893,7 +2893,7 @@ login_p0:
 	popx	<dx,cx,bx>	
 	 jc	login_p9
 	pushx	<bx,cx,dx>
-	mov	ax,word ptr partstart	; copy partition start sectpr
+	mov	ax,word ptr partstart	; copy partition start sector number
 	mov	word ptr [si+8],ax
 	mov	ax,word ptr partstart+2
 	mov	word ptr [si+10],ax
