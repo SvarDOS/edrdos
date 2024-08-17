@@ -119,7 +119,12 @@ detect_boot_drv proc
 @@error:
 	mov	dx,offset bootpart_not_found_msg
 	call	bio_output_str
+if SINGLEFILE eq 1
 	ret
+else
+	mov	dx,offset dos_msg
+	jmp	dos_load_panic		; fatal error for dual-file kernel
+endif
 @@store_boot_drv:
 	mov	dl,dh
 	mov	boot_drv,dl
@@ -176,12 +181,13 @@ bio_output_str proc
 bio_output_str endp
 
 
-dev_fail proc	; any error has occurred loading the BDOS
+dos_load_panic proc	; any error has occurred loading the BDOS
+	mov	dx,offset dos_msg
 	call	bio_output_str
 	sti
 @@forever:
 	jmp	@@forever		; wait for reboot
-dev_fail endp
+dos_load_panic endp
 
 
 device_request:		; general device driver interface
@@ -204,7 +210,6 @@ device_request:		; general device driver interface
 	ret
 devreq_err:
 	stc
-;	jmp	dev_fail		; print error message
 	ret
 
 if SINGLEFILE eq 0
@@ -225,6 +230,9 @@ login_drive:
 	mov	[bx+RH_UNIT],dl		; save logical unit to use
 	mov	[bx+RH_CMD],CMD_BUILD_BPB
 	call	device_request		; tell it to build a BPB
+	 jnc	login_drive10
+	jmp	dos_load_panic
+login_drive10:
 	push	ds
 	push 	si
 	push	ds
@@ -305,8 +313,7 @@ dos_version_check proc
 	cmp	ax,VER_MUSTBE		; version check the DRDOS BDOS
 	 jne	@@fail			;  reject all but the one we want
 	ret				; return now I'm happy
-@@fail:	mov	dx,offset dos_msg
-	jmp	dev_fail
+@@fail:	jmp	dos_load_panic
 dos_version_check endp
 
 	
@@ -400,8 +407,7 @@ open_f4:
 	jmp	open_file15
 
 open_fail:				; file not found
-	mov	dx,offset dos_msg
-	jmp	dev_fail
+	jmp	dos_load_panic
 
 open_foundit:				; found the open file handle
 	mov	ax,DSIZE[di]		; get length of dosfile
@@ -555,6 +561,9 @@ rd_sector:
 	mov	req3_sector,0FFFFh	; mark as a large request
 rd_sec1:
 	call	device_request		; tell it to read sectors
+	 jnc	rd_sec2
+	jmp	dos_load_panic
+rd_sec2:
 	pop	cx
 	pop 	dx
 	ret				; if CY, AH=error code

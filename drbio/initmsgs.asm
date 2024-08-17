@@ -77,11 +77,11 @@ _bad_exec	db	"Bad or missing command interpreter.", CR, LF, "Please enter a vali
 	public	_bootpart_not_found_msg
 	public	bootpart_not_found_msg
 bootpart_not_found_msg	label	byte
-_bootpart_not_found_msg	db	"warning: can't find boot partition", CR, LF, CR, LF, "$",NUL
+_bootpart_not_found_msg	db	CR, LF, "warning: can't find boot partition", CR, LF, "$",NUL
 	public	_dos_msg
 	public	dos_msg
 dos_msg	label	byte
-_dos_msg	db	"panic: can't load DOS file, giving up$", NUL
+_dos_msg	db	CR, LF, "panic: can't load DRDOS.SYS, giving up$", NUL
 	public	_f5key_msg
 	public	f5key_msg
 f5key_msg	label	byte
