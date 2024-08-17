@@ -76,13 +76,7 @@ detect_boot_drv proc
 	dec	dh			; dh=255
 	mov	ax,es
 	or	ax,di			; make sure boot device is initialised
-	 jnz	@@get_device_procs
-if SINGLEFILE eq 0
-	mov	dx,offset bootpart_not_found_msg
-	jmp	dev_fail		; panic, cannot determine boot drv
-else
-	ret				; single-file kernel, user may resolve
-endif
+	 jz	@@error
 @@get_device_procs:
 	mov	ax,es:6[di]		; get strategy offset
 	mov	strat_off,ax
@@ -122,8 +116,10 @@ endif
 @@done:
 	cmp	dh,255
 	 jne	@@store_boot_drv	; boot drv found?
+@@error:
 	mov	dx,offset bootpart_not_found_msg
-	jmp	dev_fail
+	call	bio_output_str
+	ret
 @@store_boot_drv:
 	mov	dl,dh
 	mov	boot_drv,dl
@@ -132,20 +128,25 @@ endif
 detect_boot_drv endp
 
 
-dev_fail:	; any error has occurred loading the BDOS
 ;--------
 ; Print '$' terminated message at offset DX to console without using the BDOS
 ;
+bio_output_str proc
+	push	ax
+	push	bx
+	push	si
+	push	di
+	push	es
 	les	di,resdev_chain		; get first device driver address
-fail_scan:
+@@dev_scan:
 	test	es:[di+DEVHDR.ATTRIB],DA_CHARDEV
-	 jz	fail_next		; skip if not a character device
+	 jz	@@dev_next		; skip if not a character device
 	test	es:[di+DEVHDR.ATTRIB],DA_ISCOT
-	 jnz	fail_found		; skip if console device found
-fail_next:
+	 jnz	@@dev_found		; skip if console device found
+@@dev_next:
 	les	di,es:[di]		; get next device
-	jmp	fail_scan
-fail_found:
+	jmp	@@dev_scan
+@@dev_found:
 	mov	ax,es:6[di]		; get strategy offset
 	mov	strat_off,ax
 	mov	strat_seg,es		; get strategy segment
@@ -160,16 +161,27 @@ fail_found:
 	mov	[bx+RH4_BUFSEG],ds
 	mov	[bx+RH4_COUNT],-1
 	mov	si,dx			; now find the end of the string
-fail_count_chars:
+@@count_chars:
 	inc	[bx+RH4_COUNT]		; print another char
 	lodsb				; examine the next one
 	cmp	al,'$'			; terminating char ?
-	 jnz	fail_count_chars
+	 jnz	@@count_chars
 	call	device_request		; call the console driver
+	pop	es
+	pop	di
+	pop	si
+	pop	bx
+	pop	ax
+	ret
+bio_output_str endp
 
+
+dev_fail proc	; any error has occurred loading the BDOS
+	call	bio_output_str
 	sti
-wait_forever:
-	jmp	wait_forever			; wait for reboot
+@@forever:
+	jmp	@@forever		; wait for reboot
+dev_fail endp
 
 
 device_request:		; general device driver interface
