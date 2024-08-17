@@ -2576,6 +2576,8 @@ ver_1x		db	"1.x",CR,LF,NUL
 ver_20		db	"2.0/EDD-1.0",CR,LF,NUL
 ver_21		db	"2.1/EDD-1.1",CR,LF,NUL
 ver_30		db	"EDD-3.0",CR,LF,NUL
+lba_supp_msg	db	"Supported version of int 13 extensions: ", NUL
+last_sect_msg	db	"warning: can't read last partition sector, verify partition layout", CR, LF, NUL
 
 hard_init:	; setup all hard disk units
 ;---------
@@ -2891,7 +2893,12 @@ login_p0:
 	mov	word ptr [si+10],ax
 	call	login_read_dx_lba	; try to read last partition sector
 	popx	<dx,cx,bx>	
-	 jc	login_p9
+	 jnc	login_p1
+	push	si
+	mov	si,offset last_sect_msg	; and warn if not readable
+	call	output_msg
+	pop	si
+login_p1:
 	pushx	<bx,cx,dx>
 	mov	ax,word ptr partstart	; copy partition start sector number
 	mov	word ptr [si+8],ax
