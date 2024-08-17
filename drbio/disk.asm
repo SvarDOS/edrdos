@@ -2894,12 +2894,11 @@ login_p0:
 	call	login_read_dx_lba	; try to read last partition sector
 	popx	<dx,cx,bx>	
 	 jnc	login_p1
-	push	si
 	mov	si,offset last_sect_msg	; and warn if not readable
 	call	output_msg
-	pop	si
 login_p1:
 	pushx	<bx,cx,dx>
+	lea	si,diskaddrpack		; pointer to disk address packet
 	mov	ax,word ptr partstart	; copy partition start sector number
 	mov	word ptr [si+8],ax
 	mov	ax,word ptr partstart+2
