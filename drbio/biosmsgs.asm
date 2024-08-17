@@ -32,11 +32,6 @@ kernel_ver_msg db KERNEL_VER_STR, 0
 	public repository_msg
 repository_msg db REPOSITORY_STR, 0
 
-	public	_lba_supp_msg
-	public	lba_supp_msg
-lba_supp_msg		label	byte
-_lba_supp_msg		db	"Supported version of int 13 extensions: ", NUL
-
 RCODE	ends
 
 
