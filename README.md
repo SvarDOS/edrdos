@@ -47,7 +47,7 @@ the directory.
 
 ### Building single-file kernel
 You may build the single-file version of the kernel and the command interpreter
-by calling calling the OpenWatcom wmake utility via `wmake SINGLEFILE=1` from
+by calling the OpenWatcom wmake utility via `wmake SINGLEFILE=1` from
 the project root directory. The kernel file is named _KERNEL.SYS_, and the
 command interpreter is named _COMMAND.COM_. Both files are placed under the
 _bin_ directory.
