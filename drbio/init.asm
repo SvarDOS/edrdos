@@ -945,9 +945,9 @@ disk_boot:
 	xchg	ax,dx			; AL = boot drive
 	mov	init_runit,al		; save the ROS unit
 	mov	init_int13_unit,al	; save the ROS unit
-	test	al,al			; test the boot drive
-	 jz	floppy_boot		; skip if floppy boot
-	mov	al,2			; it's drive C:
+	cmp	al,80h			; test the boot drive
+	 jb	floppy_boot		; skip if floppy boot
+	sub	al,80h-2		; it's a hard drive
 floppy_boot:
 	mov	init_drv,al		; set boot drive
 
