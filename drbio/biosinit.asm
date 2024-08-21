@@ -2055,14 +2055,16 @@ add_comspec_to_env proc
 	jmp	@@copy_shell		; COMSPEC= already there, update only filename
 @@search:				
 	mov	di,offset envstart	; search end of environment
+	cmp	byte ptr [di],0		; special case: environment empty?
+	 je	@@copy_comspec		; then skip right to setting COMSPEC
 	dec	di
 @@search_next:
 	inc	di
 	cmp	word ptr [di],0
 	 jne	@@search_next
 	inc	di			; DI points to free part of env
-	mov	comspec_env_offset,di	; remember comspec offset
 @@copy_comspec:
+	mov	comspec_env_offset,di	; remember comspec offset
 	cmp	di,offset envend - 8
 	jae	@@err			; not much room enough to copy COMSPEC=
 	mov	si,offset comspec
