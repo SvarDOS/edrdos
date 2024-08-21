@@ -109,7 +109,7 @@ the drive to be booted, like so for the single-file version:
 SYS is then only used to install a proper bootloader. If it is already
 installed, you may skip the first step. But you then have to make sure
 that the boot loader already installed "speaks" the right protocol.
-This is the FreeDOS boot prococol for KERNEL.SYS, and the EDR boot
+This is the FreeDOS boot protocol for KERNEL.SYS, and the EDR boot
 protocol for DRBIO.SYS and DRDOS.SYS.
 
 Technically, you can also use
@@ -134,7 +134,7 @@ The binary was built from this specific
 [commit](https://github.com/FDOS/kernel/commit/c0127001908405d30d90f1755ad10c1b59ea8c90).
 
 FreeDOS SYS is distributed under the
-[GNU public license](https://github.com/FDOS/kernel/blob/c0127001908405d30d90f1755ad10c1b59ea8c90/sys/sys.c#L14),
+[GNU General Public License](https://github.com/FDOS/kernel/blob/c0127001908405d30d90f1755ad10c1b59ea8c90/sys/sys.c#L14),
 v2 or any later version.
 
 The [code for the installed bootsector](https://github.com/FDOS/kernel/blob/c0127001908405d30d90f1755ad10c1b59ea8c90/boot/boot.asm)
