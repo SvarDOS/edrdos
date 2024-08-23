@@ -33,7 +33,7 @@
 ;    ENDLOG
 
 COMPRESSED_FLG	equ	1
-SINGEFILE_FLG	equ	2
+SINGLEFILE_FLG	equ	2
 DEBUG_FLG	equ	4
 
 BIO_SEG 	equ 	70h		; BIO lives here
