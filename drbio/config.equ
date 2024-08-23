@@ -32,6 +32,10 @@
 ;
 ;    ENDLOG
 
+COMPRESSED_FLG	equ	1
+SINGEFILE_FLG	equ	2
+DEBUG_FLG	equ	4
+
 BIO_SEG 	equ 	70h		; BIO lives here
 TEMP_RELOC_SEG	equ	2000h		; used on initial BIO relocation
 

@@ -204,6 +204,9 @@ compstart	dw	offset CGROUP:COMPRESS_FROM_HERE
 ; kernel flags:
 ;   bit 0: set if assembled for compression
 ;   bit 1: set if assembled for single-file kernel
+;   bit 2: if set, gives debugger a chance to intercept by calling INT 3
+;	   CAUTION: breaks original IBM-PC compatibility if not run under
+;	            debugger
 ;   bit 7: set after kernel was processed by COMPBIOS and COMPKERN 
 kernflg		db	(SINGLEFILE shl 1) + COMPRESSED
 
@@ -973,10 +976,12 @@ SaveVectors:
 	movsw				; save this vector
 	loop	SaveVectors		; go and do another
 
+	test	kernflg,DEBUG_FLG
+	jz	debugger_disabled
 	clc
 	int 	3
 	jc debugger_detected
-
+debugger_disabled:
 	mov	i0off,offset Int0Trap
 	mov	i0seg,cs		; now grab int0 vector
 	mov	i1off,offset Int1Trap
