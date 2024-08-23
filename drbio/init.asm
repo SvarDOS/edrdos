@@ -611,11 +611,10 @@ init0	proc near
 
 local_buffer 	label 	byte
 
-	mov	cs:byte ptr A20Enable,0C3h
-					; fixup the RET
-	mov	si,TEMP_RELOC_SEG - 200
-	mov	ss,si
-	mov	sp,1024
+	mov	cs:byte ptr A20Enable,0C3h ; fixup the RET
+	mov	si,TEMP_RELOC_SEG - 41h	; stack right below relocation
+	mov	ss,si			; segment with 16 bytes safety
+	mov	sp,400h			; distance
 
 	sti
 	cld
