@@ -46,9 +46,9 @@ bin/drbio.bin : bin/drbio.exe
 bin/drbio.exe : $(objs) drbio.lnk
 	$(WLINK) @drbio.lnk
 
-bin/biosmsgs.obj: biosmsgs.asm version.inc
+bin/biosmsgs.obj: biosmsgs.asm
 
-bin/init.obj: init.asm drmacros.equ ibmros.equ msdos.equ request.equ bpb.equ udsc.equ driver.equ keys.equ biosmsgs.def
+bin/init.obj: init.asm drmacros.equ ibmros.equ msdos.equ request.equ bpb.equ udsc.equ driver.equ keys.equ biosmsgs.def version.inc
 
 bin/clock.obj: clock.asm drmacros.equ ibmros.equ request.equ driver.equ
 

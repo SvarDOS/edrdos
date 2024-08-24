@@ -4,5 +4,3 @@
 	extrn	disk_msgB	: byte
 	extrn	_div_by_zero_msg	: byte
 	extrn	div_by_zero_msg	: byte
-	extrn	kernel_ver_msg 	: byte
-	extern  repository_msg : byte

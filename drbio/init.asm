@@ -49,7 +49,7 @@
 	include	udsc.equ
 	include	driver.equ
 	include keys.equ		; common key definitions
-
+	include version.inc
 
 ENDCODE		segment public byte 'ENDCODE'
 ENDCODE		ends
@@ -1161,6 +1161,9 @@ IFDEF EMBEDDED
 		dw	offset RdiskFixup
 endif
 		dw	0
+
+kernel_ver_msg	db KERNEL_VER_STR, 0
+repository_msg	db REPOSITORY_STR, 0
 
 INITDATA	ends
 

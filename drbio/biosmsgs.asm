@@ -1,5 +1,3 @@
-include version.inc
-
 NUL	equ	0
 BS	equ	8
 TAB	equ	9
@@ -25,12 +23,6 @@ _disk_msgB	db	": and", CR, LF, "   strike any key when ready", CR, LF, LF, NUL
 	public	div_by_zero_msg
 div_by_zero_msg	label	byte
 _div_by_zero_msg	db	CR, LF, "Divide Error", CR, LF, NUL
-
-	public	kernel_ver_msg
-kernel_ver_msg db KERNEL_VER_STR, 0
-
-	public repository_msg
-repository_msg db REPOSITORY_STR, 0
 
 RCODE	ends
 
