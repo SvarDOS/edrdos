@@ -520,7 +520,7 @@ load_e10:
 	push	ds
 	pop	es
 	mov	ah,MS_X_EXPAND
-	int	21h
+	int	DOS_INT
 	jc	shell_error
 
 	call	add_comspec_to_env	; append / update COMSPEC in config env
