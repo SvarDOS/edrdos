@@ -1295,7 +1295,7 @@ parse_path10:
 	lodsb				; get next char
 	cmp	al,' '			; skip all spaces
 	 je	parse_path10
-	jmp	parse_path30		; now exit as normal
+	jmp	parse_path50		; now exit as normal
 
 parse_path20:
 	call	check_delim		; if first char = delimeter
