@@ -514,6 +514,15 @@ dos_r70:
 	push 	cs
 	pop 	es
 load_e10:
+	; expand shell filename to absolute path
+	mov	si,offset shell
+	mov	di,si
+	push	ds
+	pop	es
+	mov	ah,MS_X_EXPAND
+	int	21h
+	jc	shell_error
+
 	call	add_comspec_to_env	; append / update COMSPEC in config env
 if BIO_SEG ge 70h
 	; relocate config environment to segment 60 if kernel is not in the way
@@ -526,6 +535,8 @@ endif
 	mov	exec_fcb1seg,ds
 	mov	exec_fcb2seg,ds
 	int	DOS_INT			; Go for it
+
+shell_error:
 	mov	ah,MS_C_WRITESTR	; Print an error message and wait for
 	mov	dx,offset bad_exec	;  the user to enter new name
 	int	DOS_INT

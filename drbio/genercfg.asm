@@ -978,12 +978,10 @@ f_ctry50:
 func_shell:		; SHELL=filename
 	mov	di,offset shell		; Copy the New Command Name
 	call	copy_file		; into the BIOSINIT buffer
-	mov al,0
-	stosb				; Terminate the Environment Correctly
 	jc	shell_error
 
 	mov	di,offset shell_cline+1	; Now copy the default command
-	mov al,' '
+	mov 	al,' '
 	stosb				; into place
 	mov	cx,0			; 		
 f_sh10:
