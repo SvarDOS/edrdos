@@ -1184,6 +1184,8 @@ setrw5:
 	adc	dx,es:word ptr [di+UDSC.BPB+BPB.HIDDEN+2]
 	mov	word ptr P_STRUC.LBABLOCK[bp],ax	; Logical Block Address of start sector
 	mov	word ptr P_STRUC.LBABLOCK[bp+2],dx
+	test	es:UDSC.FLAGS[di],UDF_LBA ; drive accessed via LBA?
+	 jnz	setrw6			; if LBA then skip calulating CHS value
 	push	ax			; AX/DX = 32 bit starting record address
 	push	dx			; save starting record
 	mov	ax,es:[di+UDSC.BPB+BPB.SPT]
@@ -1198,7 +1200,7 @@ setrw5:
 	div	es:[di+UDSC.BPB+BPB.SPT]; divide by sectors per track
 	mov	P_STRUC.SECTOR[bp],dl	; DX = sector #, AX = head #
 	mov	P_STRUC.HEAD[bp],al	; save physical sector/head for later
-
+setrw6:
 	clc				; tell them we like the parameters
 	ret				; we've figured out starting address
 
