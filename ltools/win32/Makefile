@@ -2,7 +2,7 @@
 
 CL = wcl386
 
-CFLAGS = -q
+CFLAGS = -q -l=nt -bt=nt
 
 all: compkern.exe compbios.exe compbdos.exe fixupp.exe round.exe
 
