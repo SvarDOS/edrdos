@@ -27,3 +27,4 @@ clean:
 	rm -f compbios
 	rm -f compbdos
 	rm -f fixupp
+	rm -f round
