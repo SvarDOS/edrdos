@@ -29,12 +29,9 @@ round.exe: ../round.c Makefile
 
 clean: .SYMBOLIC
 	rm -f compkern.exe
-	rm -f compkern.obj
 	rm -f compbios.exe
-	rm -f compbios.obj
 	rm -f compbdos.exe
-	rm -f compbdos.obj
 	rm -f fixupp.exe
-	rm -f fixupp.obj
 	rm -f round.exe
-	rm -f round.obj
+	rm -f *.obj
+	rm -f *.o

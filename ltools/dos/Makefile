@@ -2,7 +2,7 @@
 
 CL = wcl
 
-CFLAGS = -q -bt=dos -ml -os
+CFLAGS = -q -l=dos -ml -os
 
 all: compkern.exe compbios.exe compbdos.exe fixupp.exe round.exe
 
@@ -29,12 +29,9 @@ round.exe: ../round.c Makefile
 
 clean: .SYMBOLIC
 	rm -f compkern.exe
-	rm -f compkern.obj
 	rm -f compbios.exe
-	rm -f compbios.obj
 	rm -f compbdos.exe
-	rm -f compbdos.obj
 	rm -f fixupp.exe
-	rm -f fixupp.obj
 	rm -f round.exe
-	rm -f round.obj
+	rm -f *.obj
+	rm -f *.o
