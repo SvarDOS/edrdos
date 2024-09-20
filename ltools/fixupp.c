@@ -32,10 +32,12 @@ typedef unsigned char  u8;
 typedef unsigned short u16;
 
 #define MAX_SEGMENTS 255            /* maximum number of segments */
+#define MAX_GROUPS   255            /* maximum number of groups */
 #define MAX_LNAMES   1024
 #define REC_BUF_SZ   1028
 
 /* OMF record type definitions */
+#define PUBDEF_REC   0x90
 #define LNAMES_REC   0x96
 #define SEGDEF16_REC 0x98
 #define GRPDEF16_REC 0x9a
@@ -52,9 +54,11 @@ typedef unsigned short u16;
 
 unsigned verbose = 0;
 unsigned reloc = 0;
+unsigned displaygroupchange = 0;
 unsigned segment_count;
-u8 group_count;
-u8 segment_group[MAX_SEGMENTS+1];   /* group number of segment n (0=none) */
+unsigned group_count;
+unsigned segment_group[MAX_SEGMENTS+1];   /* group number of segment n (0=none) */
+unsigned groups[MAX_GROUPS + 1];
 unsigned lnames_count;
 u8 emptylname[] = "";
 u8* lnames[MAX_LNAMES + 1];
@@ -222,10 +226,16 @@ static int process_grpdef( u8 *data, size_t len  )
 {
    const u8 *data_end = data + len - 1;
    u8 *p = data + 3;       /* skip record type and length fields */
-   u16 seg_idx;
+   u16 seg_idx, name_idx;
    group_count++;          /* group count now stores idx of current group */
 
-   (void) get_index( &p ); /* skip group name index (we do not need it) */
+   if ( group_count > MAX_GROUPS ) {
+      fputs( "Error: Too many groups!\n", stderr );
+      return 0;
+   }
+
+   name_idx = get_index( &p ); /* skip group name index (we do not need it) */
+   groups[group_count] = name_idx;
 
    while ( p < data_end ) {
       if ( *p++ != 0xff ) {
@@ -423,6 +433,111 @@ static int process_fixup( u8 *data, size_t *len )
    return 1;
 }
 
+static int process_pubdef( u8 *data, size_t *len )
+{
+   static u8 original[REC_BUF_SZ];
+   u8 *s = original + 3;            /* s points to original record */
+   u8 *s_end = original + *len - 1; /* process until chksum is reached */
+   u8 *p = data + 3;                /* p points to patched record */
+   u8 *s_past_index;
+   u16 group, newgroup, segment, slen;
+   unsigned skip = 0;
+
+   /* make backup copy of the original fixups */
+   memcpy( original, data, *len );
+
+   group = get_index( &s );
+   segment = get_index( &s );
+
+   s_past_index = s;
+
+   if ( segment == 0 ) {
+      skip = 1;		/* base frame present (absolute) */
+   }
+   if ( group != 0 ) {
+      skip = 1;		/* group already present */
+   }
+   newgroup = segment_group[ segment ];
+   if ( newgroup == 0 ) {
+      skip = 1;		/* segment isn't in a group  */
+   }
+
+   if ( verbose || (displaygroupchange && !skip) ) {
+      char *initial = "\n";
+      char *quotgroup = "";
+      char *groupstring = "(none)";
+      char *quotsegment = "";
+      char *segmentstring = "(none)";
+      unsigned amount = 0;
+      if ( group ) {
+         groupstring = (char *)lnames[groups[group]];
+         quotgroup = "\"";
+      }
+      if ( segment ) {
+         segmentstring = (char *)lnames[segments[segment]];
+         quotsegment = "\"";
+      }
+      printf("PUBDEF group=%04Xh,%s%s%s segment=%04Xh,%s%s%s:",
+         (unsigned)group, quotgroup, groupstring, quotgroup,
+         (unsigned)segment, quotsegment, segmentstring, quotsegment);
+      if ( !segment ) {
+         u16 frame = get_16( &s );
+         printf(" frame=%04Xh:", (unsigned)frame);
+      }
+      while ( s < s_end ) {
+         u8 namelength = *s++;
+         u8* name = s;
+         u16 offset, type;
+         amount += 1;
+         s += namelength;
+         if ( !namelength ) {
+            fprintf( stderr, "Error: Empty pubdef name!\n" );
+            return 0;
+         }
+         offset = get_16( &s );
+         type = get_index( &s );
+         if ( verbose ) {
+            printf("%s offset=%04Xh, type=%04Xh, name=\"%.*s\"\n",
+               initial,
+               (unsigned)offset, (unsigned)type,
+               namelength, name);
+            initial = "";
+         }
+      }
+      if ( !verbose ) {
+         char *plural = "";
+         if ( amount != 1 ) {
+            plural = "s";
+         }
+         printf(" %u symbol%s\n", amount, plural);
+      }
+      if ( s != s_end ) {
+         fprintf( stderr, "Error: Overflow in pubdef record!\n" );
+         return 0;
+      }
+   }
+
+   if ( skip ) {
+      return 1;
+   }
+   if ( verbose || displaygroupchange ) {
+      printf("Replacing segment=\"%s\" group=0 by segment_group=%04Xh,\"%s\"\n",
+          lnames[segments[segment]], (unsigned)newgroup,
+          lnames[groups[newgroup]]);
+   }
+   put_index( newgroup, &p );
+   put_index( segment, &p );
+   slen = s_end - s_past_index;
+   memcpy( p, s_past_index, slen );
+   p += slen;
+
+   /* encode new record length and checksum */
+   put_16( (u16)(p - data - 3 + 1), data + 1 );
+   *p = -calculate_checksum( data, p - data );
+   *len = p - data + 1;
+
+   return 1;
+}
 
 int process_records( FILE *inf, FILE *outf )
 {
@@ -448,6 +563,9 @@ int process_records( FILE *inf, FILE *outf )
       }
 
       switch ( record_type ) {
+         case PUBDEF_REC:
+            result = process_pubdef( record_data, &record_sz );
+            break;
          case LNAMES_REC:
             result = process_lnames( record_data, record_sz );
             break;
@@ -485,7 +603,7 @@ int main( int argc, char *argv[] )
    int result = EXIT_SUCCESS;
 
    if ( argc != 3 && argc != 4 ) {
-      fputs( "Usage: fixupp input.obj output.obj [VERBOSE|RELOC]\n", stderr );
+      fputs( "Usage: fixupp input.obj output.obj [VERBOSE|RELOC|GROUP]\n", stderr );
       result = EXIT_FAILURE;
       goto ret0;
    }
@@ -495,8 +613,10 @@ int main( int argc, char *argv[] )
          verbose = 1;
       } else if ( ! strcmp( argv[3], "reloc" ) || ! strcmp( argv[3], "RELOC" ) ) {
          reloc = 1;
+      } else if ( ! strcmp( argv[3], "group" ) || ! strcmp( argv[3], "GROUP" ) ) {
+         displaygroupchange = 1;
       } else {
-         fputs( "Usage: fixupp input.obj output.obj [VERBOSE|RELOC]\n", stderr );
+         fputs( "Usage: fixupp input.obj output.obj [VERBOSE|RELOC|GROUP]\n", stderr );
          result = EXIT_FAILURE;
          goto ret0;
       }
@@ -505,12 +625,14 @@ int main( int argc, char *argv[] )
    /* open input and output files */
    inf = fopen( argv[1], "rb" );
    if ( !inf ) {
+      fputs( "Error: Failed to open input file!\n", stderr );
       result = EXIT_FAILURE;
       goto ret0;
 
    }
    outf = fopen( argv[2], "wb" );
    if ( !outf ) {
+      fputs( "Error: Failed to open output file!\n", stderr );
       result = EXIT_FAILURE;
       goto ret1;
    }
