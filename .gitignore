@@ -8,8 +8,8 @@ command/batch.err
 command/com.err
 command/comcpy.err
 command/comint.err
-command/COMMAND.MAP
-command/TXHELP.MAP
+command/*.map
+command/*.MAP
 command/support.err
 command/bin/*
 bin/drbio.sys
