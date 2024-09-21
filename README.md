@@ -41,9 +41,22 @@ The makefiles expect the following executables to be present:
  - _exe2bin_
  - and _wcl_ if building command.com.
 
-Further, if you build under a UNIX-like operating system, make sure to build
+### Building under UNIX-like operating systems
+If you build under a UNIX-like operating system, make sure to build
 the tools under the _ltools/unix_ directory first by invoking `make` inside
-the directory.
+the directory. The default `cc` (usually GCC or CLANG) should be
+able to successfully build the binaries.
+
+Also make sure that `$WATCOM/h` is in your INCLUDE path prior building the
+command processor, as the `owsetenv.sh` provided by OpenWatcom v2 puts
+`$WATCOM/lh` into the INCLUDE path. However, when building DOS applications
+this is the wrong include directory. You will encounter the following error
+message if the path is wrong:
+
+```
+wcc -q -os -s -dFINAL -dPASSWORD -dWATCOMC -i=. -Fobin/com.obj com.c
+/opt/watcom/lh/setjmp.h(51): Error! E1185: Invalid register name 'eax' in #pragma
+```
 
 ### Building single-file kernel
 You may build the single-file version of the kernel and the command interpreter
