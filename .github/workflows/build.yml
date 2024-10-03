@@ -18,7 +18,7 @@ jobs:
     - name: Generate dual-file floppy image
       run: |
         cd image
-        sh mkimage.sh
+        sh mkimage.sh dualfile
         cd ..
     - name: Upload dual-file binaries
       uses: actions/upload-artifact@v4
