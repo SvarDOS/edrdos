@@ -12,7 +12,7 @@ and command interpreter ported to
 ## Kernel flavors
 The EDR kernel may be built in different flavors. The historic one
 consists of two files, _DRBIO.SYS_ and _DRDOS.SYS_. The new one consists of
-a single file _KERNEL.SYS_. The historic one is what gets built by default.
+a single file _KERNEL.SYS_, which gets built by default.
 
 The kernel is compatible with the FreeDOS load protocol. It can be used
 as a drop in for the FreeDOS KERNEL.SYS by replacing it with the EDR KERNEL.SYS.
@@ -60,14 +60,14 @@ wcc -q -os -s -dFINAL -dPASSWORD -dWATCOMC -i=. -Fobin/com.obj com.c
 
 ### Building single-file kernel
 You may build the single-file version of the kernel and the command interpreter
-by calling the OpenWatcom wmake utility via `wmake SINGLEFILE=1` from
+by calling the OpenWatcom wmake utility via `wmake` from
 the project root directory. The kernel file is named _KERNEL.SYS_, and the
 command interpreter is named _COMMAND.COM_. Both files are placed under the
 _bin_ directory.
 
 ### Building dual-file kernel
 You may build the historic dual-file version of the kernel consisting of
-DRBIO.SYS and DRDOS.SYS by invoking `wmake` from the project root directory.
+DRBIO.SYS and DRDOS.SYS by invoking `wmake SINGLEFILE=0` from the project root directory.
 The generated kernel binaries and COMMAND.COM will be placed under the _bin_
 directory.
 

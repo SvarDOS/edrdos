@@ -4,9 +4,20 @@
 #   - Open Watcom 1.9+: WLINK, EXE2BIN
 #   - COMPBIOS from the ..\LTOOLS directory
 
+# By default generates a DRBIO for a combined (DRBIO+DRDOS) single-file
+# kernel file. You may alter this by changing the SINGLEFILE and COMPRESSED.
+
 .ERASE
 
 !include ../platform.mak
+
+!ifndef SINGLEFILE
+SINGLEFILE=1
+!endif
+
+!ifndef COMPRESSED
+COMPRESSED=1
+!endif
 
 !ifeq SINGLEFILE 1
 WASM_FLAGS += -DSINGLEFILE=1

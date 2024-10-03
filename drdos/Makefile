@@ -4,7 +4,7 @@
 #   wmake
 #
 # To make an uncompressed DRDOS.SYS, run:
-#   wmake UNCOMPRESSED=1
+#   wmake COMPRESSED=0
 #
 # Tools needed to build:
 #   - JWASM assembler

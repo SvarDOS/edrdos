@@ -7,7 +7,23 @@
 # This makefile runs the make scripts of the individual components and
 # puts the generated binaries into the bin directory
 
+# By default it generates a compressed single-file kernel KERNEL.SYS.
+# This may be altered via the make variables SINGLEFILE and COMPRESSED
+#
+# Call wmake SINGLEFILE=0 to generate a dual-file kernel consisting
+# of DRBIO.SYS and DRDOS.SYS.
+
+.erase
+
 !include platform.mak
+
+!ifndef SINGLEFILE
+SINGLEFILE=1
+!endif
+
+!ifndef COMPRESSED
+COMPRESSED=1
+!endif
 
 !ifeq SINGLEFILE 1
 WMAKE_FLAGS += SINGLEFILE=1
@@ -20,7 +36,7 @@ COMPKERN_FLAGS += uncompressed
 
 FILES += bin/country.sys bin/command.com
 
-!ifdef SINGLEFILE
+!ifeq SINGLEFILE 1
 all: bin/kernel.sys $(FILES) .SYMBOLIC
 !else
 all: bin/drbio.sys bin/drdos.sys $(FILES) .SYMBOLIC
