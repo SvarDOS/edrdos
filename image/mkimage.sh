@@ -5,23 +5,49 @@
 IMAGE=edrdos.img
 LABEL=EDR-DOS
 
+# determine operating mode
+if [ "$1" = "singlefile" -o "$1" = "" ]; then
+	MODE=singlefile
+	echo "Making single-file KERNEL.SYS image."
+elif [ "$1" = "dualfile" ]; then
+	MODE=dualfile
+	echo "Making dual-file kernel image."
+elif [ "$1" = "singlefile-drbio" ]; then
+	MODE=singlefile-drbio
+	echo "Making single-file DRBIO.SYS image."
+else
+	echo "Usage: mkimage [singlefile|dualfile|singlefile-drbio]"
+	exit 1
+fi
+
+# check for tools
+if ! command -v mdir --help >/dev/null 2>&1; then
+	echo "error: Mtools needed"
+	exit 1
+fi
+
+# create a blank, formatted 1.44M image
 dd if=/dev/zero of=$IMAGE bs=512 count=2880
 mformat -i $IMAGE -v $LABEL
 
-if [ "$1" = "singlefile" ]; then
-	echo "Making single-file KERNEL.SYS image."
+# copy kernel to image
+case $MODE in
+singlefile)
 	dd if=bootfdos.144 of=$IMAGE bs=512 count=1 conv=notrunc
 	mcopy -i $IMAGE ../bin/kernel.sys ::/kernel.sys
-elif [ "$1" = "singlefile-drbio" ]; then
-	echo "Making single-file DRBIO.SYS image."
-	dd if=bootedr.144 of=$IMAGE bs=512 count=1 conv=notrunc
-	mcopy -i $IMAGE ../bin/kernel.sys ::/drbio.sys
-else
-	echo "Making dual-file kernel image."
+	;;
+dualfile)
 	dd if=bootedr.144 of=$IMAGE bs=512 count=1 conv=notrunc
 	mcopy -i $IMAGE ../bin/drbio.sys ::/
 	mcopy -i $IMAGE ../bin/drdos.sys ::/
-fi
+	;;
+singlefile-drbio)
+	dd if=bootedr.144 of=$IMAGE bs=512 count=1 conv=notrunc
+	mcopy -i $IMAGE ../bin/kernel.sys ::/drbio.sys
+	;;
+esac
+
+# copy command interpreter and support files to image
 mmd -i $IMAGE ::/license
 mcopy -i $IMAGE ../bin/command.com ::/
 mcopy -i $IMAGE ../bin/country.sys ::/

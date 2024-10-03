@@ -8,6 +8,8 @@ and command interpreter ported to
  - the [OpenWatcom](https://github.com/open-watcom/open-watcom-v2) toolchain,
    version 1.9 or later.
 
+This kernel is used by the [SvarDOS](http://svardos.org) distribution as its
+default kernel.
 
 ## Kernel flavors
 The EDR kernel may be built in different flavors. The historic one
@@ -130,12 +132,14 @@ DRBIO.SYS with the FreeDOS boot prococol, but then you have to rename
 it to KERNEL.SYS. Otherwise, the bootloader will not find its kernel.
 
 ### Using mkimage.sh under UNIX-like operating systems
-Under Linux and MacOS, you may invoke `sh mkimage.sh` under the _image_
-directory. This generates a 1.44M floppy image `edrdos.img`. Make sure
-to build the binaries prior to running this script.
+Under Linux and MacOS you may invoke `sh mkimage.sh` from the _image_
+directory. This generates a 1.44M floppy image `edrdos.img` including
+a minimal fileset to get you running: the kernel, command interpreter
+and the SYS utility.
 
-To build a single-file image, invoke `sh mkimage.sh singlefile`. To
-build a dual-file image, simply invoke `sh mkimage.sh`.
+Make sure to build the binaries prior to running this script.
+
+To build a dual-file image, run `sh mkimage.sh dualfile` instead.
 
 The script depends on [Mtools](https://www.gnu.org/software/mtools/) and _dd_
 being installed.
