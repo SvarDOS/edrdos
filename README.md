@@ -133,7 +133,7 @@ it to KERNEL.SYS. Otherwise, the bootloader will not find its kernel.
 
 ### Using mkimage.sh under UNIX-like operating systems
 Under Linux and MacOS you may invoke `sh mkimage.sh` from the _image_
-directory. This generates a 1.44M floppy image `edrdos.img` including
+directory. This generates a bootable 1.44M floppy image `edrdos.img` including
 a minimal fileset to get you running: the kernel, command interpreter
 and the SYS utility.
 
