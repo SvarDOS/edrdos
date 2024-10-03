@@ -255,7 +255,6 @@ ICODE	segment	public byte 'ICODE'			; initialization code
 
 dd_init:	; 0-initialize driver
 ;-------
-
 	push	es
 	sub	ax,ax
 	mov	es,ax
@@ -283,6 +282,7 @@ ifdef JAPAN
 
 endif
 
+	mov	bx,7
 	mov	ax,14*256 + 13		; output a carriage return
 	int	VIDEO_INT
 	mov	ax,14*256 + 10		; output a line feed
