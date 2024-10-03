@@ -1975,6 +1975,11 @@ div64:					; 64-bit division
 ;	AX,CX,DX,BP,SI
 	mov	bp,sp			; base address of temporary variables
 	xor	ax,ax			; clear work registers
+	cmp	word ptr [bp+2+18],ax	; revert to div32 if highest 32 bits
+	jne	div_need64		; of dividend are zero
+	cmp	word ptr [bp+2+16],ax
+	 je	div32
+div_need64:
 	xor	dx,dx
 	xor	si,si
 	mov	cx,64			; 64 bits
