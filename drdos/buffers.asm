@@ -1225,7 +1225,7 @@ flush_buf1:
 	pop	es			; recover BCB
 	 jc	flush_buf5		; don't flush to bad drive
 	test	es:BCB_FLAGS[si],BF_DIRTY ; re-test dirty after select_adrive
-	jz	flush_buf9		  ; (we may be called recursively)
+	jz	flush_buf5		  ; (we may be called recursively)
 flush_buf2:
 	mov	cx,nfats		; else FAT sectors written CX times
 	mov	al,00000011b		; mark as FAT write
