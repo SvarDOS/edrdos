@@ -1319,7 +1319,7 @@ blockif:	; disk read/write bios interface
 ;		RWMODE = read/write mode
 ;		CUR_DMA_SEG:CUR_DMA -> xfer address
 ;		PBLOCK = starting block of xfer
-;		MULT_CNT = # blocks to xfer
+;		MULT_SEC = # blocks to xfer
 ;	exit:	AX = BX = output
 
 	mov	req_cmd,al
