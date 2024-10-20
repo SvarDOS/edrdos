@@ -1060,10 +1060,21 @@ locate20:				; MRU buffer doesn't match
 
 	cmp	cl,0			; shall we only tag an existing buffer?
 	 je	locate50		; yes, then do not sacrifice this one
+
+	; find cheap buffer to recycle
+	mov	si,es:BCB_PREV[si]	; start with LRU
+	mov	di,si
+locate23:
+	cmp	es:BCB_DRV[si],0ffh	; discarded buffer?
+	 je	locate25		; happily use discarded
+	mov	si,es:BCB_PREV[si]
+	cmp	si,di			; back at LRU?
+	jne	locate23		; if not inspect previous buffer
+
+locate25:
 	push	ax
 	push 	cx
-	push 	dx	; save all registers
-	mov	si,es:BCB_PREV[si]	; recycle least recently used buffer
+	push 	dx			; save all registers
 	call	flush_buffer		; write buffer to disk
 	pop	dx
 	pop 	cx
