@@ -946,7 +946,8 @@ fatptr10:
 	sub	sp,8			; reserve space for result on stack
 	call	div32
 	pop	bx
-	add	sp,2
+	inc sp
+	inc sp
 	pop	ax
 	pop	dx
 	add	sp,8			; clean up the stack

@@ -307,7 +307,8 @@ rd_pcdir05:
 	sub	sp,8
 	call	div32
 	pop	dx
-	add	sp,2
+	inc sp
+	inc sp
 	pop	ax
 	add	sp,10
 	pop	cx

@@ -622,7 +622,7 @@ redir_chdir:
 ; DGM - don't allow path greater than 66 chars
 	mov	cx, LDT_FLAGS-LDT_NAME	; calculate max pathlen from LDT
 	mov	di, si
-	sub	ax,ax
+	xor	ax,ax
 	repne	scasb
 	mov	ax, ED_PATH		; assume path too long
 	 jne	redir_chdir30		; jump if path too long
@@ -1211,7 +1211,8 @@ redir_save_srch_state:
 	add	si,10			; skip reserved bytes
 	movsw				; copy the time
 	movsw				; copy the date
-	add	si,2			; skip starting cluster
+	inc si  			; skip starting cluster
+	inc si
 	movsw				; copy the file size
 	movsw
 	pop	bx			; recover name

@@ -1740,7 +1740,8 @@ endif
 	stosw
 
 ;	add	di,4			; skip 4 reserved bytes
-	add	di,2			; skip 2 reserved bytes
+	inc	di  			; skip 2 reserved bytes
+	inc di
 
 	mov	si,dirp			; point to directory name
 	test	attributes,DA_CLUSTER	; is the caller requesting
