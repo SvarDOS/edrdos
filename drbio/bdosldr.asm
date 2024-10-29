@@ -259,7 +259,7 @@ login_drive20:
 	mov	fattype,0			; assume 12 bit FAT
 
 	mov	al,BT_nfats		; compute FAT size
-	mov	ah,0			; AX = # of FAT copies (usually 2)
+	xor	ah,ah			; AX = # of FAT copies (usually 2)
 	mul	BT_fat_size		; AX/DX = size of FAT in sectors
 
 	add	ax,BT_reserved_sectors	; add in bootstrap sectors
