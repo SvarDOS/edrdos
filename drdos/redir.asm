@@ -1235,8 +1235,8 @@ redir_restore_srch_state:
 	lds	si,ss:dword ptr dma_offset
 	lodsb				; DS:SI -> search state in DMA address
 	stosb
-	mov	cx,20			; copy 1st 21 bytes
-	rep	movsb
+	mov	cx,10			; copy 1st 20 bytes (21 counting previous stosb)
+	rep	movsw
 	pop	ds
 	ret
 

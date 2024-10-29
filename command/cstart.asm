@@ -2932,9 +2932,9 @@ _get_out_pipe:
 	mov	ds,[low_seg]
 	mov	si,offset out_pipe
 	
-	mov	cx,8
+	mov	cx,4
 	cld
-	rep	movsb	
+	rep	movsw
 
 	pop	di
 	pop	si

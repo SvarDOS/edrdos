@@ -129,7 +129,7 @@ env_e20:				; Found the correct entry now copy
 env_e30:
 	lodsb
 	stosb				; Copy byte through AL
-	or	al,al
+	test	al,al
 	jnz	env_e30			; and check for end of string
 	jmps	env_exit
 _env_entry	ENDP
@@ -161,7 +161,7 @@ _env_scan	PROC	near
 env_s10:
 	lodsb 
 	stosb				; Copy byte through AL
-	or	al,al
+	test	al,al
 	jnz	env_s10			; and check for end of string
 	jmps	env_exit
 _env_scan	ENDP
@@ -220,7 +220,7 @@ env_d10:
 env_d15:
 	lodsb
 	stosb				; Copy through AL checking for the end
-	or	al,al
+	test	al,al
 	jnz	env_d15			; of the environment after each
 	jmps	env_d10			; end of string.
 env_d20:
@@ -262,7 +262,7 @@ env_i25:
 env_i20:
 	lodsb
 	stosb				; Copy the String until a zero byte
-	or	al,al			; then add the environment terminator
+	test	al,al			; then add the environment terminator
 	loopnz	env_i20
 	mov	es:word ptr [di],0
 	jz	env_exit		; Exit with no error if the string is
@@ -363,7 +363,7 @@ _get_cmdname:
 get_cmdname10:
 	lodsb
 	stosb
-	or	al,al
+	test	al,al
 	 jnz	get_cmdname10
 	jmp	env_exit
 	

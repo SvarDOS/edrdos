@@ -1140,8 +1140,8 @@ copy_fcb:
 	push	di
 	mov	es,dx
 	xchg	ax,di			; ES:DI -> destination
-	mov	cx,12			; Copy Drive, Name and Extension
-	rep	movsb			;  and copy it
+	mov	cx,6			; Copy Drive, Name and Extension
+	rep	movsw			;  and copy it
 	xchg	ax,cx			; AX = 0
 	stosw
 	stosw				; zero last 4 bytes
