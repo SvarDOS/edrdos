@@ -707,7 +707,7 @@ endif
 	mov	cs:[int2E_seg],cs
 	mov	cs:[exec_psp],ds
 
-	cmp	di,0000h		; Disable Code Relocation if we have
+	test	di,di		; Disable Code Relocation if we have
 	jnz	gotCS_10		; been loaded as an .EXE file
 	;;mov	high_code,FALSE
 	
@@ -2868,7 +2868,7 @@ _get_reload_file:
 grf_loop:
 	lodsb
 	stosb
-	cmp	al,0
+	test	al,al
 	jnz	grf_loop	
 
 	pop	di
@@ -2904,7 +2904,7 @@ srf_loop:
 	stosb				; switches, but reload_file is
 srf_brian:				; just the file name.
 
-	cmp	al,0
+	test	al,al
 	jnz	srf_loop
 
 	pop	di

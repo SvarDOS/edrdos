@@ -315,7 +315,7 @@ get_key	PROC	near
 	push ds
 	pop es				; Calculate the length of the 
 	mov	di,04[bp]		; key by scaning the string for
-	mov	al,0			; a zero byte.
+	xor	al,al			; a zero byte.
 	mov	cx,-1
 	repnz	scasb
 	neg	cx			; CX is the length of the sting + 2
@@ -668,7 +668,7 @@ crm_loop1:
 crm_loop2:
 	lodsb
 	stosb
-	cmp	al,0
+	test	al,al
 	jne	crm_loop2
 	loop	crm_loop1
 
@@ -717,7 +717,7 @@ _dos_parse_filename	proc near
 	mov	ax,2901h
 	int	21h
 	
-	mov	ah,0
+	xor	ah,ah
 	pop	es
 	add	sp,30h
 	pop	bp
@@ -733,7 +733,7 @@ _flush_cache	proc near
 	push	bp
 	
 	mov	ax,4a10h
-	mov	bx,0
+	xor	bx,bx
 	mov	cx,0edch
 	int	2fh
 	
