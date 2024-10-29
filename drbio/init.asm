@@ -538,7 +538,7 @@ Fastcon10:
 	inc	dl
 	cmp	dl,es:4ah
 	 jb	Fastcon12
-	mov	dl,0
+	xor	dl,dl
 Fastcon11:
 	inc	dh
 	cmp	dh,es:84h
@@ -1254,7 +1254,7 @@ OutputBS proc far
 ;	pushx	<ax, bx, si, di, bp>	; these are on the stack
 	pushx	<cx, dx>
 	mov	ah,3			; get cursor address
-	mov	bh,0			; on page zero
+	xor	bh,bh			; on page zero
 	int	VIDEO_INT		; BH = page, DH/DL = cursor row/col
 	test	dx,dx			; row 0, col 0
 	 jz	OutputBS10		; ignore if first line

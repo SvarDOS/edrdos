@@ -469,9 +469,9 @@ gtdo12:
 gtdo15:
 	mov	hash,ax			; save it for search
 	call	hdsblk			; get directory block
-	cmp	ax,0			; is this the root dir?
+	test	ax,ax			; is this the root dir?
 	 jne	gtdo3			; no
-	cmp	dx,0
+	test	dx,dx
 	 jne	gtdo3
 	cmp	dosfat,FAT32		; if yes, is this a FAT32 file system?
 	 jne	gtdo3			; no, then skip

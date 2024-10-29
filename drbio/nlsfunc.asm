@@ -113,7 +113,7 @@ int2f_handler:
 	jmp	dword ptr old_int2f	; no, pass it on
 
 int2f_handler10:
-	cmp	al,0		; installation check ?
+	test	al,al		; installation check ?
 	 jne	int2f_handler20
 	mov	al,0ffh		; we are already installed
 	iret
@@ -329,7 +329,7 @@ f65x_30:
 	xor	cx,cx			; Seek within country.sys
 	mov	bx,c_handle
 	push	bp
-	mov	bp,0			; seek from begining
+	xor	bp,bp			; seek from begining
 	mov	ax,1228h
 	int	2fh
 	pop	bp

@@ -506,7 +506,7 @@ frstdev1:				; scan off trailing spaces
 	dec	di
 	loop	frstdev1
 frstdev2:
-	mov	al,0
+	xor	al,al
 	stosb				; add a trailing NUL
 	ret
 

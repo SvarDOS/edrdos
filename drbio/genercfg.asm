@@ -715,7 +715,7 @@ func_device:		; DEVICE=filename
 
 device_error:
 	mov	error_level,ax		; save error code
-	mov	al,0
+	xor	al,al
 	mov	si,offset dev_name
 	mov	dx,offset bad_filename
 	jmp	config_error
@@ -983,7 +983,7 @@ func_shell:		; SHELL=filename
 	mov	di,offset shell_cline+1	; Now copy the default command
 	mov 	al,' '
 	stosb				; into place
-	mov	cx,0			; 		
+	xor	cx,cx			;
 f_sh10:
 	lodsb
 	stosb				; Copy the next Character
@@ -1415,7 +1415,7 @@ set_form_factor:
 	mov	bl,drivp_ff
 	cmp	bl,7
 	 ja	set_form9
-	mov	bh,0
+	xor	bh,bh
 	shl	bx,1
 	push	si
 	push 	es
@@ -2103,7 +2103,7 @@ func_switch02:
 	 jns	func_switch05
 	mov	al,10			; make '0' into 10
 func_switch05:
-	mov	di,0
+	xor	di,di
 	xor	bx,bx
 	mov	cx,cfg_seeklo
 	mov	dx,cfg_seekhi
@@ -2241,7 +2241,7 @@ func_cls:
 ; This is PC specific - sorry
 	mov	ah,15			; get current
 	int	10h			; screen mode
-	mov	ah,0
+	xor	ah,ah
 	int	10h			; reset it to clear screen
 	ret
 
@@ -2587,7 +2587,7 @@ func_version:				; VERSION=x.xx,x.xx
 	xor	dx,dx
 	call	atoi			; get major version number
 	 jc	func_version40		; no numerical value
-	cmp	ax,0
+	test	ax,ax
 	 jz	func_version40
 	mov	dl,al
 	call	dot			; check for '.'
@@ -2609,7 +2609,7 @@ func_version20:
 	xor	dx,dx
 	call	atoi			; get major version number
 	 jc	func_version40		; no numerical value
-	cmp	ax,0
+	test	ax,ax
 	 jz	func_version40
 	mov	dl,al
 	call	dot			; check for '.'
@@ -2938,7 +2938,7 @@ toupper:
 
 	push	bx
 	mov	bh, ah
-	mov	ah, 0			; ax = character to be converted
+	xor	ah, ah			; ax = character to be converted
 	cmp	al, 'a'			; al < 'a'?
 	jb	exit_toupper		;  yes - done (char unchanged)
 	cmp	al, 'z'			; al <= 'z'?
@@ -2978,7 +2978,7 @@ check_onoff:
 	push 	si			; Save String Location in Case of Error
 	mov	di,offset cmd_off	; es:di -> "OFF"
 	call	compare			; do we have an "OFF"?
-	mov	al,00
+	xor	al,al
 	jnc	chk_onoff10		
 	pop	si			; No match so return original address
 	stc				; with the CARRY falg set.
@@ -3095,7 +3095,7 @@ atoi_loop:
 	jc	atoi_done
 	cmp	bl, 9
 	ja	atoi_done
-	mov	bh, 0				; bx = next digit
+	xor	bh, bh				; bx = next digit
 
 	mul	cx				; ax = 10 * ax
 	jc	exit_atoi			; check for 16 bit overflow

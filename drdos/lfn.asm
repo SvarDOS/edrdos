@@ -648,9 +648,9 @@ f71a701_entry2:
 	xchg	bl,bh
 	xor	bh,bh
 	push	bx
-	cmp	dx,0			; special case - date and time zero
+	test	dx,dx			; special case - date and time zero
 	 jnz	f71a701_05
-	cmp	cx,0
+	test	cx,cx
 	 jnz	f71a701_05
 	xor	ax,ax			; clear buffer
 	cld
@@ -674,7 +674,7 @@ f71a701_05:
 	xor	dx,dx
 	mov	cx,400
 	div	cx
-	cmp	al,0			; at least 400 years?
+	test	al,al			; at least 400 years?
 	 jz	f71a701_10		; no
 	mov	bl,97			; 97 leap days
 f71a701_10:

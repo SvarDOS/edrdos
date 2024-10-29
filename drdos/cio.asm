@@ -386,7 +386,7 @@ func0B:
 	call	cooked_status		; Get the current handle status
 	mov 	al,0FFh			; Assume that the handle is ready
 	 jz	f0B_exit		; and return 0FFh in AL
-	mov	al,00			; Not Ready
+	xor	al,al			; Not Ready
 f0B_exit:
 	jmp	funcICexit		; exit thru incomplete char support
 
@@ -560,7 +560,7 @@ cooked_s30:
 	cmp	al,CTLC
 	 je	cooked_s20		; has the user typed ^C
 cooked_s40:
-	cmp	al,0
+	test	al,al
 	 jne	cooked_s45
 	mov	last_key_ext,1
 cooked_s45:

@@ -168,7 +168,7 @@ fdos_reenter:
 	add	bx,ax
 	add	bx,ax			; BX = function # * 3
 	mov	cl,byte ptr [bx+fdos_tbl-(39h*(WORD+BYTE))+WORD]
-	mov	ch,0
+	xor	ch,ch
 					; get table of # of parameters
 	mov	es:fdos_info+2*WORD,cx	; save the parameter count
 	rep	movsw			; copy parameter block
@@ -505,7 +505,7 @@ chdir70:
 
 	push	es			; insert name into user buffer
 	les	di,dword ptr fdos_pb+6
-	mov	al,0
+	xor	al,al
 	scasb			; check if first directory
 	 je	chdir75			; if not 1st in path
 	inc	dx			; we need space for '\'
@@ -1169,7 +1169,7 @@ chmod10:
 ifdef PASSWORD
 	cmp	cl,5			; validate sub-function number
 	 ja	chmod15
-	mov	ax,0
+	xor	ax,ax
 	cmp	dosfat,FAT32		; FAT32 file system?
 	 je	chmod11			; yes, then this entry is used for high word of cluster instead
 	mov	ax,DPWM[bx]		; assume return password mode
@@ -2006,7 +2006,7 @@ mkddsc_ext:
 	ret
 
 bpb2ddsc_noext:
-	mov	bl,0			; do not build extended DDSC
+	xor	bl,bl			; do not build extended DDSC
 	jmp	bpb2ddsc02
 bpb2ddsc:
 ;--------
@@ -2351,7 +2351,7 @@ fdos_expand23:
 	inc	si
 	mov	al,ss:[si+bx]
 	mov	ss:[si],al
-	cmp	al,0
+	test	al,al
 	 jne	fdos_expand23
 fdos_expand25:
 
@@ -2587,7 +2587,7 @@ move_seek:				; re-seek the old directory entry
 	mov	dcnt,ax			; set search offset
 	and	chdblk,0		; follow the chains, not sequential
 	and	chdblk+2,0
-	mov	cl,0			; return next entry
+	xor	cl,cl			; return next entry
 	jmp	getdir			; in current directory
 
 move_comp:

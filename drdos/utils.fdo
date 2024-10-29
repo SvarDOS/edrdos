@@ -1129,7 +1129,7 @@ mkspace_parent:
 ; On Exit:
 ;	DS:SI -> parents name, CX = length of parent (DX on entry)
 ;
-	mov	al,0			; find end of name
+	xor	al,al			; find end of name
 	mov	cx,128			; max. path length
 	repne	scasb			; scan for end of path
 	neg	cx
@@ -1181,7 +1181,7 @@ fndpar1:
 	mov	al,DNAME[bx]		; check if deleted file
 	cmp	al,0E5h
 	 je	fndpar1			; skip empty slots
-	cmp	al,0
+	test	al,al
 	 je	fndpar2			; end of directory
 	test	DATTS[bx],DA_DIR	; try to find directory
 	 jz	fndpar1			; skip plain files

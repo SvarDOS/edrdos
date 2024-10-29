@@ -287,7 +287,7 @@ SetupDeblocking40:
 	int	DOS_INT			; free the upper memory buffer
 SetupDeblocking50:
 	mov	ax,(MS_M_STRATEGY*256)+1; set allocation strategy
-	mov	bl,0			;  to first fit
+	xor	bl,bl			;  to first fit
 	int	DOS_INT
 	push 	cs
 	pop 	es			; ES -> local data again
@@ -677,7 +677,7 @@ not_boot_dev:
 	push 	es
 	push 	di
 	mov	cl,8[si]
-	mov	ch,0			; CX = # of drives found in driver
+	xor	ch,ch			; CX = # of drives found in driver
 	les	si,4[si]		; ES:SI -> BPB array in BIOS
 	mov	bpbseg,es		; remember the segment
 blkdev_loop:
@@ -693,7 +693,7 @@ blkdev_loop:
 	mov	max_secsize,ax		; else set new maximum
 blkdev_next1:
 	mov	dl,es:2[di]		; get sectors per cluster
-	mov	dh,0			; make this a word
+	xor	dh,dh			; make this a word
 	mul	dx			; AX = bytes per cluster
 	cmp	ax,max_clsize		; more than previous maximum
 	 jbe	blkdev_next2		; skip if no new high score

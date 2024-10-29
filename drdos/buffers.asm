@@ -1058,7 +1058,7 @@ locate20:				; MRU buffer doesn't match
 	cmp	si,word ptr bcb_root	; while there are more buffers
 	 jne	locate10
 
-	cmp	cl,0			; shall we only tag an existing buffer?
+	test	cl,cl			; shall we only tag an existing buffer?
 	 je	locate50		; yes, then do not sacrifice this one
 
 	; find cheap buffer to recycle

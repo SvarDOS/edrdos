@@ -170,7 +170,7 @@ call5_entry:
 	cmp	ah,024h		; Check for a valid function for this
 	jbe	int21_entry	; entry technique if not return
 illegal_iret:
-	mov	al,0
+	xor	al,al
 	iret
 
 int21_e01:
@@ -183,7 +183,7 @@ int21_e01:
 ;
 	Public	int20_entry
 int20_entry:
-    	mov	ah,00h          
+    	xor	ah,ah
 ;	jmp	int21_entry		; and jump to the standard entry point
 
 ;	+++++++++++++++++++++++++
@@ -260,7 +260,7 @@ int21_e30:
 	 je	int21_e50		;  use the error stack
 	cmp	ah,0Ch			; are we a character function
 	 ja	int21_e40		;  in range 01-0C ?
-	cmp	ah,00h
+	test	ah,ah
 	 je	int21_e40
 	cmp	error_flag,0		; Use the "ERROR" Stack for the above
 	 jnz	int21_e50		;  functions 01-0C if error_flag set

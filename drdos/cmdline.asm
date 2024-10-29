@@ -827,7 +827,7 @@ eof_char:		;; JFL make F6 return a CTL Z
 ;	ret
 
 ctlat_char:		;; JFL make F7 return a CTL @
-	mov	al,0h
+	xor	al,al
 	mov	cx,1
 	jmp	intsave_char
 ;	ret

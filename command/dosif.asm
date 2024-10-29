@@ -535,8 +535,9 @@ _ms_x_ioctl:
 	push	bp
 	mov	bp,sp
 	mov	bx,4[bp]		; get our handle
-	mov	ah,MS_X_IOCTL		; get IO Control function
-	mov	al,0			; get file/device status
+	;mov	ah,MS_X_IOCTL		; get IO Control function
+	;mov	al,0			; get file/device status
+    mov	ax, (MS_X_IOCTL*256)    ; get IO Control function / get file/device status
 	int	DOS_INT			; do INT 21h
 	jnc	ms_x_i10
 	neg	ax
