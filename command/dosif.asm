@@ -554,8 +554,7 @@ _ms_x_setdev:
 	mov	bx, 4[bp]		; handle
 	mov	dx, 6[bp]		; byte value to set
 	sub	dh, dh
-	mov	ah, MS_X_IOCTL
-	mov	al, 1
+	mov	ax, (MS_X_IOCTL * 256) + 1
 	int	DOS_INT
 	jnc	ms_x_sd10
 	neg	ax
@@ -1479,8 +1478,7 @@ n_d10:
 	adc	bx,bx			;  one place left
 	push	ax
 	push	bx			; save the vector
-	mov	ah,MS_X_IOCTL
-	mov	al,9			; is device local ?
+	mov	ax,(MS_X_IOCTL * 256) + 9 ; is device local ?
 	mov	bl,cl			; drive number in BL
 	int	DOS_INT
 	pop	bx

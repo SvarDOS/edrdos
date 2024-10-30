@@ -79,8 +79,7 @@ nls_hook:
 	int	DOS_INT			; read and save old INT 2F vector
 	mov	old_int2f_off,bx
 	mov	old_int2f_seg,es
-	mov	ah,MS_S_SETINT
-	mov	al,2fh
+	mov	ax,(MS_S_SETINT * 256) + 2fh
 	mov	dx,offset cgroup:int2f_handler	; install our own INT 2F handler
 	int	DOS_INT
 	pop	es
