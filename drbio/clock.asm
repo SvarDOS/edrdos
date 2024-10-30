@@ -243,7 +243,7 @@ output6:				; DX = binary year
 
 read_system_ticks:
 ;-----------------
-	mov	ah,0			; read system tick counter
+	xor	ah,ah			; read system tick counter
 	int	RTC_INT
 	test	al,al			; have we passed midnight ?
 	 jz	read_st10		; if so a new day has dawned

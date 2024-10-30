@@ -2329,7 +2329,7 @@ _int10_cls:
 	mov	ah, 0fh			; get mode
 	int	10h
 	and	al,7fh
-	mov	ah, 0			; set mode, clear screen (al bit 7 clear)
+	xor	ah, ah			; set mode, clear screen (al bit 7 clear)
 	int	10h
 
 	push	es
@@ -2388,7 +2388,7 @@ int10_exit:
 cginfo:
 	mov	dl, 24			; assume default # for CGA/MDA
 	mov	ax, 1130h		; character generator info
-	mov	bh, 0
+	xor	bh, bh
 	int	10h
 	ret				; dl = nlines - 1
 

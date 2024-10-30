@@ -553,7 +553,7 @@ _ms_x_setdev:
 	mov	bp, sp
 	mov	bx, 4[bp]		; handle
 	mov	dx, 6[bp]		; byte value to set
-	sub	dh, dh
+	xor	dh, dh
 	mov	ax, (MS_X_IOCTL * 256) + 1
 	int	DOS_INT
 	jnc	ms_x_sd10
@@ -1705,7 +1705,7 @@ _dr_toupper	proc	near
 	mov	bp, sp
 
 	mov	ax, 4[bp]
-	mov	ah, 0			; al = character to be converted
+	xor	ah, ah			; al = character to be converted
 	cmp	al, 'a'			; al < 'a'?
 	jb	exit_toupper		;  yes - done (char unchanged)
 	cmp	al, 'z'			; al <= 'z'?
