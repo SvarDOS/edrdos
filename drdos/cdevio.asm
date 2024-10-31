@@ -152,8 +152,9 @@ open_dev10:
 	mov	cx,8/WORD
 	rep	movsw
 	mov	al,' '
-	mov	cl,3			; space the file extension
-	rep	stosb
+	stosb               ; space the file extension
+	stosb
+	stosb
 	pop	ds
 	
 	pop 	dx

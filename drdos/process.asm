@@ -145,7 +145,9 @@ func26:
 	push	ds
 	mov	ds,current_psp		; we copy 1st 20 entries of current
 	lds	si,ds:PSP_XFTPTR	;  XFT to the child PSP
-	rep	movsb			; we do not update file handle use
+	;rep	movsb			; we do not update file handle use
+	shr cx,1                ; Do 10 mov for 20 bytes
+	rep	movsw			; we do not update file handle use
 	pop	ds			;  counts, unlike Int21/55
 	ret
 
@@ -1110,10 +1112,10 @@ pblk_to_psp:
 	push 	es
 	push 	di
 	lds	si,es:dword ptr 2[di]	; Get the Source Pointer
-	mov	cx,128			; Copy the complete command line
+	mov	cx,64			; Copy the complete command line (128 bytes)
 	mov	di,offset PSP_COMLEN	; because BASCOM places a segment value
 	mov	es,dx			; after the CR which was not previously
-	rep	movsb			; copied.
+	rep	movsw			; copied.
 	pop 	di
 	pop 	es
 

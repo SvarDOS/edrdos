@@ -1303,8 +1303,9 @@ zeroblk10:				; repeat for all sectors in cluster
 	or	es:BCB_FLAGS[si],BF_DIRTY
 	lea	di,BCB_DATA[si]		; ES:DI -> disk buffer
 	mov	cx,psecsiz		; CX = byte count for REP STOSB
+	shr cx, 1
 	xor	ax,ax
-	rep	stosb			; zero the whole data buffer
+	rep	stosw			; zero the whole data buffer
 	pop	dx
 	pop	cx
 	pop	ax

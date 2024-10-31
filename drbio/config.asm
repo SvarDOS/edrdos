@@ -1176,7 +1176,7 @@ setup_dh27:
  	mul	cx				; with this number of elements
 	mov	cx,ax				; in the structure
 	lea	di,DCNTRL_LEN[bx]		; Zero the contents of the
-	sub	al,al				; structure
+	xor	al,al				; structure
 	rep	stosb
 	 
 setup_dh30:

@@ -265,8 +265,8 @@ fdos_mkdir:
 	mov	al,DA_DIR
 	stosb				; mark it as a directory
 	xor	ax,ax
-	mov	cx,(32-12)
-	rep	stosb			; zero remainder of new FCB
+	mov	cx,(32-12) / 2
+	rep	stosw			; zero remainder of new FCB
 	pop	si			; SI -> directory
 
 	call	stamp_dir_entry		; set time and date in FCB
@@ -526,8 +526,8 @@ chdir80:				; arrive here when root reached
 	push 	ss
 	pop 	ds
 	mov	si,offset pri_pathname	; DS:SI -> new LDT_ we just built
-	mov	cx,LDT_LEN
-	rep	movsb			; copy the new LDT_ into place
+	mov	cx,LDT_LEN / 2  ; LDT_LEN is 58h (88 bytes) so copy in words
+	rep	movsw			; copy the new LDT_ into place
 	pop	ds
 	cmp	ax,path_drive		; if the drive's are same
 	 je	chdir85			;  "CD" or "SUBST d:=d:path"
@@ -616,9 +616,9 @@ creat2:
 creat5:
 	or	al,DA_ARCHIVE		; always create as new file
 	stosb				; update directory attributes
-	sub	ax,ax			; zero out remainder of entry
-	mov	cx,32-12
-	rep	stosb			; zero remainder of entry
+	xor	ax,ax			; zero out remainder of entry
+	mov	cx,(32-12) / 2
+	rep	stosw			; zero remainder of entry
 
 	push	bx			; save dirp
 	push	dx			; save the open mode
@@ -1567,7 +1567,7 @@ fdos_exec:
 	mov	es:PSP_XFTOFF,di
 	mov	es:PSP_XFTSEG,es
 	mov	al,0FFh			; assume all handles closed
-	rep	stosb
+	rep	stosb           ; Todo: Can we store in Words?
 	xor	si,si			; start with XFN 0
 exec10:
 	call	get_xftptr		; ES:DI -> XFN table

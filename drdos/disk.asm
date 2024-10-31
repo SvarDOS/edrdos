@@ -492,7 +492,7 @@ f36_OK30:
 	rcr	cx,1
 	jmp	f36_OK30			; try again
 f36_OK40:
-	cmp	dx,0			; more than fits into 16-bit register?
+	test	dx,dx			; more than fits into 16-bit register?
 	 je	f36_OK50			; no, the value is exact
 	mov	cx,0fffeh		; yes, use a sane value for compatibility's sake
 f36_OK50:
