@@ -575,7 +575,7 @@ clear_info_fcb:
 	mov	al,' '
 	rep	stosb			; fill name with blanks
 ifdef PASSWORD
-    mov ah, al
+	mov	ah, al
 	mov	cx,4
 	mov	di,offset password_buffer
 	rep	stosw			; blank password buffer
@@ -2422,7 +2422,7 @@ look_for_match:
 ; Return with CY clear if we found it, ES:BX -> LDT, AL the drive
 	xor	ch,ch
 	mov	cl,join_drv		; search this many drives
-	xor	al,al			; start with drive A:
+	xor	ax,ax			; start with drive A:
 	mov	ah,last_drv
 	call	get_ldt			; ES:BX -> LDT for this drive
 	 jnc	lfm20

@@ -537,7 +537,7 @@ _ms_x_ioctl:
 	mov	bx,4[bp]		; get our handle
 	;mov	ah,MS_X_IOCTL		; get IO Control function
 	;mov	al,0			; get file/device status
-    mov	ax, (MS_X_IOCTL*256)    ; get IO Control function / get file/device status
+	mov	ax, (MS_X_IOCTL*256)    ; get IO Control function / get file/device status
 	int	DOS_INT			; do INT 21h
 	jnc	ms_x_i10
 	neg	ax
@@ -1986,7 +1986,7 @@ _call_novell	PROC NEAR
 	jmp	call_nov_exit
 
 call_nov_err:
-	xor	ah,ah ;; clear ah, BUT allow all ret' values in al
+	mov	ah,0 ;; clear ah, BUT allow all ret' values in al
 call_nov_exit:	
 	pop	di
 	pop	si

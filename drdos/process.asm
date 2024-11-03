@@ -146,7 +146,7 @@ func26:
 	mov	ds,current_psp		; we copy 1st 20 entries of current
 	lds	si,ds:PSP_XFTPTR	;  XFT to the child PSP
 	;rep	movsb			; we do not update file handle use
-	shr cx,1                ; Do 10 mov for 20 bytes
+	shr	cx,1			; Do 10 mov for 20 bytes
 	rep	movsw			; we do not update file handle use
 	pop	ds			;  counts, unlike Int21/55
 	ret

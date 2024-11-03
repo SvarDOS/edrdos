@@ -820,11 +820,11 @@ exec_name:
 	push	es
 	mov	es,__psp2		; Get the PSP Segment Address
 	mov	dx,PSP_ENVIRON		; Get the environment segment
-	test dx,dx			; Have we got an environment ?
+	test	dx,dx			; Have we got an environment ?
 	jz	exec_n11		; No prevent High Code Support
 
 	mov	es,dx			; Scan through the environment and
-	xor di,di			; determine the Environment size and
+	xor	di,di			; determine the Environment size and
 	xor	al,al			; the Load file name
 	mov	cx,7FFFh
 exec_n05:				; Scan through the Environment
@@ -2468,7 +2468,7 @@ show_help_10:
 	int	DOS_INT			; do it
 	pop	ds
 	jc	show_help_err2		; exit on error
-	test ax,ax			; zero bytes read means there's no
+	test	ax,ax			; zero bytes read means there's no
 	je	show_help_err2		; help seg tagged to file.
 
 ifdef DLS
@@ -2534,7 +2534,7 @@ write_string_05:
 	jmp	write_string_00		; start again
 
 write_string_10:
-	test al,al			; check for NULL...
+	test	al,al			; check for NULL...
 	jnz	write_string_20		; ...jump if its not
 	
 	mov	[di],al			; store char
@@ -2807,7 +2807,7 @@ try_next:
 	mov	ax,es:16h[bx]		; get parent PSP seg in ax
 	cmp	ax,cx			; are they the same ?
 	je	got_org_psp		; yes - found COMMAND.COM PSP
-	test ax,ax			; on MS-DOS parent PSP seg=0
+	test	ax,ax			; on MS-DOS parent PSP seg=0
 	je	null_org_psp
 	mov	bx,ax			; else make this current seg and
 	jmp	try_next		; try again
@@ -2817,7 +2817,7 @@ got_org_psp:
 	mov	es,ax			; ES = COMMAND.COM PSP seg
 	xor	bx,bx
 	mov	ax,es:2ch[bx]		; get env seg in ax
-	test ax,ax			; seg = 0000 ?
+	test	ax,ax			; seg = 0000 ?
 	je	bomb_out		; yes - forget it
 	dec	ax			; AX:0000 points to memory descriptor
 	mov	es,ax

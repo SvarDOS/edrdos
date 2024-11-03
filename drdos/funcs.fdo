@@ -1741,7 +1741,7 @@ endif
 
 ;	add	di,4			; skip 4 reserved bytes
 	inc	di  			; skip 2 reserved bytes
-	inc di
+	inc	di
 
 	mov	si,dirp			; point to directory name
 	test	attributes,DA_CLUSTER	; is the caller requesting

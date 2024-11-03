@@ -717,7 +717,7 @@ _dos_parse_filename	proc near
 	mov	ax,2901h
 	int	21h
 	
-	xor	ah,ah
+	mov	ah,0       ; Not sure if flags needed so do not replace by xor
 	pop	es
 	add	sp,30h
 	pop	bp

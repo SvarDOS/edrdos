@@ -1127,7 +1127,7 @@ direct_rw05:
 	call	div32
 	pop	dx
 	inc	sp
-	inc sp
+	inc	sp
 	pop	ax
 	add	sp,10
 ;	pop	cx

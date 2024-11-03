@@ -2978,7 +2978,7 @@ check_onoff:
 	push 	si			; Save String Location in Case of Error
 	mov	di,offset cmd_off	; es:di -> "OFF"
 	call	compare			; do we have an "OFF"?
-	xor	al,al
+	mov	al,0
 	jnc	chk_onoff10		
 	pop	si			; No match so return original address
 	stc				; with the CARRY falg set.

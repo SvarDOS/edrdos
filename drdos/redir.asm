@@ -1211,8 +1211,8 @@ redir_save_srch_state:
 	add	si,10			; skip reserved bytes
 	movsw				; copy the time
 	movsw				; copy the date
-	inc si  			; skip starting cluster
-	inc si
+	inc	si  			; skip starting cluster
+	inc	si
 	movsw				; copy the file size
 	movsw
 	pop	bx			; recover name
