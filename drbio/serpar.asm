@@ -209,7 +209,7 @@ dd_output:	; 8-output
 	add	dx,3			; back to parallel port number
 output1:
 	lods	es:byte ptr [si]	; get next character to output
-	mov	ah,0			; output AL to parallel port
+	xor	ah,ah			; output AL to parallel port
 	int	PRINTER_INT		; output to parallel port
 	mov	al,2			; "not ready" error
 	test	ah,PRN_TIMEOUT		; printer not ready?
@@ -308,7 +308,7 @@ dd_init:	; 0-initialize driver
 	jmps	init2
 init1:
 	sub	dx,3
-	mov	ah,0			; initialize serial port
+	xor	ah,ah			; initialize serial port
 	mov	al,0A3h			; 2400 Bd, no parity, 8 data, 1 stop
 	int	ASYNC_INT		; call the ROM BIOS
 init2:

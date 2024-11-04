@@ -328,8 +328,7 @@ else
 endif
 	call	i24_print
 
-	mov	ah,MS_C_FLUSH		; Clear type ahead buffer
-	mov	al,MS_C_READ		; and then get a character
+	mov	ax,(MS_C_FLUSH * 256) + MS_C_READ		; Clear type ahead buffer and then get a character
 	int	DOS_INT
 
 ; In case we get double byte characters...

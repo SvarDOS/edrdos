@@ -535,8 +535,9 @@ _ms_x_ioctl:
 	push	bp
 	mov	bp,sp
 	mov	bx,4[bp]		; get our handle
-	mov	ah,MS_X_IOCTL		; get IO Control function
-	mov	al,0			; get file/device status
+	;mov	ah,MS_X_IOCTL		; get IO Control function
+	;mov	al,0			; get file/device status
+	mov	ax, (MS_X_IOCTL*256)    ; get IO Control function / get file/device status
 	int	DOS_INT			; do INT 21h
 	jnc	ms_x_i10
 	neg	ax
@@ -552,9 +553,8 @@ _ms_x_setdev:
 	mov	bp, sp
 	mov	bx, 4[bp]		; handle
 	mov	dx, 6[bp]		; byte value to set
-	sub	dh, dh
-	mov	ah, MS_X_IOCTL
-	mov	al, 1
+	xor	dh, dh
+	mov	ax, (MS_X_IOCTL * 256) + 1
 	int	DOS_INT
 	jnc	ms_x_sd10
 	neg	ax
@@ -683,7 +683,7 @@ net_ware:
 	mov	ipx_segment,es
 
 	mov	cx,20			; Close all the possible handles 
-	mov	bx,0			; used by the command processor
+	xor	bx,bx			; used by the command processor
 net_w05:				; in case any have been redirected
 	mov	ah,MS_X_CLOSE		; accross the Network
 	int	DOS_INT
@@ -744,7 +744,7 @@ net_w70:
 	call	ipx
 	
 net_exit:
-	mov	dh,0			; Standard Exit
+	xor	dh,dh			; Standard Exit
 	mov	dl,04[bp]		; With the supplied ExitCode
 	mov	cx,P_EXITCODE		; Set the ExitCode for the Parent
 	int	BDOS_INT
@@ -1301,7 +1301,7 @@ _mem_free:
 	xor	ax,ax
 	mov	bx,04[bp]		; Get the Buffer Pointer address
 	xchg	ax,word ptr 02[bx]	; and from this the segment of the
-	cmp	ax,0			; allocated memory. If the memory
+	test	ax,ax			; allocated memory. If the memory
 	jz	mem_free10		; has already been freed the quit
 	push	es			; Otherwise Free the Memory
 	mov	es,ax
@@ -1392,13 +1392,13 @@ _ms_x_setcp:
 ifndef EXT_SUBST
 	Public	_physical_drvs		; Physical Drives returns a LONG
 _physical_drvs:				; Vector with bits set for every drive
-	mov	ax,0			; start with drive A:
+	xor	ax,ax			; start with drive A:
 	mov	cx,16			; check the first 16 drives
-	mov	bx,0
+	xor	bx,bx
 p_d10:
 	push	ax			; pass drive no. to _physical_drive
 	call	_physical_drive		; call it
-	cmp	ax,0			; check return value 
+	test	ax,ax			; check return value
 	pop	ax			; restore ax
 	jz	p_d20			; if zero skip setting the bit in 
 	or	bx,1			; the bitmap
@@ -1407,11 +1407,11 @@ p_d20:
 	inc	ax			; next drive
 	loop	p_d10			; Loop 16 Times
 	mov	cx,10			; Finally check the last 10 drives
-	mov	dx,0
+	xor	dx,dx
 p_d30:
 	push	ax			; pass drive no. to _physical_drive
 	call	_physical_drive		; call it
-	cmp	ax,0			; check return val
+	test	ax,ax			; check return val
 	pop	ax			; restore ax
 	jz	p_d40			; id zero skip setting the bit in 
 	or	dx,1			; the bitmap
@@ -1432,13 +1432,13 @@ p_d40:
 _logical_drvs:				; vector with bits set for every
 
 	mov	cx,16			; check the first 16 drives
-	mov	ax,0			; start with drive A:
+	xor	ax,ax			; start with drive A:
 	mov	bx,ax	
 
 l_d10:
 	push	ax			; pass the drive to _logical_drive
 	call	_logical_drive		; call it
-	cmp	ax,0			; check return value
+	test	ax,ax			; check return value
 	pop	ax			; restore ax
 	jz	l_d20			; skip if zero return
 	or	bx,1			; set bit in bitmap
@@ -1448,11 +1448,11 @@ l_d20:
 	loop	l_d10			; Loop 16 Times
 
 	mov	cx,10			; Finally check the last 10 drives
-	mov	dx,0
+	xor	dx,dx
 l_d30:
 	push	ax			; pass the drive to _logical_drive
 	call	_logical_drive		; call it
-	cmp	ax,0			; check return value
+	test	ax,ax			; check return value
 	pop	ax			; restore ax
 	jz	l_d40			; skip if zero return
 	or	dx,1			; set bit in bitmap
@@ -1478,8 +1478,7 @@ n_d10:
 	adc	bx,bx			;  one place left
 	push	ax
 	push	bx			; save the vector
-	mov	ah,MS_X_IOCTL
-	mov	al,9			; is device local ?
+	mov	ax,(MS_X_IOCTL * 256) + 9 ; is device local ?
 	mov	bl,cl			; drive number in BL
 	int	DOS_INT
 	pop	bx
@@ -1514,7 +1513,7 @@ _physical_drive	PROC NEAR
 	int	21h		; do it
 	jc	not_phys	; carry means invalid drive
 	and	dx,1000h	;
-	cmp	dx,0
+	test	dx,dx
 	jne	not_phys	; its a network drive
 
 	mov	ax,cs
@@ -1537,7 +1536,7 @@ _physical_drive	PROC NEAR
 	mov	ax,-1
 	jmp 	phys_exit
 not_phys:
-	mov	ax,0
+	xor	ax,ax
 phys_exit:
 	pop	bx
 	pop	cx
@@ -1612,7 +1611,7 @@ _logical_drive	PROC NEAR
 	int	21h		; do it
 	jc	not_logical	; carry means invalid drive
 	and	dx,1000h	;
-	cmp	dx,0
+	test	dx,dx
 	jne	not_logical	; its a network drive
 
 	mov	ax,cs
@@ -1635,7 +1634,7 @@ _logical_drive	PROC NEAR
 	mov	ax,-1
 	jmp 	logical_exit
 not_logical:
-	mov	ax,0
+	xor	ax,ax
 logical_exit:
 	pop	bx
 	pop	cx
@@ -1667,13 +1666,13 @@ _network_drive	PROC NEAR
 	int	21h		; do it
 	jc	not_networked	; carry means invalid drive
 	and	dx,1000h	;
-	cmp	dx,0
+	test	dx,dx
 	jne	not_networked	; its a network drive
 
 	mov	ax,-1
 	jmp 	network_exit
 not_networked:
-	mov	ax,0
+	xor	ax,ax
 network_exit:
 	pop	bx
 	pop	cx
@@ -1706,7 +1705,7 @@ _dr_toupper	proc	near
 	mov	bp, sp
 
 	mov	ax, 4[bp]
-	mov	ah, 0			; al = character to be converted
+	xor	ah, ah			; al = character to be converted
 	cmp	al, 'a'			; al < 'a'?
 	jb	exit_toupper		;  yes - done (char unchanged)
 	cmp	al, 'z'			; al <= 'z'?
@@ -1887,7 +1886,7 @@ _dbcs_lead	endp
 _extended_error PROC NEAR
 
 	mov	ah,59h
-	mov	bx,0
+	xor	bx,bx
 	int	21h
 	neg	ax
 	ret
@@ -1901,7 +1900,7 @@ _get_lines_page PROC NEAR
 	push	es
 
 	mov	ax,1130h
-	mov	bx,0
+	xor	bx,bx
 	mov	dx,24	; preset dx to 24 in case function not supported 
 	int	10h	 
 	
@@ -1953,7 +1952,7 @@ _novell_copy PROC NEAR
 	jmp	novcop_exit
 	
 novcop_failure:
-	mov	ax,0
+	xor	ax,ax
 novcop_exit:	
 	pop	di
 	pop	si
@@ -1983,11 +1982,11 @@ _call_novell	PROC NEAR
 	jne	call_nov_err
 	jc	call_nov_err
 
-	mov	ax,0	
+	xor	ax,ax
 	jmp	call_nov_exit
 
 call_nov_err:
-	mov	ah,0 ;; clear ah, BUT allow all ret' values in al 
+	mov	ah,0 ;; clear ah, BUT allow all ret' values in al
 call_nov_exit:	
 	pop	di
 	pop	si
@@ -2013,7 +2012,7 @@ _nov_station	PROC	NEAR
 	mov	[si],cx
 	mov	2[si],bx
 	mov	4[si],ax
-	mov	ax,0
+	xor	ax,ax
 	jmp	ns_exit
 
 ns_err:
@@ -2033,23 +2032,23 @@ _nov_connection	PROC NEAR
 	push	si
 
 if 0
-	mov	ax,0
+	xor	ax,ax
 	mov	es,ax
-	mov	si,0
+	xor	si,si
 	mov	ax,0ef03h
 	int	21h
 	
 	mov	ax,es
-	cmp	ax,0
+	test	ax,ax
 	jne	nc_ok
-	cmp	si,0
+	test	si,si
 	jne	nc_ok
 	mov	ax,-1
 	jmp	nc_exit	
 
 nc_ok:
 	mov	al,es:23[si]
-	mov	ah,0
+	xor	ah,ah
 endif
 
 	mov	ax,0dc00h

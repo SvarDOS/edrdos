@@ -707,7 +707,7 @@ endif
 	mov	cs:[int2E_seg],cs
 	mov	cs:[exec_psp],ds
 
-	cmp	di,0000h		; Disable Code Relocation if we have
+	test	di,di		; Disable Code Relocation if we have
 	jnz	gotCS_10		; been loaded as an .EXE file
 	;;mov	high_code,FALSE
 	
@@ -726,7 +726,7 @@ gotCS_10:
 	mov	[crc],ax
 
 	mov	ah,0ddh			; set Novell error mode
-	mov	dl,0			; to 00 - BAP
+	xor	dl,dl			; to 00 - BAP
 	int	21h
 	mov	net_error_mode,al	; save original error mode
 
@@ -776,8 +776,8 @@ carry_on:
 	push	es			; Relocate the command processor code
 	push	ds			; into high memory
 	mov	es,ax			; es-> destination segment
-	mov	di,0
-	mov	si,0
+	xor	di,di
+	xor	si,si
 	mov	ds,code_seg		; ds-> code to be moved
 	mov	cx,real_code		; convert bytes to words
 	shr	cx,1
@@ -820,12 +820,12 @@ exec_name:
 	push	es
 	mov	es,__psp2		; Get the PSP Segment Address
 	mov	dx,PSP_ENVIRON		; Get the environment segment
-	cmp	dx,0000			; Have we got an environment ?
+	test	dx,dx			; Have we got an environment ?
 	jz	exec_n11		; No prevent High Code Support
 
 	mov	es,dx			; Scan through the environment and
-	mov	di,0			; determine the Environment size and
-	mov	al,0			; the Load file name
+	xor	di,di			; determine the Environment size and
+	xor	al,al			; the Load file name
 	mov	cx,7FFFh
 exec_n05:				; Scan through the Environment
 	repne	scasb			; searching for the 00 00 terminator
@@ -1245,9 +1245,9 @@ i2e_10:
 	; if ds = si = 0 then set batch_seg_ptr to zero and get out.
 	; This is a clean way of halting batch processing.
 	mov	ax,ds
-	cmp	ax,0
+	test	ax,ax
 	jne	i2e_15
-	cmp	si,0
+	test	si,si
 	jne	i2e_15
 
 	mov	si,cs:_batch_seg_ptr
@@ -1534,7 +1534,7 @@ make_fcb10:
 ;
 scan_sepchar:
 	push	di			; Save DI  ES points at this segment
-	mov	ah,0			; Invalidate Separator Character
+	xor	ah,ah			; Invalidate Separator Character
 
 scan_s10:
 	mov	al,[si]			; Get the Character to Test
@@ -1561,7 +1561,7 @@ scan_s20:
 ;
 scan_filechar:
 	push	di			; Save DI  ES points at this segment
-	mov	ah,0			; Invalidate Separator Character
+	xor	ah,ah			; Invalidate Separator Character
 scan_f10:
 	mov	al,[si]			; Get the Character to Test
 	cmp	al,CR
@@ -1679,7 +1679,7 @@ _readline:
 	mov	ax,cs			; AX = transient code segment
 	call	readline		; do far call to msdos_readline
 	mov	ax,4456h		; Swap to the Application process
-	mov	dl,0			; History Buffer in DR DOS
+	xor	dl,dl			; History Buffer in DR DOS
 	int	DOS_INT
 	pop	es
 	pop	di
@@ -2265,7 +2265,7 @@ master_env15:
 	push	ds
 	mov	ds,ax			; DS -> Initial Environment
 	mov	es,PSP_ENVIRON		; ES -> Master Environment
-	mov	si,0
+	xor	si,si
 	mov	di,si
 	jcxz	master_env20		; If this was a Desqview exec then
 	rep	movsb			; skip the environment copy and
@@ -2329,7 +2329,7 @@ _int10_cls:
 	mov	ah, 0fh			; get mode
 	int	10h
 	and	al,7fh
-	mov	ah, 0			; set mode, clear screen (al bit 7 clear)
+	xor	ah, ah			; set mode, clear screen (al bit 7 clear)
 	int	10h
 
 	push	es
@@ -2388,7 +2388,7 @@ int10_exit:
 cginfo:
 	mov	dl, 24			; assume default # for CGA/MDA
 	mov	ax, 1130h		; character generator info
-	mov	bh, 0
+	xor	bh, bh
 	int	10h
 	ret				; dl = nlines - 1
 
@@ -2468,7 +2468,7 @@ show_help_10:
 	int	DOS_INT			; do it
 	pop	ds
 	jc	show_help_err2		; exit on error
-	cmp	ax,0			; zero bytes read means there's no
+	test	ax,ax			; zero bytes read means there's no
 	je	show_help_err2		; help seg tagged to file.
 
 ifdef DLS
@@ -2527,14 +2527,14 @@ write_string_05:
 	mov	al,0ah			;
 	mov	[di],al			; 
 	inc	di			;
-	mov	al,0			;
+	xor	al,al			;
 	mov	[di],al			; terminate string
 	call	flush_buff		; display it
 	inc	bx			;
 	jmp	write_string_00		; start again
 
 write_string_10:
-	cmp	al,0			; check for NULL...
+	test	al,al			; check for NULL...
 	jnz	write_string_20		; ...jump if its not
 	
 	mov	[di],al			; store char
@@ -2669,7 +2669,7 @@ PRH_PARAM	equ word ptr 4[bp]
 	
 	mov	ax,(MS_M_STRATEGY*256)+2
 	int	DOS_INT			; get existing HMA link
-	mov	ah,0
+	xor	ah,ah
 	push	ax			; save it
 	mov	bx,total_length		; get size of resident code/data
 	sub	bx,(dataOFFSET hi_seg_start)-15
@@ -2803,11 +2803,11 @@ _get_original_envsize	PROC	NEAR
 try_next:
 	mov	es,bx
 	mov	cx,bx			; move into CX
-	mov	bx,0
+	xor	bx,bx
 	mov	ax,es:16h[bx]		; get parent PSP seg in ax
 	cmp	ax,cx			; are they the same ?
 	je	got_org_psp		; yes - found COMMAND.COM PSP
-	cmp	ax,0			; on MS-DOS parent PSP seg=0
+	test	ax,ax			; on MS-DOS parent PSP seg=0
 	je	null_org_psp
 	mov	bx,ax			; else make this current seg and
 	jmp	try_next		; try again
@@ -2815,9 +2815,9 @@ null_org_psp:
 	mov	ax,cx
 got_org_psp:
 	mov	es,ax			; ES = COMMAND.COM PSP seg
-	mov	bx,0
+	xor	bx,bx
 	mov	ax,es:2ch[bx]		; get env seg in ax
-	cmp	ax,0			; seg = 0000 ?
+	test	ax,ax			; seg = 0000 ?
 	je	bomb_out		; yes - forget it
 	dec	ax			; AX:0000 points to memory descriptor
 	mov	es,ax
@@ -2868,7 +2868,7 @@ _get_reload_file:
 grf_loop:
 	lodsb
 	stosb
-	cmp	al,0
+	test	al,al
 	jnz	grf_loop	
 
 	pop	di
@@ -2904,7 +2904,7 @@ srf_loop:
 	stosb				; switches, but reload_file is
 srf_brian:				; just the file name.
 
-	cmp	al,0
+	test	al,al
 	jnz	srf_loop
 
 	pop	di
@@ -2932,9 +2932,9 @@ _get_out_pipe:
 	mov	ds,[low_seg]
 	mov	si,offset out_pipe
 	
-	mov	cx,8
+	mov	cx,4
 	cld
-	rep	movsb	
+	rep	movsw
 
 	pop	di
 	pop	si

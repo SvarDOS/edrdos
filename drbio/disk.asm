@@ -722,7 +722,7 @@ medchk8:
 	jmps	medchk_ret
 
 medchk6:
-	mov	al,00h			; disk may have changed
+	xor	al,al			; disk may have changed
 
 medchk_ret:
 	and	es:UDSC.FLAGS[di],not UDF_UNSURE
@@ -950,7 +950,7 @@ login_LBA2CHS:
 
 	call	getdrivegeo
 	push	dx			; save unit number
-	mov	dx,0			; divide high word of LBA block number
+	xor	dx,dx			; divide high word of LBA block number
 	mov	ax,word ptr [si+10]
 	div	cs:max_sect
 	push	ax			; high word of quotient
@@ -975,7 +975,7 @@ login_read_lba:
 ;		else local_buffer filled in
 
 	mov	dl,es:UDSC.RUNIT[di]	; DL = ROS drive
-	mov	dh,0			; DH = head number
+	xor	dh,dh			; DH = head number
 
 login_read_dx_lba:				; read on drive DL, head DH
 ;-------------				; (entry for hard disk login)
@@ -1023,7 +1023,7 @@ login_read:
 ;		else local_buffer filled in
 
 	mov	dl,es:UDSC.RUNIT[di]	; DL = ROS drive
-	mov	dh,0			; DH = head number
+	xor	dh,dh			; DH = head number
 
 login_read_dx:				; read on drive DL, head DH
 ;-------------				; (entry for hard disk login)
@@ -1862,7 +1862,7 @@ format50:
 	push	es
 	push	di
 	push	ax
-	mov	ax,0
+	xor	ax,ax
 	mov	es,ax
 	mov	di,78h
 	mov	ax,orig_int1e_off
@@ -2315,7 +2315,7 @@ endif
 	mov	si,offset disk_msgB		; get message to print
 askfdsk20:
 	call	WriteASCIIZ		; output the string
-	mov	ah,0			; wait for any key to be pressed
+	xor	ah,ah			; wait for any key to be pressed
 	int	KEYBOARD_INT		; read one key from keyboard
 askfdsk30:
 	ret				; we've got the right drive
@@ -2495,7 +2495,7 @@ equip_no_chgline:
 	cmp	cl,36			; 36 spt ?
 	 jne	equip_no_type		; don't recognise anything
 equip_type:
-	cmp	bl,0			; 360K 5.25"?
+	test	bl,bl			; 360K 5.25"?
 	je	equip_type_ok		; yes
 	mov	es:UDSC.NCYL[di],80	; else assume 80 tracks
 	cmp	bl,3			; is it 1.44 Mb 3.5" type?
@@ -3145,7 +3145,7 @@ hd_bpb:
 					; BPB_TOTSEC set up already
 	mov	BPB.FATID[bx],0F8h	; standard hard disk ID
 	mov	al,nsect
-	mov	ah,0
+	xor	ah,ah
 	mov	BPB.SPT[bx],ax		; set sectors/track
 	mov	al,nhead
 	mov	BPB.HEADS[bx],ax	; set # of heads

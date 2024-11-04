@@ -168,7 +168,7 @@ fdos_reenter:
 	add	bx,ax
 	add	bx,ax			; BX = function # * 3
 	mov	cl,byte ptr [bx+fdos_tbl-(39h*(WORD+BYTE))+WORD]
-	mov	ch,0
+	xor	ch,ch
 					; get table of # of parameters
 	mov	es:fdos_info+2*WORD,cx	; save the parameter count
 	rep	movsw			; copy parameter block
@@ -265,8 +265,8 @@ fdos_mkdir:
 	mov	al,DA_DIR
 	stosb				; mark it as a directory
 	xor	ax,ax
-	mov	cx,(32-12)
-	rep	stosb			; zero remainder of new FCB
+	mov	cx,(32-12) / 2
+	rep	stosw			; zero remainder of new FCB
 	pop	si			; SI -> directory
 
 	call	stamp_dir_entry		; set time and date in FCB
@@ -505,7 +505,7 @@ chdir70:
 
 	push	es			; insert name into user buffer
 	les	di,dword ptr fdos_pb+6
-	mov	al,0
+	xor	al,al
 	scasb			; check if first directory
 	 je	chdir75			; if not 1st in path
 	inc	dx			; we need space for '\'
@@ -526,8 +526,8 @@ chdir80:				; arrive here when root reached
 	push 	ss
 	pop 	ds
 	mov	si,offset pri_pathname	; DS:SI -> new LDT_ we just built
-	mov	cx,LDT_LEN
-	rep	movsb			; copy the new LDT_ into place
+	mov	cx,LDT_LEN / 2  ; LDT_LEN is 58h (88 bytes) so copy in words
+	rep	movsw			; copy the new LDT_ into place
 	pop	ds
 	cmp	ax,path_drive		; if the drive's are same
 	 je	chdir85			;  "CD" or "SUBST d:=d:path"
@@ -616,9 +616,9 @@ creat2:
 creat5:
 	or	al,DA_ARCHIVE		; always create as new file
 	stosb				; update directory attributes
-	sub	ax,ax			; zero out remainder of entry
-	mov	cx,32-12
-	rep	stosb			; zero remainder of entry
+	xor	ax,ax			; zero out remainder of entry
+	mov	cx,(32-12) / 2
+	rep	stosw			; zero remainder of entry
 
 	push	bx			; save dirp
 	push	dx			; save the open mode
@@ -1169,7 +1169,7 @@ chmod10:
 ifdef PASSWORD
 	cmp	cl,5			; validate sub-function number
 	 ja	chmod15
-	mov	ax,0
+	xor	ax,ax
 	cmp	dosfat,FAT32		; FAT32 file system?
 	 je	chmod11			; yes, then this entry is used for high word of cluster instead
 	mov	ax,DPWM[bx]		; assume return password mode
@@ -1567,7 +1567,7 @@ fdos_exec:
 	mov	es:PSP_XFTOFF,di
 	mov	es:PSP_XFTSEG,es
 	mov	al,0FFh			; assume all handles closed
-	rep	stosb
+	rep	stosb           ; Todo: Can we store in Words?
 	xor	si,si			; start with XFN 0
 exec10:
 	call	get_xftptr		; ES:DI -> XFN table
@@ -1740,7 +1740,8 @@ endif
 	stosw
 
 ;	add	di,4			; skip 4 reserved bytes
-	add	di,2			; skip 2 reserved bytes
+	inc	di  			; skip 2 reserved bytes
+	inc	di
 
 	mov	si,dirp			; point to directory name
 	test	attributes,DA_CLUSTER	; is the caller requesting
@@ -2006,7 +2007,7 @@ mkddsc_ext:
 	ret
 
 bpb2ddsc_noext:
-	mov	bl,0			; do not build extended DDSC
+	xor	bl,bl			; do not build extended DDSC
 	jmp	bpb2ddsc02
 bpb2ddsc:
 ;--------
@@ -2351,7 +2352,7 @@ fdos_expand23:
 	inc	si
 	mov	al,ss:[si+bx]
 	mov	ss:[si],al
-	cmp	al,0
+	test	al,al
 	 jne	fdos_expand23
 fdos_expand25:
 
@@ -2587,7 +2588,7 @@ move_seek:				; re-seek the old directory entry
 	mov	dcnt,ax			; set search offset
 	and	chdblk,0		; follow the chains, not sequential
 	and	chdblk+2,0
-	mov	cl,0			; return next entry
+	xor	cl,cl			; return next entry
 	jmp	getdir			; in current directory
 
 move_comp:

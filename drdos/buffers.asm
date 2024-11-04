@@ -946,7 +946,8 @@ fatptr10:
 	sub	sp,8			; reserve space for result on stack
 	call	div32
 	pop	bx
-	add	sp,2
+	inc	sp
+	inc	sp
 	pop	ax
 	pop	dx
 	add	sp,8			; clean up the stack
@@ -1058,7 +1059,7 @@ locate20:				; MRU buffer doesn't match
 	cmp	si,word ptr bcb_root	; while there are more buffers
 	 jne	locate10
 
-	cmp	cl,0			; shall we only tag an existing buffer?
+	test	cl,cl			; shall we only tag an existing buffer?
 	 je	locate50		; yes, then do not sacrifice this one
 
 	; find cheap buffer to recycle
@@ -1302,8 +1303,9 @@ zeroblk10:				; repeat for all sectors in cluster
 	or	es:BCB_FLAGS[si],BF_DIRTY
 	lea	di,BCB_DATA[si]		; ES:DI -> disk buffer
 	mov	cx,psecsiz		; CX = byte count for REP STOSB
+	shr	cx, 1
 	xor	ax,ax
-	rep	stosb			; zero the whole data buffer
+	rep	stosw			; zero the whole data buffer
 	pop	dx
 	pop	cx
 	pop	ax

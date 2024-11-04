@@ -780,7 +780,7 @@ config_end20:
 	mov	es,bx
 	mov	cx,es:PSP_XFNMAX	; Close all the standard handles
 	les	di,es:PSP_XFTPTR	; and then reopen them in case a
-	mov	bx,0			; dynamicly loadable device has
+	xor	bx,bx			; dynamicly loadable device has
 cfg_e10:				; replaced the BIOS driver
 	mov	dl,es:[di+bx]		; save old internal handle
 	mov	ah,MS_X_CLOSE
@@ -1051,7 +1051,7 @@ reloc_xbda02:
 	push	es			; save ES
 	mov	ax,40h			; address of BIOS data area
 	mov	es,ax
-	mov	bx,0
+	xor	bx,bx
 	mov	ax,es:0eh[bx]		; segment address of XBDA if one exists
 	cmp	ax,mem_size		; is it at the top of conventional mem?
 	 je	reloc_xbda03		; yes, go on
@@ -1487,7 +1487,7 @@ SetupHMA:
 	int	2fh
 	mov	word ptr xms_driver,bx
 	mov	word ptr xms_driver+2,es
-	mov	ah,0			; version number check
+	xor	ah,ah			; version number check
 	call	dword ptr xms_driver
 	cmp	dx,1			; does HiMem exist ?
 	 jne	SetupHMA20
@@ -1716,7 +1716,7 @@ alloc_upper10:
 	pushf
 	push 	ax			; save CF and possible address
 	mov	ax,(MS_M_STRATEGY*256)+1; set allocation strategy
-	mov	bl,0			;  to first fit
+	xor	bl,bl			;  to first fit
 	int	DOS_INT
 	pop ax
 	popf				; restore CF and possible address

@@ -129,7 +129,7 @@ env_e20:				; Found the correct entry now copy
 env_e30:
 	lodsb
 	stosb				; Copy byte through AL
-	or	al,al
+	test	al,al
 	jnz	env_e30			; and check for end of string
 	jmps	env_exit
 _env_entry	ENDP
@@ -161,7 +161,7 @@ _env_scan	PROC	near
 env_s10:
 	lodsb 
 	stosb				; Copy byte through AL
-	or	al,al
+	test	al,al
 	jnz	env_s10			; and check for end of string
 	jmps	env_exit
 _env_scan	ENDP
@@ -220,7 +220,7 @@ env_d10:
 env_d15:
 	lodsb
 	stosb				; Copy through AL checking for the end
-	or	al,al
+	test	al,al
 	jnz	env_d15			; of the environment after each
 	jmps	env_d10			; end of string.
 env_d20:
@@ -262,7 +262,7 @@ env_i25:
 env_i20:
 	lodsb
 	stosb				; Copy the String until a zero byte
-	or	al,al			; then add the environment terminator
+	test	al,al			; then add the environment terminator
 	loopnz	env_i20
 	mov	es:word ptr [di],0
 	jz	env_exit		; Exit with no error if the string is
@@ -315,7 +315,7 @@ get_key	PROC	near
 	push ds
 	pop es				; Calculate the length of the 
 	mov	di,04[bp]		; key by scaning the string for
-	mov	al,0			; a zero byte.
+	xor	al,al			; a zero byte.
 	mov	cx,-1
 	repnz	scasb
 	neg	cx			; CX is the length of the sting + 2
@@ -363,7 +363,7 @@ _get_cmdname:
 get_cmdname10:
 	lodsb
 	stosb
-	or	al,al
+	test	al,al
 	 jnz	get_cmdname10
 	jmp	env_exit
 	
@@ -668,7 +668,7 @@ crm_loop1:
 crm_loop2:
 	lodsb
 	stosb
-	cmp	al,0
+	test	al,al
 	jne	crm_loop2
 	loop	crm_loop1
 
@@ -717,7 +717,7 @@ _dos_parse_filename	proc near
 	mov	ax,2901h
 	int	21h
 	
-	mov	ah,0
+	mov	ah,0       ; Not sure if flags needed so do not replace by xor
 	pop	es
 	add	sp,30h
 	pop	bp
@@ -733,7 +733,7 @@ _flush_cache	proc near
 	push	bp
 	
 	mov	ax,4a10h
-	mov	bx,0
+	xor	bx,bx
 	mov	cx,0edch
 	int	2fh
 	

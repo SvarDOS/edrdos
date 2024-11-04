@@ -194,7 +194,7 @@ output6:				; DX = binary year
 	call	bin2bcd			; convert to BCD values
 	xchg	ax,cx			; CH, CL = hh:mm in BCD
 	mov	ah,es:TIME.SECONDS[si]
-	mov	al,0			; get binary seconds & no daylight saving
+	xor	al,al			; get binary seconds & no daylight saving
 	call	bin2bcd			; convert to BCD values
 	xchg	ax,dx			; DH, DL = ss.000 in BCD
 
@@ -243,7 +243,7 @@ output6:				; DX = binary year
 
 read_system_ticks:
 ;-----------------
-	mov	ah,0			; read system tick counter
+	xor	ah,ah			; read system tick counter
 	int	RTC_INT
 	test	al,al			; have we passed midnight ?
 	 jz	read_st10		; if so a new day has dawned
@@ -381,7 +381,7 @@ set_clock60:
 	inc	al			; next year
 	cmp	al,100			; end of century?
 	 jb	set_clock55		; skip if same century
-	mov	al,0			; continue with XX00
+	xor	al,al			; continue with XX00
 	inc	ah			;   ...next century
 	jmps	set_clock55		; check year again
 
@@ -422,7 +422,7 @@ bcd2bin:
 bcd2bin1:				; convert BCD to binary
 	xchg	al,ah			; swap the two values
 	push	bx
-	mov	bl,0			; start off without tens
+	xor	bl,bl			; start off without tens
 bcd2bin2:
 	cmp	al,10h			; check if more tens
 	 jb	bcd2bin3		; all tens done
