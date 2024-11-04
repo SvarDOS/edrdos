@@ -526,8 +526,13 @@ chdir80:				; arrive here when root reached
 	push 	ss
 	pop 	ds
 	mov	si,offset pri_pathname	; DS:SI -> new LDT_ we just built
-	mov	cx,LDT_LEN / 2  ; LDT_LEN is 58h (88 bytes) so copy in words
+if (LDT_LEN mod 2) eq 0
+	mov	cx,LDT_LEN / 2  	; LDT_LEN is 58h (88 bytes) so copy in words
 	rep	movsw			; copy the new LDT_ into place
+else
+	mov	cx,LDT_LEN		; LDT_LEN is 58h (88 bytes)
+	rep	movsb			; copy the new LDT_ into place
+endif
 	pop	ds
 	cmp	ax,path_drive		; if the drive's are same
 	 je	chdir85			;  "CD" or "SUBST d:=d:path"
