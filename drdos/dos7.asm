@@ -157,14 +157,16 @@ f7303_10:
 	mov	dl,al			; drive number
 	inc	dl
 	xor	dh,dh
+	push	cx
 	call	fdos_DISKINFO		; get drive info, ES:BX -> DDSC
+	pop	cx
 	 jnc	f7303_20
 	mov	ax,-0fh			; return 0fh (invalid drive)
 	stc
 	jmp	error_exit		; error if invalid drive
 f7303_20:
 	cmp	cx,FREED_LEN		; enough buffer space for data?
-	 jbe	f7303_30
+	 jae	f7303_30
 	mov	ax,-18h			; return 18h (bad request structure length)
 	stc
 	jmp	error_exit		; no, then exit with error
