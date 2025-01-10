@@ -107,6 +107,7 @@ kernledr.svp: pkg/kernel.sys pkg/bin/country.sys pkg/doc/kernledr/license.htm pk
 	cd pkg
 	zip -9rkDX ..$(SEP)$@ *
 	cd ..
+	rm -rf pkg
 
 pkg/kernel.sys: pkg bin/kernel.sys
 	$(CP) $]@ $@
@@ -163,9 +164,4 @@ clean: .SYMBOLIC
 	@rm -f bin/license/license.htm
 	@rm -f image/edrdos.img
 	# SvarDOS package
-	@rm -f pkg/kernel.sys
-	@rm -f pkg/bin/country.sys
-	@rm -f pkg/doc/license.htm
-	@rm -f pkg/appinfo/kernledr.lsm
-	@rm -f kernledr.svp
-
+	@rm -rf pkg
