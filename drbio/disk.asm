@@ -1862,7 +1862,7 @@ format50:
 	push	es
 	push	di
 	push	ax
-	xor	ax,ax
+	mov	ax,0
 	mov	es,ax
 	mov	di,78h
 	mov	ax,orig_int1e_off

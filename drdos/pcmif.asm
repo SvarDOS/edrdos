@@ -170,7 +170,7 @@ call5_entry:
 	cmp	ah,024h		; Check for a valid function for this
 	jbe	int21_entry	; entry technique if not return
 illegal_iret:
-	xor	al,al
+	mov	al,0
 	iret
 
 int21_e01:
