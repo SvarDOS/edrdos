@@ -456,7 +456,7 @@ f36_OK:
 	call	return_CX		; in bytes
 
 	mov	dx,es:DDSC_NCLSTRS[bx]	; Convert the last cluster no
-	cmp	dosfat,FAT32		; FAT32 file system?
+	cmp	es:DDSC_DIRENT[bx],0	; FAT32 file system?
 	 jne	f36_OK20		; no, then use the 16-bit value
 	mov	dx,es:word ptr DDSC_BCLSTRS[bx]	; Convert the last cluster no
 	cmp	es:word ptr DDSC_BCLSTRS+2[bx],0	; more than fits into 16-bit register?
@@ -468,7 +468,7 @@ f36_OK20:
 
 	mov	cx,es:DDSC_FREE[bx]	; get number of free clusters
 	xor	dx,dx
-	cmp	es:DDSC_NFATRECS[bx],0	; could this be a FAT32 drive?
+	cmp	es:DDSC_DIRENT[bx],0	; FAT32 file system?
 	 jne	f36_OK25		; nah, it must be FAT12/16
 	cmp	es:DDSC_MEDIA[bx],8fh	; or is it a CD-ROM drive?
 	 je	f36_OK25		; apparently it is one, so handle it like FAT12/16
