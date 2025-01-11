@@ -1100,21 +1100,34 @@ redir_getdpb:
 	mov	ax,I2F_SPACE
 	call	int2f_ldt		; get the info
 	 jnc	redir_getdpb10		; if we get an error then make CLMSK=FE
-    mov al,0ffh        
+	mov	al,0ffh        
 redir_getdpb10:        
-	mov	si,offset sec_pathname	; let's re-use this as a temp DPB
+	mov	di,offset sec_pathname	; let's re-use this as a temp DPB
+	push	cx
+	push	ax
+	push	di
+	push	ds
+	pop	es
+	mov	cx,DDSC_LEN
+	xor	ax,ax
+	rep	stosb			; zero-fill temporary
+	pop	di
+	mov	si,[bp+2]		; si -> parameter block
+	mov	[si+4],di
+	mov	[si+6],ds		; point to dummy DPB
+	mov	[si+8],ax		; zero adjust value = 0
+	dec	ax			; = -1
+	mov	byte ptr [DDSC_NFATRECS+di],al
+	mov	byte ptr [DDSC_DIRENT+di],al	; say not FAT32
+	pop	ax 
 	dec	al			; make cluster mask
-	mov	ds:DDSC_CLMSK[si],al	; and stuff into DPB
-	mov	ds:DDSC_FREE[si],dx
-	mov	ds:DDSC_SECSIZE[si],cx
+	mov	[DDSC_CLMSK+di],al	; and stuff into DPB
+	mov	[DDSC_FREE+di],dx
+	pop	[DDSC_SECSIZE+di]
 	inc	bx			; inc number of clusters
-	mov	ds:DDSC_NCLSTRS[si],bx
+	mov	[DDSC_NCLSTRS+di],bx
 	mov	al,err_drv		; also fill in drive number
-	mov	ds:DDSC_UNIT[si],al
-	mov	si,2[bp]		; DI -> parameter block
-	mov	4[si],offset sec_pathname
-	mov	6[si],ds		; point to my dummy DPB
-	mov	word ptr 8[si],0	; zero adjust value
+	mov	[DDSC_UNIT+di],al
 	mov	bx,0ffh			; return 0xFF (ie. bad drive)
 	ret
 
