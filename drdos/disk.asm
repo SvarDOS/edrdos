@@ -439,7 +439,7 @@ fdos_DI_error:
 ;	*****************************
 ;
 	Public	func36
-func36:
+func36	proc
 	call	set_retry_RF		; Valid to RETRY or FAIL
 	xor	dh,dh			; clear out DH
 	call	fdos_DISKINFO		; find out about drive
@@ -455,56 +455,65 @@ f36_OK:
 	mov	cx,es:DDSC_SECSIZE[bx]	; Get the Physical Sector Size
 	call	return_CX		; in bytes
 
-	mov	dx,es:DDSC_NCLSTRS[bx]	; Convert the last cluster no
-	cmp	es:DDSC_DIRENT[bx],0	; FAT32 file system?
+	xor	si,si
+	mov	di,es:DDSC_NCLSTRS[bx]	; si:di = last valid cluster number
+	cmp	es:DDSC_NFATRECS[bx],0	; FAT32 file system?
 	 jne	f36_OK20		; no, then use the 16-bit value
-	mov	dx,es:word ptr DDSC_BCLSTRS[bx]	; Convert the last cluster no
-	cmp	es:word ptr DDSC_BCLSTRS+2[bx],0	; more than fits into 16-bit register?
-	 je	f36_OK20			; no, the value is exact
-	mov	dx,0ffffh		; yes, so fake the value for maximum compatibility
+	mov	si,es:word ptr DDSC_BCLSTRS+2[bx]
+	mov	di,es:word ptr DDSC_BCLSTRS[bx]	; si:di = last valid cluster number
 f36_OK20:
-	dec	dx			; returned in DDSC to maximum
-	call	return_DX		; number of clusters
-
-	mov	cx,es:DDSC_FREE[bx]	; get number of free clusters
+	sub	di,1
+	sbb	si,0			; si:di = amount of data clusters
 	xor	dx,dx
-	cmp	es:DDSC_DIRENT[bx],0	; FAT32 file system?
+	mov	ax,es:DDSC_FREE[bx]	; dx:ax = number of free clusters
+	cmp	es:DDSC_NFATRECS[bx],0	; FAT32 file system?
 	 jne	f36_OK25		; nah, it must be FAT12/16
-	cmp	es:DDSC_MEDIA[bx],8fh	; or is it a CD-ROM drive?
-	 je	f36_OK25		; apparently it is one, so handle it like FAT12/16
-	mov	cx,es:word ptr DDSC_BFREE[bx]	; get number of free clusters (32-bit)
 	mov	dx,es:word ptr DDSC_BFREE+2[bx]
+	mov	ax,es:word ptr DDSC_BFREE[bx]	; dx:ax = number of free clusters (32-bit)
 f36_OK25:
-	xor	ax,ax
-	mov	al,es:DDSC_CLMSK[bx]	; get the sectors per cluster -1
-	inc	ax			; AX = sectors per cluster
+	mov	cl,es:byte ptr DDSC_CLSHF[bx]	; cl = spc shift
 ifdef DELWATCH
-	add	cx,FD_ADJUST		; now add in DELWATCH adjustment
+	add	ax,FD_ADJUST		; now add in DELWATCH adjustment
 	adc	dx,0
 endif
 f36_OK30:
-	cmp	dx,0			; more than fits into 16-bit register?
-	 je	f36_OK50			; no, the value is exact
-	cmp	al,64			; cluster size already 64K?
-	 jae	f36_OK40
-	shl	al,1			; cluster size * 2
-	shr	dx,1			; free clusters / 2
-	rcr	cx,1
-	jmp	f36_OK30			; try again
+	test	si,si			; si:di < 10000h ?
+	 jz	f36_OK40		; yes --> (implies dx:ax < 10000h as well)
+	push	ax
+	mov	ax,es:DDSC_SECSIZE[bx]
+	shl	ax,cl			; adjusted cluster size >= 32 KiB ?
+	cmp	ax,32*1024		; NC (jae) if we want to break out of loop
+	cmc				; CY if we want to break out of loop
+	 jc	@@skip			; if to break out -->
+	cmp	ax,es:DDSC_SECSIZE[bx]	; CY if shift had overflow	
+@@skip:
+	pop	ax
+	 jb	f36_OK40		; break out of loop -->
+	inc	cx			; increase spc shift
+	shr	dx,1			
+	rcr	ax,1			; free clusters / 2
+	shr	si,1
+	rcr	di,1			; total clusters / 2
+	jmp	f36_OK30		; try again
 f36_OK40:
 	test	dx,dx			; more than fits into 16-bit register?
-	 je	f36_OK50			; no, the value is exact
-	mov	cx,0fffeh		; yes, use a sane value for compatibility's sake
-f36_OK50:
-;	xor	ax,ax
-;	mov	al,es:DDSC_CLMSK[bx]	; get the sectors per cluster -1
-;	inc	ax			; AX = sectors per cluster
-
-	mov	bx,cx
-	call	return_BX		; return free clusters
-
+	 jz	@@ax_valid		; no, the value is exact
+	 mov	ax,-1			; yes, use a sane value for compatibility's sake
+@@ax_valid:
+	test	si,si
+	jz	@@di_valid
+	mov	di,-1
+@@di_valid:
+	mov	dx,di			; dx = adjusted amount total clusters
+	call	return_DX		; return amount total clusters
+	xchg	bx,ax			; bx = adjusted amount free clusters
+	call	return_BX		; return amount free clusters
+	mov	ax,1
+	shl	ax,cl			; ax = adjusted spc
 f36_exit:
 	jmp	return_AX_CLC
+func36	endp
+
 
 	public	fdos_DISKINFO
 fdos_DISKINFO:
