@@ -603,8 +603,8 @@ fcb_path2_prep:
 	mov	al,es:MSF_DRIVE[bx]	; get drive
 	add	bx,16			; point at 2nd name in FCB
 	mov	di,offset fcb_path2
-	mov	fcb_pb+6,di
-	mov	fcb_pb+8,ds		; point at buffer we want
+	mov	fcb_pb+10,di
+	mov	fcb_pb+12,ds		; point at buffer we want
 	jmp	fcb_path_prep_common
 
 fcb_path_prep:
