@@ -4,6 +4,8 @@
 
 IMAGE=edrdos.img
 LABEL=EDR-DOS
+SIZE=1440
+SERIAL=0x306de779
 
 # determine operating mode
 if [ "$1" = "singlefile" -o "$1" = "" ]; then
@@ -21,28 +23,24 @@ else
 fi
 
 # check for tools
-if ! command -v mdir --help >/dev/null 2>&1; then
+if ! command -v mdir > /dev/null 2>&1; then
 	echo "error: Mtools needed"
 	exit 1
 fi
 
-# create a blank, formatted 1.44M image
-dd if=/dev/zero of=$IMAGE bs=512 count=2880
-mformat -i $IMAGE -v $LABEL
-
-# copy kernel to image
+# create a blank, formatted image and copy kernel to image
 case $MODE in
 singlefile)
-	dd if=bootfdos.144 of=$IMAGE bs=512 count=1 conv=notrunc
+	mformat -i $IMAGE -B bootfdos.144 -k -v $LABEL -f $SIZE -N $SERIAL -C
 	mcopy -i $IMAGE ../bin/kernel.sys ::/kernel.sys
 	;;
 dualfile)
-	dd if=bootedr.144 of=$IMAGE bs=512 count=1 conv=notrunc
+	mformat -i $IMAGE -B bootedr.144 -k -v $LABEL -f $SIZE -N $SERIAL -C
 	mcopy -i $IMAGE ../bin/drbio.sys ::/
 	mcopy -i $IMAGE ../bin/drdos.sys ::/
 	;;
 singlefile-drbio)
-	dd if=bootedr.144 of=$IMAGE bs=512 count=1 conv=notrunc
+	mformat -i $IMAGE -B bootedr.144 -k -v $LABEL -f $SIZE -N $SERIAL -C
 	mcopy -i $IMAGE ../bin/kernel.sys ::/drbio.sys
 	;;
 esac
