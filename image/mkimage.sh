@@ -23,7 +23,7 @@ else
 fi
 
 # check for tools
-if ! which mdir > /dev/null 2>&1; then
+if ! command -v mdir > /dev/null 2>&1; then
 	echo "error: Mtools needed"
 	exit 1
 fi
