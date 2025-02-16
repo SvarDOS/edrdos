@@ -3217,7 +3217,7 @@ hd_bpb20:				; cluster size determined
 	sub	ax,1+(512*32/SECSIZE)	; subtract reserved+root directory
 	sbb	dx,0			; (note: 32 bytes per entry)
 	xor	cx,cx
-	mov	ch,BPB.ALLOCSIZ[bx]	; CX = (256 * # of clusters on drive)
+	mov	ch,BPB.ALLOCSIZ[bx]	; CX = (256 * sectors per cluster)
 	dec	cx
 	add	ax,cx			; add in for rounding error
 	adc	dx,0
@@ -3265,27 +3265,36 @@ hd_bpb30:				; build BPB for FAT32
 	
 	; Now follows the calculation of the sector count per FAT.
 	; It is calculated after the formula
-	;   (total_sec + (sec_per_clust-1) - reserved) /
-	;   (sect_per_clust * entries_per_FAT_sector)
-	; This is somewhat inefficient, because the FATs are unnecessarily
-	; treated as data area.
-hd_bpb40:				; DX:AX = total sectors
-	sub	ax,BPB.FATADD[bx]	; subtract reserved
+	;   ((ts-res+1)/2+spc) / (64*spc+1) + 1
+	; where ts = total sectors, spc = sectors per cluster and
+	;       res = reserved sectors
+	; See https://github.com/boeckmann/fatdocs on how the formula was
+	; derived.
+hd_bpb40:				; DX:AX = ts
+	sub	ax,BPB.FATADD[bx]	; DX:AX = ts - res
 	sbb	dx,0
+	add	ax,1
+	adc	dx,0			; DX:AX = ts - res + 1
+	shr	dx,1
+	rcr	ax,1			; DX:AX = (ts - res + 1) / 2
 	xor	cx,cx
-	mov	ch,BPB.ALLOCSIZ[bx]
-	shr	cx,1			; CX = sectors per cluster * 128
-	  ; If CX is now zero this means that we are dealing with
-	  ; 256 sectors per cluster. We set CX to:
-	  ;	256 sectors per cluster * 128 FAT entries per sector = 8000h
-	jnz	hd_bpb41
-	mov	ch,80h
+	mov	cl,BPB.ALLOCSIZ[bx]	; CX = spc
+	test	cl,cl			; CL = zero means spc=256
+	jnz	hd_bpb41		
+	mov	ch,1
 hd_bpb41:
-	dec	cx
-	add	ax,cx			; add in for rounding error
-	adc	dx,0
-	inc	cx
-;	div	cx			; AX = # of fat sectors
+	add	ax,cx
+	adc	dx,0			; DX:AX = (ts - res + 1) / 2 + spc
+	xchg	ch,cl
+	shr	cx,1
+	shr	cx,1			; CX = spc * 64
+	  ; If CX is zero this means that we are dealing with 256 sectors per
+	  ;  cluster. We set CX to = 256 * 64 = 4000h
+	test	cx,cx
+	jnz	hd_bpb42
+	mov	ch,40h
+hd_bpb42:
+	add	cx,1			; CX = 64 * spc + 1
 	push	bp
 	push	dx
 	push	ax
@@ -3299,6 +3308,8 @@ hd_bpb41:
 	pop	dx
 	add	sp,8
 	pop	bp
+	add	ax,1
+	adc	dx,0			; DX:AX = FAT size in sectors
 	mov	word ptr BPB.BFATSEC[bx],ax	; remember FAT size
 	mov	word ptr BPB.BFATSEC+2[bx],dx
 	and	word ptr BPB.FATSEC[bx], 0	; clear small FAT size field
