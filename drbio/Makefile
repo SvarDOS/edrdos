@@ -65,7 +65,7 @@ bin/clock.obj: clock.asm drmacros.equ ibmros.equ request.equ driver.equ
 
 bin/console.obj: console.asm drmacros.equ ibmros.equ request.equ driver.equ
 
-bin/disk.obj: disk.asm biosgrps.asm drmacros.equ ibmros.equ request.equ bpb.equ udsc.equ driver.equ keys.equ biosmsgs.def
+bin/disk.obj: disk.asm drmacros.equ ibmros.equ request.equ bpb.equ udsc.equ driver.equ keys.equ biosmsgs.def
 
 bin/serpar.obj: serpar.asm drmacros.equ ibmros.equ request.equ driver.equ
 

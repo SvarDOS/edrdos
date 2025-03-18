@@ -54,6 +54,9 @@
 ENDCODE		segment public byte 'ENDCODE'
 ENDCODE		ends
 
+RCODE		segment public word 'RCODE'
+RCODE		ends
+
 RESUMECODE	segment public byte 'RESUMECODE'
 RESUMECODE	ends
 
@@ -1181,7 +1184,7 @@ ifndef ROMSYS
 endif
 RCODE_ALIGN	ends
 
-RCODE		segment public byte 'RCODE'
+RCODE		segment
 
 rcode_header	dw	0
 
