@@ -792,10 +792,12 @@ fdos_read:
 	mov	dx,ax
 	mov	ax,es:DHNDL_POSHI[bx]
 	sbb	ax,es:DHNDL_SIZEHI[bx]
+ifdef FATPLUS
 	mov	ax,es:DHNDL_POSXLO[bx]
 	sbb	ax,es:DHNDL_SIZEXLO[bx]
 	mov	ax,es:DHNDL_POSXHI[bx]
 	sbb	ax,es:DHNDL_SIZEXHI[bx]
+endif
 ;	 jb	read2			; beyond EOF already, no action required
 ;	 ja	read2			; more the 64K to go, no problems
 	 jnz	read2
@@ -973,65 +975,63 @@ endif
 ;	AX:	0000 or error code ( < 0)
 ;	offset:	new offset
 
-fdos_lseek:
+fdos_lseek proc
 ;----------
 	call	vfy_dhndl_ptr		; check file handle #
 	call	redir_dhndl_offer
 	call	local_disk		; get MXdisk, switch stack
 	test	es:DHNDL_ATTR[bx],DHAT_DEV
-	 jnz	lseek_dev		; skip a part if character device
+	 jnz	@@dev			; skip a part if character device
 	call	check_handle		; check if legal file handle
-lseek_dev:
+@@dev:
 	mov	ax,fdos_pb+4		; get 32-bit file offset
 	mov	dx,fdos_pb+6		; into AX,DX
 	mov	cx,fdos_pb+8		; get seek mode
-	 jcxz	lseek4			; seek from beginning
+	 jcxz	@@seek_beg		; seek from beginning
 	dec	cx
-	 jz	lseek2			; seek from current position
+	 jz	@@seek_cur		; seek from current position
 	dec	cx
-	 jz	lseek3			; seek from end
-	mov	ax,ED_DATA		; else invalid seek mode
+	 jz	@@seek_end		; seek from end
+@@err:	mov	ax,ED_DATA		; else invalid seek mode
 	jmp	fdos_error		; return error code
-lseek1:
 	ret				; return error code
 
-lseek2:					; seek mode 1: relative to position
-;	add	ax,es:DHNDL_POSLO[bx]
-;	adc	dx,es:DHNDL_POSHI[bx]
-	add	es:DHNDL_POSLO[bx],ax
-	adc	es:DHNDL_POSHI[bx],dx
-	adc	es:DHNDL_POSXLO[bx],0
-	adc	es:DHNDL_POSXHI[bx],0
-	test	dx,8000h		; negative offset?
-	 jz	lseek2a
-	add	es:DHNDL_POSXLO[bx],0ffffh; yes, then extend the sign to 64-bit
-	adc	es:DHNDL_POSXHI[bx],0ffffh
-lseek2a:
-	jmp	lseek4a			; update new position
+@@seek_beg:				; seek mode 0: set absolute position
+	mov	es:DHNDL_POSLO[bx],ax
+	mov	es:DHNDL_POSHI[bx],dx
+	mov	fdos_pb+4,ax		; set return values
+	mov	fdos_pb+6,dx
+ifdef FATPLUS
+	mov	es:DHNDL_POSXLO[bx],cx
+	mov	es:DHNDL_POSXHI[bx],cx
+endif
+	ret
 
-lseek3:					; seek mode 2: relative to end
-;	add	ax,es:DHNDL_SIZELO[bx]
-;	adc	dx,es:DHNDL_SIZEHI[bx]	; add file size + offset
+@@seek_end:				; seek mode 2: relative to end
 	push	ax
 	mov	ax,es:DHNDL_SIZELO[bx]
 	mov	es:DHNDL_POSLO[bx],ax
 	mov	ax,es:DHNDL_SIZEHI[bx]
 	mov	es:DHNDL_POSHI[bx],ax
+ifdef FATPLUS
 	mov	ax,es:DHNDL_SIZEXLO[bx]
 	mov	es:DHNDL_POSXLO[bx],ax
 	mov	ax,es:DHNDL_SIZEXHI[bx]
 	mov	es:DHNDL_POSXHI[bx],ax
+endif
 	pop	ax
-	jmp	lseek2
-lseek4:					; seek mode 0: set absolute position
-	mov	es:DHNDL_POSLO[bx],ax
-	mov	es:DHNDL_POSHI[bx],dx
-	mov	fdos_pb+4,ax		; set return values
-	mov	fdos_pb+6,dx
-	mov	es:DHNDL_POSXLO[bx],cx
-	mov	es:DHNDL_POSXHI[bx],cx
-	ret
-lseek4a:
+
+@@seek_cur:				; seek mode 1: relative to position
+	add	es:DHNDL_POSLO[bx],ax
+	adc	es:DHNDL_POSHI[bx],dx
+ifdef FATPLUS
+	adc	es:DHNDL_POSXLO[bx],0
+	adc	es:DHNDL_POSXHI[bx],0
+	test	dx,8000h		; negative offset?
+	 jz	@f
+	add	es:DHNDL_POSXLO[bx],0ffffh; yes, then extend the sign to 64-bit
+	adc	es:DHNDL_POSXHI[bx],0ffffh
+@@:
 	cmp	es:DHNDL_POSXLO[bx],0
 	 jne	lseek4b
 	cmp	es:DHNDL_POSXHI[bx],0
@@ -1045,14 +1045,17 @@ lseek4c:
 	xor	ax,ax
 	dec	ax
 	mov	dx,ax
-	jmp	lseek4e
+	jmp	@@update
 lseek4d:
+endif
 	mov	ax,es:DHNDL_POSLO[bx]
 	mov	dx,es:DHNDL_POSHI[bx]
-lseek4e:
+@@update:
 	mov	fdos_pb+4,ax		; set return values
 	mov	fdos_pb+6,dx
 	ret
+fdos_lseek endp
+
 
 ;	GET/SET FILE ATTRIBUTES (CHMOD)
 
@@ -1851,6 +1854,7 @@ file_update:
 	xchg	ax,di			; DI -> directory entry in buffer
 	or	DATTS[di],DA_ARCHIVE	; mark file as modified
 ;;;	call	timestamp_dhndl		; record the current time
+ifdef FATPLUS
 	mov	ax,es:DHNDL_SIZEXLO[bx]	; get extended 6 bits for FAT+
 	mov	ah,al			; shift the bits in place
 	and	al,00000111b
@@ -1862,6 +1866,7 @@ file_update:
 	and	al,00011000b		; save bits used WinNT
 	or	al,ah			; combine them with FAT+ bits
 	mov	DSIZEX[di],al		; and store them again
+endif
 	cmp	dosfat,FAT32		; is this a FAT32 file system?
 	 jne	file_update05		; no, then skip this entry
 	mov	ax,es:DHNDL_BLK1H[bx]	; get high word of 1st block in file
@@ -2531,7 +2536,9 @@ move60:					; moving to different directory
 	 jnz	move_access		; so return error if new path
 	call	allocdir		; allocate a directory entry
 move70:
+ifdef FATPLUS
 	call	del_lfn			; make sure no LFN is before it
+endif
 	mov	si,offset info_fcb+1	; get pointer to new name
 	mov	di,dirp			; get pointer to directory entry
 	mov	cx,11			; copy new name into buffer
@@ -2550,7 +2557,9 @@ move70:
 	mov	cx,HDS_LEN		; so we can get old entry again
 	rep	movsb			;    (time to get rid of it)
 	call	move_seek		; seek the original entry
+ifdef FATPLUS
 	call	del_lfn			; and delete LFN if one exists
+endif
 	mov	bx,dirp
 	mov	DNAME[bx],0E5h		; and bye, bye! it goes...
 	call	update_dir		; update the old directory entry

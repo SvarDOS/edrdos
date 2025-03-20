@@ -154,10 +154,12 @@ redir_dhndl_accept:
 	mov	word ptr current_filepos,ax
 	mov	ax,es:word ptr DHNDL_POS+2[bx]
 	mov	word ptr current_filepos+2,ax
+ifdef FATPLUS
 	mov	ax,es:word ptr DHNDL_POSX[bx]
 	mov	word ptr current_filepos+4,ax
 	mov	ax,es:word ptr DHNDL_POSX+2[bx]
 	mov	word ptr current_filepos+6,ax
+endif
 	pop	ds
 	jmp	redir_accept		; now we can process the call
 
@@ -965,6 +967,7 @@ redir_lseek10:				; seek mode 1: relative to position
 ;	adc	cx,es:DHNDL_POSHI[di]
 	add	es:DHNDL_POSLO[di],dx
 	adc	es:DHNDL_POSHI[di],cx
+ifdef FATPLUS
 	adc	es:DHNDL_POSXLO[di],0
 	adc	es:DHNDL_POSXHI[di],0
 	test	cx,8000h		; negative offset?
@@ -989,13 +992,16 @@ redir_lseek16:
 redir_lseek17:
 	mov	dx,es:DHNDL_POSLO[di]
 	mov	cx,es:DHNDL_POSHI[di]
+endif
 	jmp	redir_lseek90
 
 redir_lseek20:				; seek mode 0: set absolute position
 	mov	es:DHNDL_POSLO[di],dx	; set new file offset
 	mov	es:DHNDL_POSHI[di],cx	; SI = error code/0 at this point
+ifdef FATPLUS
 	mov	es:DHNDL_POSXLO[di],ax
 	mov	es:DHNDL_POSXHI[di],ax
+endif
 ;	jmp	redir_lseek90
 
 redir_lseek90:

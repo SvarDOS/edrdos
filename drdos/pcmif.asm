@@ -923,7 +923,11 @@ PCM_CODE	segment public byte 'CODE'
 	extrn	func5C:near, func5D:near, func5E:near, func5F:near
 	extrn	func60:near, func62:near, func63:near, func65:near
 	extrn	func66:near, func67:near, func68:near, func69:near
-	extrn	func6C:near, func71:near, func73:near
+	extrn	func6C:near, func73:near
+ifdef FATPLUS
+	extrn	func71:near
+endif
+
 PCM_CODE 	ends
 
 ;
@@ -1048,7 +1052,11 @@ pcmode_ft	label word
 	dw	ms_zero_AL		; (6E) Unused DOS function (AL = 0)
 	dw	ms_zero_AL		; (6F) Unused DOS function (AL = 0)
 	dw	ms_zero_AL		; (70) Unused DOS function (AL = 0)
+ifdef FATPLUS
 	dw	func71			; (71) LFN and 64-bit file functions
+else
+	dw	ms_zero_AL		; (71) Unused DOS function (AL = 0)
+endif
 	dw	ms_zero_AL		; (72) Unused DOS function (AL = 0)
 	dw	func73			; (73) DOS 7 FAT32 functions
 pcmode_ftl	equ	(offset $ - offset pcmode_ft)/2

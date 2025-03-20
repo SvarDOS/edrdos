@@ -881,8 +881,10 @@ rmdir_ok1:
 	cmp	DNAME[di],'.'		; is it "." or ".."?
 	 je	rmdir_ok3
 	mov	bx,di
+ifdef FATPLUS
 	call	is_lfn			; check if it is a long filename
 	 jc	rmdir_ok3		; we do not care for orphaned LFNs
+endif
 ifdef DELWATCH
 ; We have found a dir entry - better check if it is a pending delete
 ; and that delwatch is installed. Then we can ignore it.
@@ -1528,7 +1530,9 @@ toupper_intl:
 
 kill_file:	; release clusters for file/dir and delete entry
 ;---------
+ifdef FATPLUS
 	call	del_lfn			; delete any preceding LFN entries
+endif
 	mov	bx,dirp			; get pointer to directory entry
 ifdef DELWATCH
 	call	hdsblk			; AX = directory root cluster
@@ -1808,6 +1812,7 @@ creat_handle20:
 creat_handle25:
 	lea	di,DHNDL_BLK1H[bx]
 	stosw
+ifdef FATPLUS
 	lea	di,DHNDL_SIZEX[bx]	; FAT+ extended file size bits
 	mov	al,DSIZEX[si]
 	mov	ah,al
@@ -1821,7 +1826,8 @@ creat_handle25:
 	xor	ax,ax
 	stosw				; zero higher file size bits
 	stosw
-	stosw			; also the high dword of the position
+	stosw				; also the high dword of the position
+endif
 	lea	si,DTIME[si]
 	lea	di,DHNDL_TIME[bx]
 	movsw				; copy the time
@@ -1830,7 +1836,7 @@ creat_handle25:
 	lodsw				; skip 1st cluster (already done)
 ;	lea	di,DHNDL_SIZE[bx]
 	movsw
-	movsw			; copy the file size
+	movsw				; copy the file size
 ;	lea	di,DHNDL_POS[bx]
 	xor	ax,ax			; zero current position
 	stosw

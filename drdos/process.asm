@@ -669,6 +669,7 @@ f4C_10:
 	mov	bx,current_psp		; free all memory associated
 	call	free_all		;  with this PSP
 
+ifdef FATPLUS
 	push ss
 	pop ds
 	mov di, offset lfn_find_handles
@@ -686,6 +687,7 @@ f4C_close_lfn_handle_next:
 	scasw				; di += 2
 	cmp di, offset lfn_find_handles_end
 	jb f4C_close_lfn_handle_loop
+endif
 
 	pop	ax			; recover parental PSP
 f4C_20:
@@ -1544,7 +1546,9 @@ PCMODE_CODE	ends
 
 PCM_CODE	segment public byte 'CODE'
 
+ifdef FATPLUS
 	extrn lfn_free_handle:near
+endif
 
 PCM_CODE	ends
 

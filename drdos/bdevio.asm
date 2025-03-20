@@ -210,8 +210,10 @@ byteoff		dw	0		; fdosrw local variable
 		dw	0		; byte offset with file
 		dw	0,0
 
-fsize		dw	0,0,0,0		; used for file size calculations
-lastpos		dw	0,0,0,0		; last position that has been written
+fsize		dw	0,0		; used for file size calculations
+		dw	0,0
+lastpos		dw	0,0		; last position that has been written
+		dw	0,0
 
 blk		dw	0,0		; current cluster of filepos
 blkidx		dw	0,0		; current cluster index within file
@@ -375,10 +377,12 @@ fdrw_noerror:
 	sub	ax,lastpos
 	mov	ax,byteoff+2
 	sbb	ax,lastpos+2
+ifdef FATPLUS
 	mov	ax,byteoff+4
 	sbb	ax,lastpos+4
 	mov	ax,byteoff+6
 	sbb	ax,lastpos+6
+endif
 	 jc	fdrw_buffered
 	call	deblock_rw_npr
 	jmp	fdrw_more
@@ -394,8 +398,10 @@ fdrw_more:
 
 	add	byteoff,ax		; adjust file offset
 	adc	byteoff+2,0
+ifdef FATPLUS
 	adc	byteoff+4,0
 	adc	byteoff+6,0
+endif
 
 	push	ax
 	mov	ax,psecsiz
@@ -404,19 +410,23 @@ fdrw_more:
 	sub	ax,byteoff
 	mov	ax,lastpos+2
 	sbb	ax,byteoff+2
+ifdef FATPLUS
 	mov	ax,lastpos+4
 	sbb	ax,byteoff+4
 	mov	ax,lastpos+6
 	sbb	ax,byteoff+6
+endif
 	 jnc	fdrw_nohigher
 	mov	ax,byteoff
 	mov	lastpos,ax
 	mov	ax,byteoff+2
 	mov	lastpos+2,ax
+ifdef FATPLUS
 	mov	ax,byteoff+4
 	mov	lastpos+4,ax
 	mov	ax,byteoff+6
 	mov	lastpos+6,ax
+endif
 
 fdrw_nohigher:
 	pop	ax
@@ -429,8 +439,10 @@ fdrw_exit:
 	mov	ax,fdos_ret		; get total xfered and update position
 	add	es:DHNDL_POSLO[bx],ax
 	adc	es:DHNDL_POSHI[bx],0
+ifdef FATPLUS
 	adc	es:DHNDL_POSXLO[bx],0
 	adc	es:DHNDL_POSXHI[bx],0
+endif
 	test	fdrwflg,1
 	 jnz	fdrw_return		; skip if reading
 ;	mov	ax,byteoff		; has the file grown ?
@@ -443,12 +455,14 @@ fdrw_exit:
 	mov	ax,byteoff+2
 	sbb	ax,es:DHNDL_SIZEHI[bx]
 	mov	fsize+2,ax
+ifdef FATPLUS
 	mov	ax,byteoff+4
 	sbb	ax,es:DHNDL_SIZEXLO[bx]
 	mov	fsize+4,ax
 	mov	ax,byteoff+6
 	sbb	ax,es:DHNDL_SIZEXHI[bx]
 	mov	fsize+6,ax
+endif
 	 jb	fdrw_nobigger		; yes, update the file size
 ;	add	es:DHNDL_SIZELO[bx],ax
 ;	adc	es:DHNDL_SIZEHI[bx],dx
@@ -456,10 +470,12 @@ fdrw_exit:
 	add	es:DHNDL_SIZELO[bx],ax
 	mov	ax,fsize+2
 	adc	es:DHNDL_SIZEHI[bx],ax
+ifdef FATPLUS
 	mov	ax,fsize+4
 	adc	es:DHNDL_SIZEXLO[bx],ax
 	mov	ax,fsize+6
 	adc	es:DHNDL_SIZEXHI[bx],ax
+endif
 fdrw_nobigger:
 	call	timestamp_dhndl		; record the current time
 	test	es:DHNDL_MODE[bx],DHM_COMMIT
@@ -550,10 +566,12 @@ fdw_t60:
 	mov	es:DHNDL_SIZELO[bx],ax
 	mov	ax,byteoff+2
 	mov	es:DHNDL_SIZEHI[bx],ax
+ifdef FATPLUS
 	mov	ax,byteoff+4
 	mov	es:DHNDL_SIZEXLO[bx],ax
 	mov	ax,byteoff+6
 	mov	es:DHNDL_SIZEXHI[bx],ax
+endif
 	xor	ax,ax			; cause reads/writes to scan
 	mov	es:DHNDL_BLK[bx],ax	;   block chain from start
 	mov	es:DHNDL_BLKH[bx],ax
@@ -609,6 +627,7 @@ fdrw_p20:
 	mov	byteoff,ax
 	mov	ax,es:DHNDL_POSHI[bx]
 	mov	byteoff+2,ax
+ifdef FATPLUS
 	mov	ax,es:DHNDL_POSXLO[bx]
 	cmp	ax,63			; greater than 256 GB-1
 	 jbe	fdrw_p25
@@ -622,14 +641,17 @@ fdrw_p25:
 	jmp	fdrw_p40
 fdrw_p27:
 	mov	byteoff+6,ax
+endif
 	mov	ax,es:DHNDL_SIZELO[bx]	; copy file size
 	mov	lastpos,ax
 	mov	ax,es:DHNDL_SIZEHI[bx]
 	mov	lastpos+2,ax
+ifdef FATPLUS
 	mov	ax,es:DHNDL_SIZEXLO[bx]
 	mov	lastpos+4,ax
 	mov	ax,es:DHNDL_SIZEXHI[bx]
 	mov	lastpos+6,ax
+endif
 ;	mov	cx,clsize
 ;	mov	ax,lastcl
 ;	mul	cx			; DX:AX = maximum size of disk
@@ -644,8 +666,20 @@ fdrw_p27:
 ;	pop	cx
 	pop	fsize
 	pop	fsize+2
+ifdef FATPLUS
 	pop	fsize+4
 	pop	fsize+6
+else
+	pop	ax
+	pop	cx
+	or	ax,cx
+	 jz	fdrw_p28		; disk space less than 2^32 bytes?
+	xor	ax,ax
+	dec	ax
+	mov	fsize,ax		; else ensure file size stays below
+	mov	fsize+2,ax		; 2^32 bytes
+fdrw_p28:
+endif
 ;	add	sp,10			; clean up the stack again
 	add	sp,8			; clean up the stack again
 ;	sub	ax,byteoff
@@ -655,10 +689,12 @@ fdrw_p27:
 	sub	ax,byteoff
 	mov	ax,fsize+2
 	sbb	ax,byteoff+2
+ifdef FATPLUS
 	mov	ax,fsize+4
 	sbb	ax,byteoff+4
 	mov	ax,fsize+6
 	sbb	ax,byteoff+6
+endif
 	 jc	fdrw_p30
 ;	mov	ax,byteoff		; DX:AX = current file size
 ;	mov	dx,byteoff+WORD
@@ -713,20 +749,24 @@ fdrw_size:
 	mov	ax,es:DHNDL_SIZEHI[bx]
 	sbb	ax,byteoff+2
 	mov	fsize+2,ax
+ifdef FATPLUS
 	mov	ax,es:DHNDL_SIZEXLO[bx]
 	sbb	ax,byteoff+4
 	mov	fsize+4,ax
 	mov	ax,es:DHNDL_SIZEXHI[bx]
 	sbb	ax,byteoff+6
 	mov	fsize+6,ax
+endif
 	 jb	fdrw_s40
 ;	sub	ax,fdrwcnt		; will we be going beyond EOF ?
 ;	sbb	dx,0
 	mov	ax,fdrwcnt
 	sub	fsize,ax
 	sbb	fsize+2,0
+ifdef FATPLUS
 	sbb	fsize+4,0
 	sbb	fsize+6,0
+endif
 	 jnb	fdrw_s10		; no, whole xfer is OK
 	test	fdrwflg,1		; check if we're reading
 	 jz	fdrw_s50		;  if we are just adjust the
@@ -787,12 +827,14 @@ fdwrite_extend:
 	mov	ax,byteoff+2
 	adc	ax,0
 	mov	fsize+2,ax
+ifdef FATPLUS
 	mov	ax,byteoff+4
 	adc	ax,0
 	mov	fsize+4,ax
 	mov	ax,byteoff+6
 	adc	ax,0
 	mov	fsize+6,ax
+endif
 ;	div	clsize			; AX whole blocks required
 ;	push	dx
 ;	push	ax

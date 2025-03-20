@@ -4,6 +4,8 @@
 ; The DR-DOS/OpenDOS Enhancement Project - http://www.drdosprojects.de
 ; Copyright (c) 2002-2009 Udo Kuhnt
 
+ifdef FATPLUS
+
 	.nolist
 	include	bdos.equ
 	include	fdos.equ
@@ -832,5 +834,7 @@ f71_error:
 	stc
 	ret
 PCM_CODE	ends
+
+endif
 
 	end

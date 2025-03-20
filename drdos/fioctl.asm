@@ -359,8 +359,10 @@ ioctl6:		; file input status
 ioctl6_10:				; disk files/network devices
 	push	es:DHNDL_POSLO[bx]	; save current position in file
 	push	es:DHNDL_POSHI[bx]	;  so we can read ahead
+ifdef FATPLUS
 	push	es:DHNDL_POSXLO[bx]
 	push	es:DHNDL_POSXHI[bx]
+endif
 	push	es
 	push	bx			; save DHNDL_ too..
 	push	bp			; save stack frame
@@ -392,8 +394,10 @@ ioctl6_30:
 	pop	bp			; recover stack frame
 	pop	bx			; rewind DHNDL_POS to where
 	pop	es
+ifdef FATPLUS
 	pop	es:DHNDL_POSXHI[bx]	;  it was before we started
 	pop	es:DHNDL_POSXLO[bx]
+endif
 	pop	es:DHNDL_POSHI[bx]
 	pop	es:DHNDL_POSLO[bx]
 	mov	ax,1a00h		; assume not ready
