@@ -77,6 +77,12 @@ directory.
 You may generate uncompressed kernel binaries by giving 
 `COMPRESSED=0` to the wmake calls above.
 
+### FAT+ support
+Support for FAT+ is not enabled by default. You may build a FAT+ enabled kernel
+by giving `FATPLUS=1` as an argument to wmake. FAT+ is a problematic extension
+to the FAT16/FAT32 file systems, allowing file sizes larger than 4^32-1 bytes.
+You better leave this turned off, unless there is a good reason to enable it.
+
 ### Version and Git revision
 Version and revision information may be given to wmake via
 `VERSION=<YYYYMMDD>` and / or `GIT_REV=<8-digit commit hash>`. This info
