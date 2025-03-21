@@ -881,10 +881,8 @@ rmdir_ok1:
 	cmp	DNAME[di],'.'		; is it "." or ".."?
 	 je	rmdir_ok3
 	mov	bx,di
-ifdef FATPLUS
 	call	is_lfn			; check if it is a long filename
 	 jc	rmdir_ok3		; we do not care for orphaned LFNs
-endif
 ifdef DELWATCH
 ; We have found a dir entry - better check if it is a pending delete
 ; and that delwatch is installed. Then we can ignore it.
@@ -1530,9 +1528,7 @@ toupper_intl:
 
 kill_file:	; release clusters for file/dir and delete entry
 ;---------
-ifdef FATPLUS
 	call	del_lfn			; delete any preceding LFN entries
-endif
 	mov	bx,dirp			; get pointer to directory entry
 ifdef DELWATCH
 	call	hdsblk			; AX = directory root cluster

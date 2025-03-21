@@ -2536,9 +2536,7 @@ move60:					; moving to different directory
 	 jnz	move_access		; so return error if new path
 	call	allocdir		; allocate a directory entry
 move70:
-ifdef FATPLUS
 	call	del_lfn			; make sure no LFN is before it
-endif
 	mov	si,offset info_fcb+1	; get pointer to new name
 	mov	di,dirp			; get pointer to directory entry
 	mov	cx,11			; copy new name into buffer
@@ -2557,9 +2555,7 @@ endif
 	mov	cx,HDS_LEN		; so we can get old entry again
 	rep	movsb			;    (time to get rid of it)
 	call	move_seek		; seek the original entry
-ifdef FATPLUS
 	call	del_lfn			; and delete LFN if one exists
-endif
 	mov	bx,dirp
 	mov	DNAME[bx],0E5h		; and bye, bye! it goes...
 	call	update_dir		; update the old directory entry

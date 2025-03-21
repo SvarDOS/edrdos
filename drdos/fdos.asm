@@ -377,10 +377,8 @@ BDOS_CODE	segment public byte 'CODE'
 	extrn	update_fat:NEAR
 	extrn	write_dev:near		; write to character device
 	extrn	zeroblk:near		; fill cluster with 0's
-ifdef FATPLUS
 	extrn	is_lfn:near		; check if long filename entry
 	extrn	del_lfn:near		; delete long filenames
-endif
 
 	public	bpb2ddsc		; build DDSC from a BPB
 	Public	check_slash

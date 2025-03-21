@@ -4,7 +4,6 @@
 ; The DR-DOS/OpenDOS Enhancement Project - http://www.drdosprojects.de
 ; Copyright (c) 2002-2009 Udo Kuhnt
 
-ifdef FATPLUS
 
 	.nolist
 	include	bdos.equ
@@ -16,8 +15,8 @@ ifdef FATPLUS
 	include	mserror.equ
 	.list
 
-PCMCODE	GROUP	BDOS_CODE,PCM_CODE
-PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA,FDOS_DSEG,PCMODE_CODE
+PCMCODE	GROUP	BDOS_CODE
+PCMDATA	GROUP	BDOS_DATA,FDOS_DSEG
 
 ASSUME DS:PCMDATA
 
@@ -25,24 +24,6 @@ BDOS_DATA	segment public word 'DATA'
 	extrn	dcnt:word
 	extrn	fdos_pb:word
 BDOS_DATA	ends
-
-PCMODE_DATA	segment public word 'DATA'
-
-	extrn	int21regs_ptr:dword
-	extrn	dma_segment:word
-	extrn	dma_offset:word
-	extrn	current_psp:word
-PCMODE_DATA	ends
-
-PCMODE_CODE	segment public word 'DATA'
-	extrn lfn_find_handles:word
-	extrn lfn_find_handles_end:word
-	extrn lfn_find_handle_heap:word
-	extrn lfn_find_handle_heap_end:word
-	extrn lfn_find_handle_heap_free:word
-	extrn lfnpathflag:byte
-	extrn lfn_search_redir:byte
-PCMODE_CODE	ends
 
 BDOS_CODE	segment public word 'CODE'
 
@@ -86,6 +67,30 @@ del_lfn20:
 	call	rd_pcdir		; and old dir entry
 	ret
 BDOS_CODE	ends
+
+
+ifdef FATPLUS
+
+PCMCODE	GROUP	BDOS_CODE,PCM_CODE
+PCMDATA	GROUP	BDOS_DATA,PCMODE_DATA,FDOS_DSEG,PCMODE_CODE
+
+PCMODE_DATA	segment public word 'DATA'
+
+	extrn	int21regs_ptr:dword
+	extrn	dma_segment:word
+	extrn	dma_offset:word
+	extrn	current_psp:word
+PCMODE_DATA	ends
+
+PCMODE_CODE	segment public word 'DATA'
+	extrn lfn_find_handles:word
+	extrn lfn_find_handles_end:word
+	extrn lfn_find_handle_heap:word
+	extrn lfn_find_handle_heap_end:word
+	extrn lfn_find_handle_heap_free:word
+	extrn lfnpathflag:byte
+	extrn lfn_search_redir:byte
+PCMODE_CODE	ends
 
 PCM_CODE	segment public byte 'CODE'
 	extrn	return_AX_CLC:near
@@ -835,6 +840,6 @@ f71_error:
 	ret
 PCM_CODE	ends
 
-endif
+endif	; FATPLUS
 
 	end
