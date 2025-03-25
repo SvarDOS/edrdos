@@ -22,6 +22,7 @@ ASSUME DS:PCMDATA
 
 BDOS_DATA	segment public word 'DATA'
 	extrn	dcnt:word
+	extrn	dirp:word
 	extrn	fdos_pb:word
 BDOS_DATA	ends
 
@@ -65,6 +66,7 @@ del_lfn20:
 	pop	dcnt			; restore dir count
 	dec	dcnt
 	call	rd_pcdir		; and old dir entry
+	mov	dirp,ax			; update dir pointer in case it changed
 	ret
 BDOS_CODE	ends
 

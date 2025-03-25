@@ -332,12 +332,7 @@ rd_pcdir09:
 ;	xchg	ax,cx		; AX = cluster of last dir entry
 	mov	ax,chdblk
 	mov	dx,chdblk+2
-	test	bx,bx		; have we moved onto next cluster?
-	 jnz	rd_pcdir20	; no, trust me..
-	cmp	di,rd_pcdir_last; have we moved onto next cluster?
-	 je	rd_pcdir20	; no, trust me..
-;	mov	dx,1		; move on to next entry in the chain
-	mov	di,1		; move on to next entry in the chain
+	sub	di,rd_pcdir_last ; calculate clusters to skip
 rd_pcdir10:
 ;	or	dx,dx		; skip along chain until we arrive
 	or	di,di		; skip along chain until we arrive
