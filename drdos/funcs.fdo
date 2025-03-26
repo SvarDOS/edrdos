@@ -1778,6 +1778,7 @@ search_n35:
 	inc	si			; skip starting cluster
 	movsw
 	movsw				; return file size
+ifdef FATPLUS
 	mov	al,DSIZEX[bx]		; compute extended file size
 	mov	ah,al
 	and	al,111b
@@ -1798,6 +1799,7 @@ search_n38:
 	stosw
 	stosw				; report 4 GB - 1
 search_n40:
+endif ; FATPLUS
 	jmp	unparse			; return file name
 
 ;	COMMIT FILE (COMMIT)
