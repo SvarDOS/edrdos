@@ -704,7 +704,7 @@ func40:
 	push	dx				; no, we are ignoring it
 	xor	cx,cx				;  CX:DX offset to skip
 	mov	ax,(MS_X_LSEEK*256)+1		;  seek to current+offset
-    call    dos_entry           
+    	call    dos_entry           
 	pop	dx				; finally return # we wanted
 f40_10:						;  to xfer
 	xchg	ax,dx				; AX = return code
