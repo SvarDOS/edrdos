@@ -836,16 +836,7 @@ ifdef FATPLUS
 	mov	fsize+6,ax
 else
 	 jnc	fdw_e03			; file size + fdrwcnt <4GB?
-	mov	ax,fsize		; otherwise restrict fdrwcnt
-	sbb	fdrwcnt,ax
-	 jnz	fdw_e02			; can write at least a single byte?
-	mov	ax,ED_ACCESS		; if not return access denied
-	jmp	fdos_error
-fdw_e02:
-	xor	ax,ax
-	dec	ax
-	mov	fsize,ax
-	mov	fsize+2,ax
+	ret
 fdw_e03:
 endif
 ;	div	clsize			; AX whole blocks required
