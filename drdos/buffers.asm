@@ -437,19 +437,21 @@ alloc_cluster:
 ;	CY set on failure
 ;
 	mov	cx,1
+	xor	bx,bx
 ;	jmp	alloc_chain
 
-alloc_chain:
+
+alloc_chain proc
 ;-----------
 ; On Entry:
 ;	DX:AX = previous cluster (hint for desired start)
-;	CX = # clusters wanted
+;	BX:CX = # clusters wanted
 ; On Exit:
 ;	DX:AX = start of chain, 0 on failure
 ;	CY set on failure
 ;
-; We want to allocate a chain of CX clusters, AX was previous cluster
-; We return with CY clear and AX = 1st cluster in chain on success,
+; We want to allocate a chain of BX:CX clusters, DX:AX was previous cluster
+; We return with CY clear and DX:AX = 1st cluster in chain on success,
 ; CY set on failure
 ;
 ; When allocating a new chain we first ask SSTOR how much physical space is
@@ -462,85 +464,63 @@ alloc_chain:
 ; space to optimise the search.
 ;
 	mov	alloc_chain_cl,cx	; save entry parameters
-	mov	alloc_chain_cl+2,0
-;	push ax ! push cx		; save entry parameters
+	mov	alloc_chain_cl+2,bx
 	push	dx
 	push	ax			; save entry parameters
 	call	update_ddsc_free	; make sure DDSC_FREE is correct
 ifdef DELWATCH
-alloc_chain10:
-;	push	dx			; DX = clusters wanted
-	les	bx,ss:current_ddsc
-	mov	al,adrive		; AL = current drive
 	cmp	dosfat,FAT32		; FAT32 drive?
-	 je	alloc_chain12		; yes
+	 je	@@delwatch_end		;  then skip DELWATCH
+	les	bx,ss:current_ddsc
+@@delwatch_loop:
+	mov	al,adrive		; AL = current drive
 	mov	cx,es:DDSC_FREE[bx]	; CX = clusters available
 	cmp	cx,alloc_chain_cl	; do we have enough room in the FAT ?
-	 jb	alloc_chain20		; if not ask DELWATCH to purge
-	jmp	alloc_chain15
-alloc_chain12:
-	mov	cx,es:word ptr DDSC_BFREE+2[bx]	; CX = clusters available
-;	cmp	cx,dx			; do we have enough room in the FAT ?
-	cmp	cx,alloc_chain_cl+2	; do we have enough room in the FAT ?
-	 jb	alloc_chain20		; if not ask DELWATCH to purge
-	 ja	alloc_chain15
-	mov	cx,es:word ptr DDSC_BFREE[bx]
-	cmp	cx,alloc_chain_cl
-	 jb	alloc_chain20
-alloc_chain15:
+	 jae	@@delwatch_end		; if yes allocate chain
+if 0 ; SSTORE support seems to be broken
 	mov	ah,SSTOR_SPACE		; does Superstore have room for data?
 	call	dword ptr ss:fdos_stub	; call stub routine
+	 jc	@@sstor_end		; try DELWATCH purge when no SSTOR
 	test	cx,cx			; are we out of space ?
-	 jnz	alloc_chain40		; no, go ahead and allocate the chain
+	 jnz	@@delwatch_end		; no, go ahead and allocate the chain
 	mov	es:DDSC_FREE[bx],cx	; SSTOR says there's none, lets agree
-	cmp	dosfat,FAT32		; FAT32 drive?
-	 jne	alloc_chain16		; no, then skip
-	mov	es:word ptr DDSC_BFREE[bx],cx	; SSTOR says there's none, lets agree
-	mov	es:word ptr DDSC_BFREE+2[bx],cx
-alloc_chain16:
 ;	call	update_fat		; flush FAT to bring SSTOR up to date
-	jmp	alloc_chain10		; go round again and ask DELWATCH to
+	jmp	@@delwatch_loop		; go round again and ask DELWATCH to
 					;  free up some more space
 					; we loop until either SSTOR says OK
 					;  or DELWATCH frees all it can
-alloc_chain20:
+@@sstor_end:
+endif ; SSTORE
 	mov	cx,es:DDSC_FREE[bx]
 	mov	ah,DELW_FREECLU		; ask DELWATCH to purge a file
 	call	dword ptr ss:fdos_stub	; call stub routine
-	cmp	cx,es:DDSC_FREE[bx]	; can DELWATCH free up any space ?
-	 jne	alloc_chain10		; yes, go and try again
+	 jc	@@delwatch_end
+	cmp	cx,es:DDSC_FREE[bx]	; could DELWATCH free up any space ?
+	 jne	@@delwatch_loop		; yes, try to free more
 alloc_chain30:
 	pop	ax			; failure, restore stack
 	pop	dx
-	jmp	alloc_chain80		;  and exit in failure
+	jmp	@@err			;  and exit in failure
 
-alloc_chain40:
-endif
+@@delwatch_end:
+endif ; DELWATCH
 	pop	ax			; restore entry parameters
 	pop	dx
-;	push	cx			; save # required
-;	xor	dx,dx
 	call	allocate_cluster	; try to allocate 1st cluster
-;	pop	cx			; recover # required
 	test	ax,ax			; could we ?
-	 jnz	alloc_chain45
+	 jnz	@f
 	test	dx,dx
-	 jz	alloc_chain80
-alloc_chain45:
-;	dec	cx			; one less to allocate
-	sub	alloc_chain_cl,1	; one less to allocate
+	 jz	@@err
+@@:	sub	alloc_chain_cl,1	; one less to allocate
 	sbb	alloc_chain_cl+2,0
 
 	push	dx
 	push	ax			; save head of chain
-;	 jcxz	alloc_chain60
 	cmp	alloc_chain_cl+2,0
-	 jnz	alloc_chain50
+	 jnz	@@loop
 	cmp	alloc_chain_cl,0
-	 jz	alloc_chain60
-alloc_chain50:
-;	push	cx
-
+	 jz	@@done
+@@loop:
 	push	dx
 	push	ax			; save current end of chain
 	call	allocate_cluster	; allocate another cluster
@@ -548,44 +528,39 @@ alloc_chain50:
 	pop	cx
 
 	test	ax,ax			; could we allocate anything ?
-	 jnz	alloc_chain55
+	 jnz	@f
 	test	dx,dx
-	 jz	alloc_chain70		; no, bail out and free partial chain
-
-alloc_chain55:
-	xchg	ax,bx			; DX:AX = previous cluster, link cluster
+	 jz	@@undo_alloc		; no, bail out and free partial chain
+@@:	xchg	ax,bx			; DX:AX = previous cluster, link cluster
 	xchg	dx,cx
 	push	cx
-	push	bx			;  CX:BX to end of the chain
+	push	bx			; CX:BX to end of the chain
 	call	fixfat
 	pop	ax			; DX:AX = new end of chain
 	pop	dx
-
-;	pop	cx
-;	loop	alloc_chain50
 	sub	alloc_chain_cl,1
 	sbb	alloc_chain_cl+2,0
-	cmp	alloc_chain_cl+2,0
-	 jne	alloc_chain50
+	 jnz	@@loop
 	cmp	alloc_chain_cl,0
-	 jne	alloc_chain50
-alloc_chain60:
+	 jnz	@@loop
+@@done:
 	pop	ax			; return the start of the chain as it's
 	pop	dx
 	clc				;  long enough now...
 	ret
 
-alloc_chain70:
+@@undo_alloc:
 ; We haven't enough free clusters - lets free what we allocated so far
-;	pop	cx			; discard count
 	pop	ax			; DX:AX = start of chain
 	pop	dx
 	call	delfat			; release the chain
-alloc_chain80:
+@@err:
 	xor	ax,ax
 	xor	dx,dx
 	stc				; we couldn't manage it
 	ret
+alloc_chain endp
+
 
 allocate_cluster:
 ;----------------

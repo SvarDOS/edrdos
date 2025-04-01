@@ -933,8 +933,9 @@ fdw_e20:
 fdw_e30:
 ; We have no initial block, so allocate them all
 ;	xor	ax,ax			; no preconceptions over where we
-	mov	cx,fdw_extend_cl	; this value *should* not exceed 16 bits...
-	call	alloc_chain		;  allocate chain of CX clusters
+	mov	cx,fdw_extend_cl
+	mov	bx,fdw_extend_cl+2
+	call	alloc_chain		;  allocate chain of BX:CX clusters
 	 jc	fdw_e35
 	les	bx,current_dhndl
 	mov	es:DHNDL_BLK1[bx],ax	; remember initial block
@@ -949,7 +950,8 @@ fdw_e40:
 	push	bx			; save current end of chain
 	xchg	ax,bx			; start allocating from cluster AX a
 	xchg	dx,cx
-	mov	cx,fdw_extend_cl	; this value *should* not exceed 16 bits...
+	mov	cx,fdw_extend_cl
+	mov	bx,fdw_extend_cl+2
 	call	alloc_chain		;  a chain of CX clusters
 	pop	bx
 	pop	cx

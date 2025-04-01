@@ -272,7 +272,9 @@ fdos_mkdir:
 	call	stamp_dir_entry		; set time and date in FCB
 	xor	ax,ax
 	xor	dx,dx
+	push	bx
 	call	alloc_cluster		; Allocate a block
+	pop	bx
 	 jc	mkdir_err		; Report Error(no room on disk)
 	mov	si,dirp
 	mov	DBLOCK1[si],ax		; Initialize 1st block of fcb
