@@ -990,9 +990,9 @@ redir_lseek16:
 	mov	cx,dx
 	jmp	redir_lseek90
 redir_lseek17:
+endif
 	mov	dx,es:DHNDL_POSLO[di]
 	mov	cx,es:DHNDL_POSHI[di]
-endif
 	jmp	redir_lseek90
 
 redir_lseek20:				; seek mode 0: set absolute position
