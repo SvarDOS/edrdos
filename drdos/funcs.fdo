@@ -996,7 +996,6 @@ fdos_lseek proc
 	 jz	@@seek_end		; seek from end
 @@err:	mov	ax,ED_DATA		; else invalid seek mode
 	jmp	fdos_error		; return error code
-	ret				; return error code
 
 @@seek_beg:				; seek mode 0: set absolute position
 	mov	es:DHNDL_POSLO[bx],ax
