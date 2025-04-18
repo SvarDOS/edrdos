@@ -1799,7 +1799,7 @@ creat_handle20:
 	mov	ax,ss:word ptr current_ddsc+WORD
 	stosw
 	mov	ax,DBLOCK1[si]		; get starting cluster of file
-;	lea	di,DHNDL_BLK1[bx]
+	lea	di,DHNDL_BLK1[bx]
 	stosw
 	xor	ax,ax
 	cmp	dosfat,FAT32		; is this a FAT32 file system?
@@ -1848,22 +1848,22 @@ endif
 	lea	di,DHNDL_DBLKH[bx]
 	stosw
 	mov	ax,dcnt			; set DCNT of file
-	lea	di,DHNDL_DCNTLO[bx]
-	stosb				; store low byte of DCNT
+	mov	es:DHNDL_DCNTLO[bx],al	; store low byte of DCNT
 	mov	es:DHNDL_DCNTHI[bx],ah	;  and hi byte
 	lea	di,DHNDL_NAME[bx]	; copy name from dir entry
 	mov	si,dirp
 	mov	cx,11
 	rep	movsb
 	xor	ax,ax
-	stosw				; zero DWORD 
-	stosw
+;	stosw				; zero DWORD 
+;	stosw
 	lea	di,DHNDL_SHARE[bx]	; zero sharing record
 	stosw
+;	stosw
+;	stosw
+;	stosw				; zero DHNDL_BLK + IFS
+	lea	di,DHNDL_BLK[bx]
 	stosw
-	stosw
-	stosw				; zero DHNDL_BLK + IFS
-	lea	di,DHNDL_BLKH[bx]
 	stosw
 	call	dword ptr ss:share_stub+S_OPEN	; we have opened this handle
 					;  ask SHARE to register it
