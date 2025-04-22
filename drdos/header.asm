@@ -294,8 +294,8 @@ dmd_upper_root	dw	0FFFFh		; 0066 dmd_upper_root
 msdos_file_tbl	dw	-1		; 00A6 1st HDB entries
 		dw	-1		; Pointer to next Entry (None)
 ifdef FATPLUS
-		dw	3		; Number of Entries
-		db	3*DHNDL_LEN dup (0)	; Reserve 3 Internal Handles
+		dw	4		; Number of Entries
+		db	4*DHNDL_LEN dup (0)	; Reserve 4 Internal Handles
 else
 		dw	5		; Number of Entries
 		db	5*DHNDL_LEN dup (0)	; Reserve 5 Internal Handles

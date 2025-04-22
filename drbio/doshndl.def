@@ -79,7 +79,7 @@ DHAT_CIN	equ	0001h			; handle is console input device
 
 
 ifdef FATPLUS
-DHNDL_LEN	equ	4Bh
+DHNDL_LEN	equ	42h
 else
 DHNDL_LEN	equ	3Bh
 endif

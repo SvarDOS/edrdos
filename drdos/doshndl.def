@@ -113,15 +113,15 @@ DHNDL_BLKH	equ	word ptr 37h		; 37 - absolute cluster of last read
 DHNDL_DCNTHI	equ	byte ptr 39h		; 39 - dir offset # within cluster
 						;      (higher 8 bits)
 ifdef FATPLUS
-DHNDL_SIZEX	equ	dword ptr 43h		; 43 - file length
+DHNDL_SIZEX	equ	dword ptr 3ah		; 3a - file length
 						;      (higher 32 bits)
-DHNDL_SIZEXLO	equ	word ptr 43h
-DHNDL_SIZEXHI	equ	word ptr 45h
-DHNDL_POSX	equ	dword ptr 47h		; 47 - current file position
+DHNDL_SIZEXLO	equ	word ptr 3ah
+DHNDL_SIZEXHI	equ	word ptr 3ch
+DHNDL_POSX	equ	dword ptr 3eh		; 3e - current file position
 						;      (higher 32 bits)
-DHNDL_POSXLO	equ	word ptr 47h
-DHNDL_POSXHI	equ	word ptr 49h
-DHNDL_LEN	equ	4Bh
+DHNDL_POSXLO	equ	word ptr 3eh
+DHNDL_POSXHI	equ	word ptr 40h
+DHNDL_LEN	equ	42h
 else
 DHNDL_PADDING	equ	byte ptr 3Ah
 DHNDL_LEN	equ	3Bh
