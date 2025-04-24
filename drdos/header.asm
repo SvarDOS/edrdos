@@ -681,8 +681,8 @@ info7_len	equ	word ptr (offset $ - offset DBCS_tbl)
 ;    org 0d12h - FIXED_DATA_START    
     org 0d10h - FIXED_DATA_START    
 
-true_version	dw	107h			; true DOS version
-dos_version	dw	6			; our DOS version number
+true_version	dw	0a07h			; true DOS version
+dos_version	dw	0a07h			; our DOS version number
 
 ; Don't know what these are for.....
 		db	0c8h,0a6h
