@@ -233,11 +233,42 @@ ioctl10:	; query ioctl support (device handle)
 	les	si,es:DHNDL_DEVPTR[bx]	; ES:SI -> device driver
 	jmp	ioc2345CDcommon		;  now use common code
 
+ioctlD:		; generic ioctl (drive)
+;------
+	call	local_disk		; get MXdisk, switch stack
+	call	get_pb2_ddsc		; get drives DDSC_
+	; Logical and physical volume locking is done by the kernel, not
+	; the device driver. So test for these requests and return
+	; success, as we do not have to lock anything under DOS.
+	mov	bx,offset ioctlRH
+	mov	cx,ss:RH19_CATEGORY[bx]
+	cmp	cl,8h
+	 je	ioctlD_cat_good
+	cmp	cl,48h
+	 je	ioctlD_cat_good
+	jmp	ioctlD_10
+ioctlD_cat_good:
+	cmp	ch,RQ19_LOCKLOG
+	 je	ioctlD_ret
+	cmp	ch,RQ19_UNLOCKLOG
+	 je	ioctlD_ret
+	cmp	ch,RQ19_LOCKPHYS
+	 je	ioctlD_ret
+	cmp	ch,RQ19_UNLOCKPHYS
+	 jne	ioctlD_10
+ioctlD_ret:
+	xor	ax,ax
+	mov	es:RH_STATUS[bx],ax	; set return status
+	ret
+ioctlD_10:
+	; pass requests other than locking / unlocking to the device driver
+	mov	cl,es:DDSC_RUNIT[bx]	; get relative unit #
+	les	si,es:DDSC_DEVHEAD[bx]	; ES:SI -> device header
+	jmp	ioc2345CDcommon		;  now use common code
+
 ioctl4:		; receive control string (drive)
 ;------
 ioctl5:		; send control string (drive)
-;------
-ioctlD:		; generic ioctl (drive)
 ;------
 ioctl11:	; query ioctl support (drive)
 ;-------
