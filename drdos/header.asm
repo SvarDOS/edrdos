@@ -172,6 +172,7 @@ PCMODE_DATA	segment public word 'DATA'
 	Public	share_stub
 	Public	sector_size
 	Public	setverPtr
+	Public	true_version
 	Public	dos_version
 
 	Public	@hist_flg		; History control flag

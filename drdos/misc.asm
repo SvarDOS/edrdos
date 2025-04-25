@@ -89,6 +89,7 @@ GLOBAL_DATA	segment public word 'DATA'
 	extrn	info5_len:abs
 	extrn	info6_len:abs
 	extrn	info7_len:abs
+	extrn	true_version:word
 	extrn	dos_version:word
 	extrn	country_filename:byte
 GLOBAL_DATA	ends
@@ -461,6 +462,8 @@ f33_XX:
 	 je	f33_30
 	cmp	al,6			; get true version ?
 	 je	f33_60
+	cmp	al,0fch			; set DOS version?
+	 je	f33_fc
 	mov	reg_AL[bp],0FFh		; return AL = FF
 	ret				; Illegal function request
 f33_10:
@@ -478,17 +481,21 @@ f33_40:
 
 f33_60:
 	mov	es,current_psp
-	mov	ax,es:PSP_VERSION		; reported version for current program
+	mov	ax,es:PSP_VERSION	; reported version for current program
 	cmp	ax,dos_version		; has this been faked with SETVER?
 	mov	reg_BX[bp],ax
 	 jne	f33_61			; yes, then fake the true version, too
-	mov	ax,dos_version-2	; if not, then honestly return true version number
+	mov	ax,true_version		; if not, then honestly return true version number
 	mov	reg_BX[bp],ax
 f33_61:
 	mov	ax,patch_version
 	mov	reg_DX[bp],ax		; return revision+HMA
 	ret
 
+f33_fc:
+	mov	ax,reg_BX[bp]
+	mov	dos_version,ax
+	ret
 
 ;
 ;	*****************************
