@@ -2388,6 +2388,12 @@ floppy_init:
 	xor	dx,dx			; for NEAT hard disk boot bug
 	int_____DISK_INT
 	int	EQUIPMENT_INT		; determine equipment status
+	test	al,1			; zero if we have no floppy
+	 jnz	equip_have_floppy
+	mov	ax,2
+	mov	nfloppy,0
+	jmp	equip_check_des
+equip_have_floppy:
 	mov	cl,6
 	shr	ax,cl			; shift down floppy bits
 	and 	ax,03h			; mask for floppy
