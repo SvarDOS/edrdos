@@ -233,16 +233,48 @@ ioctl10:	; query ioctl support (device handle)
 	les	si,es:DHNDL_DEVPTR[bx]	; ES:SI -> device driver
 	jmp	ioc2345CDcommon		;  now use common code
 
+ioctlD:		; generic ioctl (drive)
+;------
+	call	local_disk		; get MXdisk, switch stack
+	call	get_pb2_ddsc		; get drives DDSC_
+	; We do not pass the logical and physical (un)locking to the device
+	; driver, but simply return success.
+	push	bx
+	mov	bx,offset ioctlRH	; ES:BX -> request header
+	mov	ax,ss:RH19_CATEGORY[bx]
+	cmp	al,8h			; category must be 8 or 48h
+	 je	ioctlD_cat_good
+ 	cmp	al,48h
+ 	 je	ioctlD_cat_good
+ 	jmp	ioctlD_10
+ ioctlD_cat_good:
+ 	cmp	ah,RQ19_LOCKLOG
+ 	 je	ioctlD_ret
+ 	cmp	ah,RQ19_UNLOCKLOG
+ 	 je	ioctlD_ret
+ 	cmp	ah,RQ19_LOCKPHYS
+ 	 je	ioctlD_ret
+ 	cmp	ah,RQ19_UNLOCKPHYS
+ 	 je	ioctlD_ret
+ ioctlD_10:
+ 	; All other functions than (un)locking are passed to the driver
+	pop	bx
+	jmp	ioctl11_10
+ioctlD_ret:
+	; Return "fake" success for (un)locking functions
+	pop	bx
+	xor	ax,ax			; zero is success
+	ret
+
 ioctl4:		; receive control string (drive)
 ;------
 ioctl5:		; send control string (drive)
-;------
-ioctlD:		; generic ioctl (drive)
 ;------
 ioctl11:	; query ioctl support (drive)
 ;-------
 	call	local_disk		; get MXdisk, switch stack
 	call	get_pb2_ddsc		; get drives DDSC_
+ioctl11_10:
 	mov	cl,es:DDSC_RUNIT[bx]	; get relative unit #
 	les	si,es:DDSC_DEVHEAD[bx]	; ES:SI -> device header
 ;	jmp	ioctl2345Common		;  now use common code

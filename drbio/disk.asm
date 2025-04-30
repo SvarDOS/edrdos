@@ -1573,14 +1573,6 @@ genioctlTable	label	byte
 	dw	offset ioctl_setaccess
 	db	RQ19_GETACCESS		; get access flag
 	dw	offset ioctl_getaccess	
-	db	RQ19_LOCKLOG
-	dw	offset ioctl_locklogical
-	db	RQ19_LOCKPHYS
-	dw	offset ioctl_lockphysical
-	db	RQ19_UNLOCKLOG
-	dw	offset ioctl_unlocklogical
-	db	RQ19_UNLOCKPHYS
-	dw	offset ioctl_unlockphysical
 	db	0			; terminate the list
 
 ioctl_cat	db	0		; category code for dd_geniotcl
@@ -2102,13 +2094,6 @@ ioctl_getaccess proc
 	ret
 ioctl_getaccess endp
 
-
-ioctl_locklogical:
-ioctl_lockphysical:
-ioctl_unlocklogical:
-ioctl_unlockphysical:
-	xor	ax,ax			; return success
-	ret
 
 rw_media:
 ;--------
