@@ -139,14 +139,20 @@ static u8 calculate_checksum( const u8 *data, size_t len )
 }
 
 
-static int process_lnames( u8 *data, size_t len  )
+static int process_lnames( u8 *data, size_t *len )
 {
-   const u8 *data_end = data + len - 1;
-   u8 *p = data + 3;       /* skip record type and length fields */
-   u8 length;
+   static u8 original[REC_BUF_SZ];
+   u8 *sdata_end = original + *len - 1; /* process until chksum is reached */
+   u8 *ppatched = data + 3;             /* ppatched points to patched record */
+   u8 *p = original + 3;                /* skip record type and length fields */
+   u8 length, minus, ii, jj;
    u8* lname;
+   unsigned first;
 
-   while ( p < data_end ) {
+   /* make backup copy of the original record */
+   memcpy( original, data, *len );
+
+   while ( p < sdata_end ) {
       length = *p++;
       if ( lnames_count >= MAX_LNAMES ) {
          fputs( "Error: Too many lnames!\n", stderr );
@@ -155,22 +161,50 @@ static int process_lnames( u8 *data, size_t len  )
       ++ lnames_count;
       if ( !length ) {
          lnames[lnames_count] = emptylname;
+         *ppatched = 0;
+         ++ ppatched;
          continue;
       }
-      lname = malloc(length + 1);
+      for (ii = 0, minus = 0; ii < length;) {
+        if (memcmp(p + ii, "D.", 2)) {
+          break;
+        }
+        ++ minus;
+        ++ ii;
+        ++ ii;
+      }
+      lname = malloc(length + 1 - minus);
       if ( !lname ) {
          fputs( "Error: Out of memory for lnames!\n", stderr );
          return 0;
       }
-      memcpy( lname, p, length );
-      lname[length] = 0;
+      first = 1;
+      for (jj = 0, ii = 0; ii < length; ++ jj, ++ ii) {
+        if (first && ! memcmp(p + ii, "D.", 2) ) {
+          lname[jj] = '$';
+          ++ ii;
+        } else {
+          first = 0;
+          lname[jj] = p[ii];
+        }
+      }
+      lname[jj] = 0;
       lnames[lnames_count] = lname;
       p += length;
+      *ppatched = jj;
+      ++ ppatched;
+      memcpy(ppatched, lname, jj);
+      ppatched += jj;
    }
-   if ( p != data_end ) {
+   if ( p != sdata_end ) {
       fputs( "Error: Overflow in lnames!\n", stderr );
       return 0;
    }
+
+   /* encode new record length and checksum */
+   put_16( (u16)(ppatched - data - 3 + 1), data + 1 );
+   *ppatched = -calculate_checksum( data, ppatched - data );
+   *len = ppatched - data + 1;
 
    return 1;
 }
@@ -439,9 +473,9 @@ static int process_pubdef( u8 *data, size_t *len )
    u8 *s = original + 3;            /* s points to original record */
    u8 *s_end = original + *len - 1; /* process until chksum is reached */
    u8 *p = data + 3;                /* p points to patched record */
-   u8 *s_past_index;
+   u8 *s_past_index, *sname, *sname_end;
    u16 group, newgroup, segment, slen;
-   unsigned skip = 0;
+   unsigned skip = 0, havedollar = 0;
 
    /* make backup copy of the original fixups */
    memcpy( original, data, *len );
@@ -461,6 +495,30 @@ static int process_pubdef( u8 *data, size_t *len )
    if ( newgroup == 0 ) {
       skip = 1;		/* segment isn't in a group  */
    }
+
+   sname = s;
+   sname_end = s_end;
+      while ( sname < sname_end ) {
+         u8 namelength = *sname++;
+         u8* name = sname;
+         u16 offset, type;
+         sname += namelength;
+         if ( !namelength ) {
+            fprintf( stderr, "Error: Empty pubdef name!\n" );
+            return 0;
+         }
+         offset = get_16( &sname );
+         type = get_index( &sname );
+         (void)offset;
+         (void)type;
+         if (! memcmp(name, "D.", 2) ) {
+            skip = 0;
+            havedollar = 1;
+            break;
+         }
+      }
+   sname = s;
+   sname_end = s_end;
 
    if ( verbose || (displaygroupchange && !skip) ) {
       char *initial = "\n";
@@ -527,9 +585,43 @@ static int process_pubdef( u8 *data, size_t *len )
    }
    put_index( newgroup, &p );
    put_index( segment, &p );
-   slen = s_end - s_past_index;
-   memcpy( p, s_past_index, slen );
-   p += slen;
+
+   if (havedollar) {
+      while ( sname < sname_end ) {
+         unsigned first;
+         u8 * plength = p;
+         u8 jj, ii, namelength = *sname++;
+         u8* name = sname;
+         u16 offset, type;
+         sname += namelength;
+         if ( !namelength ) {
+            fprintf( stderr, "Error: Empty pubdef name!\n" );
+            return 0;
+         }
+         offset = get_16( &sname );
+         type = get_index( &sname );
+         ++ p;
+         first = 1;
+         for (jj = 0, ii = 0; ii < namelength; ++ jj, ++ ii) {
+            if (first && ! memcmp(name + ii, "D.", 2) ) {
+               p[jj] = '$';
+               ++ ii;
+            } else {
+               first = 0;
+               p[jj] = name[ii];
+            }
+         }
+         *plength = jj;
+         p += jj;
+         put_16(offset, p);
+         p += 2;
+         put_index(type, &p);
+      }
+   } else {
+      slen = s_end - s_past_index;
+      memcpy( p, s_past_index, slen );
+      p += slen;
+   }
 
    /* encode new record length and checksum */
    put_16( (u16)(p - data - 3 + 1), data + 1 );
@@ -567,7 +659,7 @@ int process_records( FILE *inf, FILE *outf )
             result = process_pubdef( record_data, &record_sz );
             break;
          case LNAMES_REC:
-            result = process_lnames( record_data, record_sz );
+            result = process_lnames( record_data, &record_sz );
             break;
          case LEDATA16_REC:
          case LIDATA16_REC:
