@@ -1631,6 +1631,8 @@ GLOBAL VOID CDECL cmd_set( BYTE *s )
       return;
    } /* a syntax error.		*/
 
+   s++;                        /* skip over = (include in key name) */
+
 #if 0
 	/* msdos doesn't do this */
 
@@ -1649,7 +1651,7 @@ GLOBAL VOID CDECL cmd_set( BYTE *s )
       crlfflg = YES;
       return;
    }
-   *s++ = c;
+   *s = c;    /* recover first character of value */
 
    if ( *s != 0 ) { /* Add the definition to the end*/
       /* of the environment if the new*/
