@@ -1131,7 +1131,7 @@ redir_getdpb10:
 	pop	ax 
 	dec	al			; make cluster mask
 	mov	[DDSC_CLMSK+di],al	; and stuff into DPB
-	mov	ah,0
+	xor	ah,ah
 redir_getdpb20:				; prepare ah to contain
 	shr	al,1			; log2 of cluster size (in sectors)
 	jnc	redir_getdpb30
